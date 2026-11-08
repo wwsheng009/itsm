@@ -118,6 +118,258 @@ func (_c *SupportContractCreate) SetNillableSourceDocumentID(v *int) *SupportCon
 	return _c
 }
 
+// SetEffectiveFrom sets the "effective_from" field.
+func (_c *SupportContractCreate) SetEffectiveFrom(v time.Time) *SupportContractCreate {
+	_c.mutation.SetEffectiveFrom(v)
+	return _c
+}
+
+// SetNillableEffectiveFrom sets the "effective_from" field if the given value is not nil.
+func (_c *SupportContractCreate) SetNillableEffectiveFrom(v *time.Time) *SupportContractCreate {
+	if v != nil {
+		_c.SetEffectiveFrom(*v)
+	}
+	return _c
+}
+
+// SetEffectiveUntil sets the "effective_until" field.
+func (_c *SupportContractCreate) SetEffectiveUntil(v time.Time) *SupportContractCreate {
+	_c.mutation.SetEffectiveUntil(v)
+	return _c
+}
+
+// SetNillableEffectiveUntil sets the "effective_until" field if the given value is not nil.
+func (_c *SupportContractCreate) SetNillableEffectiveUntil(v *time.Time) *SupportContractCreate {
+	if v != nil {
+		_c.SetEffectiveUntil(*v)
+	}
+	return _c
+}
+
+// SetSignedAt sets the "signed_at" field.
+func (_c *SupportContractCreate) SetSignedAt(v time.Time) *SupportContractCreate {
+	_c.mutation.SetSignedAt(v)
+	return _c
+}
+
+// SetNillableSignedAt sets the "signed_at" field if the given value is not nil.
+func (_c *SupportContractCreate) SetNillableSignedAt(v *time.Time) *SupportContractCreate {
+	if v != nil {
+		_c.SetSignedAt(*v)
+	}
+	return _c
+}
+
+// SetAmount sets the "amount" field.
+func (_c *SupportContractCreate) SetAmount(v float64) *SupportContractCreate {
+	_c.mutation.SetAmount(v)
+	return _c
+}
+
+// SetNillableAmount sets the "amount" field if the given value is not nil.
+func (_c *SupportContractCreate) SetNillableAmount(v *float64) *SupportContractCreate {
+	if v != nil {
+		_c.SetAmount(*v)
+	}
+	return _c
+}
+
+// SetCurrency sets the "currency" field.
+func (_c *SupportContractCreate) SetCurrency(v string) *SupportContractCreate {
+	_c.mutation.SetCurrency(v)
+	return _c
+}
+
+// SetNillableCurrency sets the "currency" field if the given value is not nil.
+func (_c *SupportContractCreate) SetNillableCurrency(v *string) *SupportContractCreate {
+	if v != nil {
+		_c.SetCurrency(*v)
+	}
+	return _c
+}
+
+// SetContractType sets the "contract_type" field.
+func (_c *SupportContractCreate) SetContractType(v string) *SupportContractCreate {
+	_c.mutation.SetContractType(v)
+	return _c
+}
+
+// SetNillableContractType sets the "contract_type" field if the given value is not nil.
+func (_c *SupportContractCreate) SetNillableContractType(v *string) *SupportContractCreate {
+	if v != nil {
+		_c.SetContractType(*v)
+	}
+	return _c
+}
+
+// SetContractName sets the "contract_name" field.
+func (_c *SupportContractCreate) SetContractName(v string) *SupportContractCreate {
+	_c.mutation.SetContractName(v)
+	return _c
+}
+
+// SetNillableContractName sets the "contract_name" field if the given value is not nil.
+func (_c *SupportContractCreate) SetNillableContractName(v *string) *SupportContractCreate {
+	if v != nil {
+		_c.SetContractName(*v)
+	}
+	return _c
+}
+
+// SetParentContractID sets the "parent_contract_id" field.
+func (_c *SupportContractCreate) SetParentContractID(v int) *SupportContractCreate {
+	_c.mutation.SetParentContractID(v)
+	return _c
+}
+
+// SetNillableParentContractID sets the "parent_contract_id" field if the given value is not nil.
+func (_c *SupportContractCreate) SetNillableParentContractID(v *int) *SupportContractCreate {
+	if v != nil {
+		_c.SetParentContractID(*v)
+	}
+	return _c
+}
+
+// SetRenewalOfContractID sets the "renewal_of_contract_id" field.
+func (_c *SupportContractCreate) SetRenewalOfContractID(v int) *SupportContractCreate {
+	_c.mutation.SetRenewalOfContractID(v)
+	return _c
+}
+
+// SetNillableRenewalOfContractID sets the "renewal_of_contract_id" field if the given value is not nil.
+func (_c *SupportContractCreate) SetNillableRenewalOfContractID(v *int) *SupportContractCreate {
+	if v != nil {
+		_c.SetRenewalOfContractID(*v)
+	}
+	return _c
+}
+
+// SetAmendmentCount sets the "amendment_count" field.
+func (_c *SupportContractCreate) SetAmendmentCount(v int) *SupportContractCreate {
+	_c.mutation.SetAmendmentCount(v)
+	return _c
+}
+
+// SetNillableAmendmentCount sets the "amendment_count" field if the given value is not nil.
+func (_c *SupportContractCreate) SetNillableAmendmentCount(v *int) *SupportContractCreate {
+	if v != nil {
+		_c.SetAmendmentCount(*v)
+	}
+	return _c
+}
+
+// SetSLADefinitionID sets the "sla_definition_id" field.
+func (_c *SupportContractCreate) SetSLADefinitionID(v int) *SupportContractCreate {
+	_c.mutation.SetSLADefinitionID(v)
+	return _c
+}
+
+// SetNillableSLADefinitionID sets the "sla_definition_id" field if the given value is not nil.
+func (_c *SupportContractCreate) SetNillableSLADefinitionID(v *int) *SupportContractCreate {
+	if v != nil {
+		_c.SetSLADefinitionID(*v)
+	}
+	return _c
+}
+
+// SetAutoRenew sets the "auto_renew" field.
+func (_c *SupportContractCreate) SetAutoRenew(v bool) *SupportContractCreate {
+	_c.mutation.SetAutoRenew(v)
+	return _c
+}
+
+// SetNillableAutoRenew sets the "auto_renew" field if the given value is not nil.
+func (_c *SupportContractCreate) SetNillableAutoRenew(v *bool) *SupportContractCreate {
+	if v != nil {
+		_c.SetAutoRenew(*v)
+	}
+	return _c
+}
+
+// SetTerminatedAt sets the "terminated_at" field.
+func (_c *SupportContractCreate) SetTerminatedAt(v time.Time) *SupportContractCreate {
+	_c.mutation.SetTerminatedAt(v)
+	return _c
+}
+
+// SetNillableTerminatedAt sets the "terminated_at" field if the given value is not nil.
+func (_c *SupportContractCreate) SetNillableTerminatedAt(v *time.Time) *SupportContractCreate {
+	if v != nil {
+		_c.SetTerminatedAt(*v)
+	}
+	return _c
+}
+
+// SetTerminationReason sets the "termination_reason" field.
+func (_c *SupportContractCreate) SetTerminationReason(v string) *SupportContractCreate {
+	_c.mutation.SetTerminationReason(v)
+	return _c
+}
+
+// SetNillableTerminationReason sets the "termination_reason" field if the given value is not nil.
+func (_c *SupportContractCreate) SetNillableTerminationReason(v *string) *SupportContractCreate {
+	if v != nil {
+		_c.SetTerminationReason(*v)
+	}
+	return _c
+}
+
+// SetDeletedAt sets the "deleted_at" field.
+func (_c *SupportContractCreate) SetDeletedAt(v time.Time) *SupportContractCreate {
+	_c.mutation.SetDeletedAt(v)
+	return _c
+}
+
+// SetNillableDeletedAt sets the "deleted_at" field if the given value is not nil.
+func (_c *SupportContractCreate) SetNillableDeletedAt(v *time.Time) *SupportContractCreate {
+	if v != nil {
+		_c.SetDeletedAt(*v)
+	}
+	return _c
+}
+
+// SetVersion sets the "version" field.
+func (_c *SupportContractCreate) SetVersion(v int64) *SupportContractCreate {
+	_c.mutation.SetVersion(v)
+	return _c
+}
+
+// SetNillableVersion sets the "version" field if the given value is not nil.
+func (_c *SupportContractCreate) SetNillableVersion(v *int64) *SupportContractCreate {
+	if v != nil {
+		_c.SetVersion(*v)
+	}
+	return _c
+}
+
+// SetCreatedBy sets the "created_by" field.
+func (_c *SupportContractCreate) SetCreatedBy(v int) *SupportContractCreate {
+	_c.mutation.SetCreatedBy(v)
+	return _c
+}
+
+// SetNillableCreatedBy sets the "created_by" field if the given value is not nil.
+func (_c *SupportContractCreate) SetNillableCreatedBy(v *int) *SupportContractCreate {
+	if v != nil {
+		_c.SetCreatedBy(*v)
+	}
+	return _c
+}
+
+// SetUpdatedBy sets the "updated_by" field.
+func (_c *SupportContractCreate) SetUpdatedBy(v int) *SupportContractCreate {
+	_c.mutation.SetUpdatedBy(v)
+	return _c
+}
+
+// SetNillableUpdatedBy sets the "updated_by" field if the given value is not nil.
+func (_c *SupportContractCreate) SetNillableUpdatedBy(v *int) *SupportContractCreate {
+	if v != nil {
+		_c.SetUpdatedBy(*v)
+	}
+	return _c
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (_c *SupportContractCreate) SetCreatedAt(v time.Time) *SupportContractCreate {
 	_c.mutation.SetCreatedAt(v)
@@ -225,6 +477,22 @@ func (_c *SupportContractCreate) defaults() {
 		v := supportcontract.DefaultStatus
 		_c.mutation.SetStatus(v)
 	}
+	if _, ok := _c.mutation.ContractType(); !ok {
+		v := supportcontract.DefaultContractType
+		_c.mutation.SetContractType(v)
+	}
+	if _, ok := _c.mutation.AmendmentCount(); !ok {
+		v := supportcontract.DefaultAmendmentCount
+		_c.mutation.SetAmendmentCount(v)
+	}
+	if _, ok := _c.mutation.AutoRenew(); !ok {
+		v := supportcontract.DefaultAutoRenew
+		_c.mutation.SetAutoRenew(v)
+	}
+	if _, ok := _c.mutation.Version(); !ok {
+		v := supportcontract.DefaultVersion
+		_c.mutation.SetVersion(v)
+	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		v := supportcontract.DefaultCreatedAt()
 		_c.mutation.SetCreatedAt(v)
@@ -276,6 +544,38 @@ func (_c *SupportContractCreate) check() error {
 		if err := supportcontract.StatusValidator(v); err != nil {
 			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "SupportContract.status": %w`, err)}
 		}
+	}
+	if v, ok := _c.mutation.Currency(); ok {
+		if err := supportcontract.CurrencyValidator(v); err != nil {
+			return &ValidationError{Name: "currency", err: fmt.Errorf(`ent: validator failed for field "SupportContract.currency": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.ContractType(); !ok {
+		return &ValidationError{Name: "contract_type", err: errors.New(`ent: missing required field "SupportContract.contract_type"`)}
+	}
+	if v, ok := _c.mutation.ContractType(); ok {
+		if err := supportcontract.ContractTypeValidator(v); err != nil {
+			return &ValidationError{Name: "contract_type", err: fmt.Errorf(`ent: validator failed for field "SupportContract.contract_type": %w`, err)}
+		}
+	}
+	if v, ok := _c.mutation.ContractName(); ok {
+		if err := supportcontract.ContractNameValidator(v); err != nil {
+			return &ValidationError{Name: "contract_name", err: fmt.Errorf(`ent: validator failed for field "SupportContract.contract_name": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.AmendmentCount(); !ok {
+		return &ValidationError{Name: "amendment_count", err: errors.New(`ent: missing required field "SupportContract.amendment_count"`)}
+	}
+	if _, ok := _c.mutation.AutoRenew(); !ok {
+		return &ValidationError{Name: "auto_renew", err: errors.New(`ent: missing required field "SupportContract.auto_renew"`)}
+	}
+	if v, ok := _c.mutation.TerminationReason(); ok {
+		if err := supportcontract.TerminationReasonValidator(v); err != nil {
+			return &ValidationError{Name: "termination_reason", err: fmt.Errorf(`ent: validator failed for field "SupportContract.termination_reason": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.Version(); !ok {
+		return &ValidationError{Name: "version", err: errors.New(`ent: missing required field "SupportContract.version"`)}
 	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		return &ValidationError{Name: "created_at", err: errors.New(`ent: missing required field "SupportContract.created_at"`)}
@@ -339,6 +639,78 @@ func (_c *SupportContractCreate) createSpec() (*SupportContract, *sqlgraph.Creat
 	if value, ok := _c.mutation.SourceDocumentID(); ok {
 		_spec.SetField(supportcontract.FieldSourceDocumentID, field.TypeInt, value)
 		_node.SourceDocumentID = &value
+	}
+	if value, ok := _c.mutation.EffectiveFrom(); ok {
+		_spec.SetField(supportcontract.FieldEffectiveFrom, field.TypeTime, value)
+		_node.EffectiveFrom = &value
+	}
+	if value, ok := _c.mutation.EffectiveUntil(); ok {
+		_spec.SetField(supportcontract.FieldEffectiveUntil, field.TypeTime, value)
+		_node.EffectiveUntil = &value
+	}
+	if value, ok := _c.mutation.SignedAt(); ok {
+		_spec.SetField(supportcontract.FieldSignedAt, field.TypeTime, value)
+		_node.SignedAt = &value
+	}
+	if value, ok := _c.mutation.Amount(); ok {
+		_spec.SetField(supportcontract.FieldAmount, field.TypeFloat64, value)
+		_node.Amount = &value
+	}
+	if value, ok := _c.mutation.Currency(); ok {
+		_spec.SetField(supportcontract.FieldCurrency, field.TypeString, value)
+		_node.Currency = value
+	}
+	if value, ok := _c.mutation.ContractType(); ok {
+		_spec.SetField(supportcontract.FieldContractType, field.TypeString, value)
+		_node.ContractType = value
+	}
+	if value, ok := _c.mutation.ContractName(); ok {
+		_spec.SetField(supportcontract.FieldContractName, field.TypeString, value)
+		_node.ContractName = value
+	}
+	if value, ok := _c.mutation.ParentContractID(); ok {
+		_spec.SetField(supportcontract.FieldParentContractID, field.TypeInt, value)
+		_node.ParentContractID = &value
+	}
+	if value, ok := _c.mutation.RenewalOfContractID(); ok {
+		_spec.SetField(supportcontract.FieldRenewalOfContractID, field.TypeInt, value)
+		_node.RenewalOfContractID = &value
+	}
+	if value, ok := _c.mutation.AmendmentCount(); ok {
+		_spec.SetField(supportcontract.FieldAmendmentCount, field.TypeInt, value)
+		_node.AmendmentCount = value
+	}
+	if value, ok := _c.mutation.SLADefinitionID(); ok {
+		_spec.SetField(supportcontract.FieldSLADefinitionID, field.TypeInt, value)
+		_node.SLADefinitionID = &value
+	}
+	if value, ok := _c.mutation.AutoRenew(); ok {
+		_spec.SetField(supportcontract.FieldAutoRenew, field.TypeBool, value)
+		_node.AutoRenew = value
+	}
+	if value, ok := _c.mutation.TerminatedAt(); ok {
+		_spec.SetField(supportcontract.FieldTerminatedAt, field.TypeTime, value)
+		_node.TerminatedAt = &value
+	}
+	if value, ok := _c.mutation.TerminationReason(); ok {
+		_spec.SetField(supportcontract.FieldTerminationReason, field.TypeString, value)
+		_node.TerminationReason = value
+	}
+	if value, ok := _c.mutation.DeletedAt(); ok {
+		_spec.SetField(supportcontract.FieldDeletedAt, field.TypeTime, value)
+		_node.DeletedAt = &value
+	}
+	if value, ok := _c.mutation.Version(); ok {
+		_spec.SetField(supportcontract.FieldVersion, field.TypeInt64, value)
+		_node.Version = value
+	}
+	if value, ok := _c.mutation.CreatedBy(); ok {
+		_spec.SetField(supportcontract.FieldCreatedBy, field.TypeInt, value)
+		_node.CreatedBy = &value
+	}
+	if value, ok := _c.mutation.UpdatedBy(); ok {
+		_spec.SetField(supportcontract.FieldUpdatedBy, field.TypeInt, value)
+		_node.UpdatedBy = &value
 	}
 	if value, ok := _c.mutation.CreatedAt(); ok {
 		_spec.SetField(supportcontract.FieldCreatedAt, field.TypeTime, value)

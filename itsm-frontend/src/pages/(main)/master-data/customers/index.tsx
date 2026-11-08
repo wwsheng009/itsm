@@ -1,16 +1,12 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   App,
   Button,
   Card,
-  Descriptions,
-  Drawer,
-  Form,
   Input,
-  InputNumber,
-  Modal,
   Popconfirm,
+  Progress,
   Select,
   Space,
   Table,
@@ -21,33 +17,26 @@ import {
   DeleteOutlined,
   EditOutlined,
   EyeOutlined,
+  MergeCellsOutlined,
   PlusOutlined,
   ReloadOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { useCan } from '@/components/auth/PermissionGate';
+import type { Tenant } from '@/lib/api/api-config';
+import { TenantAPI } from '@/lib/api/tenant-api';
+import { UserApi, type User } from '@/lib/api/user-api';
+import { SLAApi, type SLADefinition } from '@/lib/api/sla-api';
 import {
   masterDataService,
-  type CustomerBranch,
   type ServiceCustomer,
-  type SupportContract,
 } from '@/lib/services/masterDataService';
 import MasterDataTabs from '../components/MasterDataTabs';
+import CustomerDetailDrawer from './components/CustomerDetailDrawer';
+import CustomerFormModal from './components/CustomerFormModal';
+import CustomerMergeModal from './components/CustomerMergeModal';
 
 const { Title, Text } = Typography;
-
-interface CustomerFormValues {
-  name: string;
-  shortName?: string;
-  aliases?: string[];
-  historicalNames?: string[];
-  linkedCustomerTenantId?: number;
-}
-
-interface BranchFormValues {
-  name: string;
-  aliases?: string[];
-}
 
 const formatDate = (value?: string) =>
   value ? new Date(value).toLocaleString('zh-CN', { hour12: false }) : '-';
@@ -55,129 +44,145 @@ const formatDate = (value?: string) =>
 const statusTag = (status: string) =>
   status === 'active' ? <Tag color="green">活跃</Tag> : <Tag>停用</Tag>;
 
+const tierColor = (tier: string) =>
+  tier === 'S' ? 'red' : tier === 'A' ? 'orange' : tier === 'B' ? 'blue' : 'default';
+
+const lifecycleMeta: Record<string, { label: string; color: string }> = {
+  prospect: { label: '潜在客户', color: 'default' },
+  onboarding: { label: '开通中', color: 'processing' },
+  active: { label: '活跃', color: 'green' },
+  renewal: { label: '续约中', color: 'blue' },
+  churned: { label: '已流失', color: 'red' },
+  archived: { label: '已归档', color: 'default' },
+};
+
 export default function CustomersPage() {
   const { message } = App.useApp();
   const canWrite = useCan(['customer_master:write']);
-  const canReadContracts = useCan(['support_contract:read']);
 
   const [customers, setCustomers] = useState<ServiceCustomer[]>([]);
-  const [branches, setBranches] = useState<CustomerBranch[]>([]);
-  const [contracts, setContracts] = useState<SupportContract[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
   const [loading, setLoading] = useState(false);
-  const [search, setSearch] = useState('');
+  const [keywordInput, setKeywordInput] = useState('');
+  const [keyword, setKeyword] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [customerModal, setCustomerModal] = useState(false);
-  const [branchModal, setBranchModal] = useState(false);
+  const [tierFilter, setTierFilter] = useState('all');
+  const [lifecycleFilter, setLifecycleFilter] = useState('all');
+  const [sortBy, setSortBy] = useState<'updatedAt' | 'qualityScore' | 'name'>('updatedAt');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [qualityBelow, setQualityBelow] = useState<number | undefined>();
+  const [tenantFilter, setTenantFilter] = useState('all');
+  const [accountManagerFilter, setAccountManagerFilter] = useState<number | undefined>();
+
+  const [users, setUsers] = useState<User[]>([]);
+  const [tenants, setTenants] = useState<Tenant[]>([]);
+  const [slaDefinitions, setSlaDefinitions] = useState<SLADefinition[]>([]);
+
+  const [customerModalOpen, setCustomerModalOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<ServiceCustomer | null>(null);
-  const [detailCustomer, setDetailCustomer] = useState<ServiceCustomer | null>(null);
-  const [selectedCustomer, setSelectedCustomer] = useState<ServiceCustomer | null>(null);
-  const [editingBranch, setEditingBranch] = useState<CustomerBranch | null>(null);
-  const [customerForm] = Form.useForm<CustomerFormValues>();
-  const [branchForm] = Form.useForm<BranchFormValues>();
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [detailCustomerId, setDetailCustomerId] = useState<number | null>(null);
+  const [reopenDetailId, setReopenDetailId] = useState<number | null>(null);
+  const [mergeSource, setMergeSource] = useState<ServiceCustomer | null>(null);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setKeyword(keywordInput.trim());
+      setPage(1);
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [keywordInput]);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [customerResult, branchResult] = await Promise.all([
-        masterDataService.customers(),
-        masterDataService.branches(),
-      ]);
-      setCustomers(customerResult.items);
-      setBranches(branchResult.items);
-      if (canReadContracts) {
-        try {
-          const contractResult = await masterDataService.contracts();
-          setContracts(contractResult.items);
-        } catch {
-          setContracts([]);
-        }
-      }
+      const result = await masterDataService.customers({
+        keyword: keyword || undefined,
+        status: statusFilter === 'all' ? undefined : statusFilter,
+        tier: tierFilter === 'all' ? undefined : tierFilter,
+        lifecycleStage: lifecycleFilter === 'all' ? undefined : lifecycleFilter,
+        qualityBelow,
+        hasTenantLink: tenantFilter === 'all' ? undefined : tenantFilter === 'linked',
+        accountManagerId: accountManagerFilter,
+        sortBy,
+        sortOrder,
+        page,
+        pageSize,
+      });
+      setCustomers(result.items ?? []);
+      setTotal(result.total ?? 0);
     } catch {
       message.error('加载客户主数据失败');
     } finally {
       setLoading(false);
     }
-  }, [canReadContracts, message]);
+  }, [
+    accountManagerFilter,
+    keyword,
+    lifecycleFilter,
+    message,
+    page,
+    pageSize,
+    qualityBelow,
+    sortBy,
+    sortOrder,
+    statusFilter,
+    tenantFilter,
+    tierFilter,
+  ]);
 
   useEffect(() => {
     void load();
   }, [load]);
 
-  const contractCountByCustomer = useMemo(() => {
-    const result = new Map<number, number>();
-    for (const contract of contracts) {
-      result.set(contract.customerId, (result.get(contract.customerId) ?? 0) + 1);
-    }
-    return result;
-  }, [contracts]);
-
-  const filteredCustomers = useMemo(() => {
-    const keyword = search.trim().toLowerCase();
-    return customers.filter(customer => {
-      if (statusFilter !== 'all' && customer.status !== statusFilter) return false;
-      if (!keyword) return true;
-      const haystack = [
-        customer.name,
-        customer.shortName,
-        ...(customer.aliases ?? []),
-        ...(customer.historicalNames ?? []),
-      ]
-        .filter(Boolean)
-        .join(' ')
-        .toLowerCase();
-      return haystack.includes(keyword);
-    });
-  }, [customers, search, statusFilter]);
-
-  const customerBranches = (customerId: number) =>
-    branches.filter(branch => branch.customerId === customerId);
-
-  const openCustomerModal = (customer?: ServiceCustomer) => {
-    setEditingCustomer(customer ?? null);
-    setCustomerModal(true);
-    if (customer) {
-      customerForm.setFieldsValue({
-        name: customer.name,
-        shortName: customer.shortName,
-        aliases: customer.aliases ?? [],
-        historicalNames: customer.historicalNames ?? [],
-        linkedCustomerTenantId: customer.linkedCustomerTenantId ?? undefined,
-      });
-    } else {
-      customerForm.resetFields();
-    }
-  };
-
-  const saveCustomer = async () => {
-    const values = await customerForm.validateFields();
-    const payload = {
-      name: values.name,
-      shortName: values.shortName ?? '',
-      aliases: values.aliases ?? [],
-      historicalNames: values.historicalNames ?? [],
-      status: editingCustomer?.status ?? 'active',
-      linkedCustomerTenantId: values.linkedCustomerTenantId ?? null,
+  useEffect(() => {
+    let alive = true;
+    void Promise.allSettled([
+      UserApi.getUsers({ page: 1, pageSize: 200 }).then(result => {
+        if (alive) setUsers(result.users ?? []);
+      }),
+      TenantAPI.getTenants({ page: 1, size: 100 }).then(result => {
+        if (alive) setTenants(result.tenants ?? []);
+      }),
+      SLAApi.getSLADefinitions({ page: 1, pageSize: 100, isActive: true }).then(result => {
+        if (alive) setSlaDefinitions(result.items ?? []);
+      }),
+    ]);
+    return () => {
+      alive = false;
     };
-    try {
-      if (editingCustomer) {
-        await masterDataService.updateCustomer(editingCustomer.id, payload);
-        message.success('客户主数据已更新');
-      } else {
-        await masterDataService.createCustomer(payload);
-        message.success('客户主数据已创建');
-      }
-      setCustomerModal(false);
-      setEditingCustomer(null);
-      customerForm.resetFields();
-      await load();
-    } catch {
-      message.error('保存客户主数据失败');
-    }
+  }, []);
+
+  const openCreate = () => {
+    setEditingCustomer(null);
+    setCustomerModalOpen(true);
   };
 
-  const disableCustomer = async (id: number) => {
+  const openEdit = (customer: ServiceCustomer) => {
+    setEditingCustomer(customer);
+    setCustomerModalOpen(true);
+  };
+
+  const openDetail = (customer: ServiceCustomer) => {
+    setDetailCustomerId(customer.id);
+    setDetailOpen(true);
+  };
+
+  const openMerge = (customer: ServiceCustomer) => {
+    setMergeSource(customer);
+  };
+
+  const editFromDetail = (customer: ServiceCustomer) => {
+    setReopenDetailId(customer.id);
+    setDetailOpen(false);
+    openEdit(customer);
+  };
+
+  const disableCustomer = async (customer: ServiceCustomer) => {
     try {
-      await masterDataService.disableCustomer(id);
+      await masterDataService.disableCustomer(customer.id);
       message.success('客户已停用');
       await load();
     } catch {
@@ -185,241 +190,153 @@ export default function CustomersPage() {
     }
   };
 
-  const openBranchModal = (customer: ServiceCustomer, branch?: CustomerBranch) => {
-    setSelectedCustomer(customer);
-    setEditingBranch(branch ?? null);
-    setBranchModal(true);
-    if (branch) {
-      branchForm.setFieldsValue({
-        name: branch.name,
-        aliases: branch.aliases ?? [],
-      });
-    } else {
-      branchForm.resetFields();
-    }
-  };
-
-  const saveBranch = async () => {
-    if (!selectedCustomer) return;
-    const values = await branchForm.validateFields();
-    const payload = {
-      customerId: selectedCustomer.id,
-      name: values.name,
-      aliases: values.aliases ?? [],
-      status: editingBranch?.status ?? 'active',
-    };
-    try {
-      if (editingBranch) {
-        await masterDataService.updateBranch(editingBranch.id, payload);
-        message.success('分支已更新');
-      } else {
-        await masterDataService.createBranch(payload);
-        message.success('分支已添加');
-      }
-      setBranchModal(false);
-      setEditingBranch(null);
-      branchForm.resetFields();
-      await load();
-    } catch {
-      message.error('保存分支失败');
-    }
-  };
-
-  const disableBranch = async (id: number) => {
-    try {
-      await masterDataService.disableBranch(id);
-      message.success('分支已停用');
-      await load();
-    } catch {
-      message.error('停用分支失败');
-    }
-  };
-
-  const branchColumns: ColumnsType<CustomerBranch> = [
-    { title: '名称', dataIndex: 'name' },
-    {
-      title: '别名',
-      dataIndex: 'aliases',
-      render: (value: string[]) =>
-        value?.length ? value.map(alias => <Tag key={alias}>{alias}</Tag>) : '-',
-    },
-    {
-      title: '状态',
-      dataIndex: 'status',
-      width: 90,
-      render: statusTag,
-    },
-    {
-      title: '操作',
-      width: 150,
-      render: (_, branch) =>
-        canWrite ? (
+  const columns: ColumnsType<ServiceCustomer> = useMemo(
+    () => [
+      {
+        title: '客户名称',
+        key: 'name',
+        render: (_, customer) => (
+          <div>
+            <Space size={6} wrap>
+              <Text strong>{customer.name}</Text>
+              <Tag color={tierColor(customer.tier)}>{customer.tier}</Tag>
+            </Space>
+            <div className="text-xs text-gray-500">
+              {[`#${customer.id}`, customer.shortName, customer.legalName]
+                .filter(Boolean)
+                .join(' · ')}
+            </div>
+          </div>
+        ),
+      },
+      {
+        title: '客户编码',
+        dataIndex: 'code',
+        width: 120,
+        render: (value?: string) => value || '-',
+      },
+      {
+        title: '别名',
+        dataIndex: 'aliases',
+        width: 180,
+        render: (value?: string[]) => {
+          if (!value?.length) return '-';
+          return (
+            <Space size={[2, 2]} wrap>
+              {value.slice(0, 2).map(alias => (
+                <Tag key={alias}>{alias}</Tag>
+              ))}
+              {value.length > 2 && <Text type="secondary">+{value.length - 2}</Text>}
+            </Space>
+          );
+        },
+      },
+      {
+        title: '质量分',
+        dataIndex: 'dataQualityScore',
+        width: 90,
+        render: (value?: number) => (
+          <Progress
+            type="circle"
+            size={30}
+            percent={value ?? 0}
+            status={(value ?? 0) < 60 ? 'exception' : 'normal'}
+            format={percent => `${percent ?? 0}`}
+          />
+        ),
+      },
+      {
+        title: '客户经理',
+        key: 'accountManager',
+        width: 130,
+        render: (_, customer) =>
+          customer.accountManagerName ||
+          (customer.accountManagerId ? `#${customer.accountManagerId}` : '-'),
+      },
+      {
+        title: '关联租户',
+        dataIndex: 'tenantLinkCount',
+        width: 100,
+        render: (value?: number) => value ?? 0,
+      },
+      {
+        title: '联系人',
+        dataIndex: 'contactCount',
+        width: 90,
+        render: (value?: number) => value ?? 0,
+      },
+      {
+        title: '服务点',
+        dataIndex: 'branchCount',
+        width: 90,
+        render: (value?: number) => value ?? 0,
+      },
+      {
+        title: '合同',
+        dataIndex: 'contractCount',
+        width: 80,
+        render: (value?: number) => value ?? 0,
+      },
+      {
+        title: '生命周期',
+        dataIndex: 'lifecycleStage',
+        width: 110,
+        render: (value: string) => {
+          const meta = lifecycleMeta[value];
+          return meta ? <Tag color={meta.color}>{meta.label}</Tag> : <Tag>{value}</Tag>;
+        },
+      },
+      {
+        title: '状态',
+        dataIndex: 'status',
+        width: 90,
+        render: statusTag,
+      },
+      {
+        title: '更新时间',
+        dataIndex: 'updatedAt',
+        width: 180,
+        render: formatDate,
+      },
+      {
+        title: '操作',
+        width: 310,
+        render: (_, customer) => (
           <Space>
-            <Button
-              size="small"
-              icon={<EditOutlined />}
-              onClick={() => {
-                const customer = customers.find(item => item.id === branch.customerId);
-                if (customer) openBranchModal(customer, branch);
-              }}
-            >
-              编辑
+            <Button size="small" icon={<EyeOutlined />} onClick={() => openDetail(customer)}>
+              详情
             </Button>
-            {branch.status === 'active' && (
-              <Popconfirm title="确定停用该分支？" onConfirm={() => disableBranch(branch.id)}>
-                <Button size="small" danger icon={<DeleteOutlined />}>
-                  停用
+            {canWrite && (
+              <>
+                <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(customer)}>
+                  编辑
                 </Button>
-              </Popconfirm>
+                <Button
+                  size="small"
+                  icon={<MergeCellsOutlined />}
+                  onClick={() => openMerge(customer)}
+                >
+                  合并
+                </Button>
+                {customer.status === 'active' && (
+                  <Popconfirm
+                    title="确定停用该客户？"
+                    description="停用后不会删除历史合同、服务点和联系人。"
+                    onConfirm={() => disableCustomer(customer)}
+                  >
+                    <Button size="small" danger icon={<DeleteOutlined />}>
+                      停用
+                    </Button>
+                  </Popconfirm>
+                )}
+              </>
             )}
           </Space>
-        ) : (
-          '-'
         ),
-    },
-  ];
-
-  const expandedRowRender = (customer: ServiceCustomer) => (
-    <div className="space-y-3">
-      <Descriptions size="small" column={2} bordered>
-        <Descriptions.Item label="简称">{customer.shortName || '-'}</Descriptions.Item>
-        <Descriptions.Item label="关联客户租户">
-          {customer.linkedCustomerTenantId ? `#${customer.linkedCustomerTenantId}` : '未关联'}
-        </Descriptions.Item>
-        <Descriptions.Item label="别名">
-          {customer.aliases?.length
-            ? customer.aliases.map(alias => <Tag key={alias}>{alias}</Tag>)
-            : '-'}
-        </Descriptions.Item>
-        <Descriptions.Item label="历史名称">
-          {customer.historicalNames?.length
-            ? customer.historicalNames.map(name => <Tag key={name}>{name}</Tag>)
-            : '-'}
-        </Descriptions.Item>
-        <Descriptions.Item label="创建时间">{formatDate(customer.createdAt)}</Descriptions.Item>
-        <Descriptions.Item label="更新时间">{formatDate(customer.updatedAt)}</Descriptions.Item>
-      </Descriptions>
-      <div className="flex items-center justify-between">
-        <Text strong>服务分支</Text>
-        {canWrite && (
-          <Button
-            size="small"
-            icon={<PlusOutlined />}
-            onClick={() => openBranchModal(customer)}
-          >
-            添加分支
-          </Button>
-        )}
-      </div>
-      <Table
-        rowKey="id"
-        size="small"
-        columns={branchColumns}
-        dataSource={customerBranches(customer.id)}
-        pagination={false}
-        locale={{ emptyText: '暂无分支' }}
-      />
-    </div>
-  );
-
-  const columns: ColumnsType<ServiceCustomer> = [
-    {
-      title: '客户名称',
-      key: 'name',
-      render: (_, customer) => (
-        <div>
-          <Text strong>{customer.name}</Text>
-          <div className="text-xs text-gray-500">
-            #{customer.id}
-            {customer.shortName ? ` · ${customer.shortName}` : ''}
-          </div>
-        </div>
-      ),
-    },
-    {
-      title: '关联租户',
-      dataIndex: 'linkedCustomerTenantId',
-      width: 110,
-      render: (value?: number | null) => (value ? `#${value}` : '-'),
-    },
-    {
-      title: '别名',
-      dataIndex: 'aliases',
-      render: (value: string[]) => {
-        if (!value?.length) return '-';
-        return (
-          <Space wrap size={[2, 2]}>
-            {value.slice(0, 2).map(alias => (
-              <Tag key={alias}>{alias}</Tag>
-            ))}
-            {value.length > 2 && <Text type="secondary">+{value.length - 2}</Text>}
-          </Space>
-        );
       },
-    },
-    {
-      title: '分支数',
-      key: 'branches',
-      width: 90,
-      render: (_, customer) => customerBranches(customer.id).length,
-    },
-    ...(canReadContracts
-      ? [
-          {
-            title: '合同数',
-            key: 'contracts',
-            width: 90,
-            render: (_: unknown, customer: ServiceCustomer) =>
-              contractCountByCustomer.get(customer.id) ?? 0,
-          },
-        ]
-      : []),
-    {
-      title: '状态',
-      dataIndex: 'status',
-      width: 90,
-      render: statusTag,
-    },
-    {
-      title: '更新时间',
-      dataIndex: 'updatedAt',
-      width: 180,
-      render: formatDate,
-    },
-    {
-      title: '操作',
-      width: 230,
-      render: (_, customer) => (
-        <Space>
-          <Button size="small" icon={<EyeOutlined />} onClick={() => setDetailCustomer(customer)}>
-            详情
-          </Button>
-          {canWrite && (
-            <>
-              <Button
-                size="small"
-                icon={<EditOutlined />}
-                onClick={() => openCustomerModal(customer)}
-              >
-                编辑
-              </Button>
-              {customer.status === 'active' && (
-                <Popconfirm
-                  title="确定停用该客户？"
-                  description="停用后不会删除历史合同和分支记录。"
-                  onConfirm={() => disableCustomer(customer.id)}
-                >
-                  <Button size="small" danger icon={<DeleteOutlined />}>
-                    停用
-                  </Button>
-                </Popconfirm>
-              )}
-            </>
-          )}
-        </Space>
-      ),
-    },
-  ];
+    ],
+    [canWrite, openDetail, openEdit]
+  );
 
   return (
     <div className="space-y-4">
@@ -431,32 +348,129 @@ export default function CustomersPage() {
               客户主数据
             </Title>
             <Text type="secondary">
-              客户档案是邮件报障、支持合同和运营匹配的共享主数据，不再归属邮件报障模块。
+              维护客户主数据、关系网、项目关联、外部标识，并在客户 360 中查看服务健康与交付全景。
             </Text>
           </div>
           <Space wrap>
             <Input.Search
               allowClear
-              placeholder="搜索名称、简称、别名或历史名称"
-              style={{ width: 300 }}
-              value={search}
-              onChange={event => setSearch(event.target.value)}
+              placeholder="搜索名称、编码、税号、别名或历史名称"
+              style={{ width: 320 }}
+              value={keywordInput}
+              onChange={event => setKeywordInput(event.target.value)}
+            />
+            <Select
+              value={tierFilter}
+              style={{ width: 100 }}
+              onChange={value => {
+                setTierFilter(value);
+                setPage(1);
+              }}
+              options={[
+                { value: 'all', label: '全部等级' },
+                { value: 'S', label: 'S' },
+                { value: 'A', label: 'A' },
+                { value: 'B', label: 'B' },
+                { value: 'C', label: 'C' },
+              ]}
+            />
+            <Select
+              value={lifecycleFilter}
+              style={{ width: 130 }}
+              onChange={value => {
+                setLifecycleFilter(value);
+                setPage(1);
+              }}
+              options={[
+                { value: 'all', label: '全部生命周期' },
+                { value: 'prospect', label: '潜在客户' },
+                { value: 'onboarding', label: '开通中' },
+                { value: 'active', label: '活跃' },
+                { value: 'renewal', label: '续约中' },
+                { value: 'churned', label: '已流失' },
+                { value: 'archived', label: '已归档' },
+              ]}
             />
             <Select
               value={statusFilter}
-              style={{ width: 120 }}
-              onChange={setStatusFilter}
+              style={{ width: 110 }}
+              onChange={value => {
+                setStatusFilter(value);
+                setPage(1);
+              }}
               options={[
                 { value: 'all', label: '全部状态' },
                 { value: 'active', label: '活跃' },
                 { value: 'inactive', label: '停用' },
+                { value: 'suspended', label: '暂停' },
+              ]}
+            />
+            <Select
+              value={qualityBelow ?? 'all'}
+              style={{ width: 130 }}
+              onChange={value => {
+                setQualityBelow(value === 'all' ? undefined : Number(value));
+                setPage(1);
+              }}
+              options={[
+                { value: 'all', label: '全部质量分' },
+                { value: 60, label: '质量分 < 60' },
+                { value: 80, label: '质量分 < 80' },
+              ]}
+            />
+            <Select
+              value={tenantFilter}
+              style={{ width: 130 }}
+              onChange={value => {
+                setTenantFilter(value);
+                setPage(1);
+              }}
+              options={[
+                { value: 'all', label: '全部租户关联' },
+                { value: 'linked', label: '已关联租户' },
+                { value: 'unlinked', label: '未关联租户' },
+              ]}
+            />
+            <Select
+              allowClear
+              showSearch
+              optionFilterProp="label"
+              value={accountManagerFilter}
+              style={{ width: 150 }}
+              placeholder="客户经理"
+              onChange={value => {
+                setAccountManagerFilter(value);
+                setPage(1);
+              }}
+              options={users.map(user => ({
+                value: user.id,
+                label: user.name || user.username,
+              }))}
+            />
+            <Select
+              value={`${sortBy}:${sortOrder}`}
+              style={{ width: 160 }}
+              onChange={value => {
+                const [nextSortBy, nextSortOrder] = value.split(':') as [
+                  'updatedAt' | 'qualityScore' | 'name',
+                  'asc' | 'desc',
+                ];
+                setSortBy(nextSortBy);
+                setSortOrder(nextSortOrder);
+                setPage(1);
+              }}
+              options={[
+                { value: 'updatedAt:desc', label: '最近更新' },
+                { value: 'qualityScore:desc', label: '质量分从高到低' },
+                { value: 'qualityScore:asc', label: '质量分从低到高' },
+                { value: 'name:asc', label: '名称 A-Z' },
               ]}
             />
             <Button icon={<ReloadOutlined />} onClick={() => void load()}>
               刷新
             </Button>
             {canWrite && (
-              <Button type="primary" icon={<PlusOutlined />} onClick={() => openCustomerModal()}>
+              <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
                 新增客户
               </Button>
             )}
@@ -467,150 +481,80 @@ export default function CustomersPage() {
           className="mb-3"
           type="info"
           showIcon
-          message="主数据独立管理"
-          description="邮件报障只消费客户、分支和合同数据；客户主数据的维护入口已归位到 /master-data/customers。"
+          message="客户主数据 P2"
+          description="本页已接入主档字段、联系人、租户映射、服务点、客户关系网、项目关联、合并/撤销、质量分、外部标识对账和客户 360；AI 五级匹配已接入邮件报障链路，合同聚合根归入 C1。"
         />
 
         <Table
           rowKey="id"
           loading={loading}
           columns={columns}
-          dataSource={filteredCustomers}
-          expandable={{ expandedRowRender }}
-          pagination={{ pageSize: 20, showSizeChanger: true }}
+          dataSource={customers}
+          pagination={{
+            current: page,
+            pageSize,
+            total,
+            showSizeChanger: true,
+            showTotal: value => `共 ${value} 条`,
+            onChange: (nextPage, nextPageSize) => {
+              setPage(nextPageSize !== pageSize ? 1 : nextPage);
+              setPageSize(nextPageSize);
+            },
+          }}
+          scroll={{ x: 1500 }}
         />
       </Card>
 
-      <Modal
-        title={editingCustomer ? '编辑客户主数据' : '新增客户主数据'}
-        open={customerModal}
-        onOk={saveCustomer}
+      <CustomerFormModal
+        open={customerModalOpen}
+        customer={editingCustomer}
+        users={users}
+        slaDefinitions={slaDefinitions}
         onCancel={() => {
-          setCustomerModal(false);
+          setCustomerModalOpen(false);
           setEditingCustomer(null);
+          setReopenDetailId(null);
         }}
-        width={640}
-        destroyOnHidden
-      >
-        <Form form={customerForm} layout="vertical">
-          <Form.Item name="name" label="客户名称" rules={[{ required: true }]}>
-            <Input placeholder="例如：北京某某科技有限公司" />
-          </Form.Item>
-          <Form.Item name="shortName" label="简称">
-            <Input placeholder="例如：某某科技" />
-          </Form.Item>
-          <Form.Item name="aliases" label="别名">
-            <Select
-              mode="tags"
-              tokenSeparators={[',', '，']}
-              placeholder="输入别名后回车，可多个"
-            />
-          </Form.Item>
-          <Form.Item name="historicalNames" label="历史名称">
-            <Select
-              mode="tags"
-              tokenSeparators={[',', '，']}
-              placeholder="输入历史名称后回车，可多个"
-            />
-          </Form.Item>
-          <Form.Item
-            name="linkedCustomerTenantId"
-            label="关联客户租户 ID"
-            extra="可选；对应 tenants.id，用于把运营客户档案关联到真实客户租户。"
-          >
-            <InputNumber min={1} style={{ width: '100%' }} placeholder="例如：3" />
-          </Form.Item>
-        </Form>
-      </Modal>
-
-      <Modal
-        title={editingBranch ? '编辑服务分支' : '添加服务分支'}
-        open={branchModal}
-        onOk={saveBranch}
-        onCancel={() => {
-          setBranchModal(false);
-          setEditingBranch(null);
+        onSaved={async () => {
+          setCustomerModalOpen(false);
+          setEditingCustomer(null);
+          await load();
+          if (reopenDetailId) {
+            setDetailCustomerId(reopenDetailId);
+            setDetailOpen(true);
+            setReopenDetailId(null);
+          }
         }}
-        destroyOnHidden
-      >
-        <Form form={branchForm} layout="vertical">
-          <Form.Item name="name" label="分支名称" rules={[{ required: true }]}>
-            <Input placeholder="例如：上海分公司" />
-          </Form.Item>
-          <Form.Item name="aliases" label="别名">
-            <Select
-              mode="tags"
-              tokenSeparators={[',', '，']}
-              placeholder="输入别名后回车，可多个"
-            />
-          </Form.Item>
-        </Form>
-      </Modal>
+      />
 
-      <Drawer
-        title={detailCustomer ? `客户详情 · ${detailCustomer.name}` : '客户详情'}
-        open={!!detailCustomer}
-        onClose={() => setDetailCustomer(null)}
-        width={680}
-      >
-        {detailCustomer && (
-          <div className="space-y-4">
-            <Descriptions column={2} bordered size="small">
-              <Descriptions.Item label="客户 ID">#{detailCustomer.id}</Descriptions.Item>
-              <Descriptions.Item label="状态">{statusTag(detailCustomer.status)}</Descriptions.Item>
-              <Descriptions.Item label="客户名称">{detailCustomer.name}</Descriptions.Item>
-              <Descriptions.Item label="简称">{detailCustomer.shortName || '-'}</Descriptions.Item>
-              <Descriptions.Item label="关联客户租户">
-                {detailCustomer.linkedCustomerTenantId
-                  ? `#${detailCustomer.linkedCustomerTenantId}`
-                  : '未关联'}
-              </Descriptions.Item>
-              <Descriptions.Item label="合同数">
-                {contractCountByCustomer.get(detailCustomer.id) ?? 0}
-              </Descriptions.Item>
-              <Descriptions.Item label="别名" span={2}>
-                {detailCustomer.aliases?.length
-                  ? detailCustomer.aliases.map(alias => <Tag key={alias}>{alias}</Tag>)
-                  : '-'}
-              </Descriptions.Item>
-              <Descriptions.Item label="历史名称" span={2}>
-                {detailCustomer.historicalNames?.length
-                  ? detailCustomer.historicalNames.map(name => <Tag key={name}>{name}</Tag>)
-                  : '-'}
-              </Descriptions.Item>
-              <Descriptions.Item label="创建时间">
-                {formatDate(detailCustomer.createdAt)}
-              </Descriptions.Item>
-              <Descriptions.Item label="更新时间">
-                {formatDate(detailCustomer.updatedAt)}
-              </Descriptions.Item>
-            </Descriptions>
+      <CustomerDetailDrawer
+        open={detailOpen}
+        customerId={detailCustomerId}
+        tenants={tenants}
+        canWrite={canWrite}
+        onClose={() => {
+          setDetailOpen(false);
+          setDetailCustomerId(null);
+        }}
+        onChanged={() => void load()}
+        onEdit={editFromDetail}
+        onMerge={openMerge}
+      />
 
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <Text strong>服务分支</Text>
-                {canWrite && (
-                  <Button
-                    size="small"
-                    icon={<PlusOutlined />}
-                    onClick={() => openBranchModal(detailCustomer)}
-                  >
-                    添加分支
-                  </Button>
-                )}
-              </div>
-              <Table
-                rowKey="id"
-                size="small"
-                columns={branchColumns}
-                dataSource={customerBranches(detailCustomer.id)}
-                pagination={false}
-                locale={{ emptyText: '暂无分支' }}
-              />
-            </div>
-          </div>
-        )}
-      </Drawer>
+      <CustomerMergeModal
+        open={!!mergeSource}
+        source={mergeSource}
+        onCancel={() => setMergeSource(null)}
+        onSaved={async () => {
+          const sourceId = mergeSource?.id;
+          setMergeSource(null);
+          await load();
+          if (sourceId && detailCustomerId === sourceId) {
+            setDetailOpen(false);
+            setDetailCustomerId(null);
+          }
+        }}
+      />
     </div>
   );
 }

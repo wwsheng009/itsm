@@ -84,10 +84,26 @@ type Tx struct {
 	ConnectorInboundDedup *ConnectorInboundDedupClient
 	// Contract is the client for interacting with the Contract builders.
 	Contract *ContractClient
+	// ContractAmendment is the client for interacting with the ContractAmendment builders.
+	ContractAmendment *ContractAmendmentClient
+	// ContractProjectLink is the client for interacting with the ContractProjectLink builders.
+	ContractProjectLink *ContractProjectLinkClient
+	// ContractServiceItem is the client for interacting with the ContractServiceItem builders.
+	ContractServiceItem *ContractServiceItemClient
+	// ContractUsageLedger is the client for interacting with the ContractUsageLedger builders.
+	ContractUsageLedger *ContractUsageLedgerClient
 	// Conversation is the client for interacting with the Conversation builders.
 	Conversation *ConversationClient
 	// CustomerBranch is the client for interacting with the CustomerBranch builders.
 	CustomerBranch *CustomerBranchClient
+	// CustomerContact is the client for interacting with the CustomerContact builders.
+	CustomerContact *CustomerContactClient
+	// CustomerExternalID is the client for interacting with the CustomerExternalID builders.
+	CustomerExternalID *CustomerExternalIDClient
+	// CustomerRelationship is the client for interacting with the CustomerRelationship builders.
+	CustomerRelationship *CustomerRelationshipClient
+	// CustomerTenantLink is the client for interacting with the CustomerTenantLink builders.
+	CustomerTenantLink *CustomerTenantLinkClient
 	// Department is the client for interacting with the Department builders.
 	Department *DepartmentClient
 	// DiscoveryJob is the client for interacting with the DiscoveryJob builders.
@@ -220,6 +236,8 @@ type Tx struct {
 	ProjectBaseline *ProjectBaselineClient
 	// ProjectClosure is the client for interacting with the ProjectClosure builders.
 	ProjectClosure *ProjectClosureClient
+	// ProjectCustomerLink is the client for interacting with the ProjectCustomerLink builders.
+	ProjectCustomerLink *ProjectCustomerLinkClient
 	// ProjectGate is the client for interacting with the ProjectGate builders.
 	ProjectGate *ProjectGateClient
 	// ProjectMember is the client for interacting with the ProjectMember builders.
@@ -515,8 +533,16 @@ func (tx *Tx) init() {
 	tx.ConnectorConfig = NewConnectorConfigClient(tx.config)
 	tx.ConnectorInboundDedup = NewConnectorInboundDedupClient(tx.config)
 	tx.Contract = NewContractClient(tx.config)
+	tx.ContractAmendment = NewContractAmendmentClient(tx.config)
+	tx.ContractProjectLink = NewContractProjectLinkClient(tx.config)
+	tx.ContractServiceItem = NewContractServiceItemClient(tx.config)
+	tx.ContractUsageLedger = NewContractUsageLedgerClient(tx.config)
 	tx.Conversation = NewConversationClient(tx.config)
 	tx.CustomerBranch = NewCustomerBranchClient(tx.config)
+	tx.CustomerContact = NewCustomerContactClient(tx.config)
+	tx.CustomerExternalID = NewCustomerExternalIDClient(tx.config)
+	tx.CustomerRelationship = NewCustomerRelationshipClient(tx.config)
+	tx.CustomerTenantLink = NewCustomerTenantLinkClient(tx.config)
 	tx.Department = NewDepartmentClient(tx.config)
 	tx.DiscoveryJob = NewDiscoveryJobClient(tx.config)
 	tx.DiscoveryResult = NewDiscoveryResultClient(tx.config)
@@ -583,6 +609,7 @@ func (tx *Tx) init() {
 	tx.ProjectAssetLink = NewProjectAssetLinkClient(tx.config)
 	tx.ProjectBaseline = NewProjectBaselineClient(tx.config)
 	tx.ProjectClosure = NewProjectClosureClient(tx.config)
+	tx.ProjectCustomerLink = NewProjectCustomerLinkClient(tx.config)
 	tx.ProjectGate = NewProjectGateClient(tx.config)
 	tx.ProjectMember = NewProjectMemberClient(tx.config)
 	tx.ProjectMilestone = NewProjectMilestoneClient(tx.config)

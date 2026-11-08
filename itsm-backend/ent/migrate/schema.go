@@ -1609,6 +1609,213 @@ var (
 			},
 		},
 	}
+	// ContractAmendmentsColumns holds the columns for the "contract_amendments" table.
+	ContractAmendmentsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "tenant_id", Type: field.TypeInt},
+		{Name: "contract_id", Type: field.TypeInt},
+		{Name: "amendment_no", Type: field.TypeString, Size: 64},
+		{Name: "amend_type", Type: field.TypeString, Size: 32},
+		{Name: "effective_from", Type: field.TypeTime},
+		{Name: "amount_delta", Type: field.TypeFloat64, Default: 0, SchemaType: map[string]string{"postgres": "numeric(18,2)", "sqlite3": "decimal(18,2)"}},
+		{Name: "term_delta_days", Type: field.TypeInt, Nullable: true},
+		{Name: "diff", Type: field.TypeJSON, Nullable: true},
+		{Name: "reason", Type: field.TypeString, Nullable: true, Size: 500},
+		{Name: "status", Type: field.TypeString, Size: 16, Default: "draft"},
+		{Name: "signed_at", Type: field.TypeTime, Nullable: true},
+		{Name: "created_by", Type: field.TypeInt, Nullable: true},
+		{Name: "updated_by", Type: field.TypeInt, Nullable: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// ContractAmendmentsTable holds the schema information for the "contract_amendments" table.
+	ContractAmendmentsTable = &schema.Table{
+		Name:       "contract_amendments",
+		Columns:    ContractAmendmentsColumns,
+		PrimaryKey: []*schema.Column{ContractAmendmentsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "uq_amend_no",
+				Unique:  true,
+				Columns: []*schema.Column{ContractAmendmentsColumns[1], ContractAmendmentsColumns[2], ContractAmendmentsColumns[3]},
+			},
+			{
+				Name:    "uq_amend_tenant_id",
+				Unique:  true,
+				Columns: []*schema.Column{ContractAmendmentsColumns[1], ContractAmendmentsColumns[0]},
+			},
+			{
+				Name:    "idx_amend_tenant_contract",
+				Unique:  false,
+				Columns: []*schema.Column{ContractAmendmentsColumns[1], ContractAmendmentsColumns[2], ContractAmendmentsColumns[10]},
+			},
+		},
+	}
+	// ContractProjectLinksColumns holds the columns for the "contract_project_links" table.
+	ContractProjectLinksColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "tenant_id", Type: field.TypeInt},
+		{Name: "contract_id", Type: field.TypeInt},
+		{Name: "project_id", Type: field.TypeInt},
+		{Name: "service_item_id", Type: field.TypeInt, Nullable: true},
+		{Name: "relation_type", Type: field.TypeString, Size: 24, Default: "basis"},
+		{Name: "allocated_amount", Type: field.TypeFloat64, Nullable: true, SchemaType: map[string]string{"postgres": "numeric(18,2)", "sqlite3": "decimal(18,2)"}},
+		{Name: "allocated_hours", Type: field.TypeFloat64, Nullable: true, SchemaType: map[string]string{"postgres": "numeric(10,2)", "sqlite3": "decimal(10,2)"}},
+		{Name: "allocation_pct", Type: field.TypeInt16, Nullable: true},
+		{Name: "is_primary", Type: field.TypeBool, Default: false},
+		{Name: "note", Type: field.TypeString, Nullable: true, Size: 500},
+		{Name: "effective_from", Type: field.TypeTime, Nullable: true},
+		{Name: "effective_to", Type: field.TypeTime, Nullable: true},
+		{Name: "status", Type: field.TypeString, Size: 16, Default: "active"},
+		{Name: "deleted_at", Type: field.TypeTime, Nullable: true},
+		{Name: "created_by", Type: field.TypeInt, Nullable: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// ContractProjectLinksTable holds the schema information for the "contract_project_links" table.
+	ContractProjectLinksTable = &schema.Table{
+		Name:       "contract_project_links",
+		Columns:    ContractProjectLinksColumns,
+		PrimaryKey: []*schema.Column{ContractProjectLinksColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "uq_cpl_semantic",
+				Unique:  true,
+				Columns: []*schema.Column{ContractProjectLinksColumns[1], ContractProjectLinksColumns[2], ContractProjectLinksColumns[3], ContractProjectLinksColumns[5]},
+				Annotation: &entsql.IndexAnnotation{
+					Where: "deleted_at IS NULL AND status = 'active' AND relation_type <> 'billing'",
+				},
+			},
+			{
+				Name:    "uq_cpl_billing",
+				Unique:  true,
+				Columns: []*schema.Column{ContractProjectLinksColumns[1], ContractProjectLinksColumns[2], ContractProjectLinksColumns[3], ContractProjectLinksColumns[4]},
+				Annotation: &entsql.IndexAnnotation{
+					Where: "deleted_at IS NULL AND status = 'active' AND relation_type = 'billing'",
+				},
+			},
+			{
+				Name:    "uq_cpl_primary",
+				Unique:  true,
+				Columns: []*schema.Column{ContractProjectLinksColumns[1], ContractProjectLinksColumns[3]},
+				Annotation: &entsql.IndexAnnotation{
+					Where: "is_primary AND relation_type = 'basis' AND status = 'active' AND deleted_at IS NULL",
+				},
+			},
+			{
+				Name:    "idx_cpl_tenant_contract",
+				Unique:  false,
+				Columns: []*schema.Column{ContractProjectLinksColumns[1], ContractProjectLinksColumns[2], ContractProjectLinksColumns[13]},
+			},
+			{
+				Name:    "idx_cpl_tenant_project",
+				Unique:  false,
+				Columns: []*schema.Column{ContractProjectLinksColumns[1], ContractProjectLinksColumns[3], ContractProjectLinksColumns[13]},
+			},
+			{
+				Name:    "uq_cpl_tenant_id",
+				Unique:  true,
+				Columns: []*schema.Column{ContractProjectLinksColumns[1], ContractProjectLinksColumns[0]},
+			},
+		},
+	}
+	// ContractServiceItemsColumns holds the columns for the "contract_service_items" table.
+	ContractServiceItemsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "tenant_id", Type: field.TypeInt},
+		{Name: "contract_id", Type: field.TypeInt},
+		{Name: "catalog_item_id", Type: field.TypeInt, Nullable: true},
+		{Name: "item_code", Type: field.TypeString, Nullable: true, Size: 64},
+		{Name: "item_name", Type: field.TypeString, Size: 255},
+		{Name: "spec", Type: field.TypeString, Nullable: true, Size: 500},
+		{Name: "billing_unit", Type: field.TypeString, Size: 32, Default: "month"},
+		{Name: "quantity", Type: field.TypeFloat64, Default: 1, SchemaType: map[string]string{"postgres": "numeric(18,4)", "sqlite3": "decimal(18,4)"}},
+		{Name: "period_count", Type: field.TypeFloat64, Default: 1, SchemaType: map[string]string{"postgres": "numeric(18,4)", "sqlite3": "decimal(18,4)"}},
+		{Name: "unit_price", Type: field.TypeFloat64, Default: 0, SchemaType: map[string]string{"postgres": "numeric(18,2)", "sqlite3": "decimal(18,2)"}},
+		{Name: "amount", Type: field.TypeFloat64, Default: 0, SchemaType: map[string]string{"postgres": "numeric(18,2)", "sqlite3": "decimal(18,2)"}},
+		{Name: "quota_total", Type: field.TypeFloat64, Nullable: true, SchemaType: map[string]string{"postgres": "numeric(18,4)", "sqlite3": "decimal(18,4)"}},
+		{Name: "quota_used", Type: field.TypeFloat64, Default: 0, SchemaType: map[string]string{"postgres": "numeric(18,4)", "sqlite3": "decimal(18,4)"}},
+		{Name: "note", Type: field.TypeString, Nullable: true, Size: 500},
+		{Name: "sla_definition_id", Type: field.TypeInt, Nullable: true},
+		{Name: "response_target_min", Type: field.TypeInt, Nullable: true},
+		{Name: "resolve_target_min", Type: field.TypeInt, Nullable: true},
+		{Name: "sort_order", Type: field.TypeInt, Default: 0},
+		{Name: "status", Type: field.TypeString, Size: 16, Default: "active"},
+		{Name: "deleted_at", Type: field.TypeTime, Nullable: true},
+		{Name: "created_by", Type: field.TypeInt, Nullable: true},
+		{Name: "updated_by", Type: field.TypeInt, Nullable: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// ContractServiceItemsTable holds the schema information for the "contract_service_items" table.
+	ContractServiceItemsTable = &schema.Table{
+		Name:       "contract_service_items",
+		Columns:    ContractServiceItemsColumns,
+		PrimaryKey: []*schema.Column{ContractServiceItemsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "uq_csi_tenant_id",
+				Unique:  true,
+				Columns: []*schema.Column{ContractServiceItemsColumns[1], ContractServiceItemsColumns[0]},
+			},
+			{
+				Name:    "uq_csi_contract_code",
+				Unique:  true,
+				Columns: []*schema.Column{ContractServiceItemsColumns[1], ContractServiceItemsColumns[2], ContractServiceItemsColumns[4]},
+				Annotation: &entsql.IndexAnnotation{
+					Where: "deleted_at IS NULL AND item_code IS NOT NULL AND item_code <> ''",
+				},
+			},
+			{
+				Name:    "idx_csi_tenant_contract",
+				Unique:  false,
+				Columns: []*schema.Column{ContractServiceItemsColumns[1], ContractServiceItemsColumns[2], ContractServiceItemsColumns[19]},
+			},
+		},
+	}
+	// ContractUsageLedgersColumns holds the columns for the "contract_usage_ledgers" table.
+	ContractUsageLedgersColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "tenant_id", Type: field.TypeInt},
+		{Name: "contract_id", Type: field.TypeInt},
+		{Name: "service_item_id", Type: field.TypeInt},
+		{Name: "source_type", Type: field.TypeString, Size: 32},
+		{Name: "source_ref", Type: field.TypeString, Size: 160},
+		{Name: "quantity_delta", Type: field.TypeFloat64, Default: 0, SchemaType: map[string]string{"postgres": "numeric(18,4)", "sqlite3": "decimal(18,4)"}},
+		{Name: "amount_delta", Type: field.TypeFloat64, Default: 0, SchemaType: map[string]string{"postgres": "numeric(18,2)", "sqlite3": "decimal(18,2)"}},
+		{Name: "occurred_at", Type: field.TypeTime},
+		{Name: "note", Type: field.TypeString, Nullable: true, Size: 500},
+		{Name: "created_by", Type: field.TypeInt, Nullable: true},
+		{Name: "created_at", Type: field.TypeTime},
+	}
+	// ContractUsageLedgersTable holds the schema information for the "contract_usage_ledgers" table.
+	ContractUsageLedgersTable = &schema.Table{
+		Name:       "contract_usage_ledgers",
+		Columns:    ContractUsageLedgersColumns,
+		PrimaryKey: []*schema.Column{ContractUsageLedgersColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "uq_usage_source",
+				Unique:  true,
+				Columns: []*schema.Column{ContractUsageLedgersColumns[1], ContractUsageLedgersColumns[3], ContractUsageLedgersColumns[4], ContractUsageLedgersColumns[5]},
+			},
+			{
+				Name:    "idx_usage_tenant_contract",
+				Unique:  false,
+				Columns: []*schema.Column{ContractUsageLedgersColumns[1], ContractUsageLedgersColumns[2], ContractUsageLedgersColumns[8]},
+			},
+			{
+				Name:    "idx_usage_tenant_item",
+				Unique:  false,
+				Columns: []*schema.Column{ContractUsageLedgersColumns[1], ContractUsageLedgersColumns[3], ContractUsageLedgersColumns[8]},
+			},
+			{
+				Name:    "uq_usage_tenant_id",
+				Unique:  true,
+				Columns: []*schema.Column{ContractUsageLedgersColumns[1], ContractUsageLedgersColumns[0]},
+			},
+		},
+	}
 	// ConversationsColumns holds the columns for the "conversations" table.
 	ConversationsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -1628,10 +1835,21 @@ var (
 	CustomerBranchesColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
 		{Name: "tenant_id", Type: field.TypeInt},
+		{Name: "code", Type: field.TypeString, Nullable: true, Size: 64},
 		{Name: "name", Type: field.TypeString, Size: 255},
 		{Name: "normalized_name", Type: field.TypeString, Size: 255},
+		{Name: "branch_type", Type: field.TypeString, Size: 32, Default: "site"},
 		{Name: "aliases", Type: field.TypeJSON, Nullable: true},
+		{Name: "address", Type: field.TypeJSON, Nullable: true},
+		{Name: "timezone", Type: field.TypeString, Nullable: true, Size: 64},
+		{Name: "contact_phone", Type: field.TypeString, Nullable: true, Size: 64},
+		{Name: "email_domains", Type: field.TypeJSON, Nullable: true},
+		{Name: "service_tier", Type: field.TypeString, Nullable: true, Size: 32},
+		{Name: "support_hours", Type: field.TypeString, Nullable: true, Size: 64},
+		{Name: "is_primary", Type: field.TypeBool, Default: false},
+		{Name: "linked_tenant_id", Type: field.TypeInt, Nullable: true},
 		{Name: "status", Type: field.TypeString, Size: 32, Default: "active"},
+		{Name: "deleted_at", Type: field.TypeTime, Nullable: true},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "updated_at", Type: field.TypeTime},
 		{Name: "customer_id", Type: field.TypeInt},
@@ -1644,21 +1862,263 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "customer_branches_service_customers_branches",
-				Columns:    []*schema.Column{CustomerBranchesColumns[8]},
+				Columns:    []*schema.Column{CustomerBranchesColumns[19]},
 				RefColumns: []*schema.Column{ServiceCustomersColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
 		},
 		Indexes: []*schema.Index{
 			{
-				Name:    "customerbranch_tenant_id_customer_id_normalized_name",
+				Name:    "uq_branch_tenant_name",
 				Unique:  true,
-				Columns: []*schema.Column{CustomerBranchesColumns[1], CustomerBranchesColumns[8], CustomerBranchesColumns[3]},
+				Columns: []*schema.Column{CustomerBranchesColumns[1], CustomerBranchesColumns[19], CustomerBranchesColumns[4]},
+				Annotation: &entsql.IndexAnnotation{
+					Where: "deleted_at IS NULL",
+				},
+			},
+			{
+				Name:    "uq_branch_tenant_code",
+				Unique:  true,
+				Columns: []*schema.Column{CustomerBranchesColumns[1], CustomerBranchesColumns[2]},
+				Annotation: &entsql.IndexAnnotation{
+					Where: "deleted_at IS NULL AND code IS NOT NULL AND code <> ''",
+				},
+			},
+			{
+				Name:    "uq_branch_primary",
+				Unique:  true,
+				Columns: []*schema.Column{CustomerBranchesColumns[1], CustomerBranchesColumns[19]},
+				Annotation: &entsql.IndexAnnotation{
+					Where: "is_primary AND status = 'active' AND deleted_at IS NULL",
+				},
+			},
+			{
+				Name:    "uq_branch_tenant_id",
+				Unique:  true,
+				Columns: []*schema.Column{CustomerBranchesColumns[1], CustomerBranchesColumns[0]},
+			},
+			{
+				Name:    "uq_branch_tenant_customer_id",
+				Unique:  true,
+				Columns: []*schema.Column{CustomerBranchesColumns[1], CustomerBranchesColumns[19], CustomerBranchesColumns[0]},
 			},
 			{
 				Name:    "customerbranch_tenant_id_customer_id_status",
 				Unique:  false,
-				Columns: []*schema.Column{CustomerBranchesColumns[1], CustomerBranchesColumns[8], CustomerBranchesColumns[5]},
+				Columns: []*schema.Column{CustomerBranchesColumns[1], CustomerBranchesColumns[19], CustomerBranchesColumns[15]},
+			},
+		},
+	}
+	// CustomerContactsColumns holds the columns for the "customer_contacts" table.
+	CustomerContactsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "tenant_id", Type: field.TypeInt},
+		{Name: "customer_id", Type: field.TypeInt},
+		{Name: "branch_id", Type: field.TypeInt, Nullable: true},
+		{Name: "name", Type: field.TypeString, Size: 255},
+		{Name: "name_en", Type: field.TypeString, Nullable: true, Size: 255},
+		{Name: "title", Type: field.TypeString, Nullable: true, Size: 128},
+		{Name: "department", Type: field.TypeString, Nullable: true, Size: 128},
+		{Name: "email", Type: field.TypeString, Nullable: true, Size: 320},
+		{Name: "normalized_email", Type: field.TypeString, Nullable: true, Size: 320},
+		{Name: "mobile", Type: field.TypeString, Nullable: true, Size: 64},
+		{Name: "phone", Type: field.TypeString, Nullable: true, Size: 64},
+		{Name: "wechat", Type: field.TypeString, Nullable: true, Size: 128},
+		{Name: "contact_role", Type: field.TypeString, Size: 32, Default: "business"},
+		{Name: "is_primary", Type: field.TypeBool, Default: false},
+		{Name: "language", Type: field.TypeString, Nullable: true, Size: 16},
+		{Name: "timezone", Type: field.TypeString, Nullable: true, Size: 64},
+		{Name: "opt_in", Type: field.TypeBool, Default: true},
+		{Name: "linked_user_id", Type: field.TypeInt, Nullable: true},
+		{Name: "source", Type: field.TypeString, Size: 32, Default: "manual"},
+		{Name: "status", Type: field.TypeString, Size: 16, Default: "active"},
+		{Name: "deleted_at", Type: field.TypeTime, Nullable: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// CustomerContactsTable holds the schema information for the "customer_contacts" table.
+	CustomerContactsTable = &schema.Table{
+		Name:       "customer_contacts",
+		Columns:    CustomerContactsColumns,
+		PrimaryKey: []*schema.Column{CustomerContactsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "uq_contact_email",
+				Unique:  true,
+				Columns: []*schema.Column{CustomerContactsColumns[1], CustomerContactsColumns[2], CustomerContactsColumns[9]},
+				Annotation: &entsql.IndexAnnotation{
+					Where: "status = 'active' AND deleted_at IS NULL AND normalized_email IS NOT NULL AND normalized_email <> ''",
+				},
+			},
+			{
+				Name:    "uq_contact_primary",
+				Unique:  true,
+				Columns: []*schema.Column{CustomerContactsColumns[1], CustomerContactsColumns[2], CustomerContactsColumns[13]},
+				Annotation: &entsql.IndexAnnotation{
+					Where: "is_primary AND status = 'active' AND deleted_at IS NULL",
+				},
+			},
+			{
+				Name:    "idx_contact_tenant_customer",
+				Unique:  false,
+				Columns: []*schema.Column{CustomerContactsColumns[1], CustomerContactsColumns[2], CustomerContactsColumns[20]},
+			},
+			{
+				Name:    "idx_contact_tenant_email",
+				Unique:  false,
+				Columns: []*schema.Column{CustomerContactsColumns[1], CustomerContactsColumns[9]},
+			},
+			{
+				Name:    "uq_contact_tenant_id",
+				Unique:  true,
+				Columns: []*schema.Column{CustomerContactsColumns[1], CustomerContactsColumns[0]},
+			},
+		},
+	}
+	// CustomerExternalIdsColumns holds the columns for the "customer_external_ids" table.
+	CustomerExternalIdsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "tenant_id", Type: field.TypeInt},
+		{Name: "customer_id", Type: field.TypeInt},
+		{Name: "system_code", Type: field.TypeString, Size: 64},
+		{Name: "external_id", Type: field.TypeString, Size: 160},
+		{Name: "external_url", Type: field.TypeString, Nullable: true, Size: 500},
+		{Name: "created_at", Type: field.TypeTime},
+	}
+	// CustomerExternalIdsTable holds the schema information for the "customer_external_ids" table.
+	CustomerExternalIdsTable = &schema.Table{
+		Name:       "customer_external_ids",
+		Columns:    CustomerExternalIdsColumns,
+		PrimaryKey: []*schema.Column{CustomerExternalIdsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "uq_extid_tenant_system_external",
+				Unique:  true,
+				Columns: []*schema.Column{CustomerExternalIdsColumns[1], CustomerExternalIdsColumns[3], CustomerExternalIdsColumns[4]},
+			},
+			{
+				Name:    "idx_extid_tenant_customer",
+				Unique:  false,
+				Columns: []*schema.Column{CustomerExternalIdsColumns[1], CustomerExternalIdsColumns[2]},
+			},
+			{
+				Name:    "uq_extid_tenant_id",
+				Unique:  true,
+				Columns: []*schema.Column{CustomerExternalIdsColumns[1], CustomerExternalIdsColumns[0]},
+			},
+		},
+	}
+	// CustomerRelationshipsColumns holds the columns for the "customer_relationships" table.
+	CustomerRelationshipsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "tenant_id", Type: field.TypeInt},
+		{Name: "from_customer_id", Type: field.TypeInt},
+		{Name: "to_customer_id", Type: field.TypeInt},
+		{Name: "relation_type", Type: field.TypeString, Size: 32},
+		{Name: "relation_role", Type: field.TypeString, Size: 16, Default: "outbound"},
+		{Name: "is_bidirectional", Type: field.TypeBool, Default: false},
+		{Name: "effective_from", Type: field.TypeTime, Nullable: true},
+		{Name: "effective_to", Type: field.TypeTime, Nullable: true},
+		{Name: "note", Type: field.TypeString, Nullable: true, Size: 500},
+		{Name: "status", Type: field.TypeString, Size: 16, Default: "active"},
+		{Name: "deleted_at", Type: field.TypeTime, Nullable: true},
+		{Name: "created_by", Type: field.TypeInt, Nullable: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// CustomerRelationshipsTable holds the schema information for the "customer_relationships" table.
+	CustomerRelationshipsTable = &schema.Table{
+		Name:       "customer_relationships",
+		Columns:    CustomerRelationshipsColumns,
+		PrimaryKey: []*schema.Column{CustomerRelationshipsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "uq_rel_pair_type",
+				Unique:  true,
+				Columns: []*schema.Column{CustomerRelationshipsColumns[1], CustomerRelationshipsColumns[2], CustomerRelationshipsColumns[3], CustomerRelationshipsColumns[4]},
+				Annotation: &entsql.IndexAnnotation{
+					Where: "status = 'active' AND deleted_at IS NULL",
+				},
+			},
+			{
+				Name:    "idx_rel_tenant_from",
+				Unique:  false,
+				Columns: []*schema.Column{CustomerRelationshipsColumns[1], CustomerRelationshipsColumns[2], CustomerRelationshipsColumns[10]},
+			},
+			{
+				Name:    "idx_rel_tenant_to",
+				Unique:  false,
+				Columns: []*schema.Column{CustomerRelationshipsColumns[1], CustomerRelationshipsColumns[3], CustomerRelationshipsColumns[10]},
+			},
+			{
+				Name:    "uq_rel_tenant_id",
+				Unique:  true,
+				Columns: []*schema.Column{CustomerRelationshipsColumns[1], CustomerRelationshipsColumns[0]},
+			},
+		},
+	}
+	// CustomerTenantLinksColumns holds the columns for the "customer_tenant_links" table.
+	CustomerTenantLinksColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "tenant_id", Type: field.TypeInt},
+		{Name: "customer_id", Type: field.TypeInt},
+		{Name: "linked_tenant_id", Type: field.TypeInt},
+		{Name: "link_type", Type: field.TypeString, Size: 24, Default: "primary"},
+		{Name: "is_billing_anchor", Type: field.TypeBool, Default: false},
+		{Name: "provision_status", Type: field.TypeString, Size: 24, Default: "pending"},
+		{Name: "provisioned_at", Type: field.TypeTime, Nullable: true},
+		{Name: "note", Type: field.TypeString, Nullable: true, Size: 500},
+		{Name: "deleted_at", Type: field.TypeTime, Nullable: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// CustomerTenantLinksTable holds the schema information for the "customer_tenant_links" table.
+	CustomerTenantLinksTable = &schema.Table{
+		Name:       "customer_tenant_links",
+		Columns:    CustomerTenantLinksColumns,
+		PrimaryKey: []*schema.Column{CustomerTenantLinksColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "uq_ctlink",
+				Unique:  true,
+				Columns: []*schema.Column{CustomerTenantLinksColumns[1], CustomerTenantLinksColumns[2], CustomerTenantLinksColumns[3]},
+				Annotation: &entsql.IndexAnnotation{
+					Where: "deleted_at IS NULL",
+				},
+			},
+			{
+				Name:    "uq_ctlink_primary",
+				Unique:  true,
+				Columns: []*schema.Column{CustomerTenantLinksColumns[1], CustomerTenantLinksColumns[2]},
+				Annotation: &entsql.IndexAnnotation{
+					Where: "link_type = 'primary' AND deleted_at IS NULL",
+				},
+			},
+			{
+				Name:    "uq_ctlink_linked_tenant",
+				Unique:  true,
+				Columns: []*schema.Column{CustomerTenantLinksColumns[1], CustomerTenantLinksColumns[3]},
+				Annotation: &entsql.IndexAnnotation{
+					Where: "deleted_at IS NULL",
+				},
+			},
+			{
+				Name:    "uq_ctlink_billing",
+				Unique:  true,
+				Columns: []*schema.Column{CustomerTenantLinksColumns[1], CustomerTenantLinksColumns[2]},
+				Annotation: &entsql.IndexAnnotation{
+					Where: "is_billing_anchor AND deleted_at IS NULL",
+				},
+			},
+			{
+				Name:    "idx_ctlink_tenant_linked",
+				Unique:  false,
+				Columns: []*schema.Column{CustomerTenantLinksColumns[1], CustomerTenantLinksColumns[3]},
+			},
+			{
+				Name:    "uq_ctlink_tenant_id",
+				Unique:  true,
+				Columns: []*schema.Column{CustomerTenantLinksColumns[1], CustomerTenantLinksColumns[0]},
 			},
 		},
 	}
@@ -4605,6 +5065,55 @@ var (
 			},
 		},
 	}
+	// ProjectCustomerLinksColumns holds the columns for the "project_customer_links" table.
+	ProjectCustomerLinksColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "tenant_id", Type: field.TypeInt},
+		{Name: "project_id", Type: field.TypeInt},
+		{Name: "customer_id", Type: field.TypeInt},
+		{Name: "branch_id", Type: field.TypeInt, Nullable: true},
+		{Name: "relation_type", Type: field.TypeString, Size: 24, Default: "delivery"},
+		{Name: "is_primary", Type: field.TypeBool, Default: false},
+		{Name: "note", Type: field.TypeString, Nullable: true, Size: 500},
+		{Name: "deleted_at", Type: field.TypeTime, Nullable: true},
+		{Name: "created_by", Type: field.TypeInt, Nullable: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// ProjectCustomerLinksTable holds the schema information for the "project_customer_links" table.
+	ProjectCustomerLinksTable = &schema.Table{
+		Name:       "project_customer_links",
+		Columns:    ProjectCustomerLinksColumns,
+		PrimaryKey: []*schema.Column{ProjectCustomerLinksColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "uq_pclink",
+				Unique:  true,
+				Columns: []*schema.Column{ProjectCustomerLinksColumns[1], ProjectCustomerLinksColumns[2], ProjectCustomerLinksColumns[3], ProjectCustomerLinksColumns[5]},
+				Annotation: &entsql.IndexAnnotation{
+					Where: "deleted_at IS NULL",
+				},
+			},
+			{
+				Name:    "uq_pclink_primary",
+				Unique:  true,
+				Columns: []*schema.Column{ProjectCustomerLinksColumns[1], ProjectCustomerLinksColumns[2]},
+				Annotation: &entsql.IndexAnnotation{
+					Where: "is_primary AND deleted_at IS NULL",
+				},
+			},
+			{
+				Name:    "idx_pclink_tenant_customer",
+				Unique:  false,
+				Columns: []*schema.Column{ProjectCustomerLinksColumns[1], ProjectCustomerLinksColumns[3]},
+			},
+			{
+				Name:    "uq_pclink_tenant_id",
+				Unique:  true,
+				Columns: []*schema.Column{ProjectCustomerLinksColumns[1], ProjectCustomerLinksColumns[0]},
+			},
+		},
+	}
 	// ProjectGatesColumns holds the columns for the "project_gates" table.
 	ProjectGatesColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -5534,11 +6043,59 @@ var (
 	ServiceCustomersColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
 		{Name: "tenant_id", Type: field.TypeInt},
+		{Name: "code", Type: field.TypeString, Nullable: true, Size: 64},
 		{Name: "name", Type: field.TypeString, Size: 255},
 		{Name: "normalized_name", Type: field.TypeString, Size: 255},
 		{Name: "short_name", Type: field.TypeString, Nullable: true, Size: 120},
+		{Name: "legal_name", Type: field.TypeString, Nullable: true, Size: 255},
+		{Name: "en_name", Type: field.TypeString, Nullable: true, Size: 255},
 		{Name: "aliases", Type: field.TypeJSON, Nullable: true},
 		{Name: "historical_names", Type: field.TypeJSON, Nullable: true},
+		{Name: "tax_id", Type: field.TypeString, Nullable: true, Size: 64},
+		{Name: "normalized_tax_id", Type: field.TypeString, Nullable: true, Size: 64},
+		{Name: "duns_number", Type: field.TypeString, Nullable: true, Size: 32},
+		{Name: "registration_no", Type: field.TypeString, Nullable: true, Size: 64},
+		{Name: "email_domains", Type: field.TypeJSON, Nullable: true},
+		{Name: "customer_type", Type: field.TypeString, Size: 32, Default: "direct"},
+		{Name: "industry", Type: field.TypeString, Nullable: true, Size: 64},
+		{Name: "sub_industry", Type: field.TypeString, Nullable: true, Size: 64},
+		{Name: "size_class", Type: field.TypeString, Nullable: true, Size: 32},
+		{Name: "ownership_type", Type: field.TypeString, Nullable: true, Size: 32},
+		{Name: "tier", Type: field.TypeString, Size: 16, Default: "C"},
+		{Name: "vip_level", Type: field.TypeInt16, Default: 0},
+		{Name: "credit_rating", Type: field.TypeString, Nullable: true, Size: 16},
+		{Name: "website", Type: field.TypeString, Nullable: true, Size: 255},
+		{Name: "main_phone", Type: field.TypeString, Nullable: true, Size: 64},
+		{Name: "service_email", Type: field.TypeString, Nullable: true, Size: 320},
+		{Name: "address", Type: field.TypeJSON, Nullable: true},
+		{Name: "timezone", Type: field.TypeString, Nullable: true, Size: 64},
+		{Name: "language", Type: field.TypeString, Size: 16, Default: "zh-CN"},
+		{Name: "service_tier", Type: field.TypeString, Nullable: true, Size: 32},
+		{Name: "sla_definition_id", Type: field.TypeInt, Nullable: true},
+		{Name: "support_hours", Type: field.TypeString, Nullable: true, Size: 64},
+		{Name: "coverage_scope", Type: field.TypeJSON, Nullable: true},
+		{Name: "account_manager_id", Type: field.TypeInt, Nullable: true},
+		{Name: "service_owner_id", Type: field.TypeInt, Nullable: true},
+		{Name: "cs_manager_id", Type: field.TypeInt, Nullable: true},
+		{Name: "oncall_group_id", Type: field.TypeInt, Nullable: true},
+		{Name: "billing_currency", Type: field.TypeString, Nullable: true, Size: 8},
+		{Name: "payment_terms", Type: field.TypeString, Nullable: true, Size: 32},
+		{Name: "credit_limit", Type: field.TypeFloat64, Nullable: true},
+		{Name: "invoice_title", Type: field.TypeString, Nullable: true, Size: 255},
+		{Name: "billing_address", Type: field.TypeJSON, Nullable: true},
+		{Name: "lifecycle_stage", Type: field.TypeString, Size: 32, Default: "prospect"},
+		{Name: "onboarded_at", Type: field.TypeTime, Nullable: true},
+		{Name: "contract_start_at", Type: field.TypeTime, Nullable: true},
+		{Name: "contract_end_at", Type: field.TypeTime, Nullable: true},
+		{Name: "churn_at", Type: field.TypeTime, Nullable: true},
+		{Name: "churn_reason", Type: field.TypeString, Nullable: true, Size: 255},
+		{Name: "data_source", Type: field.TypeString, Size: 32, Default: "manual"},
+		{Name: "data_quality_score", Type: field.TypeInt16, Default: 0},
+		{Name: "merged_into_id", Type: field.TypeInt, Nullable: true},
+		{Name: "version", Type: field.TypeInt64, Default: 1},
+		{Name: "deleted_at", Type: field.TypeTime, Nullable: true},
+		{Name: "created_by", Type: field.TypeInt, Nullable: true},
+		{Name: "updated_by", Type: field.TypeInt, Nullable: true},
 		{Name: "status", Type: field.TypeString, Size: 32, Default: "active"},
 		{Name: "linked_customer_tenant_id", Type: field.TypeInt, Nullable: true},
 		{Name: "created_at", Type: field.TypeTime},
@@ -5551,14 +6108,53 @@ var (
 		PrimaryKey: []*schema.Column{ServiceCustomersColumns[0]},
 		Indexes: []*schema.Index{
 			{
-				Name:    "servicecustomer_tenant_id_normalized_name",
+				Name:    "uq_customer_tenant_name",
 				Unique:  true,
-				Columns: []*schema.Column{ServiceCustomersColumns[1], ServiceCustomersColumns[3]},
+				Columns: []*schema.Column{ServiceCustomersColumns[1], ServiceCustomersColumns[4]},
+				Annotation: &entsql.IndexAnnotation{
+					Where: "deleted_at IS NULL",
+				},
+			},
+			{
+				Name:    "uq_customer_tenant_code",
+				Unique:  true,
+				Columns: []*schema.Column{ServiceCustomersColumns[1], ServiceCustomersColumns[2]},
+				Annotation: &entsql.IndexAnnotation{
+					Where: "deleted_at IS NULL AND code IS NOT NULL AND code <> ''",
+				},
+			},
+			{
+				Name:    "uq_customer_tenant_taxid",
+				Unique:  true,
+				Columns: []*schema.Column{ServiceCustomersColumns[1], ServiceCustomersColumns[11]},
+				Annotation: &entsql.IndexAnnotation{
+					Where: "deleted_at IS NULL AND normalized_tax_id IS NOT NULL AND normalized_tax_id <> ''",
+				},
+			},
+			{
+				Name:    "idx_customer_tenant_tier",
+				Unique:  false,
+				Columns: []*schema.Column{ServiceCustomersColumns[1], ServiceCustomersColumns[20], ServiceCustomersColumns[55]},
+			},
+			{
+				Name:    "idx_customer_tenant_stage",
+				Unique:  false,
+				Columns: []*schema.Column{ServiceCustomersColumns[1], ServiceCustomersColumns[42], ServiceCustomersColumns[55]},
+			},
+			{
+				Name:    "idx_customer_tenant_am",
+				Unique:  false,
+				Columns: []*schema.Column{ServiceCustomersColumns[1], ServiceCustomersColumns[33]},
+			},
+			{
+				Name:    "uq_customer_tenant_id",
+				Unique:  true,
+				Columns: []*schema.Column{ServiceCustomersColumns[1], ServiceCustomersColumns[0]},
 			},
 			{
 				Name:    "servicecustomer_tenant_id_status",
 				Unique:  false,
-				Columns: []*schema.Column{ServiceCustomersColumns[1], ServiceCustomersColumns[7]},
+				Columns: []*schema.Column{ServiceCustomersColumns[1], ServiceCustomersColumns[55]},
 			},
 		},
 	}
@@ -5746,6 +6342,24 @@ var (
 		{Name: "start_at", Type: field.TypeTime, Nullable: true},
 		{Name: "end_at", Type: field.TypeTime, Nullable: true},
 		{Name: "source_document_id", Type: field.TypeInt, Nullable: true},
+		{Name: "effective_from", Type: field.TypeTime, Nullable: true},
+		{Name: "effective_until", Type: field.TypeTime, Nullable: true},
+		{Name: "signed_at", Type: field.TypeTime, Nullable: true},
+		{Name: "amount", Type: field.TypeFloat64, Nullable: true, SchemaType: map[string]string{"postgres": "numeric(18,2)", "sqlite3": "decimal(18,2)"}},
+		{Name: "currency", Type: field.TypeString, Nullable: true, Size: 8},
+		{Name: "contract_type", Type: field.TypeString, Size: 32, Default: "support"},
+		{Name: "contract_name", Type: field.TypeString, Nullable: true, Size: 255},
+		{Name: "parent_contract_id", Type: field.TypeInt, Nullable: true},
+		{Name: "renewal_of_contract_id", Type: field.TypeInt, Nullable: true},
+		{Name: "amendment_count", Type: field.TypeInt, Default: 0},
+		{Name: "sla_definition_id", Type: field.TypeInt, Nullable: true},
+		{Name: "auto_renew", Type: field.TypeBool, Default: false},
+		{Name: "terminated_at", Type: field.TypeTime, Nullable: true},
+		{Name: "termination_reason", Type: field.TypeString, Nullable: true, Size: 255},
+		{Name: "deleted_at", Type: field.TypeTime, Nullable: true},
+		{Name: "version", Type: field.TypeInt64, Default: 1},
+		{Name: "created_by", Type: field.TypeInt, Nullable: true},
+		{Name: "updated_by", Type: field.TypeInt, Nullable: true},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "updated_at", Type: field.TypeTime},
 		{Name: "branch_id", Type: field.TypeInt, Nullable: true},
@@ -5759,27 +6373,48 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "support_contracts_customer_branches_contracts",
-				Columns:    []*schema.Column{SupportContractsColumns[10]},
+				Columns:    []*schema.Column{SupportContractsColumns[28]},
 				RefColumns: []*schema.Column{CustomerBranchesColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
 			{
 				Symbol:     "support_contracts_service_customers_contracts",
-				Columns:    []*schema.Column{SupportContractsColumns[11]},
+				Columns:    []*schema.Column{SupportContractsColumns[29]},
 				RefColumns: []*schema.Column{ServiceCustomersColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
 		},
 		Indexes: []*schema.Index{
 			{
-				Name:    "supportcontract_tenant_id_normalized_contract_number",
+				Name:    "uq_sc_tenant_no",
 				Unique:  true,
 				Columns: []*schema.Column{SupportContractsColumns[1], SupportContractsColumns[3]},
+				Annotation: &entsql.IndexAnnotation{
+					Where: "deleted_at IS NULL",
+				},
 			},
 			{
 				Name:    "supportcontract_tenant_id_customer_id_status",
 				Unique:  false,
-				Columns: []*schema.Column{SupportContractsColumns[1], SupportContractsColumns[11], SupportContractsColumns[4]},
+				Columns: []*schema.Column{SupportContractsColumns[1], SupportContractsColumns[29], SupportContractsColumns[4]},
+			},
+			{
+				Name:    "idx_sc_tenant_effective",
+				Unique:  false,
+				Columns: []*schema.Column{SupportContractsColumns[1], SupportContractsColumns[9]},
+				Annotation: &entsql.IndexAnnotation{
+					Where: "status = 'active' AND deleted_at IS NULL",
+				},
+			},
+			{
+				Name:    "idx_sc_tenant_type",
+				Unique:  false,
+				Columns: []*schema.Column{SupportContractsColumns[1], SupportContractsColumns[13], SupportContractsColumns[4]},
+			},
+			{
+				Name:    "uq_sc_tenant_id",
+				Unique:  true,
+				Columns: []*schema.Column{SupportContractsColumns[1], SupportContractsColumns[0]},
 			},
 		},
 	}
@@ -7618,8 +8253,16 @@ var (
 		ConnectorConfigsTable,
 		ConnectorInboundDedupsTable,
 		ContractsTable,
+		ContractAmendmentsTable,
+		ContractProjectLinksTable,
+		ContractServiceItemsTable,
+		ContractUsageLedgersTable,
 		ConversationsTable,
 		CustomerBranchesTable,
+		CustomerContactsTable,
+		CustomerExternalIdsTable,
+		CustomerRelationshipsTable,
+		CustomerTenantLinksTable,
 		DepartmentsTable,
 		DiscoveryJobsTable,
 		DiscoveryResultsTable,
@@ -7686,6 +8329,7 @@ var (
 		ProjectAssetLinksTable,
 		ProjectBaselinesTable,
 		ProjectClosuresTable,
+		ProjectCustomerLinksTable,
 		ProjectGatesTable,
 		ProjectMembersTable,
 		ProjectMilestonesTable,

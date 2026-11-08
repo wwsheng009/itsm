@@ -54,6 +54,18 @@ export interface IntakeAnalysis {
   createdAt: string;
 }
 
+export interface CustomerMatchCandidate {
+  id: number;
+  code: string;
+  name: string;
+  tier: string;
+  lifecycleStage: string;
+  status: string;
+  level: string;
+  confidence: number;
+  reason: string;
+}
+
 export interface EmailConversationDetail extends EmailConversation {
   canonicalData: Record<string, unknown>;
   fieldSources: Record<string, unknown>;
@@ -74,12 +86,63 @@ export interface EmailConversationDetail extends EmailConversation {
 
 export interface ServiceCustomer {
   id: number;
+  code: string;
   name: string;
+  normalizedName?: string;
   shortName: string;
+  legalName?: string;
+  enName?: string;
   aliases: string[];
   historicalNames: string[];
+  taxId?: string;
+  normalizedTaxId?: string;
+  dunsNumber?: string;
+  registrationNo?: string;
+  emailDomains: string[];
+  customerType: string;
+  industry?: string;
+  subIndustry?: string;
+  sizeClass?: string;
+  ownershipType?: string;
+  tier: string;
+  vipLevel: number;
+  creditRating?: string;
+  website?: string;
+  mainPhone?: string;
+  serviceEmail?: string;
+  address?: Record<string, unknown>;
+  timezone?: string;
+  language?: string;
+  serviceTier?: string;
+  slaDefinitionId?: number | null;
+  supportHours?: string;
+  coverageScope?: Record<string, unknown>;
+  accountManagerId?: number | null;
+  accountManagerName?: string;
+  serviceOwnerId?: number | null;
+  csManagerId?: number | null;
+  oncallGroupId?: number | null;
+  billingCurrency?: string;
+  paymentTerms?: string;
+  creditLimit?: number | null;
+  invoiceTitle?: string;
+  billingAddress?: Record<string, unknown>;
+  lifecycleStage: string;
+  onboardedAt?: string;
+  contractStartAt?: string;
+  contractEndAt?: string;
+  churnAt?: string;
+  churnReason?: string;
+  dataSource?: string;
+  dataQualityScore?: number;
+  mergedIntoId?: number | null;
+  version: number;
   status: string;
   linkedCustomerTenantId?: number | null;
+  branchCount?: number;
+  contractCount?: number;
+  contactCount?: number;
+  tenantLinkCount?: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -87,11 +150,69 @@ export interface ServiceCustomer {
 export interface CustomerBranch {
   id: number;
   customerId: number;
+  code?: string;
   name: string;
+  normalizedName?: string;
+  branchType?: string;
   aliases: string[];
+  address?: Record<string, unknown>;
+  timezone?: string;
+  contactPhone?: string;
+  emailDomains?: string[];
+  serviceTier?: string;
+  supportHours?: string;
+  isPrimary?: boolean;
+  linkedTenantId?: number | null;
   status: string;
   createdAt?: string;
   updatedAt?: string;
+}
+
+export interface CustomerContact {
+  id: number;
+  customerId: number;
+  branchId?: number | null;
+  name: string;
+  nameEn?: string;
+  title?: string;
+  department?: string;
+  email?: string;
+  normalizedEmail?: string;
+  mobile?: string;
+  phone?: string;
+  wechat?: string;
+  contactRole: string;
+  isPrimary: boolean;
+  language?: string;
+  timezone?: string;
+  optIn: boolean;
+  linkedUserId?: number | null;
+  source?: string;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CustomerTenantLink {
+  id: number;
+  customerId: number;
+  linkedTenantId: number;
+  linkType: string;
+  isBillingAnchor: boolean;
+  provisionStatus: string;
+  provisionedAt?: string;
+  note?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CustomerExternalID {
+  id: number;
+  customerId: number;
+  systemCode: string;
+  externalId: string;
+  externalUrl?: string;
+  createdAt: string;
 }
 
 export interface SupportContract {
@@ -99,9 +220,39 @@ export interface SupportContract {
   customerId: number;
   branchId?: number;
   contractNumber: string;
-  status: 'active' | 'terminated' | 'expired' | 'pending';
+  contractName?: string;
+  contractType?: string;
+  status:
+    | 'draft'
+    | 'pending_sign'
+    | 'pending'
+    | 'active'
+    | 'expiring'
+    | 'expired'
+    | 'terminated'
+    | 'renewed';
   startAt?: string;
   endAt?: string;
+  effectiveFrom?: string;
+  effectiveUntil?: string;
+  signedAt?: string;
+  amount?: number;
+  currency?: string;
+  parentContractId?: number;
+  renewalOfContractId?: number;
+  amendmentCount?: number;
+  slaDefinitionId?: number;
+  autoRenew?: boolean;
+  terminatedAt?: string;
+  terminationReason?: string;
+  version?: number;
+  displayStatus?: string;
+  remainingDays?: number;
+  effectiveAmount?: number;
+  allocatedAmount?: number;
+  usedAmount?: number;
+  remainingAmount?: number;
+  availableAmount?: number;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -146,6 +297,9 @@ export interface OnCallShift {
 interface ListResponse<T> {
   items: T[];
   total: number;
+  page?: number;
+  pageSize?: number;
+  totalPages?: number;
 }
 
 class EmailIntakeService {
@@ -191,18 +345,18 @@ class EmailIntakeService {
     });
   }
 
-  async customers(): Promise<ListResponse<ServiceCustomer>> {
-    return httpClient.get(`${this.baseUrl}/customers`);
+  async customers(params?: { page?: number; pageSize?: number }): Promise<ListResponse<ServiceCustomer>> {
+    return httpClient.get(`${this.baseUrl}/customers`, params);
   }
 
   async createCustomer(
-    payload: Omit<ServiceCustomer, 'id' | 'createdAt' | 'updatedAt'>
+    payload: Partial<Omit<ServiceCustomer, 'id' | 'createdAt' | 'updatedAt'>> & { name: string }
   ): Promise<ServiceCustomer> {
     return httpClient.post(`${this.baseUrl}/customers`, payload);
   }
   async updateCustomer(
     id: number,
-    payload: Omit<ServiceCustomer, 'id' | 'createdAt' | 'updatedAt'>
+    payload: Partial<Omit<ServiceCustomer, 'id' | 'createdAt' | 'updatedAt'>> & { name: string }
   ): Promise<ServiceCustomer> {
     return httpClient.put(`${this.baseUrl}/customers/${id}`, payload);
   }
@@ -214,7 +368,9 @@ class EmailIntakeService {
     return httpClient.get(`${this.baseUrl}/branches`, customerId ? { customerId } : undefined);
   }
 
-  async createBranch(payload: Omit<CustomerBranch, 'id'>): Promise<CustomerBranch> {
+  async createBranch(
+    payload: Partial<Omit<CustomerBranch, 'id'>> & { customerId: number; name: string }
+  ): Promise<CustomerBranch> {
     return httpClient.post(`${this.baseUrl}/branches`, payload);
   }
 
@@ -294,7 +450,7 @@ class EmailIntakeService {
   }
   async updateBranch(
     id: number,
-    payload: { name: string; aliases?: string[]; customerId: number; status?: string }
+    payload: Partial<Omit<CustomerBranch, 'id'>> & { customerId: number; name: string }
   ): Promise<CustomerBranch> {
     return httpClient.put(`${this.baseUrl}/branches/${id}`, payload);
   }

@@ -47,8 +47,16 @@ import (
 	"itsm-backend/ent/connectorconfig"
 	"itsm-backend/ent/connectorinbounddedup"
 	"itsm-backend/ent/contract"
+	"itsm-backend/ent/contractamendment"
+	"itsm-backend/ent/contractprojectlink"
+	"itsm-backend/ent/contractserviceitem"
+	"itsm-backend/ent/contractusageledger"
 	"itsm-backend/ent/conversation"
 	"itsm-backend/ent/customerbranch"
+	"itsm-backend/ent/customercontact"
+	"itsm-backend/ent/customerexternalid"
+	"itsm-backend/ent/customerrelationship"
+	"itsm-backend/ent/customertenantlink"
 	"itsm-backend/ent/department"
 	"itsm-backend/ent/discoveryjob"
 	"itsm-backend/ent/discoveryresult"
@@ -115,6 +123,7 @@ import (
 	"itsm-backend/ent/projectassetlink"
 	"itsm-backend/ent/projectbaseline"
 	"itsm-backend/ent/projectclosure"
+	"itsm-backend/ent/projectcustomerlink"
 	"itsm-backend/ent/projectgate"
 	"itsm-backend/ent/projectmember"
 	"itsm-backend/ent/projectmilestone"
@@ -263,10 +272,26 @@ type Client struct {
 	ConnectorInboundDedup *ConnectorInboundDedupClient
 	// Contract is the client for interacting with the Contract builders.
 	Contract *ContractClient
+	// ContractAmendment is the client for interacting with the ContractAmendment builders.
+	ContractAmendment *ContractAmendmentClient
+	// ContractProjectLink is the client for interacting with the ContractProjectLink builders.
+	ContractProjectLink *ContractProjectLinkClient
+	// ContractServiceItem is the client for interacting with the ContractServiceItem builders.
+	ContractServiceItem *ContractServiceItemClient
+	// ContractUsageLedger is the client for interacting with the ContractUsageLedger builders.
+	ContractUsageLedger *ContractUsageLedgerClient
 	// Conversation is the client for interacting with the Conversation builders.
 	Conversation *ConversationClient
 	// CustomerBranch is the client for interacting with the CustomerBranch builders.
 	CustomerBranch *CustomerBranchClient
+	// CustomerContact is the client for interacting with the CustomerContact builders.
+	CustomerContact *CustomerContactClient
+	// CustomerExternalID is the client for interacting with the CustomerExternalID builders.
+	CustomerExternalID *CustomerExternalIDClient
+	// CustomerRelationship is the client for interacting with the CustomerRelationship builders.
+	CustomerRelationship *CustomerRelationshipClient
+	// CustomerTenantLink is the client for interacting with the CustomerTenantLink builders.
+	CustomerTenantLink *CustomerTenantLinkClient
 	// Department is the client for interacting with the Department builders.
 	Department *DepartmentClient
 	// DiscoveryJob is the client for interacting with the DiscoveryJob builders.
@@ -399,6 +424,8 @@ type Client struct {
 	ProjectBaseline *ProjectBaselineClient
 	// ProjectClosure is the client for interacting with the ProjectClosure builders.
 	ProjectClosure *ProjectClosureClient
+	// ProjectCustomerLink is the client for interacting with the ProjectCustomerLink builders.
+	ProjectCustomerLink *ProjectCustomerLinkClient
 	// ProjectGate is the client for interacting with the ProjectGate builders.
 	ProjectGate *ProjectGateClient
 	// ProjectMember is the client for interacting with the ProjectMember builders.
@@ -574,8 +601,16 @@ func (c *Client) init() {
 	c.ConnectorConfig = NewConnectorConfigClient(c.config)
 	c.ConnectorInboundDedup = NewConnectorInboundDedupClient(c.config)
 	c.Contract = NewContractClient(c.config)
+	c.ContractAmendment = NewContractAmendmentClient(c.config)
+	c.ContractProjectLink = NewContractProjectLinkClient(c.config)
+	c.ContractServiceItem = NewContractServiceItemClient(c.config)
+	c.ContractUsageLedger = NewContractUsageLedgerClient(c.config)
 	c.Conversation = NewConversationClient(c.config)
 	c.CustomerBranch = NewCustomerBranchClient(c.config)
+	c.CustomerContact = NewCustomerContactClient(c.config)
+	c.CustomerExternalID = NewCustomerExternalIDClient(c.config)
+	c.CustomerRelationship = NewCustomerRelationshipClient(c.config)
+	c.CustomerTenantLink = NewCustomerTenantLinkClient(c.config)
 	c.Department = NewDepartmentClient(c.config)
 	c.DiscoveryJob = NewDiscoveryJobClient(c.config)
 	c.DiscoveryResult = NewDiscoveryResultClient(c.config)
@@ -642,6 +677,7 @@ func (c *Client) init() {
 	c.ProjectAssetLink = NewProjectAssetLinkClient(c.config)
 	c.ProjectBaseline = NewProjectBaselineClient(c.config)
 	c.ProjectClosure = NewProjectClosureClient(c.config)
+	c.ProjectCustomerLink = NewProjectCustomerLinkClient(c.config)
 	c.ProjectGate = NewProjectGateClient(c.config)
 	c.ProjectMember = NewProjectMemberClient(c.config)
 	c.ProjectMilestone = NewProjectMilestoneClient(c.config)
@@ -834,8 +870,16 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		ConnectorConfig:             NewConnectorConfigClient(cfg),
 		ConnectorInboundDedup:       NewConnectorInboundDedupClient(cfg),
 		Contract:                    NewContractClient(cfg),
+		ContractAmendment:           NewContractAmendmentClient(cfg),
+		ContractProjectLink:         NewContractProjectLinkClient(cfg),
+		ContractServiceItem:         NewContractServiceItemClient(cfg),
+		ContractUsageLedger:         NewContractUsageLedgerClient(cfg),
 		Conversation:                NewConversationClient(cfg),
 		CustomerBranch:              NewCustomerBranchClient(cfg),
+		CustomerContact:             NewCustomerContactClient(cfg),
+		CustomerExternalID:          NewCustomerExternalIDClient(cfg),
+		CustomerRelationship:        NewCustomerRelationshipClient(cfg),
+		CustomerTenantLink:          NewCustomerTenantLinkClient(cfg),
 		Department:                  NewDepartmentClient(cfg),
 		DiscoveryJob:                NewDiscoveryJobClient(cfg),
 		DiscoveryResult:             NewDiscoveryResultClient(cfg),
@@ -902,6 +946,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		ProjectAssetLink:            NewProjectAssetLinkClient(cfg),
 		ProjectBaseline:             NewProjectBaselineClient(cfg),
 		ProjectClosure:              NewProjectClosureClient(cfg),
+		ProjectCustomerLink:         NewProjectCustomerLinkClient(cfg),
 		ProjectGate:                 NewProjectGateClient(cfg),
 		ProjectMember:               NewProjectMemberClient(cfg),
 		ProjectMilestone:            NewProjectMilestoneClient(cfg),
@@ -1021,8 +1066,16 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		ConnectorConfig:             NewConnectorConfigClient(cfg),
 		ConnectorInboundDedup:       NewConnectorInboundDedupClient(cfg),
 		Contract:                    NewContractClient(cfg),
+		ContractAmendment:           NewContractAmendmentClient(cfg),
+		ContractProjectLink:         NewContractProjectLinkClient(cfg),
+		ContractServiceItem:         NewContractServiceItemClient(cfg),
+		ContractUsageLedger:         NewContractUsageLedgerClient(cfg),
 		Conversation:                NewConversationClient(cfg),
 		CustomerBranch:              NewCustomerBranchClient(cfg),
+		CustomerContact:             NewCustomerContactClient(cfg),
+		CustomerExternalID:          NewCustomerExternalIDClient(cfg),
+		CustomerRelationship:        NewCustomerRelationshipClient(cfg),
+		CustomerTenantLink:          NewCustomerTenantLinkClient(cfg),
 		Department:                  NewDepartmentClient(cfg),
 		DiscoveryJob:                NewDiscoveryJobClient(cfg),
 		DiscoveryResult:             NewDiscoveryResultClient(cfg),
@@ -1089,6 +1142,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		ProjectAssetLink:            NewProjectAssetLinkClient(cfg),
 		ProjectBaseline:             NewProjectBaselineClient(cfg),
 		ProjectClosure:              NewProjectClosureClient(cfg),
+		ProjectCustomerLink:         NewProjectCustomerLinkClient(cfg),
 		ProjectGate:                 NewProjectGateClient(cfg),
 		ProjectMember:               NewProjectMemberClient(cfg),
 		ProjectMilestone:            NewProjectMilestoneClient(cfg),
@@ -1189,10 +1243,12 @@ func (c *Client) Use(hooks ...Hook) {
 		c.CIRelationship, c.CITag, c.CIType, c.CMDBExportTask, c.CMDBImportTask,
 		c.CMDBSavedView, c.Change, c.ChangePIR, c.CloudAccount, c.CloudResource,
 		c.CloudService, c.ConfigurationItem, c.ConfigurationItemHistory,
-		c.ConnectorConfig, c.ConnectorInboundDedup, c.Contract, c.Conversation,
-		c.CustomerBranch, c.Department, c.DiscoveryJob, c.DiscoveryResult,
-		c.DiscoverySource, c.DomainConfig, c.EmailConversation, c.EmailIntakeAnalysis,
-		c.EmailOutboundMessage, c.EndpointACL, c.EngineerSkill,
+		c.ConnectorConfig, c.ConnectorInboundDedup, c.Contract, c.ContractAmendment,
+		c.ContractProjectLink, c.ContractServiceItem, c.ContractUsageLedger,
+		c.Conversation, c.CustomerBranch, c.CustomerContact, c.CustomerExternalID,
+		c.CustomerRelationship, c.CustomerTenantLink, c.Department, c.DiscoveryJob,
+		c.DiscoveryResult, c.DiscoverySource, c.DomainConfig, c.EmailConversation,
+		c.EmailIntakeAnalysis, c.EmailOutboundMessage, c.EndpointACL, c.EngineerSkill,
 		c.ExternalContractReference, c.FeishuTicketSync, c.Group,
 		c.InboundEmailMessage, c.Incident, c.IncidentAlert, c.IncidentEscalationRule,
 		c.IncidentEvent, c.IncidentMetric, c.IncidentRule, c.IncidentRuleExecution,
@@ -1209,22 +1265,23 @@ func (c *Client) Use(hooks ...Hook) {
 		c.ProcessDefinition, c.ProcessDeployment, c.ProcessExecutionHistory,
 		c.ProcessInstance, c.ProcessTask, c.ProcessTimer, c.ProcessVariable,
 		c.ProcessVersionChangelog, c.Project, c.ProjectAssetLink, c.ProjectBaseline,
-		c.ProjectClosure, c.ProjectGate, c.ProjectMember, c.ProjectMilestone,
-		c.ProjectReportTemplate, c.ProjectRisk, c.ProjectTask, c.ProjectTaskDependency,
-		c.ProjectTemplate, c.PromptTemplate, c.ProvisioningTask, c.RelationshipType,
-		c.Release, c.Role, c.RolePermission, c.RootCauseAnalysis, c.SLAAlertHistory,
-		c.SLAAlertRule, c.SLADefinition, c.SLADefinitionGrant, c.SLADefinitionSnapshot,
-		c.SLAMetric, c.SLAPolicy, c.SLAViolation, c.ServiceCatalog,
-		c.ServiceCatalogItem, c.ServiceCustomer, c.ServiceRequest,
-		c.ServiceRequestApproval, c.SourceOrganization, c.StandardChange,
-		c.SupportContract, c.Survey, c.SurveyResponse, c.SystemConfig, c.Tag, c.Team,
-		c.Tenant, c.TenantInstallation, c.Ticket, c.TicketApproval,
-		c.TicketAssignmentRule, c.TicketAttachment, c.TicketAutomationRule, c.TicketCC,
-		c.TicketCategory, c.TicketComment, c.TicketNotification, c.TicketTag,
-		c.TicketTemplate, c.TicketType, c.TicketTypeDistribution, c.TicketView,
-		c.TicketWorkflowRecord, c.ToolInvocation, c.User, c.UserTenantMembership,
-		c.UserTenantMembershipOrg, c.Vendor, c.WorkbenchView, c.Workflow,
-		c.WorkflowInstance, c.WorkflowTask, c.WorkflowTemplate, c.WorkflowVersion,
+		c.ProjectClosure, c.ProjectCustomerLink, c.ProjectGate, c.ProjectMember,
+		c.ProjectMilestone, c.ProjectReportTemplate, c.ProjectRisk, c.ProjectTask,
+		c.ProjectTaskDependency, c.ProjectTemplate, c.PromptTemplate,
+		c.ProvisioningTask, c.RelationshipType, c.Release, c.Role, c.RolePermission,
+		c.RootCauseAnalysis, c.SLAAlertHistory, c.SLAAlertRule, c.SLADefinition,
+		c.SLADefinitionGrant, c.SLADefinitionSnapshot, c.SLAMetric, c.SLAPolicy,
+		c.SLAViolation, c.ServiceCatalog, c.ServiceCatalogItem, c.ServiceCustomer,
+		c.ServiceRequest, c.ServiceRequestApproval, c.SourceOrganization,
+		c.StandardChange, c.SupportContract, c.Survey, c.SurveyResponse,
+		c.SystemConfig, c.Tag, c.Team, c.Tenant, c.TenantInstallation, c.Ticket,
+		c.TicketApproval, c.TicketAssignmentRule, c.TicketAttachment,
+		c.TicketAutomationRule, c.TicketCC, c.TicketCategory, c.TicketComment,
+		c.TicketNotification, c.TicketTag, c.TicketTemplate, c.TicketType,
+		c.TicketTypeDistribution, c.TicketView, c.TicketWorkflowRecord,
+		c.ToolInvocation, c.User, c.UserTenantMembership, c.UserTenantMembershipOrg,
+		c.Vendor, c.WorkbenchView, c.Workflow, c.WorkflowInstance, c.WorkflowTask,
+		c.WorkflowTemplate, c.WorkflowVersion,
 	} {
 		n.Use(hooks...)
 	}
@@ -1241,10 +1298,12 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 		c.CIRelationship, c.CITag, c.CIType, c.CMDBExportTask, c.CMDBImportTask,
 		c.CMDBSavedView, c.Change, c.ChangePIR, c.CloudAccount, c.CloudResource,
 		c.CloudService, c.ConfigurationItem, c.ConfigurationItemHistory,
-		c.ConnectorConfig, c.ConnectorInboundDedup, c.Contract, c.Conversation,
-		c.CustomerBranch, c.Department, c.DiscoveryJob, c.DiscoveryResult,
-		c.DiscoverySource, c.DomainConfig, c.EmailConversation, c.EmailIntakeAnalysis,
-		c.EmailOutboundMessage, c.EndpointACL, c.EngineerSkill,
+		c.ConnectorConfig, c.ConnectorInboundDedup, c.Contract, c.ContractAmendment,
+		c.ContractProjectLink, c.ContractServiceItem, c.ContractUsageLedger,
+		c.Conversation, c.CustomerBranch, c.CustomerContact, c.CustomerExternalID,
+		c.CustomerRelationship, c.CustomerTenantLink, c.Department, c.DiscoveryJob,
+		c.DiscoveryResult, c.DiscoverySource, c.DomainConfig, c.EmailConversation,
+		c.EmailIntakeAnalysis, c.EmailOutboundMessage, c.EndpointACL, c.EngineerSkill,
 		c.ExternalContractReference, c.FeishuTicketSync, c.Group,
 		c.InboundEmailMessage, c.Incident, c.IncidentAlert, c.IncidentEscalationRule,
 		c.IncidentEvent, c.IncidentMetric, c.IncidentRule, c.IncidentRuleExecution,
@@ -1261,22 +1320,23 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 		c.ProcessDefinition, c.ProcessDeployment, c.ProcessExecutionHistory,
 		c.ProcessInstance, c.ProcessTask, c.ProcessTimer, c.ProcessVariable,
 		c.ProcessVersionChangelog, c.Project, c.ProjectAssetLink, c.ProjectBaseline,
-		c.ProjectClosure, c.ProjectGate, c.ProjectMember, c.ProjectMilestone,
-		c.ProjectReportTemplate, c.ProjectRisk, c.ProjectTask, c.ProjectTaskDependency,
-		c.ProjectTemplate, c.PromptTemplate, c.ProvisioningTask, c.RelationshipType,
-		c.Release, c.Role, c.RolePermission, c.RootCauseAnalysis, c.SLAAlertHistory,
-		c.SLAAlertRule, c.SLADefinition, c.SLADefinitionGrant, c.SLADefinitionSnapshot,
-		c.SLAMetric, c.SLAPolicy, c.SLAViolation, c.ServiceCatalog,
-		c.ServiceCatalogItem, c.ServiceCustomer, c.ServiceRequest,
-		c.ServiceRequestApproval, c.SourceOrganization, c.StandardChange,
-		c.SupportContract, c.Survey, c.SurveyResponse, c.SystemConfig, c.Tag, c.Team,
-		c.Tenant, c.TenantInstallation, c.Ticket, c.TicketApproval,
-		c.TicketAssignmentRule, c.TicketAttachment, c.TicketAutomationRule, c.TicketCC,
-		c.TicketCategory, c.TicketComment, c.TicketNotification, c.TicketTag,
-		c.TicketTemplate, c.TicketType, c.TicketTypeDistribution, c.TicketView,
-		c.TicketWorkflowRecord, c.ToolInvocation, c.User, c.UserTenantMembership,
-		c.UserTenantMembershipOrg, c.Vendor, c.WorkbenchView, c.Workflow,
-		c.WorkflowInstance, c.WorkflowTask, c.WorkflowTemplate, c.WorkflowVersion,
+		c.ProjectClosure, c.ProjectCustomerLink, c.ProjectGate, c.ProjectMember,
+		c.ProjectMilestone, c.ProjectReportTemplate, c.ProjectRisk, c.ProjectTask,
+		c.ProjectTaskDependency, c.ProjectTemplate, c.PromptTemplate,
+		c.ProvisioningTask, c.RelationshipType, c.Release, c.Role, c.RolePermission,
+		c.RootCauseAnalysis, c.SLAAlertHistory, c.SLAAlertRule, c.SLADefinition,
+		c.SLADefinitionGrant, c.SLADefinitionSnapshot, c.SLAMetric, c.SLAPolicy,
+		c.SLAViolation, c.ServiceCatalog, c.ServiceCatalogItem, c.ServiceCustomer,
+		c.ServiceRequest, c.ServiceRequestApproval, c.SourceOrganization,
+		c.StandardChange, c.SupportContract, c.Survey, c.SurveyResponse,
+		c.SystemConfig, c.Tag, c.Team, c.Tenant, c.TenantInstallation, c.Ticket,
+		c.TicketApproval, c.TicketAssignmentRule, c.TicketAttachment,
+		c.TicketAutomationRule, c.TicketCC, c.TicketCategory, c.TicketComment,
+		c.TicketNotification, c.TicketTag, c.TicketTemplate, c.TicketType,
+		c.TicketTypeDistribution, c.TicketView, c.TicketWorkflowRecord,
+		c.ToolInvocation, c.User, c.UserTenantMembership, c.UserTenantMembershipOrg,
+		c.Vendor, c.WorkbenchView, c.Workflow, c.WorkflowInstance, c.WorkflowTask,
+		c.WorkflowTemplate, c.WorkflowVersion,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -1357,10 +1417,26 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.ConnectorInboundDedup.mutate(ctx, m)
 	case *ContractMutation:
 		return c.Contract.mutate(ctx, m)
+	case *ContractAmendmentMutation:
+		return c.ContractAmendment.mutate(ctx, m)
+	case *ContractProjectLinkMutation:
+		return c.ContractProjectLink.mutate(ctx, m)
+	case *ContractServiceItemMutation:
+		return c.ContractServiceItem.mutate(ctx, m)
+	case *ContractUsageLedgerMutation:
+		return c.ContractUsageLedger.mutate(ctx, m)
 	case *ConversationMutation:
 		return c.Conversation.mutate(ctx, m)
 	case *CustomerBranchMutation:
 		return c.CustomerBranch.mutate(ctx, m)
+	case *CustomerContactMutation:
+		return c.CustomerContact.mutate(ctx, m)
+	case *CustomerExternalIDMutation:
+		return c.CustomerExternalID.mutate(ctx, m)
+	case *CustomerRelationshipMutation:
+		return c.CustomerRelationship.mutate(ctx, m)
+	case *CustomerTenantLinkMutation:
+		return c.CustomerTenantLink.mutate(ctx, m)
 	case *DepartmentMutation:
 		return c.Department.mutate(ctx, m)
 	case *DiscoveryJobMutation:
@@ -1493,6 +1569,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.ProjectBaseline.mutate(ctx, m)
 	case *ProjectClosureMutation:
 		return c.ProjectClosure.mutate(ctx, m)
+	case *ProjectCustomerLinkMutation:
+		return c.ProjectCustomerLink.mutate(ctx, m)
 	case *ProjectGateMutation:
 		return c.ProjectGate.mutate(ctx, m)
 	case *ProjectMemberMutation:
@@ -7102,6 +7180,538 @@ func (c *ContractClient) mutate(ctx context.Context, m *ContractMutation) (Value
 	}
 }
 
+// ContractAmendmentClient is a client for the ContractAmendment schema.
+type ContractAmendmentClient struct {
+	config
+}
+
+// NewContractAmendmentClient returns a client for the ContractAmendment from the given config.
+func NewContractAmendmentClient(c config) *ContractAmendmentClient {
+	return &ContractAmendmentClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `contractamendment.Hooks(f(g(h())))`.
+func (c *ContractAmendmentClient) Use(hooks ...Hook) {
+	c.hooks.ContractAmendment = append(c.hooks.ContractAmendment, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `contractamendment.Intercept(f(g(h())))`.
+func (c *ContractAmendmentClient) Intercept(interceptors ...Interceptor) {
+	c.inters.ContractAmendment = append(c.inters.ContractAmendment, interceptors...)
+}
+
+// Create returns a builder for creating a ContractAmendment entity.
+func (c *ContractAmendmentClient) Create() *ContractAmendmentCreate {
+	mutation := newContractAmendmentMutation(c.config, OpCreate)
+	return &ContractAmendmentCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of ContractAmendment entities.
+func (c *ContractAmendmentClient) CreateBulk(builders ...*ContractAmendmentCreate) *ContractAmendmentCreateBulk {
+	return &ContractAmendmentCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *ContractAmendmentClient) MapCreateBulk(slice any, setFunc func(*ContractAmendmentCreate, int)) *ContractAmendmentCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &ContractAmendmentCreateBulk{err: fmt.Errorf("calling to ContractAmendmentClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*ContractAmendmentCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &ContractAmendmentCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for ContractAmendment.
+func (c *ContractAmendmentClient) Update() *ContractAmendmentUpdate {
+	mutation := newContractAmendmentMutation(c.config, OpUpdate)
+	return &ContractAmendmentUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *ContractAmendmentClient) UpdateOne(_m *ContractAmendment) *ContractAmendmentUpdateOne {
+	mutation := newContractAmendmentMutation(c.config, OpUpdateOne, withContractAmendment(_m))
+	return &ContractAmendmentUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *ContractAmendmentClient) UpdateOneID(id int) *ContractAmendmentUpdateOne {
+	mutation := newContractAmendmentMutation(c.config, OpUpdateOne, withContractAmendmentID(id))
+	return &ContractAmendmentUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for ContractAmendment.
+func (c *ContractAmendmentClient) Delete() *ContractAmendmentDelete {
+	mutation := newContractAmendmentMutation(c.config, OpDelete)
+	return &ContractAmendmentDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *ContractAmendmentClient) DeleteOne(_m *ContractAmendment) *ContractAmendmentDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *ContractAmendmentClient) DeleteOneID(id int) *ContractAmendmentDeleteOne {
+	builder := c.Delete().Where(contractamendment.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &ContractAmendmentDeleteOne{builder}
+}
+
+// Query returns a query builder for ContractAmendment.
+func (c *ContractAmendmentClient) Query() *ContractAmendmentQuery {
+	return &ContractAmendmentQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeContractAmendment},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a ContractAmendment entity by its id.
+func (c *ContractAmendmentClient) Get(ctx context.Context, id int) (*ContractAmendment, error) {
+	return c.Query().Where(contractamendment.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *ContractAmendmentClient) GetX(ctx context.Context, id int) *ContractAmendment {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *ContractAmendmentClient) Hooks() []Hook {
+	return c.hooks.ContractAmendment
+}
+
+// Interceptors returns the client interceptors.
+func (c *ContractAmendmentClient) Interceptors() []Interceptor {
+	return c.inters.ContractAmendment
+}
+
+func (c *ContractAmendmentClient) mutate(ctx context.Context, m *ContractAmendmentMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&ContractAmendmentCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&ContractAmendmentUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&ContractAmendmentUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&ContractAmendmentDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown ContractAmendment mutation op: %q", m.Op())
+	}
+}
+
+// ContractProjectLinkClient is a client for the ContractProjectLink schema.
+type ContractProjectLinkClient struct {
+	config
+}
+
+// NewContractProjectLinkClient returns a client for the ContractProjectLink from the given config.
+func NewContractProjectLinkClient(c config) *ContractProjectLinkClient {
+	return &ContractProjectLinkClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `contractprojectlink.Hooks(f(g(h())))`.
+func (c *ContractProjectLinkClient) Use(hooks ...Hook) {
+	c.hooks.ContractProjectLink = append(c.hooks.ContractProjectLink, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `contractprojectlink.Intercept(f(g(h())))`.
+func (c *ContractProjectLinkClient) Intercept(interceptors ...Interceptor) {
+	c.inters.ContractProjectLink = append(c.inters.ContractProjectLink, interceptors...)
+}
+
+// Create returns a builder for creating a ContractProjectLink entity.
+func (c *ContractProjectLinkClient) Create() *ContractProjectLinkCreate {
+	mutation := newContractProjectLinkMutation(c.config, OpCreate)
+	return &ContractProjectLinkCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of ContractProjectLink entities.
+func (c *ContractProjectLinkClient) CreateBulk(builders ...*ContractProjectLinkCreate) *ContractProjectLinkCreateBulk {
+	return &ContractProjectLinkCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *ContractProjectLinkClient) MapCreateBulk(slice any, setFunc func(*ContractProjectLinkCreate, int)) *ContractProjectLinkCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &ContractProjectLinkCreateBulk{err: fmt.Errorf("calling to ContractProjectLinkClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*ContractProjectLinkCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &ContractProjectLinkCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for ContractProjectLink.
+func (c *ContractProjectLinkClient) Update() *ContractProjectLinkUpdate {
+	mutation := newContractProjectLinkMutation(c.config, OpUpdate)
+	return &ContractProjectLinkUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *ContractProjectLinkClient) UpdateOne(_m *ContractProjectLink) *ContractProjectLinkUpdateOne {
+	mutation := newContractProjectLinkMutation(c.config, OpUpdateOne, withContractProjectLink(_m))
+	return &ContractProjectLinkUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *ContractProjectLinkClient) UpdateOneID(id int) *ContractProjectLinkUpdateOne {
+	mutation := newContractProjectLinkMutation(c.config, OpUpdateOne, withContractProjectLinkID(id))
+	return &ContractProjectLinkUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for ContractProjectLink.
+func (c *ContractProjectLinkClient) Delete() *ContractProjectLinkDelete {
+	mutation := newContractProjectLinkMutation(c.config, OpDelete)
+	return &ContractProjectLinkDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *ContractProjectLinkClient) DeleteOne(_m *ContractProjectLink) *ContractProjectLinkDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *ContractProjectLinkClient) DeleteOneID(id int) *ContractProjectLinkDeleteOne {
+	builder := c.Delete().Where(contractprojectlink.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &ContractProjectLinkDeleteOne{builder}
+}
+
+// Query returns a query builder for ContractProjectLink.
+func (c *ContractProjectLinkClient) Query() *ContractProjectLinkQuery {
+	return &ContractProjectLinkQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeContractProjectLink},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a ContractProjectLink entity by its id.
+func (c *ContractProjectLinkClient) Get(ctx context.Context, id int) (*ContractProjectLink, error) {
+	return c.Query().Where(contractprojectlink.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *ContractProjectLinkClient) GetX(ctx context.Context, id int) *ContractProjectLink {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *ContractProjectLinkClient) Hooks() []Hook {
+	return c.hooks.ContractProjectLink
+}
+
+// Interceptors returns the client interceptors.
+func (c *ContractProjectLinkClient) Interceptors() []Interceptor {
+	return c.inters.ContractProjectLink
+}
+
+func (c *ContractProjectLinkClient) mutate(ctx context.Context, m *ContractProjectLinkMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&ContractProjectLinkCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&ContractProjectLinkUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&ContractProjectLinkUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&ContractProjectLinkDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown ContractProjectLink mutation op: %q", m.Op())
+	}
+}
+
+// ContractServiceItemClient is a client for the ContractServiceItem schema.
+type ContractServiceItemClient struct {
+	config
+}
+
+// NewContractServiceItemClient returns a client for the ContractServiceItem from the given config.
+func NewContractServiceItemClient(c config) *ContractServiceItemClient {
+	return &ContractServiceItemClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `contractserviceitem.Hooks(f(g(h())))`.
+func (c *ContractServiceItemClient) Use(hooks ...Hook) {
+	c.hooks.ContractServiceItem = append(c.hooks.ContractServiceItem, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `contractserviceitem.Intercept(f(g(h())))`.
+func (c *ContractServiceItemClient) Intercept(interceptors ...Interceptor) {
+	c.inters.ContractServiceItem = append(c.inters.ContractServiceItem, interceptors...)
+}
+
+// Create returns a builder for creating a ContractServiceItem entity.
+func (c *ContractServiceItemClient) Create() *ContractServiceItemCreate {
+	mutation := newContractServiceItemMutation(c.config, OpCreate)
+	return &ContractServiceItemCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of ContractServiceItem entities.
+func (c *ContractServiceItemClient) CreateBulk(builders ...*ContractServiceItemCreate) *ContractServiceItemCreateBulk {
+	return &ContractServiceItemCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *ContractServiceItemClient) MapCreateBulk(slice any, setFunc func(*ContractServiceItemCreate, int)) *ContractServiceItemCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &ContractServiceItemCreateBulk{err: fmt.Errorf("calling to ContractServiceItemClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*ContractServiceItemCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &ContractServiceItemCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for ContractServiceItem.
+func (c *ContractServiceItemClient) Update() *ContractServiceItemUpdate {
+	mutation := newContractServiceItemMutation(c.config, OpUpdate)
+	return &ContractServiceItemUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *ContractServiceItemClient) UpdateOne(_m *ContractServiceItem) *ContractServiceItemUpdateOne {
+	mutation := newContractServiceItemMutation(c.config, OpUpdateOne, withContractServiceItem(_m))
+	return &ContractServiceItemUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *ContractServiceItemClient) UpdateOneID(id int) *ContractServiceItemUpdateOne {
+	mutation := newContractServiceItemMutation(c.config, OpUpdateOne, withContractServiceItemID(id))
+	return &ContractServiceItemUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for ContractServiceItem.
+func (c *ContractServiceItemClient) Delete() *ContractServiceItemDelete {
+	mutation := newContractServiceItemMutation(c.config, OpDelete)
+	return &ContractServiceItemDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *ContractServiceItemClient) DeleteOne(_m *ContractServiceItem) *ContractServiceItemDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *ContractServiceItemClient) DeleteOneID(id int) *ContractServiceItemDeleteOne {
+	builder := c.Delete().Where(contractserviceitem.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &ContractServiceItemDeleteOne{builder}
+}
+
+// Query returns a query builder for ContractServiceItem.
+func (c *ContractServiceItemClient) Query() *ContractServiceItemQuery {
+	return &ContractServiceItemQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeContractServiceItem},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a ContractServiceItem entity by its id.
+func (c *ContractServiceItemClient) Get(ctx context.Context, id int) (*ContractServiceItem, error) {
+	return c.Query().Where(contractserviceitem.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *ContractServiceItemClient) GetX(ctx context.Context, id int) *ContractServiceItem {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *ContractServiceItemClient) Hooks() []Hook {
+	return c.hooks.ContractServiceItem
+}
+
+// Interceptors returns the client interceptors.
+func (c *ContractServiceItemClient) Interceptors() []Interceptor {
+	return c.inters.ContractServiceItem
+}
+
+func (c *ContractServiceItemClient) mutate(ctx context.Context, m *ContractServiceItemMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&ContractServiceItemCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&ContractServiceItemUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&ContractServiceItemUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&ContractServiceItemDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown ContractServiceItem mutation op: %q", m.Op())
+	}
+}
+
+// ContractUsageLedgerClient is a client for the ContractUsageLedger schema.
+type ContractUsageLedgerClient struct {
+	config
+}
+
+// NewContractUsageLedgerClient returns a client for the ContractUsageLedger from the given config.
+func NewContractUsageLedgerClient(c config) *ContractUsageLedgerClient {
+	return &ContractUsageLedgerClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `contractusageledger.Hooks(f(g(h())))`.
+func (c *ContractUsageLedgerClient) Use(hooks ...Hook) {
+	c.hooks.ContractUsageLedger = append(c.hooks.ContractUsageLedger, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `contractusageledger.Intercept(f(g(h())))`.
+func (c *ContractUsageLedgerClient) Intercept(interceptors ...Interceptor) {
+	c.inters.ContractUsageLedger = append(c.inters.ContractUsageLedger, interceptors...)
+}
+
+// Create returns a builder for creating a ContractUsageLedger entity.
+func (c *ContractUsageLedgerClient) Create() *ContractUsageLedgerCreate {
+	mutation := newContractUsageLedgerMutation(c.config, OpCreate)
+	return &ContractUsageLedgerCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of ContractUsageLedger entities.
+func (c *ContractUsageLedgerClient) CreateBulk(builders ...*ContractUsageLedgerCreate) *ContractUsageLedgerCreateBulk {
+	return &ContractUsageLedgerCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *ContractUsageLedgerClient) MapCreateBulk(slice any, setFunc func(*ContractUsageLedgerCreate, int)) *ContractUsageLedgerCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &ContractUsageLedgerCreateBulk{err: fmt.Errorf("calling to ContractUsageLedgerClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*ContractUsageLedgerCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &ContractUsageLedgerCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for ContractUsageLedger.
+func (c *ContractUsageLedgerClient) Update() *ContractUsageLedgerUpdate {
+	mutation := newContractUsageLedgerMutation(c.config, OpUpdate)
+	return &ContractUsageLedgerUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *ContractUsageLedgerClient) UpdateOne(_m *ContractUsageLedger) *ContractUsageLedgerUpdateOne {
+	mutation := newContractUsageLedgerMutation(c.config, OpUpdateOne, withContractUsageLedger(_m))
+	return &ContractUsageLedgerUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *ContractUsageLedgerClient) UpdateOneID(id int) *ContractUsageLedgerUpdateOne {
+	mutation := newContractUsageLedgerMutation(c.config, OpUpdateOne, withContractUsageLedgerID(id))
+	return &ContractUsageLedgerUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for ContractUsageLedger.
+func (c *ContractUsageLedgerClient) Delete() *ContractUsageLedgerDelete {
+	mutation := newContractUsageLedgerMutation(c.config, OpDelete)
+	return &ContractUsageLedgerDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *ContractUsageLedgerClient) DeleteOne(_m *ContractUsageLedger) *ContractUsageLedgerDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *ContractUsageLedgerClient) DeleteOneID(id int) *ContractUsageLedgerDeleteOne {
+	builder := c.Delete().Where(contractusageledger.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &ContractUsageLedgerDeleteOne{builder}
+}
+
+// Query returns a query builder for ContractUsageLedger.
+func (c *ContractUsageLedgerClient) Query() *ContractUsageLedgerQuery {
+	return &ContractUsageLedgerQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeContractUsageLedger},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a ContractUsageLedger entity by its id.
+func (c *ContractUsageLedgerClient) Get(ctx context.Context, id int) (*ContractUsageLedger, error) {
+	return c.Query().Where(contractusageledger.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *ContractUsageLedgerClient) GetX(ctx context.Context, id int) *ContractUsageLedger {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *ContractUsageLedgerClient) Hooks() []Hook {
+	return c.hooks.ContractUsageLedger
+}
+
+// Interceptors returns the client interceptors.
+func (c *ContractUsageLedgerClient) Interceptors() []Interceptor {
+	return c.inters.ContractUsageLedger
+}
+
+func (c *ContractUsageLedgerClient) mutate(ctx context.Context, m *ContractUsageLedgerMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&ContractUsageLedgerCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&ContractUsageLedgerUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&ContractUsageLedgerUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&ContractUsageLedgerDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown ContractUsageLedger mutation op: %q", m.Op())
+	}
+}
+
 // ConversationClient is a client for the Conversation schema.
 type ConversationClient struct {
 	config
@@ -7445,6 +8055,538 @@ func (c *CustomerBranchClient) mutate(ctx context.Context, m *CustomerBranchMuta
 		return (&CustomerBranchDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown CustomerBranch mutation op: %q", m.Op())
+	}
+}
+
+// CustomerContactClient is a client for the CustomerContact schema.
+type CustomerContactClient struct {
+	config
+}
+
+// NewCustomerContactClient returns a client for the CustomerContact from the given config.
+func NewCustomerContactClient(c config) *CustomerContactClient {
+	return &CustomerContactClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `customercontact.Hooks(f(g(h())))`.
+func (c *CustomerContactClient) Use(hooks ...Hook) {
+	c.hooks.CustomerContact = append(c.hooks.CustomerContact, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `customercontact.Intercept(f(g(h())))`.
+func (c *CustomerContactClient) Intercept(interceptors ...Interceptor) {
+	c.inters.CustomerContact = append(c.inters.CustomerContact, interceptors...)
+}
+
+// Create returns a builder for creating a CustomerContact entity.
+func (c *CustomerContactClient) Create() *CustomerContactCreate {
+	mutation := newCustomerContactMutation(c.config, OpCreate)
+	return &CustomerContactCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of CustomerContact entities.
+func (c *CustomerContactClient) CreateBulk(builders ...*CustomerContactCreate) *CustomerContactCreateBulk {
+	return &CustomerContactCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *CustomerContactClient) MapCreateBulk(slice any, setFunc func(*CustomerContactCreate, int)) *CustomerContactCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &CustomerContactCreateBulk{err: fmt.Errorf("calling to CustomerContactClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*CustomerContactCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &CustomerContactCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for CustomerContact.
+func (c *CustomerContactClient) Update() *CustomerContactUpdate {
+	mutation := newCustomerContactMutation(c.config, OpUpdate)
+	return &CustomerContactUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *CustomerContactClient) UpdateOne(_m *CustomerContact) *CustomerContactUpdateOne {
+	mutation := newCustomerContactMutation(c.config, OpUpdateOne, withCustomerContact(_m))
+	return &CustomerContactUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *CustomerContactClient) UpdateOneID(id int) *CustomerContactUpdateOne {
+	mutation := newCustomerContactMutation(c.config, OpUpdateOne, withCustomerContactID(id))
+	return &CustomerContactUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for CustomerContact.
+func (c *CustomerContactClient) Delete() *CustomerContactDelete {
+	mutation := newCustomerContactMutation(c.config, OpDelete)
+	return &CustomerContactDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *CustomerContactClient) DeleteOne(_m *CustomerContact) *CustomerContactDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *CustomerContactClient) DeleteOneID(id int) *CustomerContactDeleteOne {
+	builder := c.Delete().Where(customercontact.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &CustomerContactDeleteOne{builder}
+}
+
+// Query returns a query builder for CustomerContact.
+func (c *CustomerContactClient) Query() *CustomerContactQuery {
+	return &CustomerContactQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeCustomerContact},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a CustomerContact entity by its id.
+func (c *CustomerContactClient) Get(ctx context.Context, id int) (*CustomerContact, error) {
+	return c.Query().Where(customercontact.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *CustomerContactClient) GetX(ctx context.Context, id int) *CustomerContact {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *CustomerContactClient) Hooks() []Hook {
+	return c.hooks.CustomerContact
+}
+
+// Interceptors returns the client interceptors.
+func (c *CustomerContactClient) Interceptors() []Interceptor {
+	return c.inters.CustomerContact
+}
+
+func (c *CustomerContactClient) mutate(ctx context.Context, m *CustomerContactMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&CustomerContactCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&CustomerContactUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&CustomerContactUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&CustomerContactDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown CustomerContact mutation op: %q", m.Op())
+	}
+}
+
+// CustomerExternalIDClient is a client for the CustomerExternalID schema.
+type CustomerExternalIDClient struct {
+	config
+}
+
+// NewCustomerExternalIDClient returns a client for the CustomerExternalID from the given config.
+func NewCustomerExternalIDClient(c config) *CustomerExternalIDClient {
+	return &CustomerExternalIDClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `customerexternalid.Hooks(f(g(h())))`.
+func (c *CustomerExternalIDClient) Use(hooks ...Hook) {
+	c.hooks.CustomerExternalID = append(c.hooks.CustomerExternalID, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `customerexternalid.Intercept(f(g(h())))`.
+func (c *CustomerExternalIDClient) Intercept(interceptors ...Interceptor) {
+	c.inters.CustomerExternalID = append(c.inters.CustomerExternalID, interceptors...)
+}
+
+// Create returns a builder for creating a CustomerExternalID entity.
+func (c *CustomerExternalIDClient) Create() *CustomerExternalIDCreate {
+	mutation := newCustomerExternalIDMutation(c.config, OpCreate)
+	return &CustomerExternalIDCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of CustomerExternalID entities.
+func (c *CustomerExternalIDClient) CreateBulk(builders ...*CustomerExternalIDCreate) *CustomerExternalIDCreateBulk {
+	return &CustomerExternalIDCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *CustomerExternalIDClient) MapCreateBulk(slice any, setFunc func(*CustomerExternalIDCreate, int)) *CustomerExternalIDCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &CustomerExternalIDCreateBulk{err: fmt.Errorf("calling to CustomerExternalIDClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*CustomerExternalIDCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &CustomerExternalIDCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for CustomerExternalID.
+func (c *CustomerExternalIDClient) Update() *CustomerExternalIDUpdate {
+	mutation := newCustomerExternalIDMutation(c.config, OpUpdate)
+	return &CustomerExternalIDUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *CustomerExternalIDClient) UpdateOne(_m *CustomerExternalID) *CustomerExternalIDUpdateOne {
+	mutation := newCustomerExternalIDMutation(c.config, OpUpdateOne, withCustomerExternalID(_m))
+	return &CustomerExternalIDUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *CustomerExternalIDClient) UpdateOneID(id int) *CustomerExternalIDUpdateOne {
+	mutation := newCustomerExternalIDMutation(c.config, OpUpdateOne, withCustomerExternalIDID(id))
+	return &CustomerExternalIDUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for CustomerExternalID.
+func (c *CustomerExternalIDClient) Delete() *CustomerExternalIDDelete {
+	mutation := newCustomerExternalIDMutation(c.config, OpDelete)
+	return &CustomerExternalIDDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *CustomerExternalIDClient) DeleteOne(_m *CustomerExternalID) *CustomerExternalIDDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *CustomerExternalIDClient) DeleteOneID(id int) *CustomerExternalIDDeleteOne {
+	builder := c.Delete().Where(customerexternalid.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &CustomerExternalIDDeleteOne{builder}
+}
+
+// Query returns a query builder for CustomerExternalID.
+func (c *CustomerExternalIDClient) Query() *CustomerExternalIDQuery {
+	return &CustomerExternalIDQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeCustomerExternalID},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a CustomerExternalID entity by its id.
+func (c *CustomerExternalIDClient) Get(ctx context.Context, id int) (*CustomerExternalID, error) {
+	return c.Query().Where(customerexternalid.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *CustomerExternalIDClient) GetX(ctx context.Context, id int) *CustomerExternalID {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *CustomerExternalIDClient) Hooks() []Hook {
+	return c.hooks.CustomerExternalID
+}
+
+// Interceptors returns the client interceptors.
+func (c *CustomerExternalIDClient) Interceptors() []Interceptor {
+	return c.inters.CustomerExternalID
+}
+
+func (c *CustomerExternalIDClient) mutate(ctx context.Context, m *CustomerExternalIDMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&CustomerExternalIDCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&CustomerExternalIDUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&CustomerExternalIDUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&CustomerExternalIDDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown CustomerExternalID mutation op: %q", m.Op())
+	}
+}
+
+// CustomerRelationshipClient is a client for the CustomerRelationship schema.
+type CustomerRelationshipClient struct {
+	config
+}
+
+// NewCustomerRelationshipClient returns a client for the CustomerRelationship from the given config.
+func NewCustomerRelationshipClient(c config) *CustomerRelationshipClient {
+	return &CustomerRelationshipClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `customerrelationship.Hooks(f(g(h())))`.
+func (c *CustomerRelationshipClient) Use(hooks ...Hook) {
+	c.hooks.CustomerRelationship = append(c.hooks.CustomerRelationship, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `customerrelationship.Intercept(f(g(h())))`.
+func (c *CustomerRelationshipClient) Intercept(interceptors ...Interceptor) {
+	c.inters.CustomerRelationship = append(c.inters.CustomerRelationship, interceptors...)
+}
+
+// Create returns a builder for creating a CustomerRelationship entity.
+func (c *CustomerRelationshipClient) Create() *CustomerRelationshipCreate {
+	mutation := newCustomerRelationshipMutation(c.config, OpCreate)
+	return &CustomerRelationshipCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of CustomerRelationship entities.
+func (c *CustomerRelationshipClient) CreateBulk(builders ...*CustomerRelationshipCreate) *CustomerRelationshipCreateBulk {
+	return &CustomerRelationshipCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *CustomerRelationshipClient) MapCreateBulk(slice any, setFunc func(*CustomerRelationshipCreate, int)) *CustomerRelationshipCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &CustomerRelationshipCreateBulk{err: fmt.Errorf("calling to CustomerRelationshipClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*CustomerRelationshipCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &CustomerRelationshipCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for CustomerRelationship.
+func (c *CustomerRelationshipClient) Update() *CustomerRelationshipUpdate {
+	mutation := newCustomerRelationshipMutation(c.config, OpUpdate)
+	return &CustomerRelationshipUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *CustomerRelationshipClient) UpdateOne(_m *CustomerRelationship) *CustomerRelationshipUpdateOne {
+	mutation := newCustomerRelationshipMutation(c.config, OpUpdateOne, withCustomerRelationship(_m))
+	return &CustomerRelationshipUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *CustomerRelationshipClient) UpdateOneID(id int) *CustomerRelationshipUpdateOne {
+	mutation := newCustomerRelationshipMutation(c.config, OpUpdateOne, withCustomerRelationshipID(id))
+	return &CustomerRelationshipUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for CustomerRelationship.
+func (c *CustomerRelationshipClient) Delete() *CustomerRelationshipDelete {
+	mutation := newCustomerRelationshipMutation(c.config, OpDelete)
+	return &CustomerRelationshipDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *CustomerRelationshipClient) DeleteOne(_m *CustomerRelationship) *CustomerRelationshipDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *CustomerRelationshipClient) DeleteOneID(id int) *CustomerRelationshipDeleteOne {
+	builder := c.Delete().Where(customerrelationship.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &CustomerRelationshipDeleteOne{builder}
+}
+
+// Query returns a query builder for CustomerRelationship.
+func (c *CustomerRelationshipClient) Query() *CustomerRelationshipQuery {
+	return &CustomerRelationshipQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeCustomerRelationship},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a CustomerRelationship entity by its id.
+func (c *CustomerRelationshipClient) Get(ctx context.Context, id int) (*CustomerRelationship, error) {
+	return c.Query().Where(customerrelationship.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *CustomerRelationshipClient) GetX(ctx context.Context, id int) *CustomerRelationship {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *CustomerRelationshipClient) Hooks() []Hook {
+	return c.hooks.CustomerRelationship
+}
+
+// Interceptors returns the client interceptors.
+func (c *CustomerRelationshipClient) Interceptors() []Interceptor {
+	return c.inters.CustomerRelationship
+}
+
+func (c *CustomerRelationshipClient) mutate(ctx context.Context, m *CustomerRelationshipMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&CustomerRelationshipCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&CustomerRelationshipUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&CustomerRelationshipUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&CustomerRelationshipDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown CustomerRelationship mutation op: %q", m.Op())
+	}
+}
+
+// CustomerTenantLinkClient is a client for the CustomerTenantLink schema.
+type CustomerTenantLinkClient struct {
+	config
+}
+
+// NewCustomerTenantLinkClient returns a client for the CustomerTenantLink from the given config.
+func NewCustomerTenantLinkClient(c config) *CustomerTenantLinkClient {
+	return &CustomerTenantLinkClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `customertenantlink.Hooks(f(g(h())))`.
+func (c *CustomerTenantLinkClient) Use(hooks ...Hook) {
+	c.hooks.CustomerTenantLink = append(c.hooks.CustomerTenantLink, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `customertenantlink.Intercept(f(g(h())))`.
+func (c *CustomerTenantLinkClient) Intercept(interceptors ...Interceptor) {
+	c.inters.CustomerTenantLink = append(c.inters.CustomerTenantLink, interceptors...)
+}
+
+// Create returns a builder for creating a CustomerTenantLink entity.
+func (c *CustomerTenantLinkClient) Create() *CustomerTenantLinkCreate {
+	mutation := newCustomerTenantLinkMutation(c.config, OpCreate)
+	return &CustomerTenantLinkCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of CustomerTenantLink entities.
+func (c *CustomerTenantLinkClient) CreateBulk(builders ...*CustomerTenantLinkCreate) *CustomerTenantLinkCreateBulk {
+	return &CustomerTenantLinkCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *CustomerTenantLinkClient) MapCreateBulk(slice any, setFunc func(*CustomerTenantLinkCreate, int)) *CustomerTenantLinkCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &CustomerTenantLinkCreateBulk{err: fmt.Errorf("calling to CustomerTenantLinkClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*CustomerTenantLinkCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &CustomerTenantLinkCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for CustomerTenantLink.
+func (c *CustomerTenantLinkClient) Update() *CustomerTenantLinkUpdate {
+	mutation := newCustomerTenantLinkMutation(c.config, OpUpdate)
+	return &CustomerTenantLinkUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *CustomerTenantLinkClient) UpdateOne(_m *CustomerTenantLink) *CustomerTenantLinkUpdateOne {
+	mutation := newCustomerTenantLinkMutation(c.config, OpUpdateOne, withCustomerTenantLink(_m))
+	return &CustomerTenantLinkUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *CustomerTenantLinkClient) UpdateOneID(id int) *CustomerTenantLinkUpdateOne {
+	mutation := newCustomerTenantLinkMutation(c.config, OpUpdateOne, withCustomerTenantLinkID(id))
+	return &CustomerTenantLinkUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for CustomerTenantLink.
+func (c *CustomerTenantLinkClient) Delete() *CustomerTenantLinkDelete {
+	mutation := newCustomerTenantLinkMutation(c.config, OpDelete)
+	return &CustomerTenantLinkDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *CustomerTenantLinkClient) DeleteOne(_m *CustomerTenantLink) *CustomerTenantLinkDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *CustomerTenantLinkClient) DeleteOneID(id int) *CustomerTenantLinkDeleteOne {
+	builder := c.Delete().Where(customertenantlink.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &CustomerTenantLinkDeleteOne{builder}
+}
+
+// Query returns a query builder for CustomerTenantLink.
+func (c *CustomerTenantLinkClient) Query() *CustomerTenantLinkQuery {
+	return &CustomerTenantLinkQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeCustomerTenantLink},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a CustomerTenantLink entity by its id.
+func (c *CustomerTenantLinkClient) Get(ctx context.Context, id int) (*CustomerTenantLink, error) {
+	return c.Query().Where(customertenantlink.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *CustomerTenantLinkClient) GetX(ctx context.Context, id int) *CustomerTenantLink {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *CustomerTenantLinkClient) Hooks() []Hook {
+	return c.hooks.CustomerTenantLink
+}
+
+// Interceptors returns the client interceptors.
+func (c *CustomerTenantLinkClient) Interceptors() []Interceptor {
+	return c.inters.CustomerTenantLink
+}
+
+func (c *CustomerTenantLinkClient) mutate(ctx context.Context, m *CustomerTenantLinkMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&CustomerTenantLinkCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&CustomerTenantLinkUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&CustomerTenantLinkUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&CustomerTenantLinkDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown CustomerTenantLink mutation op: %q", m.Op())
 	}
 }
 
@@ -17906,6 +19048,139 @@ func (c *ProjectClosureClient) mutate(ctx context.Context, m *ProjectClosureMuta
 	}
 }
 
+// ProjectCustomerLinkClient is a client for the ProjectCustomerLink schema.
+type ProjectCustomerLinkClient struct {
+	config
+}
+
+// NewProjectCustomerLinkClient returns a client for the ProjectCustomerLink from the given config.
+func NewProjectCustomerLinkClient(c config) *ProjectCustomerLinkClient {
+	return &ProjectCustomerLinkClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `projectcustomerlink.Hooks(f(g(h())))`.
+func (c *ProjectCustomerLinkClient) Use(hooks ...Hook) {
+	c.hooks.ProjectCustomerLink = append(c.hooks.ProjectCustomerLink, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `projectcustomerlink.Intercept(f(g(h())))`.
+func (c *ProjectCustomerLinkClient) Intercept(interceptors ...Interceptor) {
+	c.inters.ProjectCustomerLink = append(c.inters.ProjectCustomerLink, interceptors...)
+}
+
+// Create returns a builder for creating a ProjectCustomerLink entity.
+func (c *ProjectCustomerLinkClient) Create() *ProjectCustomerLinkCreate {
+	mutation := newProjectCustomerLinkMutation(c.config, OpCreate)
+	return &ProjectCustomerLinkCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of ProjectCustomerLink entities.
+func (c *ProjectCustomerLinkClient) CreateBulk(builders ...*ProjectCustomerLinkCreate) *ProjectCustomerLinkCreateBulk {
+	return &ProjectCustomerLinkCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *ProjectCustomerLinkClient) MapCreateBulk(slice any, setFunc func(*ProjectCustomerLinkCreate, int)) *ProjectCustomerLinkCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &ProjectCustomerLinkCreateBulk{err: fmt.Errorf("calling to ProjectCustomerLinkClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*ProjectCustomerLinkCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &ProjectCustomerLinkCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for ProjectCustomerLink.
+func (c *ProjectCustomerLinkClient) Update() *ProjectCustomerLinkUpdate {
+	mutation := newProjectCustomerLinkMutation(c.config, OpUpdate)
+	return &ProjectCustomerLinkUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *ProjectCustomerLinkClient) UpdateOne(_m *ProjectCustomerLink) *ProjectCustomerLinkUpdateOne {
+	mutation := newProjectCustomerLinkMutation(c.config, OpUpdateOne, withProjectCustomerLink(_m))
+	return &ProjectCustomerLinkUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *ProjectCustomerLinkClient) UpdateOneID(id int) *ProjectCustomerLinkUpdateOne {
+	mutation := newProjectCustomerLinkMutation(c.config, OpUpdateOne, withProjectCustomerLinkID(id))
+	return &ProjectCustomerLinkUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for ProjectCustomerLink.
+func (c *ProjectCustomerLinkClient) Delete() *ProjectCustomerLinkDelete {
+	mutation := newProjectCustomerLinkMutation(c.config, OpDelete)
+	return &ProjectCustomerLinkDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *ProjectCustomerLinkClient) DeleteOne(_m *ProjectCustomerLink) *ProjectCustomerLinkDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *ProjectCustomerLinkClient) DeleteOneID(id int) *ProjectCustomerLinkDeleteOne {
+	builder := c.Delete().Where(projectcustomerlink.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &ProjectCustomerLinkDeleteOne{builder}
+}
+
+// Query returns a query builder for ProjectCustomerLink.
+func (c *ProjectCustomerLinkClient) Query() *ProjectCustomerLinkQuery {
+	return &ProjectCustomerLinkQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeProjectCustomerLink},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a ProjectCustomerLink entity by its id.
+func (c *ProjectCustomerLinkClient) Get(ctx context.Context, id int) (*ProjectCustomerLink, error) {
+	return c.Query().Where(projectcustomerlink.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *ProjectCustomerLinkClient) GetX(ctx context.Context, id int) *ProjectCustomerLink {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *ProjectCustomerLinkClient) Hooks() []Hook {
+	return c.hooks.ProjectCustomerLink
+}
+
+// Interceptors returns the client interceptors.
+func (c *ProjectCustomerLinkClient) Interceptors() []Interceptor {
+	return c.inters.ProjectCustomerLink
+}
+
+func (c *ProjectCustomerLinkClient) mutate(ctx context.Context, m *ProjectCustomerLinkMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&ProjectCustomerLinkCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&ProjectCustomerLinkUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&ProjectCustomerLinkUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&ProjectCustomerLinkDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown ProjectCustomerLink mutation op: %q", m.Op())
+	}
+}
+
 // ProjectGateClient is a client for the ProjectGate schema.
 type ProjectGateClient struct {
 	config
@@ -28299,10 +29574,12 @@ type (
 		BotToolGrant, CABMember, CIAttributeDefinition, CIRelationship, CITag, CIType,
 		CMDBExportTask, CMDBImportTask, CMDBSavedView, Change, ChangePIR, CloudAccount,
 		CloudResource, CloudService, ConfigurationItem, ConfigurationItemHistory,
-		ConnectorConfig, ConnectorInboundDedup, Contract, Conversation, CustomerBranch,
-		Department, DiscoveryJob, DiscoveryResult, DiscoverySource, DomainConfig,
-		EmailConversation, EmailIntakeAnalysis, EmailOutboundMessage, EndpointACL,
-		EngineerSkill, ExternalContractReference, FeishuTicketSync, Group,
+		ConnectorConfig, ConnectorInboundDedup, Contract, ContractAmendment,
+		ContractProjectLink, ContractServiceItem, ContractUsageLedger, Conversation,
+		CustomerBranch, CustomerContact, CustomerExternalID, CustomerRelationship,
+		CustomerTenantLink, Department, DiscoveryJob, DiscoveryResult, DiscoverySource,
+		DomainConfig, EmailConversation, EmailIntakeAnalysis, EmailOutboundMessage,
+		EndpointACL, EngineerSkill, ExternalContractReference, FeishuTicketSync, Group,
 		InboundEmailMessage, Incident, IncidentAlert, IncidentEscalationRule,
 		IncidentEvent, IncidentMetric, IncidentRule, IncidentRuleExecution, Invitation,
 		ItemVersion, KnowledgeArticle, KnowledgeArticleLike,
@@ -28315,21 +29592,21 @@ type (
 		Problem, ProcessApprovalDecision, ProcessAuditLog, ProcessBinding,
 		ProcessDefinition, ProcessDeployment, ProcessExecutionHistory, ProcessInstance,
 		ProcessTask, ProcessTimer, ProcessVariable, ProcessVersionChangelog, Project,
-		ProjectAssetLink, ProjectBaseline, ProjectClosure, ProjectGate, ProjectMember,
-		ProjectMilestone, ProjectReportTemplate, ProjectRisk, ProjectTask,
-		ProjectTaskDependency, ProjectTemplate, PromptTemplate, ProvisioningTask,
-		RelationshipType, Release, Role, RolePermission, RootCauseAnalysis,
-		SLAAlertHistory, SLAAlertRule, SLADefinition, SLADefinitionGrant,
-		SLADefinitionSnapshot, SLAMetric, SLAPolicy, SLAViolation, ServiceCatalog,
-		ServiceCatalogItem, ServiceCustomer, ServiceRequest, ServiceRequestApproval,
-		SourceOrganization, StandardChange, SupportContract, Survey, SurveyResponse,
-		SystemConfig, Tag, Team, Tenant, TenantInstallation, Ticket, TicketApproval,
-		TicketAssignmentRule, TicketAttachment, TicketAutomationRule, TicketCC,
-		TicketCategory, TicketComment, TicketNotification, TicketTag, TicketTemplate,
-		TicketType, TicketTypeDistribution, TicketView, TicketWorkflowRecord,
-		ToolInvocation, User, UserTenantMembership, UserTenantMembershipOrg, Vendor,
-		WorkbenchView, Workflow, WorkflowInstance, WorkflowTask, WorkflowTemplate,
-		WorkflowVersion []ent.Hook
+		ProjectAssetLink, ProjectBaseline, ProjectClosure, ProjectCustomerLink,
+		ProjectGate, ProjectMember, ProjectMilestone, ProjectReportTemplate,
+		ProjectRisk, ProjectTask, ProjectTaskDependency, ProjectTemplate,
+		PromptTemplate, ProvisioningTask, RelationshipType, Release, Role,
+		RolePermission, RootCauseAnalysis, SLAAlertHistory, SLAAlertRule,
+		SLADefinition, SLADefinitionGrant, SLADefinitionSnapshot, SLAMetric, SLAPolicy,
+		SLAViolation, ServiceCatalog, ServiceCatalogItem, ServiceCustomer,
+		ServiceRequest, ServiceRequestApproval, SourceOrganization, StandardChange,
+		SupportContract, Survey, SurveyResponse, SystemConfig, Tag, Team, Tenant,
+		TenantInstallation, Ticket, TicketApproval, TicketAssignmentRule,
+		TicketAttachment, TicketAutomationRule, TicketCC, TicketCategory,
+		TicketComment, TicketNotification, TicketTag, TicketTemplate, TicketType,
+		TicketTypeDistribution, TicketView, TicketWorkflowRecord, ToolInvocation, User,
+		UserTenantMembership, UserTenantMembershipOrg, Vendor, WorkbenchView, Workflow,
+		WorkflowInstance, WorkflowTask, WorkflowTemplate, WorkflowVersion []ent.Hook
 	}
 	inters struct {
 		AIAnalysisResult, Alert, Application, ApprovalChain, ApprovalRecord,
@@ -28338,10 +29615,12 @@ type (
 		BotToolGrant, CABMember, CIAttributeDefinition, CIRelationship, CITag, CIType,
 		CMDBExportTask, CMDBImportTask, CMDBSavedView, Change, ChangePIR, CloudAccount,
 		CloudResource, CloudService, ConfigurationItem, ConfigurationItemHistory,
-		ConnectorConfig, ConnectorInboundDedup, Contract, Conversation, CustomerBranch,
-		Department, DiscoveryJob, DiscoveryResult, DiscoverySource, DomainConfig,
-		EmailConversation, EmailIntakeAnalysis, EmailOutboundMessage, EndpointACL,
-		EngineerSkill, ExternalContractReference, FeishuTicketSync, Group,
+		ConnectorConfig, ConnectorInboundDedup, Contract, ContractAmendment,
+		ContractProjectLink, ContractServiceItem, ContractUsageLedger, Conversation,
+		CustomerBranch, CustomerContact, CustomerExternalID, CustomerRelationship,
+		CustomerTenantLink, Department, DiscoveryJob, DiscoveryResult, DiscoverySource,
+		DomainConfig, EmailConversation, EmailIntakeAnalysis, EmailOutboundMessage,
+		EndpointACL, EngineerSkill, ExternalContractReference, FeishuTicketSync, Group,
 		InboundEmailMessage, Incident, IncidentAlert, IncidentEscalationRule,
 		IncidentEvent, IncidentMetric, IncidentRule, IncidentRuleExecution, Invitation,
 		ItemVersion, KnowledgeArticle, KnowledgeArticleLike,
@@ -28354,20 +29633,21 @@ type (
 		Problem, ProcessApprovalDecision, ProcessAuditLog, ProcessBinding,
 		ProcessDefinition, ProcessDeployment, ProcessExecutionHistory, ProcessInstance,
 		ProcessTask, ProcessTimer, ProcessVariable, ProcessVersionChangelog, Project,
-		ProjectAssetLink, ProjectBaseline, ProjectClosure, ProjectGate, ProjectMember,
-		ProjectMilestone, ProjectReportTemplate, ProjectRisk, ProjectTask,
-		ProjectTaskDependency, ProjectTemplate, PromptTemplate, ProvisioningTask,
-		RelationshipType, Release, Role, RolePermission, RootCauseAnalysis,
-		SLAAlertHistory, SLAAlertRule, SLADefinition, SLADefinitionGrant,
-		SLADefinitionSnapshot, SLAMetric, SLAPolicy, SLAViolation, ServiceCatalog,
-		ServiceCatalogItem, ServiceCustomer, ServiceRequest, ServiceRequestApproval,
-		SourceOrganization, StandardChange, SupportContract, Survey, SurveyResponse,
-		SystemConfig, Tag, Team, Tenant, TenantInstallation, Ticket, TicketApproval,
-		TicketAssignmentRule, TicketAttachment, TicketAutomationRule, TicketCC,
-		TicketCategory, TicketComment, TicketNotification, TicketTag, TicketTemplate,
-		TicketType, TicketTypeDistribution, TicketView, TicketWorkflowRecord,
-		ToolInvocation, User, UserTenantMembership, UserTenantMembershipOrg, Vendor,
-		WorkbenchView, Workflow, WorkflowInstance, WorkflowTask, WorkflowTemplate,
+		ProjectAssetLink, ProjectBaseline, ProjectClosure, ProjectCustomerLink,
+		ProjectGate, ProjectMember, ProjectMilestone, ProjectReportTemplate,
+		ProjectRisk, ProjectTask, ProjectTaskDependency, ProjectTemplate,
+		PromptTemplate, ProvisioningTask, RelationshipType, Release, Role,
+		RolePermission, RootCauseAnalysis, SLAAlertHistory, SLAAlertRule,
+		SLADefinition, SLADefinitionGrant, SLADefinitionSnapshot, SLAMetric, SLAPolicy,
+		SLAViolation, ServiceCatalog, ServiceCatalogItem, ServiceCustomer,
+		ServiceRequest, ServiceRequestApproval, SourceOrganization, StandardChange,
+		SupportContract, Survey, SurveyResponse, SystemConfig, Tag, Team, Tenant,
+		TenantInstallation, Ticket, TicketApproval, TicketAssignmentRule,
+		TicketAttachment, TicketAutomationRule, TicketCC, TicketCategory,
+		TicketComment, TicketNotification, TicketTag, TicketTemplate, TicketType,
+		TicketTypeDistribution, TicketView, TicketWorkflowRecord, ToolInvocation, User,
+		UserTenantMembership, UserTenantMembershipOrg, Vendor, WorkbenchView, Workflow,
+		WorkflowInstance, WorkflowTask, WorkflowTemplate,
 		WorkflowVersion []ent.Interceptor
 	}
 )

@@ -220,6 +220,7 @@ func (o *EmailIntakeOrchestrator) process(ctx context.Context, tenantID int, con
 	if existingFields, mapErr := fieldsFromMap(conversation.CanonicalData); mapErr == nil {
 		fields = mergeIntakeFields(existingFields, fields, conversation.FieldSources)
 	}
+	fields.SenderEmail = message.FromAddress
 	if sourceName, sourceID := o.sourceOrganizationForSender(ctx, tenantID, message.FromAddress); sourceID != 0 {
 		fields.SourceOrganizationName = sourceName
 	}
@@ -288,6 +289,7 @@ func (o *EmailIntakeOrchestrator) Confirm(ctx context.Context, tenantID, convers
 	if err != nil {
 		return nil, err
 	}
+	fields.SenderEmail = o.senderEmailForConversation(ctx, tenantID, conversation.ID, fields.SenderEmail)
 	resolution, err := o.resolver.Resolve(ctx, tenantID, fields)
 	if err != nil {
 		return nil, err
@@ -385,6 +387,7 @@ func (o *EmailIntakeOrchestrator) Revalidate(ctx context.Context, tenantID, conv
 	if err != nil {
 		return nil, err
 	}
+	fields.SenderEmail = o.senderEmailForConversation(ctx, tenantID, conversation.ID, fields.SenderEmail)
 	resolution, err := o.resolver.Resolve(ctx, tenantID, fields)
 	if err != nil {
 		return nil, err
@@ -404,6 +407,15 @@ func (o *EmailIntakeOrchestrator) ApplyCorrections(ctx context.Context, tenantID
 	if conversation.Version != version {
 		return nil, errors.New("conversation was modified by another operator")
 	}
+	if existingFields, mapErr := fieldsFromMap(conversation.CanonicalData); mapErr == nil {
+		if fields.SenderEmail == "" {
+			fields.SenderEmail = existingFields.SenderEmail
+		}
+		if fields.TaxID == "" {
+			fields.TaxID = existingFields.TaxID
+		}
+	}
+	fields.SenderEmail = o.senderEmailForConversation(ctx, tenantID, conversation.ID, fields.SenderEmail)
 	resolution, err := o.resolver.Resolve(ctx, tenantID, fields)
 	if err != nil {
 		return nil, err
@@ -413,8 +425,8 @@ func (o *EmailIntakeOrchestrator) ApplyCorrections(ctx context.Context, tenantID
 		return nil, err
 	}
 	corrections, _ := fieldsToMap(fields)
-	fieldSources := copyMap(conversation.FieldSources)
-	for _, key := range []string{"sourceOrganizationName", "customerName", "branchName", "reportedContractNumber", "title", "description", "occurredAt", "impact", "urgency"} {
+	fieldSources := copyMap(updated.FieldSources)
+	for _, key := range []string{"sourceOrganizationName", "customerName", "taxId", "branchName", "reportedContractNumber", "title", "description", "occurredAt", "impact", "urgency"} {
 		fieldSources[key] = "human"
 	}
 	if _, err := o.client.EmailConversation.UpdateOneID(updated.ID).Where(emailconversation.TenantIDEQ(tenantID)).SetFieldSources(fieldSources).Save(ctx); err != nil {
@@ -477,7 +489,21 @@ func (o *EmailIntakeOrchestrator) Override(ctx context.Context, tenantID, conver
 
 func (o *EmailIntakeOrchestrator) updateConversation(ctx context.Context, conversation *ent.EmailConversation, status string, fields IntakeFields, resolution Resolution) (*ent.EmailConversation, error) {
 	data, _ := fieldsToMap(fields)
+	if resolution.MatchedLevel != "" {
+		data["matchLevel"] = resolution.MatchedLevel
+		data["matchConfidence"] = resolution.MatchConfidence
+	}
+	if len(resolution.Candidates) > 0 {
+		data["candidates"] = resolution.Candidates
+	}
 	update := o.client.EmailConversation.UpdateOneID(conversation.ID).Where(emailconversation.TenantIDEQ(conversation.TenantID), emailconversation.VersionEQ(conversation.Version)).SetStatus(status).SetCanonicalData(data).SetMissingFields(resolution.MissingFields).SetConfidence(fields.Confidence).SetLastMessageAt(time.Now()).AddVersion(1)
+	if len(resolution.FieldSources) > 0 {
+		sources := copyMap(conversation.FieldSources)
+		for key, value := range resolution.FieldSources {
+			sources[key] = value
+		}
+		update.SetFieldSources(sources)
+	}
 	if resolution.CustomerID != 0 {
 		update.SetCustomerID(resolution.CustomerID)
 	}
@@ -597,6 +623,20 @@ func sameMailbox(a, b string) bool {
 	pa, ea := mail.ParseAddress(a)
 	pb, eb := mail.ParseAddress(b)
 	return ea == nil && eb == nil && strings.EqualFold(pa.Address, pb.Address)
+}
+
+func (o *EmailIntakeOrchestrator) senderEmailForConversation(ctx context.Context, tenantID, conversationID int, current string) string {
+	if strings.TrimSpace(current) != "" {
+		return current
+	}
+	message, err := o.client.InboundEmailMessage.Query().
+		Where(inboundemailmessage.TenantIDEQ(tenantID), inboundemailmessage.ConversationIDEQ(conversationID)).
+		Order(ent.Desc(inboundemailmessage.FieldReceivedAt)).
+		First(ctx)
+	if err != nil {
+		return ""
+	}
+	return message.FromAddress
 }
 
 //lint:ignore U1000 Deprecated: see function comment
@@ -752,6 +792,12 @@ func mergeIntakeFields(current, incoming IntakeFields, sources map[string]interf
 	}
 	if incoming.CustomerName != "" && canReplace("customerName") {
 		current.CustomerName = incoming.CustomerName
+	}
+	if incoming.TaxID != "" && canReplace("taxId") {
+		current.TaxID = incoming.TaxID
+	}
+	if incoming.SenderEmail != "" {
+		current.SenderEmail = incoming.SenderEmail
 	}
 	if incoming.BranchName != "" && canReplace("branchName") {
 		current.BranchName = incoming.BranchName

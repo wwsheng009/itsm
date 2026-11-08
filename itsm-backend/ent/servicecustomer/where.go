@@ -60,6 +60,11 @@ func TenantID(v int) predicate.ServiceCustomer {
 	return predicate.ServiceCustomer(sql.FieldEQ(FieldTenantID, v))
 }
 
+// Code applies equality check predicate on the "code" field. It's identical to CodeEQ.
+func Code(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEQ(FieldCode, v))
+}
+
 // Name applies equality check predicate on the "name" field. It's identical to NameEQ.
 func Name(v string) predicate.ServiceCustomer {
 	return predicate.ServiceCustomer(sql.FieldEQ(FieldName, v))
@@ -73,6 +78,221 @@ func NormalizedName(v string) predicate.ServiceCustomer {
 // ShortName applies equality check predicate on the "short_name" field. It's identical to ShortNameEQ.
 func ShortName(v string) predicate.ServiceCustomer {
 	return predicate.ServiceCustomer(sql.FieldEQ(FieldShortName, v))
+}
+
+// LegalName applies equality check predicate on the "legal_name" field. It's identical to LegalNameEQ.
+func LegalName(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEQ(FieldLegalName, v))
+}
+
+// EnName applies equality check predicate on the "en_name" field. It's identical to EnNameEQ.
+func EnName(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEQ(FieldEnName, v))
+}
+
+// TaxID applies equality check predicate on the "tax_id" field. It's identical to TaxIDEQ.
+func TaxID(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEQ(FieldTaxID, v))
+}
+
+// NormalizedTaxID applies equality check predicate on the "normalized_tax_id" field. It's identical to NormalizedTaxIDEQ.
+func NormalizedTaxID(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEQ(FieldNormalizedTaxID, v))
+}
+
+// DunsNumber applies equality check predicate on the "duns_number" field. It's identical to DunsNumberEQ.
+func DunsNumber(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEQ(FieldDunsNumber, v))
+}
+
+// RegistrationNo applies equality check predicate on the "registration_no" field. It's identical to RegistrationNoEQ.
+func RegistrationNo(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEQ(FieldRegistrationNo, v))
+}
+
+// CustomerType applies equality check predicate on the "customer_type" field. It's identical to CustomerTypeEQ.
+func CustomerType(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEQ(FieldCustomerType, v))
+}
+
+// Industry applies equality check predicate on the "industry" field. It's identical to IndustryEQ.
+func Industry(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEQ(FieldIndustry, v))
+}
+
+// SubIndustry applies equality check predicate on the "sub_industry" field. It's identical to SubIndustryEQ.
+func SubIndustry(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEQ(FieldSubIndustry, v))
+}
+
+// SizeClass applies equality check predicate on the "size_class" field. It's identical to SizeClassEQ.
+func SizeClass(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEQ(FieldSizeClass, v))
+}
+
+// OwnershipType applies equality check predicate on the "ownership_type" field. It's identical to OwnershipTypeEQ.
+func OwnershipType(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEQ(FieldOwnershipType, v))
+}
+
+// Tier applies equality check predicate on the "tier" field. It's identical to TierEQ.
+func Tier(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEQ(FieldTier, v))
+}
+
+// VipLevel applies equality check predicate on the "vip_level" field. It's identical to VipLevelEQ.
+func VipLevel(v int16) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEQ(FieldVipLevel, v))
+}
+
+// CreditRating applies equality check predicate on the "credit_rating" field. It's identical to CreditRatingEQ.
+func CreditRating(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEQ(FieldCreditRating, v))
+}
+
+// Website applies equality check predicate on the "website" field. It's identical to WebsiteEQ.
+func Website(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEQ(FieldWebsite, v))
+}
+
+// MainPhone applies equality check predicate on the "main_phone" field. It's identical to MainPhoneEQ.
+func MainPhone(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEQ(FieldMainPhone, v))
+}
+
+// ServiceEmail applies equality check predicate on the "service_email" field. It's identical to ServiceEmailEQ.
+func ServiceEmail(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEQ(FieldServiceEmail, v))
+}
+
+// Timezone applies equality check predicate on the "timezone" field. It's identical to TimezoneEQ.
+func Timezone(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEQ(FieldTimezone, v))
+}
+
+// Language applies equality check predicate on the "language" field. It's identical to LanguageEQ.
+func Language(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEQ(FieldLanguage, v))
+}
+
+// ServiceTier applies equality check predicate on the "service_tier" field. It's identical to ServiceTierEQ.
+func ServiceTier(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEQ(FieldServiceTier, v))
+}
+
+// SLADefinitionID applies equality check predicate on the "sla_definition_id" field. It's identical to SLADefinitionIDEQ.
+func SLADefinitionID(v int) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEQ(FieldSLADefinitionID, v))
+}
+
+// SupportHours applies equality check predicate on the "support_hours" field. It's identical to SupportHoursEQ.
+func SupportHours(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEQ(FieldSupportHours, v))
+}
+
+// AccountManagerID applies equality check predicate on the "account_manager_id" field. It's identical to AccountManagerIDEQ.
+func AccountManagerID(v int) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEQ(FieldAccountManagerID, v))
+}
+
+// ServiceOwnerID applies equality check predicate on the "service_owner_id" field. It's identical to ServiceOwnerIDEQ.
+func ServiceOwnerID(v int) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEQ(FieldServiceOwnerID, v))
+}
+
+// CsManagerID applies equality check predicate on the "cs_manager_id" field. It's identical to CsManagerIDEQ.
+func CsManagerID(v int) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEQ(FieldCsManagerID, v))
+}
+
+// OncallGroupID applies equality check predicate on the "oncall_group_id" field. It's identical to OncallGroupIDEQ.
+func OncallGroupID(v int) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEQ(FieldOncallGroupID, v))
+}
+
+// BillingCurrency applies equality check predicate on the "billing_currency" field. It's identical to BillingCurrencyEQ.
+func BillingCurrency(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEQ(FieldBillingCurrency, v))
+}
+
+// PaymentTerms applies equality check predicate on the "payment_terms" field. It's identical to PaymentTermsEQ.
+func PaymentTerms(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEQ(FieldPaymentTerms, v))
+}
+
+// CreditLimit applies equality check predicate on the "credit_limit" field. It's identical to CreditLimitEQ.
+func CreditLimit(v float64) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEQ(FieldCreditLimit, v))
+}
+
+// InvoiceTitle applies equality check predicate on the "invoice_title" field. It's identical to InvoiceTitleEQ.
+func InvoiceTitle(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEQ(FieldInvoiceTitle, v))
+}
+
+// LifecycleStage applies equality check predicate on the "lifecycle_stage" field. It's identical to LifecycleStageEQ.
+func LifecycleStage(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEQ(FieldLifecycleStage, v))
+}
+
+// OnboardedAt applies equality check predicate on the "onboarded_at" field. It's identical to OnboardedAtEQ.
+func OnboardedAt(v time.Time) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEQ(FieldOnboardedAt, v))
+}
+
+// ContractStartAt applies equality check predicate on the "contract_start_at" field. It's identical to ContractStartAtEQ.
+func ContractStartAt(v time.Time) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEQ(FieldContractStartAt, v))
+}
+
+// ContractEndAt applies equality check predicate on the "contract_end_at" field. It's identical to ContractEndAtEQ.
+func ContractEndAt(v time.Time) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEQ(FieldContractEndAt, v))
+}
+
+// ChurnAt applies equality check predicate on the "churn_at" field. It's identical to ChurnAtEQ.
+func ChurnAt(v time.Time) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEQ(FieldChurnAt, v))
+}
+
+// ChurnReason applies equality check predicate on the "churn_reason" field. It's identical to ChurnReasonEQ.
+func ChurnReason(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEQ(FieldChurnReason, v))
+}
+
+// DataSource applies equality check predicate on the "data_source" field. It's identical to DataSourceEQ.
+func DataSource(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEQ(FieldDataSource, v))
+}
+
+// DataQualityScore applies equality check predicate on the "data_quality_score" field. It's identical to DataQualityScoreEQ.
+func DataQualityScore(v int16) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEQ(FieldDataQualityScore, v))
+}
+
+// MergedIntoID applies equality check predicate on the "merged_into_id" field. It's identical to MergedIntoIDEQ.
+func MergedIntoID(v int) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEQ(FieldMergedIntoID, v))
+}
+
+// Version applies equality check predicate on the "version" field. It's identical to VersionEQ.
+func Version(v int64) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEQ(FieldVersion, v))
+}
+
+// DeletedAt applies equality check predicate on the "deleted_at" field. It's identical to DeletedAtEQ.
+func DeletedAt(v time.Time) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEQ(FieldDeletedAt, v))
+}
+
+// CreatedBy applies equality check predicate on the "created_by" field. It's identical to CreatedByEQ.
+func CreatedBy(v int) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEQ(FieldCreatedBy, v))
+}
+
+// UpdatedBy applies equality check predicate on the "updated_by" field. It's identical to UpdatedByEQ.
+func UpdatedBy(v int) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEQ(FieldUpdatedBy, v))
 }
 
 // Status applies equality check predicate on the "status" field. It's identical to StatusEQ.
@@ -133,6 +353,81 @@ func TenantIDLT(v int) predicate.ServiceCustomer {
 // TenantIDLTE applies the LTE predicate on the "tenant_id" field.
 func TenantIDLTE(v int) predicate.ServiceCustomer {
 	return predicate.ServiceCustomer(sql.FieldLTE(FieldTenantID, v))
+}
+
+// CodeEQ applies the EQ predicate on the "code" field.
+func CodeEQ(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEQ(FieldCode, v))
+}
+
+// CodeNEQ applies the NEQ predicate on the "code" field.
+func CodeNEQ(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNEQ(FieldCode, v))
+}
+
+// CodeIn applies the In predicate on the "code" field.
+func CodeIn(vs ...string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldIn(FieldCode, vs...))
+}
+
+// CodeNotIn applies the NotIn predicate on the "code" field.
+func CodeNotIn(vs ...string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNotIn(FieldCode, vs...))
+}
+
+// CodeGT applies the GT predicate on the "code" field.
+func CodeGT(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldGT(FieldCode, v))
+}
+
+// CodeGTE applies the GTE predicate on the "code" field.
+func CodeGTE(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldGTE(FieldCode, v))
+}
+
+// CodeLT applies the LT predicate on the "code" field.
+func CodeLT(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldLT(FieldCode, v))
+}
+
+// CodeLTE applies the LTE predicate on the "code" field.
+func CodeLTE(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldLTE(FieldCode, v))
+}
+
+// CodeContains applies the Contains predicate on the "code" field.
+func CodeContains(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldContains(FieldCode, v))
+}
+
+// CodeHasPrefix applies the HasPrefix predicate on the "code" field.
+func CodeHasPrefix(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldHasPrefix(FieldCode, v))
+}
+
+// CodeHasSuffix applies the HasSuffix predicate on the "code" field.
+func CodeHasSuffix(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldHasSuffix(FieldCode, v))
+}
+
+// CodeIsNil applies the IsNil predicate on the "code" field.
+func CodeIsNil() predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldIsNull(FieldCode))
+}
+
+// CodeNotNil applies the NotNil predicate on the "code" field.
+func CodeNotNil() predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNotNull(FieldCode))
+}
+
+// CodeEqualFold applies the EqualFold predicate on the "code" field.
+func CodeEqualFold(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEqualFold(FieldCode, v))
+}
+
+// CodeContainsFold applies the ContainsFold predicate on the "code" field.
+func CodeContainsFold(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldContainsFold(FieldCode, v))
 }
 
 // NameEQ applies the EQ predicate on the "name" field.
@@ -340,6 +635,156 @@ func ShortNameContainsFold(v string) predicate.ServiceCustomer {
 	return predicate.ServiceCustomer(sql.FieldContainsFold(FieldShortName, v))
 }
 
+// LegalNameEQ applies the EQ predicate on the "legal_name" field.
+func LegalNameEQ(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEQ(FieldLegalName, v))
+}
+
+// LegalNameNEQ applies the NEQ predicate on the "legal_name" field.
+func LegalNameNEQ(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNEQ(FieldLegalName, v))
+}
+
+// LegalNameIn applies the In predicate on the "legal_name" field.
+func LegalNameIn(vs ...string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldIn(FieldLegalName, vs...))
+}
+
+// LegalNameNotIn applies the NotIn predicate on the "legal_name" field.
+func LegalNameNotIn(vs ...string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNotIn(FieldLegalName, vs...))
+}
+
+// LegalNameGT applies the GT predicate on the "legal_name" field.
+func LegalNameGT(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldGT(FieldLegalName, v))
+}
+
+// LegalNameGTE applies the GTE predicate on the "legal_name" field.
+func LegalNameGTE(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldGTE(FieldLegalName, v))
+}
+
+// LegalNameLT applies the LT predicate on the "legal_name" field.
+func LegalNameLT(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldLT(FieldLegalName, v))
+}
+
+// LegalNameLTE applies the LTE predicate on the "legal_name" field.
+func LegalNameLTE(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldLTE(FieldLegalName, v))
+}
+
+// LegalNameContains applies the Contains predicate on the "legal_name" field.
+func LegalNameContains(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldContains(FieldLegalName, v))
+}
+
+// LegalNameHasPrefix applies the HasPrefix predicate on the "legal_name" field.
+func LegalNameHasPrefix(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldHasPrefix(FieldLegalName, v))
+}
+
+// LegalNameHasSuffix applies the HasSuffix predicate on the "legal_name" field.
+func LegalNameHasSuffix(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldHasSuffix(FieldLegalName, v))
+}
+
+// LegalNameIsNil applies the IsNil predicate on the "legal_name" field.
+func LegalNameIsNil() predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldIsNull(FieldLegalName))
+}
+
+// LegalNameNotNil applies the NotNil predicate on the "legal_name" field.
+func LegalNameNotNil() predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNotNull(FieldLegalName))
+}
+
+// LegalNameEqualFold applies the EqualFold predicate on the "legal_name" field.
+func LegalNameEqualFold(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEqualFold(FieldLegalName, v))
+}
+
+// LegalNameContainsFold applies the ContainsFold predicate on the "legal_name" field.
+func LegalNameContainsFold(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldContainsFold(FieldLegalName, v))
+}
+
+// EnNameEQ applies the EQ predicate on the "en_name" field.
+func EnNameEQ(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEQ(FieldEnName, v))
+}
+
+// EnNameNEQ applies the NEQ predicate on the "en_name" field.
+func EnNameNEQ(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNEQ(FieldEnName, v))
+}
+
+// EnNameIn applies the In predicate on the "en_name" field.
+func EnNameIn(vs ...string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldIn(FieldEnName, vs...))
+}
+
+// EnNameNotIn applies the NotIn predicate on the "en_name" field.
+func EnNameNotIn(vs ...string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNotIn(FieldEnName, vs...))
+}
+
+// EnNameGT applies the GT predicate on the "en_name" field.
+func EnNameGT(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldGT(FieldEnName, v))
+}
+
+// EnNameGTE applies the GTE predicate on the "en_name" field.
+func EnNameGTE(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldGTE(FieldEnName, v))
+}
+
+// EnNameLT applies the LT predicate on the "en_name" field.
+func EnNameLT(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldLT(FieldEnName, v))
+}
+
+// EnNameLTE applies the LTE predicate on the "en_name" field.
+func EnNameLTE(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldLTE(FieldEnName, v))
+}
+
+// EnNameContains applies the Contains predicate on the "en_name" field.
+func EnNameContains(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldContains(FieldEnName, v))
+}
+
+// EnNameHasPrefix applies the HasPrefix predicate on the "en_name" field.
+func EnNameHasPrefix(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldHasPrefix(FieldEnName, v))
+}
+
+// EnNameHasSuffix applies the HasSuffix predicate on the "en_name" field.
+func EnNameHasSuffix(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldHasSuffix(FieldEnName, v))
+}
+
+// EnNameIsNil applies the IsNil predicate on the "en_name" field.
+func EnNameIsNil() predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldIsNull(FieldEnName))
+}
+
+// EnNameNotNil applies the NotNil predicate on the "en_name" field.
+func EnNameNotNil() predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNotNull(FieldEnName))
+}
+
+// EnNameEqualFold applies the EqualFold predicate on the "en_name" field.
+func EnNameEqualFold(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEqualFold(FieldEnName, v))
+}
+
+// EnNameContainsFold applies the ContainsFold predicate on the "en_name" field.
+func EnNameContainsFold(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldContainsFold(FieldEnName, v))
+}
+
 // AliasesIsNil applies the IsNil predicate on the "aliases" field.
 func AliasesIsNil() predicate.ServiceCustomer {
 	return predicate.ServiceCustomer(sql.FieldIsNull(FieldAliases))
@@ -358,6 +803,2616 @@ func HistoricalNamesIsNil() predicate.ServiceCustomer {
 // HistoricalNamesNotNil applies the NotNil predicate on the "historical_names" field.
 func HistoricalNamesNotNil() predicate.ServiceCustomer {
 	return predicate.ServiceCustomer(sql.FieldNotNull(FieldHistoricalNames))
+}
+
+// TaxIDEQ applies the EQ predicate on the "tax_id" field.
+func TaxIDEQ(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEQ(FieldTaxID, v))
+}
+
+// TaxIDNEQ applies the NEQ predicate on the "tax_id" field.
+func TaxIDNEQ(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNEQ(FieldTaxID, v))
+}
+
+// TaxIDIn applies the In predicate on the "tax_id" field.
+func TaxIDIn(vs ...string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldIn(FieldTaxID, vs...))
+}
+
+// TaxIDNotIn applies the NotIn predicate on the "tax_id" field.
+func TaxIDNotIn(vs ...string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNotIn(FieldTaxID, vs...))
+}
+
+// TaxIDGT applies the GT predicate on the "tax_id" field.
+func TaxIDGT(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldGT(FieldTaxID, v))
+}
+
+// TaxIDGTE applies the GTE predicate on the "tax_id" field.
+func TaxIDGTE(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldGTE(FieldTaxID, v))
+}
+
+// TaxIDLT applies the LT predicate on the "tax_id" field.
+func TaxIDLT(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldLT(FieldTaxID, v))
+}
+
+// TaxIDLTE applies the LTE predicate on the "tax_id" field.
+func TaxIDLTE(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldLTE(FieldTaxID, v))
+}
+
+// TaxIDContains applies the Contains predicate on the "tax_id" field.
+func TaxIDContains(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldContains(FieldTaxID, v))
+}
+
+// TaxIDHasPrefix applies the HasPrefix predicate on the "tax_id" field.
+func TaxIDHasPrefix(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldHasPrefix(FieldTaxID, v))
+}
+
+// TaxIDHasSuffix applies the HasSuffix predicate on the "tax_id" field.
+func TaxIDHasSuffix(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldHasSuffix(FieldTaxID, v))
+}
+
+// TaxIDIsNil applies the IsNil predicate on the "tax_id" field.
+func TaxIDIsNil() predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldIsNull(FieldTaxID))
+}
+
+// TaxIDNotNil applies the NotNil predicate on the "tax_id" field.
+func TaxIDNotNil() predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNotNull(FieldTaxID))
+}
+
+// TaxIDEqualFold applies the EqualFold predicate on the "tax_id" field.
+func TaxIDEqualFold(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEqualFold(FieldTaxID, v))
+}
+
+// TaxIDContainsFold applies the ContainsFold predicate on the "tax_id" field.
+func TaxIDContainsFold(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldContainsFold(FieldTaxID, v))
+}
+
+// NormalizedTaxIDEQ applies the EQ predicate on the "normalized_tax_id" field.
+func NormalizedTaxIDEQ(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEQ(FieldNormalizedTaxID, v))
+}
+
+// NormalizedTaxIDNEQ applies the NEQ predicate on the "normalized_tax_id" field.
+func NormalizedTaxIDNEQ(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNEQ(FieldNormalizedTaxID, v))
+}
+
+// NormalizedTaxIDIn applies the In predicate on the "normalized_tax_id" field.
+func NormalizedTaxIDIn(vs ...string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldIn(FieldNormalizedTaxID, vs...))
+}
+
+// NormalizedTaxIDNotIn applies the NotIn predicate on the "normalized_tax_id" field.
+func NormalizedTaxIDNotIn(vs ...string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNotIn(FieldNormalizedTaxID, vs...))
+}
+
+// NormalizedTaxIDGT applies the GT predicate on the "normalized_tax_id" field.
+func NormalizedTaxIDGT(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldGT(FieldNormalizedTaxID, v))
+}
+
+// NormalizedTaxIDGTE applies the GTE predicate on the "normalized_tax_id" field.
+func NormalizedTaxIDGTE(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldGTE(FieldNormalizedTaxID, v))
+}
+
+// NormalizedTaxIDLT applies the LT predicate on the "normalized_tax_id" field.
+func NormalizedTaxIDLT(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldLT(FieldNormalizedTaxID, v))
+}
+
+// NormalizedTaxIDLTE applies the LTE predicate on the "normalized_tax_id" field.
+func NormalizedTaxIDLTE(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldLTE(FieldNormalizedTaxID, v))
+}
+
+// NormalizedTaxIDContains applies the Contains predicate on the "normalized_tax_id" field.
+func NormalizedTaxIDContains(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldContains(FieldNormalizedTaxID, v))
+}
+
+// NormalizedTaxIDHasPrefix applies the HasPrefix predicate on the "normalized_tax_id" field.
+func NormalizedTaxIDHasPrefix(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldHasPrefix(FieldNormalizedTaxID, v))
+}
+
+// NormalizedTaxIDHasSuffix applies the HasSuffix predicate on the "normalized_tax_id" field.
+func NormalizedTaxIDHasSuffix(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldHasSuffix(FieldNormalizedTaxID, v))
+}
+
+// NormalizedTaxIDIsNil applies the IsNil predicate on the "normalized_tax_id" field.
+func NormalizedTaxIDIsNil() predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldIsNull(FieldNormalizedTaxID))
+}
+
+// NormalizedTaxIDNotNil applies the NotNil predicate on the "normalized_tax_id" field.
+func NormalizedTaxIDNotNil() predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNotNull(FieldNormalizedTaxID))
+}
+
+// NormalizedTaxIDEqualFold applies the EqualFold predicate on the "normalized_tax_id" field.
+func NormalizedTaxIDEqualFold(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEqualFold(FieldNormalizedTaxID, v))
+}
+
+// NormalizedTaxIDContainsFold applies the ContainsFold predicate on the "normalized_tax_id" field.
+func NormalizedTaxIDContainsFold(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldContainsFold(FieldNormalizedTaxID, v))
+}
+
+// DunsNumberEQ applies the EQ predicate on the "duns_number" field.
+func DunsNumberEQ(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEQ(FieldDunsNumber, v))
+}
+
+// DunsNumberNEQ applies the NEQ predicate on the "duns_number" field.
+func DunsNumberNEQ(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNEQ(FieldDunsNumber, v))
+}
+
+// DunsNumberIn applies the In predicate on the "duns_number" field.
+func DunsNumberIn(vs ...string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldIn(FieldDunsNumber, vs...))
+}
+
+// DunsNumberNotIn applies the NotIn predicate on the "duns_number" field.
+func DunsNumberNotIn(vs ...string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNotIn(FieldDunsNumber, vs...))
+}
+
+// DunsNumberGT applies the GT predicate on the "duns_number" field.
+func DunsNumberGT(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldGT(FieldDunsNumber, v))
+}
+
+// DunsNumberGTE applies the GTE predicate on the "duns_number" field.
+func DunsNumberGTE(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldGTE(FieldDunsNumber, v))
+}
+
+// DunsNumberLT applies the LT predicate on the "duns_number" field.
+func DunsNumberLT(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldLT(FieldDunsNumber, v))
+}
+
+// DunsNumberLTE applies the LTE predicate on the "duns_number" field.
+func DunsNumberLTE(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldLTE(FieldDunsNumber, v))
+}
+
+// DunsNumberContains applies the Contains predicate on the "duns_number" field.
+func DunsNumberContains(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldContains(FieldDunsNumber, v))
+}
+
+// DunsNumberHasPrefix applies the HasPrefix predicate on the "duns_number" field.
+func DunsNumberHasPrefix(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldHasPrefix(FieldDunsNumber, v))
+}
+
+// DunsNumberHasSuffix applies the HasSuffix predicate on the "duns_number" field.
+func DunsNumberHasSuffix(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldHasSuffix(FieldDunsNumber, v))
+}
+
+// DunsNumberIsNil applies the IsNil predicate on the "duns_number" field.
+func DunsNumberIsNil() predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldIsNull(FieldDunsNumber))
+}
+
+// DunsNumberNotNil applies the NotNil predicate on the "duns_number" field.
+func DunsNumberNotNil() predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNotNull(FieldDunsNumber))
+}
+
+// DunsNumberEqualFold applies the EqualFold predicate on the "duns_number" field.
+func DunsNumberEqualFold(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEqualFold(FieldDunsNumber, v))
+}
+
+// DunsNumberContainsFold applies the ContainsFold predicate on the "duns_number" field.
+func DunsNumberContainsFold(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldContainsFold(FieldDunsNumber, v))
+}
+
+// RegistrationNoEQ applies the EQ predicate on the "registration_no" field.
+func RegistrationNoEQ(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEQ(FieldRegistrationNo, v))
+}
+
+// RegistrationNoNEQ applies the NEQ predicate on the "registration_no" field.
+func RegistrationNoNEQ(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNEQ(FieldRegistrationNo, v))
+}
+
+// RegistrationNoIn applies the In predicate on the "registration_no" field.
+func RegistrationNoIn(vs ...string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldIn(FieldRegistrationNo, vs...))
+}
+
+// RegistrationNoNotIn applies the NotIn predicate on the "registration_no" field.
+func RegistrationNoNotIn(vs ...string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNotIn(FieldRegistrationNo, vs...))
+}
+
+// RegistrationNoGT applies the GT predicate on the "registration_no" field.
+func RegistrationNoGT(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldGT(FieldRegistrationNo, v))
+}
+
+// RegistrationNoGTE applies the GTE predicate on the "registration_no" field.
+func RegistrationNoGTE(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldGTE(FieldRegistrationNo, v))
+}
+
+// RegistrationNoLT applies the LT predicate on the "registration_no" field.
+func RegistrationNoLT(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldLT(FieldRegistrationNo, v))
+}
+
+// RegistrationNoLTE applies the LTE predicate on the "registration_no" field.
+func RegistrationNoLTE(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldLTE(FieldRegistrationNo, v))
+}
+
+// RegistrationNoContains applies the Contains predicate on the "registration_no" field.
+func RegistrationNoContains(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldContains(FieldRegistrationNo, v))
+}
+
+// RegistrationNoHasPrefix applies the HasPrefix predicate on the "registration_no" field.
+func RegistrationNoHasPrefix(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldHasPrefix(FieldRegistrationNo, v))
+}
+
+// RegistrationNoHasSuffix applies the HasSuffix predicate on the "registration_no" field.
+func RegistrationNoHasSuffix(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldHasSuffix(FieldRegistrationNo, v))
+}
+
+// RegistrationNoIsNil applies the IsNil predicate on the "registration_no" field.
+func RegistrationNoIsNil() predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldIsNull(FieldRegistrationNo))
+}
+
+// RegistrationNoNotNil applies the NotNil predicate on the "registration_no" field.
+func RegistrationNoNotNil() predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNotNull(FieldRegistrationNo))
+}
+
+// RegistrationNoEqualFold applies the EqualFold predicate on the "registration_no" field.
+func RegistrationNoEqualFold(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEqualFold(FieldRegistrationNo, v))
+}
+
+// RegistrationNoContainsFold applies the ContainsFold predicate on the "registration_no" field.
+func RegistrationNoContainsFold(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldContainsFold(FieldRegistrationNo, v))
+}
+
+// EmailDomainsIsNil applies the IsNil predicate on the "email_domains" field.
+func EmailDomainsIsNil() predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldIsNull(FieldEmailDomains))
+}
+
+// EmailDomainsNotNil applies the NotNil predicate on the "email_domains" field.
+func EmailDomainsNotNil() predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNotNull(FieldEmailDomains))
+}
+
+// CustomerTypeEQ applies the EQ predicate on the "customer_type" field.
+func CustomerTypeEQ(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEQ(FieldCustomerType, v))
+}
+
+// CustomerTypeNEQ applies the NEQ predicate on the "customer_type" field.
+func CustomerTypeNEQ(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNEQ(FieldCustomerType, v))
+}
+
+// CustomerTypeIn applies the In predicate on the "customer_type" field.
+func CustomerTypeIn(vs ...string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldIn(FieldCustomerType, vs...))
+}
+
+// CustomerTypeNotIn applies the NotIn predicate on the "customer_type" field.
+func CustomerTypeNotIn(vs ...string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNotIn(FieldCustomerType, vs...))
+}
+
+// CustomerTypeGT applies the GT predicate on the "customer_type" field.
+func CustomerTypeGT(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldGT(FieldCustomerType, v))
+}
+
+// CustomerTypeGTE applies the GTE predicate on the "customer_type" field.
+func CustomerTypeGTE(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldGTE(FieldCustomerType, v))
+}
+
+// CustomerTypeLT applies the LT predicate on the "customer_type" field.
+func CustomerTypeLT(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldLT(FieldCustomerType, v))
+}
+
+// CustomerTypeLTE applies the LTE predicate on the "customer_type" field.
+func CustomerTypeLTE(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldLTE(FieldCustomerType, v))
+}
+
+// CustomerTypeContains applies the Contains predicate on the "customer_type" field.
+func CustomerTypeContains(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldContains(FieldCustomerType, v))
+}
+
+// CustomerTypeHasPrefix applies the HasPrefix predicate on the "customer_type" field.
+func CustomerTypeHasPrefix(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldHasPrefix(FieldCustomerType, v))
+}
+
+// CustomerTypeHasSuffix applies the HasSuffix predicate on the "customer_type" field.
+func CustomerTypeHasSuffix(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldHasSuffix(FieldCustomerType, v))
+}
+
+// CustomerTypeEqualFold applies the EqualFold predicate on the "customer_type" field.
+func CustomerTypeEqualFold(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEqualFold(FieldCustomerType, v))
+}
+
+// CustomerTypeContainsFold applies the ContainsFold predicate on the "customer_type" field.
+func CustomerTypeContainsFold(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldContainsFold(FieldCustomerType, v))
+}
+
+// IndustryEQ applies the EQ predicate on the "industry" field.
+func IndustryEQ(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEQ(FieldIndustry, v))
+}
+
+// IndustryNEQ applies the NEQ predicate on the "industry" field.
+func IndustryNEQ(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNEQ(FieldIndustry, v))
+}
+
+// IndustryIn applies the In predicate on the "industry" field.
+func IndustryIn(vs ...string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldIn(FieldIndustry, vs...))
+}
+
+// IndustryNotIn applies the NotIn predicate on the "industry" field.
+func IndustryNotIn(vs ...string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNotIn(FieldIndustry, vs...))
+}
+
+// IndustryGT applies the GT predicate on the "industry" field.
+func IndustryGT(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldGT(FieldIndustry, v))
+}
+
+// IndustryGTE applies the GTE predicate on the "industry" field.
+func IndustryGTE(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldGTE(FieldIndustry, v))
+}
+
+// IndustryLT applies the LT predicate on the "industry" field.
+func IndustryLT(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldLT(FieldIndustry, v))
+}
+
+// IndustryLTE applies the LTE predicate on the "industry" field.
+func IndustryLTE(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldLTE(FieldIndustry, v))
+}
+
+// IndustryContains applies the Contains predicate on the "industry" field.
+func IndustryContains(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldContains(FieldIndustry, v))
+}
+
+// IndustryHasPrefix applies the HasPrefix predicate on the "industry" field.
+func IndustryHasPrefix(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldHasPrefix(FieldIndustry, v))
+}
+
+// IndustryHasSuffix applies the HasSuffix predicate on the "industry" field.
+func IndustryHasSuffix(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldHasSuffix(FieldIndustry, v))
+}
+
+// IndustryIsNil applies the IsNil predicate on the "industry" field.
+func IndustryIsNil() predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldIsNull(FieldIndustry))
+}
+
+// IndustryNotNil applies the NotNil predicate on the "industry" field.
+func IndustryNotNil() predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNotNull(FieldIndustry))
+}
+
+// IndustryEqualFold applies the EqualFold predicate on the "industry" field.
+func IndustryEqualFold(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEqualFold(FieldIndustry, v))
+}
+
+// IndustryContainsFold applies the ContainsFold predicate on the "industry" field.
+func IndustryContainsFold(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldContainsFold(FieldIndustry, v))
+}
+
+// SubIndustryEQ applies the EQ predicate on the "sub_industry" field.
+func SubIndustryEQ(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEQ(FieldSubIndustry, v))
+}
+
+// SubIndustryNEQ applies the NEQ predicate on the "sub_industry" field.
+func SubIndustryNEQ(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNEQ(FieldSubIndustry, v))
+}
+
+// SubIndustryIn applies the In predicate on the "sub_industry" field.
+func SubIndustryIn(vs ...string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldIn(FieldSubIndustry, vs...))
+}
+
+// SubIndustryNotIn applies the NotIn predicate on the "sub_industry" field.
+func SubIndustryNotIn(vs ...string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNotIn(FieldSubIndustry, vs...))
+}
+
+// SubIndustryGT applies the GT predicate on the "sub_industry" field.
+func SubIndustryGT(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldGT(FieldSubIndustry, v))
+}
+
+// SubIndustryGTE applies the GTE predicate on the "sub_industry" field.
+func SubIndustryGTE(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldGTE(FieldSubIndustry, v))
+}
+
+// SubIndustryLT applies the LT predicate on the "sub_industry" field.
+func SubIndustryLT(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldLT(FieldSubIndustry, v))
+}
+
+// SubIndustryLTE applies the LTE predicate on the "sub_industry" field.
+func SubIndustryLTE(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldLTE(FieldSubIndustry, v))
+}
+
+// SubIndustryContains applies the Contains predicate on the "sub_industry" field.
+func SubIndustryContains(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldContains(FieldSubIndustry, v))
+}
+
+// SubIndustryHasPrefix applies the HasPrefix predicate on the "sub_industry" field.
+func SubIndustryHasPrefix(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldHasPrefix(FieldSubIndustry, v))
+}
+
+// SubIndustryHasSuffix applies the HasSuffix predicate on the "sub_industry" field.
+func SubIndustryHasSuffix(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldHasSuffix(FieldSubIndustry, v))
+}
+
+// SubIndustryIsNil applies the IsNil predicate on the "sub_industry" field.
+func SubIndustryIsNil() predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldIsNull(FieldSubIndustry))
+}
+
+// SubIndustryNotNil applies the NotNil predicate on the "sub_industry" field.
+func SubIndustryNotNil() predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNotNull(FieldSubIndustry))
+}
+
+// SubIndustryEqualFold applies the EqualFold predicate on the "sub_industry" field.
+func SubIndustryEqualFold(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEqualFold(FieldSubIndustry, v))
+}
+
+// SubIndustryContainsFold applies the ContainsFold predicate on the "sub_industry" field.
+func SubIndustryContainsFold(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldContainsFold(FieldSubIndustry, v))
+}
+
+// SizeClassEQ applies the EQ predicate on the "size_class" field.
+func SizeClassEQ(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEQ(FieldSizeClass, v))
+}
+
+// SizeClassNEQ applies the NEQ predicate on the "size_class" field.
+func SizeClassNEQ(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNEQ(FieldSizeClass, v))
+}
+
+// SizeClassIn applies the In predicate on the "size_class" field.
+func SizeClassIn(vs ...string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldIn(FieldSizeClass, vs...))
+}
+
+// SizeClassNotIn applies the NotIn predicate on the "size_class" field.
+func SizeClassNotIn(vs ...string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNotIn(FieldSizeClass, vs...))
+}
+
+// SizeClassGT applies the GT predicate on the "size_class" field.
+func SizeClassGT(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldGT(FieldSizeClass, v))
+}
+
+// SizeClassGTE applies the GTE predicate on the "size_class" field.
+func SizeClassGTE(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldGTE(FieldSizeClass, v))
+}
+
+// SizeClassLT applies the LT predicate on the "size_class" field.
+func SizeClassLT(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldLT(FieldSizeClass, v))
+}
+
+// SizeClassLTE applies the LTE predicate on the "size_class" field.
+func SizeClassLTE(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldLTE(FieldSizeClass, v))
+}
+
+// SizeClassContains applies the Contains predicate on the "size_class" field.
+func SizeClassContains(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldContains(FieldSizeClass, v))
+}
+
+// SizeClassHasPrefix applies the HasPrefix predicate on the "size_class" field.
+func SizeClassHasPrefix(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldHasPrefix(FieldSizeClass, v))
+}
+
+// SizeClassHasSuffix applies the HasSuffix predicate on the "size_class" field.
+func SizeClassHasSuffix(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldHasSuffix(FieldSizeClass, v))
+}
+
+// SizeClassIsNil applies the IsNil predicate on the "size_class" field.
+func SizeClassIsNil() predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldIsNull(FieldSizeClass))
+}
+
+// SizeClassNotNil applies the NotNil predicate on the "size_class" field.
+func SizeClassNotNil() predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNotNull(FieldSizeClass))
+}
+
+// SizeClassEqualFold applies the EqualFold predicate on the "size_class" field.
+func SizeClassEqualFold(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEqualFold(FieldSizeClass, v))
+}
+
+// SizeClassContainsFold applies the ContainsFold predicate on the "size_class" field.
+func SizeClassContainsFold(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldContainsFold(FieldSizeClass, v))
+}
+
+// OwnershipTypeEQ applies the EQ predicate on the "ownership_type" field.
+func OwnershipTypeEQ(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEQ(FieldOwnershipType, v))
+}
+
+// OwnershipTypeNEQ applies the NEQ predicate on the "ownership_type" field.
+func OwnershipTypeNEQ(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNEQ(FieldOwnershipType, v))
+}
+
+// OwnershipTypeIn applies the In predicate on the "ownership_type" field.
+func OwnershipTypeIn(vs ...string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldIn(FieldOwnershipType, vs...))
+}
+
+// OwnershipTypeNotIn applies the NotIn predicate on the "ownership_type" field.
+func OwnershipTypeNotIn(vs ...string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNotIn(FieldOwnershipType, vs...))
+}
+
+// OwnershipTypeGT applies the GT predicate on the "ownership_type" field.
+func OwnershipTypeGT(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldGT(FieldOwnershipType, v))
+}
+
+// OwnershipTypeGTE applies the GTE predicate on the "ownership_type" field.
+func OwnershipTypeGTE(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldGTE(FieldOwnershipType, v))
+}
+
+// OwnershipTypeLT applies the LT predicate on the "ownership_type" field.
+func OwnershipTypeLT(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldLT(FieldOwnershipType, v))
+}
+
+// OwnershipTypeLTE applies the LTE predicate on the "ownership_type" field.
+func OwnershipTypeLTE(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldLTE(FieldOwnershipType, v))
+}
+
+// OwnershipTypeContains applies the Contains predicate on the "ownership_type" field.
+func OwnershipTypeContains(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldContains(FieldOwnershipType, v))
+}
+
+// OwnershipTypeHasPrefix applies the HasPrefix predicate on the "ownership_type" field.
+func OwnershipTypeHasPrefix(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldHasPrefix(FieldOwnershipType, v))
+}
+
+// OwnershipTypeHasSuffix applies the HasSuffix predicate on the "ownership_type" field.
+func OwnershipTypeHasSuffix(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldHasSuffix(FieldOwnershipType, v))
+}
+
+// OwnershipTypeIsNil applies the IsNil predicate on the "ownership_type" field.
+func OwnershipTypeIsNil() predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldIsNull(FieldOwnershipType))
+}
+
+// OwnershipTypeNotNil applies the NotNil predicate on the "ownership_type" field.
+func OwnershipTypeNotNil() predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNotNull(FieldOwnershipType))
+}
+
+// OwnershipTypeEqualFold applies the EqualFold predicate on the "ownership_type" field.
+func OwnershipTypeEqualFold(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEqualFold(FieldOwnershipType, v))
+}
+
+// OwnershipTypeContainsFold applies the ContainsFold predicate on the "ownership_type" field.
+func OwnershipTypeContainsFold(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldContainsFold(FieldOwnershipType, v))
+}
+
+// TierEQ applies the EQ predicate on the "tier" field.
+func TierEQ(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEQ(FieldTier, v))
+}
+
+// TierNEQ applies the NEQ predicate on the "tier" field.
+func TierNEQ(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNEQ(FieldTier, v))
+}
+
+// TierIn applies the In predicate on the "tier" field.
+func TierIn(vs ...string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldIn(FieldTier, vs...))
+}
+
+// TierNotIn applies the NotIn predicate on the "tier" field.
+func TierNotIn(vs ...string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNotIn(FieldTier, vs...))
+}
+
+// TierGT applies the GT predicate on the "tier" field.
+func TierGT(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldGT(FieldTier, v))
+}
+
+// TierGTE applies the GTE predicate on the "tier" field.
+func TierGTE(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldGTE(FieldTier, v))
+}
+
+// TierLT applies the LT predicate on the "tier" field.
+func TierLT(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldLT(FieldTier, v))
+}
+
+// TierLTE applies the LTE predicate on the "tier" field.
+func TierLTE(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldLTE(FieldTier, v))
+}
+
+// TierContains applies the Contains predicate on the "tier" field.
+func TierContains(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldContains(FieldTier, v))
+}
+
+// TierHasPrefix applies the HasPrefix predicate on the "tier" field.
+func TierHasPrefix(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldHasPrefix(FieldTier, v))
+}
+
+// TierHasSuffix applies the HasSuffix predicate on the "tier" field.
+func TierHasSuffix(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldHasSuffix(FieldTier, v))
+}
+
+// TierEqualFold applies the EqualFold predicate on the "tier" field.
+func TierEqualFold(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEqualFold(FieldTier, v))
+}
+
+// TierContainsFold applies the ContainsFold predicate on the "tier" field.
+func TierContainsFold(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldContainsFold(FieldTier, v))
+}
+
+// VipLevelEQ applies the EQ predicate on the "vip_level" field.
+func VipLevelEQ(v int16) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEQ(FieldVipLevel, v))
+}
+
+// VipLevelNEQ applies the NEQ predicate on the "vip_level" field.
+func VipLevelNEQ(v int16) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNEQ(FieldVipLevel, v))
+}
+
+// VipLevelIn applies the In predicate on the "vip_level" field.
+func VipLevelIn(vs ...int16) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldIn(FieldVipLevel, vs...))
+}
+
+// VipLevelNotIn applies the NotIn predicate on the "vip_level" field.
+func VipLevelNotIn(vs ...int16) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNotIn(FieldVipLevel, vs...))
+}
+
+// VipLevelGT applies the GT predicate on the "vip_level" field.
+func VipLevelGT(v int16) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldGT(FieldVipLevel, v))
+}
+
+// VipLevelGTE applies the GTE predicate on the "vip_level" field.
+func VipLevelGTE(v int16) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldGTE(FieldVipLevel, v))
+}
+
+// VipLevelLT applies the LT predicate on the "vip_level" field.
+func VipLevelLT(v int16) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldLT(FieldVipLevel, v))
+}
+
+// VipLevelLTE applies the LTE predicate on the "vip_level" field.
+func VipLevelLTE(v int16) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldLTE(FieldVipLevel, v))
+}
+
+// CreditRatingEQ applies the EQ predicate on the "credit_rating" field.
+func CreditRatingEQ(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEQ(FieldCreditRating, v))
+}
+
+// CreditRatingNEQ applies the NEQ predicate on the "credit_rating" field.
+func CreditRatingNEQ(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNEQ(FieldCreditRating, v))
+}
+
+// CreditRatingIn applies the In predicate on the "credit_rating" field.
+func CreditRatingIn(vs ...string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldIn(FieldCreditRating, vs...))
+}
+
+// CreditRatingNotIn applies the NotIn predicate on the "credit_rating" field.
+func CreditRatingNotIn(vs ...string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNotIn(FieldCreditRating, vs...))
+}
+
+// CreditRatingGT applies the GT predicate on the "credit_rating" field.
+func CreditRatingGT(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldGT(FieldCreditRating, v))
+}
+
+// CreditRatingGTE applies the GTE predicate on the "credit_rating" field.
+func CreditRatingGTE(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldGTE(FieldCreditRating, v))
+}
+
+// CreditRatingLT applies the LT predicate on the "credit_rating" field.
+func CreditRatingLT(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldLT(FieldCreditRating, v))
+}
+
+// CreditRatingLTE applies the LTE predicate on the "credit_rating" field.
+func CreditRatingLTE(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldLTE(FieldCreditRating, v))
+}
+
+// CreditRatingContains applies the Contains predicate on the "credit_rating" field.
+func CreditRatingContains(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldContains(FieldCreditRating, v))
+}
+
+// CreditRatingHasPrefix applies the HasPrefix predicate on the "credit_rating" field.
+func CreditRatingHasPrefix(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldHasPrefix(FieldCreditRating, v))
+}
+
+// CreditRatingHasSuffix applies the HasSuffix predicate on the "credit_rating" field.
+func CreditRatingHasSuffix(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldHasSuffix(FieldCreditRating, v))
+}
+
+// CreditRatingIsNil applies the IsNil predicate on the "credit_rating" field.
+func CreditRatingIsNil() predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldIsNull(FieldCreditRating))
+}
+
+// CreditRatingNotNil applies the NotNil predicate on the "credit_rating" field.
+func CreditRatingNotNil() predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNotNull(FieldCreditRating))
+}
+
+// CreditRatingEqualFold applies the EqualFold predicate on the "credit_rating" field.
+func CreditRatingEqualFold(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEqualFold(FieldCreditRating, v))
+}
+
+// CreditRatingContainsFold applies the ContainsFold predicate on the "credit_rating" field.
+func CreditRatingContainsFold(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldContainsFold(FieldCreditRating, v))
+}
+
+// WebsiteEQ applies the EQ predicate on the "website" field.
+func WebsiteEQ(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEQ(FieldWebsite, v))
+}
+
+// WebsiteNEQ applies the NEQ predicate on the "website" field.
+func WebsiteNEQ(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNEQ(FieldWebsite, v))
+}
+
+// WebsiteIn applies the In predicate on the "website" field.
+func WebsiteIn(vs ...string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldIn(FieldWebsite, vs...))
+}
+
+// WebsiteNotIn applies the NotIn predicate on the "website" field.
+func WebsiteNotIn(vs ...string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNotIn(FieldWebsite, vs...))
+}
+
+// WebsiteGT applies the GT predicate on the "website" field.
+func WebsiteGT(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldGT(FieldWebsite, v))
+}
+
+// WebsiteGTE applies the GTE predicate on the "website" field.
+func WebsiteGTE(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldGTE(FieldWebsite, v))
+}
+
+// WebsiteLT applies the LT predicate on the "website" field.
+func WebsiteLT(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldLT(FieldWebsite, v))
+}
+
+// WebsiteLTE applies the LTE predicate on the "website" field.
+func WebsiteLTE(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldLTE(FieldWebsite, v))
+}
+
+// WebsiteContains applies the Contains predicate on the "website" field.
+func WebsiteContains(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldContains(FieldWebsite, v))
+}
+
+// WebsiteHasPrefix applies the HasPrefix predicate on the "website" field.
+func WebsiteHasPrefix(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldHasPrefix(FieldWebsite, v))
+}
+
+// WebsiteHasSuffix applies the HasSuffix predicate on the "website" field.
+func WebsiteHasSuffix(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldHasSuffix(FieldWebsite, v))
+}
+
+// WebsiteIsNil applies the IsNil predicate on the "website" field.
+func WebsiteIsNil() predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldIsNull(FieldWebsite))
+}
+
+// WebsiteNotNil applies the NotNil predicate on the "website" field.
+func WebsiteNotNil() predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNotNull(FieldWebsite))
+}
+
+// WebsiteEqualFold applies the EqualFold predicate on the "website" field.
+func WebsiteEqualFold(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEqualFold(FieldWebsite, v))
+}
+
+// WebsiteContainsFold applies the ContainsFold predicate on the "website" field.
+func WebsiteContainsFold(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldContainsFold(FieldWebsite, v))
+}
+
+// MainPhoneEQ applies the EQ predicate on the "main_phone" field.
+func MainPhoneEQ(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEQ(FieldMainPhone, v))
+}
+
+// MainPhoneNEQ applies the NEQ predicate on the "main_phone" field.
+func MainPhoneNEQ(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNEQ(FieldMainPhone, v))
+}
+
+// MainPhoneIn applies the In predicate on the "main_phone" field.
+func MainPhoneIn(vs ...string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldIn(FieldMainPhone, vs...))
+}
+
+// MainPhoneNotIn applies the NotIn predicate on the "main_phone" field.
+func MainPhoneNotIn(vs ...string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNotIn(FieldMainPhone, vs...))
+}
+
+// MainPhoneGT applies the GT predicate on the "main_phone" field.
+func MainPhoneGT(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldGT(FieldMainPhone, v))
+}
+
+// MainPhoneGTE applies the GTE predicate on the "main_phone" field.
+func MainPhoneGTE(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldGTE(FieldMainPhone, v))
+}
+
+// MainPhoneLT applies the LT predicate on the "main_phone" field.
+func MainPhoneLT(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldLT(FieldMainPhone, v))
+}
+
+// MainPhoneLTE applies the LTE predicate on the "main_phone" field.
+func MainPhoneLTE(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldLTE(FieldMainPhone, v))
+}
+
+// MainPhoneContains applies the Contains predicate on the "main_phone" field.
+func MainPhoneContains(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldContains(FieldMainPhone, v))
+}
+
+// MainPhoneHasPrefix applies the HasPrefix predicate on the "main_phone" field.
+func MainPhoneHasPrefix(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldHasPrefix(FieldMainPhone, v))
+}
+
+// MainPhoneHasSuffix applies the HasSuffix predicate on the "main_phone" field.
+func MainPhoneHasSuffix(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldHasSuffix(FieldMainPhone, v))
+}
+
+// MainPhoneIsNil applies the IsNil predicate on the "main_phone" field.
+func MainPhoneIsNil() predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldIsNull(FieldMainPhone))
+}
+
+// MainPhoneNotNil applies the NotNil predicate on the "main_phone" field.
+func MainPhoneNotNil() predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNotNull(FieldMainPhone))
+}
+
+// MainPhoneEqualFold applies the EqualFold predicate on the "main_phone" field.
+func MainPhoneEqualFold(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEqualFold(FieldMainPhone, v))
+}
+
+// MainPhoneContainsFold applies the ContainsFold predicate on the "main_phone" field.
+func MainPhoneContainsFold(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldContainsFold(FieldMainPhone, v))
+}
+
+// ServiceEmailEQ applies the EQ predicate on the "service_email" field.
+func ServiceEmailEQ(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEQ(FieldServiceEmail, v))
+}
+
+// ServiceEmailNEQ applies the NEQ predicate on the "service_email" field.
+func ServiceEmailNEQ(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNEQ(FieldServiceEmail, v))
+}
+
+// ServiceEmailIn applies the In predicate on the "service_email" field.
+func ServiceEmailIn(vs ...string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldIn(FieldServiceEmail, vs...))
+}
+
+// ServiceEmailNotIn applies the NotIn predicate on the "service_email" field.
+func ServiceEmailNotIn(vs ...string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNotIn(FieldServiceEmail, vs...))
+}
+
+// ServiceEmailGT applies the GT predicate on the "service_email" field.
+func ServiceEmailGT(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldGT(FieldServiceEmail, v))
+}
+
+// ServiceEmailGTE applies the GTE predicate on the "service_email" field.
+func ServiceEmailGTE(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldGTE(FieldServiceEmail, v))
+}
+
+// ServiceEmailLT applies the LT predicate on the "service_email" field.
+func ServiceEmailLT(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldLT(FieldServiceEmail, v))
+}
+
+// ServiceEmailLTE applies the LTE predicate on the "service_email" field.
+func ServiceEmailLTE(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldLTE(FieldServiceEmail, v))
+}
+
+// ServiceEmailContains applies the Contains predicate on the "service_email" field.
+func ServiceEmailContains(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldContains(FieldServiceEmail, v))
+}
+
+// ServiceEmailHasPrefix applies the HasPrefix predicate on the "service_email" field.
+func ServiceEmailHasPrefix(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldHasPrefix(FieldServiceEmail, v))
+}
+
+// ServiceEmailHasSuffix applies the HasSuffix predicate on the "service_email" field.
+func ServiceEmailHasSuffix(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldHasSuffix(FieldServiceEmail, v))
+}
+
+// ServiceEmailIsNil applies the IsNil predicate on the "service_email" field.
+func ServiceEmailIsNil() predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldIsNull(FieldServiceEmail))
+}
+
+// ServiceEmailNotNil applies the NotNil predicate on the "service_email" field.
+func ServiceEmailNotNil() predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNotNull(FieldServiceEmail))
+}
+
+// ServiceEmailEqualFold applies the EqualFold predicate on the "service_email" field.
+func ServiceEmailEqualFold(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEqualFold(FieldServiceEmail, v))
+}
+
+// ServiceEmailContainsFold applies the ContainsFold predicate on the "service_email" field.
+func ServiceEmailContainsFold(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldContainsFold(FieldServiceEmail, v))
+}
+
+// AddressIsNil applies the IsNil predicate on the "address" field.
+func AddressIsNil() predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldIsNull(FieldAddress))
+}
+
+// AddressNotNil applies the NotNil predicate on the "address" field.
+func AddressNotNil() predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNotNull(FieldAddress))
+}
+
+// TimezoneEQ applies the EQ predicate on the "timezone" field.
+func TimezoneEQ(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEQ(FieldTimezone, v))
+}
+
+// TimezoneNEQ applies the NEQ predicate on the "timezone" field.
+func TimezoneNEQ(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNEQ(FieldTimezone, v))
+}
+
+// TimezoneIn applies the In predicate on the "timezone" field.
+func TimezoneIn(vs ...string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldIn(FieldTimezone, vs...))
+}
+
+// TimezoneNotIn applies the NotIn predicate on the "timezone" field.
+func TimezoneNotIn(vs ...string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNotIn(FieldTimezone, vs...))
+}
+
+// TimezoneGT applies the GT predicate on the "timezone" field.
+func TimezoneGT(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldGT(FieldTimezone, v))
+}
+
+// TimezoneGTE applies the GTE predicate on the "timezone" field.
+func TimezoneGTE(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldGTE(FieldTimezone, v))
+}
+
+// TimezoneLT applies the LT predicate on the "timezone" field.
+func TimezoneLT(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldLT(FieldTimezone, v))
+}
+
+// TimezoneLTE applies the LTE predicate on the "timezone" field.
+func TimezoneLTE(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldLTE(FieldTimezone, v))
+}
+
+// TimezoneContains applies the Contains predicate on the "timezone" field.
+func TimezoneContains(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldContains(FieldTimezone, v))
+}
+
+// TimezoneHasPrefix applies the HasPrefix predicate on the "timezone" field.
+func TimezoneHasPrefix(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldHasPrefix(FieldTimezone, v))
+}
+
+// TimezoneHasSuffix applies the HasSuffix predicate on the "timezone" field.
+func TimezoneHasSuffix(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldHasSuffix(FieldTimezone, v))
+}
+
+// TimezoneIsNil applies the IsNil predicate on the "timezone" field.
+func TimezoneIsNil() predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldIsNull(FieldTimezone))
+}
+
+// TimezoneNotNil applies the NotNil predicate on the "timezone" field.
+func TimezoneNotNil() predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNotNull(FieldTimezone))
+}
+
+// TimezoneEqualFold applies the EqualFold predicate on the "timezone" field.
+func TimezoneEqualFold(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEqualFold(FieldTimezone, v))
+}
+
+// TimezoneContainsFold applies the ContainsFold predicate on the "timezone" field.
+func TimezoneContainsFold(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldContainsFold(FieldTimezone, v))
+}
+
+// LanguageEQ applies the EQ predicate on the "language" field.
+func LanguageEQ(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEQ(FieldLanguage, v))
+}
+
+// LanguageNEQ applies the NEQ predicate on the "language" field.
+func LanguageNEQ(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNEQ(FieldLanguage, v))
+}
+
+// LanguageIn applies the In predicate on the "language" field.
+func LanguageIn(vs ...string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldIn(FieldLanguage, vs...))
+}
+
+// LanguageNotIn applies the NotIn predicate on the "language" field.
+func LanguageNotIn(vs ...string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNotIn(FieldLanguage, vs...))
+}
+
+// LanguageGT applies the GT predicate on the "language" field.
+func LanguageGT(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldGT(FieldLanguage, v))
+}
+
+// LanguageGTE applies the GTE predicate on the "language" field.
+func LanguageGTE(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldGTE(FieldLanguage, v))
+}
+
+// LanguageLT applies the LT predicate on the "language" field.
+func LanguageLT(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldLT(FieldLanguage, v))
+}
+
+// LanguageLTE applies the LTE predicate on the "language" field.
+func LanguageLTE(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldLTE(FieldLanguage, v))
+}
+
+// LanguageContains applies the Contains predicate on the "language" field.
+func LanguageContains(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldContains(FieldLanguage, v))
+}
+
+// LanguageHasPrefix applies the HasPrefix predicate on the "language" field.
+func LanguageHasPrefix(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldHasPrefix(FieldLanguage, v))
+}
+
+// LanguageHasSuffix applies the HasSuffix predicate on the "language" field.
+func LanguageHasSuffix(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldHasSuffix(FieldLanguage, v))
+}
+
+// LanguageEqualFold applies the EqualFold predicate on the "language" field.
+func LanguageEqualFold(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEqualFold(FieldLanguage, v))
+}
+
+// LanguageContainsFold applies the ContainsFold predicate on the "language" field.
+func LanguageContainsFold(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldContainsFold(FieldLanguage, v))
+}
+
+// ServiceTierEQ applies the EQ predicate on the "service_tier" field.
+func ServiceTierEQ(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEQ(FieldServiceTier, v))
+}
+
+// ServiceTierNEQ applies the NEQ predicate on the "service_tier" field.
+func ServiceTierNEQ(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNEQ(FieldServiceTier, v))
+}
+
+// ServiceTierIn applies the In predicate on the "service_tier" field.
+func ServiceTierIn(vs ...string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldIn(FieldServiceTier, vs...))
+}
+
+// ServiceTierNotIn applies the NotIn predicate on the "service_tier" field.
+func ServiceTierNotIn(vs ...string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNotIn(FieldServiceTier, vs...))
+}
+
+// ServiceTierGT applies the GT predicate on the "service_tier" field.
+func ServiceTierGT(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldGT(FieldServiceTier, v))
+}
+
+// ServiceTierGTE applies the GTE predicate on the "service_tier" field.
+func ServiceTierGTE(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldGTE(FieldServiceTier, v))
+}
+
+// ServiceTierLT applies the LT predicate on the "service_tier" field.
+func ServiceTierLT(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldLT(FieldServiceTier, v))
+}
+
+// ServiceTierLTE applies the LTE predicate on the "service_tier" field.
+func ServiceTierLTE(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldLTE(FieldServiceTier, v))
+}
+
+// ServiceTierContains applies the Contains predicate on the "service_tier" field.
+func ServiceTierContains(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldContains(FieldServiceTier, v))
+}
+
+// ServiceTierHasPrefix applies the HasPrefix predicate on the "service_tier" field.
+func ServiceTierHasPrefix(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldHasPrefix(FieldServiceTier, v))
+}
+
+// ServiceTierHasSuffix applies the HasSuffix predicate on the "service_tier" field.
+func ServiceTierHasSuffix(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldHasSuffix(FieldServiceTier, v))
+}
+
+// ServiceTierIsNil applies the IsNil predicate on the "service_tier" field.
+func ServiceTierIsNil() predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldIsNull(FieldServiceTier))
+}
+
+// ServiceTierNotNil applies the NotNil predicate on the "service_tier" field.
+func ServiceTierNotNil() predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNotNull(FieldServiceTier))
+}
+
+// ServiceTierEqualFold applies the EqualFold predicate on the "service_tier" field.
+func ServiceTierEqualFold(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEqualFold(FieldServiceTier, v))
+}
+
+// ServiceTierContainsFold applies the ContainsFold predicate on the "service_tier" field.
+func ServiceTierContainsFold(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldContainsFold(FieldServiceTier, v))
+}
+
+// SLADefinitionIDEQ applies the EQ predicate on the "sla_definition_id" field.
+func SLADefinitionIDEQ(v int) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEQ(FieldSLADefinitionID, v))
+}
+
+// SLADefinitionIDNEQ applies the NEQ predicate on the "sla_definition_id" field.
+func SLADefinitionIDNEQ(v int) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNEQ(FieldSLADefinitionID, v))
+}
+
+// SLADefinitionIDIn applies the In predicate on the "sla_definition_id" field.
+func SLADefinitionIDIn(vs ...int) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldIn(FieldSLADefinitionID, vs...))
+}
+
+// SLADefinitionIDNotIn applies the NotIn predicate on the "sla_definition_id" field.
+func SLADefinitionIDNotIn(vs ...int) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNotIn(FieldSLADefinitionID, vs...))
+}
+
+// SLADefinitionIDGT applies the GT predicate on the "sla_definition_id" field.
+func SLADefinitionIDGT(v int) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldGT(FieldSLADefinitionID, v))
+}
+
+// SLADefinitionIDGTE applies the GTE predicate on the "sla_definition_id" field.
+func SLADefinitionIDGTE(v int) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldGTE(FieldSLADefinitionID, v))
+}
+
+// SLADefinitionIDLT applies the LT predicate on the "sla_definition_id" field.
+func SLADefinitionIDLT(v int) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldLT(FieldSLADefinitionID, v))
+}
+
+// SLADefinitionIDLTE applies the LTE predicate on the "sla_definition_id" field.
+func SLADefinitionIDLTE(v int) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldLTE(FieldSLADefinitionID, v))
+}
+
+// SLADefinitionIDIsNil applies the IsNil predicate on the "sla_definition_id" field.
+func SLADefinitionIDIsNil() predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldIsNull(FieldSLADefinitionID))
+}
+
+// SLADefinitionIDNotNil applies the NotNil predicate on the "sla_definition_id" field.
+func SLADefinitionIDNotNil() predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNotNull(FieldSLADefinitionID))
+}
+
+// SupportHoursEQ applies the EQ predicate on the "support_hours" field.
+func SupportHoursEQ(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEQ(FieldSupportHours, v))
+}
+
+// SupportHoursNEQ applies the NEQ predicate on the "support_hours" field.
+func SupportHoursNEQ(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNEQ(FieldSupportHours, v))
+}
+
+// SupportHoursIn applies the In predicate on the "support_hours" field.
+func SupportHoursIn(vs ...string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldIn(FieldSupportHours, vs...))
+}
+
+// SupportHoursNotIn applies the NotIn predicate on the "support_hours" field.
+func SupportHoursNotIn(vs ...string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNotIn(FieldSupportHours, vs...))
+}
+
+// SupportHoursGT applies the GT predicate on the "support_hours" field.
+func SupportHoursGT(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldGT(FieldSupportHours, v))
+}
+
+// SupportHoursGTE applies the GTE predicate on the "support_hours" field.
+func SupportHoursGTE(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldGTE(FieldSupportHours, v))
+}
+
+// SupportHoursLT applies the LT predicate on the "support_hours" field.
+func SupportHoursLT(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldLT(FieldSupportHours, v))
+}
+
+// SupportHoursLTE applies the LTE predicate on the "support_hours" field.
+func SupportHoursLTE(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldLTE(FieldSupportHours, v))
+}
+
+// SupportHoursContains applies the Contains predicate on the "support_hours" field.
+func SupportHoursContains(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldContains(FieldSupportHours, v))
+}
+
+// SupportHoursHasPrefix applies the HasPrefix predicate on the "support_hours" field.
+func SupportHoursHasPrefix(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldHasPrefix(FieldSupportHours, v))
+}
+
+// SupportHoursHasSuffix applies the HasSuffix predicate on the "support_hours" field.
+func SupportHoursHasSuffix(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldHasSuffix(FieldSupportHours, v))
+}
+
+// SupportHoursIsNil applies the IsNil predicate on the "support_hours" field.
+func SupportHoursIsNil() predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldIsNull(FieldSupportHours))
+}
+
+// SupportHoursNotNil applies the NotNil predicate on the "support_hours" field.
+func SupportHoursNotNil() predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNotNull(FieldSupportHours))
+}
+
+// SupportHoursEqualFold applies the EqualFold predicate on the "support_hours" field.
+func SupportHoursEqualFold(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEqualFold(FieldSupportHours, v))
+}
+
+// SupportHoursContainsFold applies the ContainsFold predicate on the "support_hours" field.
+func SupportHoursContainsFold(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldContainsFold(FieldSupportHours, v))
+}
+
+// CoverageScopeIsNil applies the IsNil predicate on the "coverage_scope" field.
+func CoverageScopeIsNil() predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldIsNull(FieldCoverageScope))
+}
+
+// CoverageScopeNotNil applies the NotNil predicate on the "coverage_scope" field.
+func CoverageScopeNotNil() predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNotNull(FieldCoverageScope))
+}
+
+// AccountManagerIDEQ applies the EQ predicate on the "account_manager_id" field.
+func AccountManagerIDEQ(v int) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEQ(FieldAccountManagerID, v))
+}
+
+// AccountManagerIDNEQ applies the NEQ predicate on the "account_manager_id" field.
+func AccountManagerIDNEQ(v int) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNEQ(FieldAccountManagerID, v))
+}
+
+// AccountManagerIDIn applies the In predicate on the "account_manager_id" field.
+func AccountManagerIDIn(vs ...int) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldIn(FieldAccountManagerID, vs...))
+}
+
+// AccountManagerIDNotIn applies the NotIn predicate on the "account_manager_id" field.
+func AccountManagerIDNotIn(vs ...int) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNotIn(FieldAccountManagerID, vs...))
+}
+
+// AccountManagerIDGT applies the GT predicate on the "account_manager_id" field.
+func AccountManagerIDGT(v int) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldGT(FieldAccountManagerID, v))
+}
+
+// AccountManagerIDGTE applies the GTE predicate on the "account_manager_id" field.
+func AccountManagerIDGTE(v int) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldGTE(FieldAccountManagerID, v))
+}
+
+// AccountManagerIDLT applies the LT predicate on the "account_manager_id" field.
+func AccountManagerIDLT(v int) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldLT(FieldAccountManagerID, v))
+}
+
+// AccountManagerIDLTE applies the LTE predicate on the "account_manager_id" field.
+func AccountManagerIDLTE(v int) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldLTE(FieldAccountManagerID, v))
+}
+
+// AccountManagerIDIsNil applies the IsNil predicate on the "account_manager_id" field.
+func AccountManagerIDIsNil() predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldIsNull(FieldAccountManagerID))
+}
+
+// AccountManagerIDNotNil applies the NotNil predicate on the "account_manager_id" field.
+func AccountManagerIDNotNil() predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNotNull(FieldAccountManagerID))
+}
+
+// ServiceOwnerIDEQ applies the EQ predicate on the "service_owner_id" field.
+func ServiceOwnerIDEQ(v int) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEQ(FieldServiceOwnerID, v))
+}
+
+// ServiceOwnerIDNEQ applies the NEQ predicate on the "service_owner_id" field.
+func ServiceOwnerIDNEQ(v int) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNEQ(FieldServiceOwnerID, v))
+}
+
+// ServiceOwnerIDIn applies the In predicate on the "service_owner_id" field.
+func ServiceOwnerIDIn(vs ...int) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldIn(FieldServiceOwnerID, vs...))
+}
+
+// ServiceOwnerIDNotIn applies the NotIn predicate on the "service_owner_id" field.
+func ServiceOwnerIDNotIn(vs ...int) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNotIn(FieldServiceOwnerID, vs...))
+}
+
+// ServiceOwnerIDGT applies the GT predicate on the "service_owner_id" field.
+func ServiceOwnerIDGT(v int) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldGT(FieldServiceOwnerID, v))
+}
+
+// ServiceOwnerIDGTE applies the GTE predicate on the "service_owner_id" field.
+func ServiceOwnerIDGTE(v int) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldGTE(FieldServiceOwnerID, v))
+}
+
+// ServiceOwnerIDLT applies the LT predicate on the "service_owner_id" field.
+func ServiceOwnerIDLT(v int) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldLT(FieldServiceOwnerID, v))
+}
+
+// ServiceOwnerIDLTE applies the LTE predicate on the "service_owner_id" field.
+func ServiceOwnerIDLTE(v int) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldLTE(FieldServiceOwnerID, v))
+}
+
+// ServiceOwnerIDIsNil applies the IsNil predicate on the "service_owner_id" field.
+func ServiceOwnerIDIsNil() predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldIsNull(FieldServiceOwnerID))
+}
+
+// ServiceOwnerIDNotNil applies the NotNil predicate on the "service_owner_id" field.
+func ServiceOwnerIDNotNil() predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNotNull(FieldServiceOwnerID))
+}
+
+// CsManagerIDEQ applies the EQ predicate on the "cs_manager_id" field.
+func CsManagerIDEQ(v int) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEQ(FieldCsManagerID, v))
+}
+
+// CsManagerIDNEQ applies the NEQ predicate on the "cs_manager_id" field.
+func CsManagerIDNEQ(v int) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNEQ(FieldCsManagerID, v))
+}
+
+// CsManagerIDIn applies the In predicate on the "cs_manager_id" field.
+func CsManagerIDIn(vs ...int) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldIn(FieldCsManagerID, vs...))
+}
+
+// CsManagerIDNotIn applies the NotIn predicate on the "cs_manager_id" field.
+func CsManagerIDNotIn(vs ...int) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNotIn(FieldCsManagerID, vs...))
+}
+
+// CsManagerIDGT applies the GT predicate on the "cs_manager_id" field.
+func CsManagerIDGT(v int) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldGT(FieldCsManagerID, v))
+}
+
+// CsManagerIDGTE applies the GTE predicate on the "cs_manager_id" field.
+func CsManagerIDGTE(v int) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldGTE(FieldCsManagerID, v))
+}
+
+// CsManagerIDLT applies the LT predicate on the "cs_manager_id" field.
+func CsManagerIDLT(v int) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldLT(FieldCsManagerID, v))
+}
+
+// CsManagerIDLTE applies the LTE predicate on the "cs_manager_id" field.
+func CsManagerIDLTE(v int) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldLTE(FieldCsManagerID, v))
+}
+
+// CsManagerIDIsNil applies the IsNil predicate on the "cs_manager_id" field.
+func CsManagerIDIsNil() predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldIsNull(FieldCsManagerID))
+}
+
+// CsManagerIDNotNil applies the NotNil predicate on the "cs_manager_id" field.
+func CsManagerIDNotNil() predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNotNull(FieldCsManagerID))
+}
+
+// OncallGroupIDEQ applies the EQ predicate on the "oncall_group_id" field.
+func OncallGroupIDEQ(v int) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEQ(FieldOncallGroupID, v))
+}
+
+// OncallGroupIDNEQ applies the NEQ predicate on the "oncall_group_id" field.
+func OncallGroupIDNEQ(v int) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNEQ(FieldOncallGroupID, v))
+}
+
+// OncallGroupIDIn applies the In predicate on the "oncall_group_id" field.
+func OncallGroupIDIn(vs ...int) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldIn(FieldOncallGroupID, vs...))
+}
+
+// OncallGroupIDNotIn applies the NotIn predicate on the "oncall_group_id" field.
+func OncallGroupIDNotIn(vs ...int) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNotIn(FieldOncallGroupID, vs...))
+}
+
+// OncallGroupIDGT applies the GT predicate on the "oncall_group_id" field.
+func OncallGroupIDGT(v int) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldGT(FieldOncallGroupID, v))
+}
+
+// OncallGroupIDGTE applies the GTE predicate on the "oncall_group_id" field.
+func OncallGroupIDGTE(v int) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldGTE(FieldOncallGroupID, v))
+}
+
+// OncallGroupIDLT applies the LT predicate on the "oncall_group_id" field.
+func OncallGroupIDLT(v int) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldLT(FieldOncallGroupID, v))
+}
+
+// OncallGroupIDLTE applies the LTE predicate on the "oncall_group_id" field.
+func OncallGroupIDLTE(v int) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldLTE(FieldOncallGroupID, v))
+}
+
+// OncallGroupIDIsNil applies the IsNil predicate on the "oncall_group_id" field.
+func OncallGroupIDIsNil() predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldIsNull(FieldOncallGroupID))
+}
+
+// OncallGroupIDNotNil applies the NotNil predicate on the "oncall_group_id" field.
+func OncallGroupIDNotNil() predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNotNull(FieldOncallGroupID))
+}
+
+// BillingCurrencyEQ applies the EQ predicate on the "billing_currency" field.
+func BillingCurrencyEQ(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEQ(FieldBillingCurrency, v))
+}
+
+// BillingCurrencyNEQ applies the NEQ predicate on the "billing_currency" field.
+func BillingCurrencyNEQ(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNEQ(FieldBillingCurrency, v))
+}
+
+// BillingCurrencyIn applies the In predicate on the "billing_currency" field.
+func BillingCurrencyIn(vs ...string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldIn(FieldBillingCurrency, vs...))
+}
+
+// BillingCurrencyNotIn applies the NotIn predicate on the "billing_currency" field.
+func BillingCurrencyNotIn(vs ...string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNotIn(FieldBillingCurrency, vs...))
+}
+
+// BillingCurrencyGT applies the GT predicate on the "billing_currency" field.
+func BillingCurrencyGT(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldGT(FieldBillingCurrency, v))
+}
+
+// BillingCurrencyGTE applies the GTE predicate on the "billing_currency" field.
+func BillingCurrencyGTE(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldGTE(FieldBillingCurrency, v))
+}
+
+// BillingCurrencyLT applies the LT predicate on the "billing_currency" field.
+func BillingCurrencyLT(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldLT(FieldBillingCurrency, v))
+}
+
+// BillingCurrencyLTE applies the LTE predicate on the "billing_currency" field.
+func BillingCurrencyLTE(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldLTE(FieldBillingCurrency, v))
+}
+
+// BillingCurrencyContains applies the Contains predicate on the "billing_currency" field.
+func BillingCurrencyContains(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldContains(FieldBillingCurrency, v))
+}
+
+// BillingCurrencyHasPrefix applies the HasPrefix predicate on the "billing_currency" field.
+func BillingCurrencyHasPrefix(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldHasPrefix(FieldBillingCurrency, v))
+}
+
+// BillingCurrencyHasSuffix applies the HasSuffix predicate on the "billing_currency" field.
+func BillingCurrencyHasSuffix(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldHasSuffix(FieldBillingCurrency, v))
+}
+
+// BillingCurrencyIsNil applies the IsNil predicate on the "billing_currency" field.
+func BillingCurrencyIsNil() predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldIsNull(FieldBillingCurrency))
+}
+
+// BillingCurrencyNotNil applies the NotNil predicate on the "billing_currency" field.
+func BillingCurrencyNotNil() predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNotNull(FieldBillingCurrency))
+}
+
+// BillingCurrencyEqualFold applies the EqualFold predicate on the "billing_currency" field.
+func BillingCurrencyEqualFold(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEqualFold(FieldBillingCurrency, v))
+}
+
+// BillingCurrencyContainsFold applies the ContainsFold predicate on the "billing_currency" field.
+func BillingCurrencyContainsFold(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldContainsFold(FieldBillingCurrency, v))
+}
+
+// PaymentTermsEQ applies the EQ predicate on the "payment_terms" field.
+func PaymentTermsEQ(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEQ(FieldPaymentTerms, v))
+}
+
+// PaymentTermsNEQ applies the NEQ predicate on the "payment_terms" field.
+func PaymentTermsNEQ(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNEQ(FieldPaymentTerms, v))
+}
+
+// PaymentTermsIn applies the In predicate on the "payment_terms" field.
+func PaymentTermsIn(vs ...string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldIn(FieldPaymentTerms, vs...))
+}
+
+// PaymentTermsNotIn applies the NotIn predicate on the "payment_terms" field.
+func PaymentTermsNotIn(vs ...string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNotIn(FieldPaymentTerms, vs...))
+}
+
+// PaymentTermsGT applies the GT predicate on the "payment_terms" field.
+func PaymentTermsGT(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldGT(FieldPaymentTerms, v))
+}
+
+// PaymentTermsGTE applies the GTE predicate on the "payment_terms" field.
+func PaymentTermsGTE(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldGTE(FieldPaymentTerms, v))
+}
+
+// PaymentTermsLT applies the LT predicate on the "payment_terms" field.
+func PaymentTermsLT(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldLT(FieldPaymentTerms, v))
+}
+
+// PaymentTermsLTE applies the LTE predicate on the "payment_terms" field.
+func PaymentTermsLTE(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldLTE(FieldPaymentTerms, v))
+}
+
+// PaymentTermsContains applies the Contains predicate on the "payment_terms" field.
+func PaymentTermsContains(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldContains(FieldPaymentTerms, v))
+}
+
+// PaymentTermsHasPrefix applies the HasPrefix predicate on the "payment_terms" field.
+func PaymentTermsHasPrefix(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldHasPrefix(FieldPaymentTerms, v))
+}
+
+// PaymentTermsHasSuffix applies the HasSuffix predicate on the "payment_terms" field.
+func PaymentTermsHasSuffix(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldHasSuffix(FieldPaymentTerms, v))
+}
+
+// PaymentTermsIsNil applies the IsNil predicate on the "payment_terms" field.
+func PaymentTermsIsNil() predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldIsNull(FieldPaymentTerms))
+}
+
+// PaymentTermsNotNil applies the NotNil predicate on the "payment_terms" field.
+func PaymentTermsNotNil() predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNotNull(FieldPaymentTerms))
+}
+
+// PaymentTermsEqualFold applies the EqualFold predicate on the "payment_terms" field.
+func PaymentTermsEqualFold(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEqualFold(FieldPaymentTerms, v))
+}
+
+// PaymentTermsContainsFold applies the ContainsFold predicate on the "payment_terms" field.
+func PaymentTermsContainsFold(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldContainsFold(FieldPaymentTerms, v))
+}
+
+// CreditLimitEQ applies the EQ predicate on the "credit_limit" field.
+func CreditLimitEQ(v float64) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEQ(FieldCreditLimit, v))
+}
+
+// CreditLimitNEQ applies the NEQ predicate on the "credit_limit" field.
+func CreditLimitNEQ(v float64) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNEQ(FieldCreditLimit, v))
+}
+
+// CreditLimitIn applies the In predicate on the "credit_limit" field.
+func CreditLimitIn(vs ...float64) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldIn(FieldCreditLimit, vs...))
+}
+
+// CreditLimitNotIn applies the NotIn predicate on the "credit_limit" field.
+func CreditLimitNotIn(vs ...float64) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNotIn(FieldCreditLimit, vs...))
+}
+
+// CreditLimitGT applies the GT predicate on the "credit_limit" field.
+func CreditLimitGT(v float64) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldGT(FieldCreditLimit, v))
+}
+
+// CreditLimitGTE applies the GTE predicate on the "credit_limit" field.
+func CreditLimitGTE(v float64) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldGTE(FieldCreditLimit, v))
+}
+
+// CreditLimitLT applies the LT predicate on the "credit_limit" field.
+func CreditLimitLT(v float64) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldLT(FieldCreditLimit, v))
+}
+
+// CreditLimitLTE applies the LTE predicate on the "credit_limit" field.
+func CreditLimitLTE(v float64) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldLTE(FieldCreditLimit, v))
+}
+
+// CreditLimitIsNil applies the IsNil predicate on the "credit_limit" field.
+func CreditLimitIsNil() predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldIsNull(FieldCreditLimit))
+}
+
+// CreditLimitNotNil applies the NotNil predicate on the "credit_limit" field.
+func CreditLimitNotNil() predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNotNull(FieldCreditLimit))
+}
+
+// InvoiceTitleEQ applies the EQ predicate on the "invoice_title" field.
+func InvoiceTitleEQ(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEQ(FieldInvoiceTitle, v))
+}
+
+// InvoiceTitleNEQ applies the NEQ predicate on the "invoice_title" field.
+func InvoiceTitleNEQ(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNEQ(FieldInvoiceTitle, v))
+}
+
+// InvoiceTitleIn applies the In predicate on the "invoice_title" field.
+func InvoiceTitleIn(vs ...string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldIn(FieldInvoiceTitle, vs...))
+}
+
+// InvoiceTitleNotIn applies the NotIn predicate on the "invoice_title" field.
+func InvoiceTitleNotIn(vs ...string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNotIn(FieldInvoiceTitle, vs...))
+}
+
+// InvoiceTitleGT applies the GT predicate on the "invoice_title" field.
+func InvoiceTitleGT(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldGT(FieldInvoiceTitle, v))
+}
+
+// InvoiceTitleGTE applies the GTE predicate on the "invoice_title" field.
+func InvoiceTitleGTE(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldGTE(FieldInvoiceTitle, v))
+}
+
+// InvoiceTitleLT applies the LT predicate on the "invoice_title" field.
+func InvoiceTitleLT(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldLT(FieldInvoiceTitle, v))
+}
+
+// InvoiceTitleLTE applies the LTE predicate on the "invoice_title" field.
+func InvoiceTitleLTE(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldLTE(FieldInvoiceTitle, v))
+}
+
+// InvoiceTitleContains applies the Contains predicate on the "invoice_title" field.
+func InvoiceTitleContains(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldContains(FieldInvoiceTitle, v))
+}
+
+// InvoiceTitleHasPrefix applies the HasPrefix predicate on the "invoice_title" field.
+func InvoiceTitleHasPrefix(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldHasPrefix(FieldInvoiceTitle, v))
+}
+
+// InvoiceTitleHasSuffix applies the HasSuffix predicate on the "invoice_title" field.
+func InvoiceTitleHasSuffix(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldHasSuffix(FieldInvoiceTitle, v))
+}
+
+// InvoiceTitleIsNil applies the IsNil predicate on the "invoice_title" field.
+func InvoiceTitleIsNil() predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldIsNull(FieldInvoiceTitle))
+}
+
+// InvoiceTitleNotNil applies the NotNil predicate on the "invoice_title" field.
+func InvoiceTitleNotNil() predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNotNull(FieldInvoiceTitle))
+}
+
+// InvoiceTitleEqualFold applies the EqualFold predicate on the "invoice_title" field.
+func InvoiceTitleEqualFold(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEqualFold(FieldInvoiceTitle, v))
+}
+
+// InvoiceTitleContainsFold applies the ContainsFold predicate on the "invoice_title" field.
+func InvoiceTitleContainsFold(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldContainsFold(FieldInvoiceTitle, v))
+}
+
+// BillingAddressIsNil applies the IsNil predicate on the "billing_address" field.
+func BillingAddressIsNil() predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldIsNull(FieldBillingAddress))
+}
+
+// BillingAddressNotNil applies the NotNil predicate on the "billing_address" field.
+func BillingAddressNotNil() predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNotNull(FieldBillingAddress))
+}
+
+// LifecycleStageEQ applies the EQ predicate on the "lifecycle_stage" field.
+func LifecycleStageEQ(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEQ(FieldLifecycleStage, v))
+}
+
+// LifecycleStageNEQ applies the NEQ predicate on the "lifecycle_stage" field.
+func LifecycleStageNEQ(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNEQ(FieldLifecycleStage, v))
+}
+
+// LifecycleStageIn applies the In predicate on the "lifecycle_stage" field.
+func LifecycleStageIn(vs ...string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldIn(FieldLifecycleStage, vs...))
+}
+
+// LifecycleStageNotIn applies the NotIn predicate on the "lifecycle_stage" field.
+func LifecycleStageNotIn(vs ...string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNotIn(FieldLifecycleStage, vs...))
+}
+
+// LifecycleStageGT applies the GT predicate on the "lifecycle_stage" field.
+func LifecycleStageGT(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldGT(FieldLifecycleStage, v))
+}
+
+// LifecycleStageGTE applies the GTE predicate on the "lifecycle_stage" field.
+func LifecycleStageGTE(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldGTE(FieldLifecycleStage, v))
+}
+
+// LifecycleStageLT applies the LT predicate on the "lifecycle_stage" field.
+func LifecycleStageLT(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldLT(FieldLifecycleStage, v))
+}
+
+// LifecycleStageLTE applies the LTE predicate on the "lifecycle_stage" field.
+func LifecycleStageLTE(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldLTE(FieldLifecycleStage, v))
+}
+
+// LifecycleStageContains applies the Contains predicate on the "lifecycle_stage" field.
+func LifecycleStageContains(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldContains(FieldLifecycleStage, v))
+}
+
+// LifecycleStageHasPrefix applies the HasPrefix predicate on the "lifecycle_stage" field.
+func LifecycleStageHasPrefix(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldHasPrefix(FieldLifecycleStage, v))
+}
+
+// LifecycleStageHasSuffix applies the HasSuffix predicate on the "lifecycle_stage" field.
+func LifecycleStageHasSuffix(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldHasSuffix(FieldLifecycleStage, v))
+}
+
+// LifecycleStageEqualFold applies the EqualFold predicate on the "lifecycle_stage" field.
+func LifecycleStageEqualFold(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEqualFold(FieldLifecycleStage, v))
+}
+
+// LifecycleStageContainsFold applies the ContainsFold predicate on the "lifecycle_stage" field.
+func LifecycleStageContainsFold(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldContainsFold(FieldLifecycleStage, v))
+}
+
+// OnboardedAtEQ applies the EQ predicate on the "onboarded_at" field.
+func OnboardedAtEQ(v time.Time) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEQ(FieldOnboardedAt, v))
+}
+
+// OnboardedAtNEQ applies the NEQ predicate on the "onboarded_at" field.
+func OnboardedAtNEQ(v time.Time) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNEQ(FieldOnboardedAt, v))
+}
+
+// OnboardedAtIn applies the In predicate on the "onboarded_at" field.
+func OnboardedAtIn(vs ...time.Time) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldIn(FieldOnboardedAt, vs...))
+}
+
+// OnboardedAtNotIn applies the NotIn predicate on the "onboarded_at" field.
+func OnboardedAtNotIn(vs ...time.Time) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNotIn(FieldOnboardedAt, vs...))
+}
+
+// OnboardedAtGT applies the GT predicate on the "onboarded_at" field.
+func OnboardedAtGT(v time.Time) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldGT(FieldOnboardedAt, v))
+}
+
+// OnboardedAtGTE applies the GTE predicate on the "onboarded_at" field.
+func OnboardedAtGTE(v time.Time) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldGTE(FieldOnboardedAt, v))
+}
+
+// OnboardedAtLT applies the LT predicate on the "onboarded_at" field.
+func OnboardedAtLT(v time.Time) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldLT(FieldOnboardedAt, v))
+}
+
+// OnboardedAtLTE applies the LTE predicate on the "onboarded_at" field.
+func OnboardedAtLTE(v time.Time) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldLTE(FieldOnboardedAt, v))
+}
+
+// OnboardedAtIsNil applies the IsNil predicate on the "onboarded_at" field.
+func OnboardedAtIsNil() predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldIsNull(FieldOnboardedAt))
+}
+
+// OnboardedAtNotNil applies the NotNil predicate on the "onboarded_at" field.
+func OnboardedAtNotNil() predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNotNull(FieldOnboardedAt))
+}
+
+// ContractStartAtEQ applies the EQ predicate on the "contract_start_at" field.
+func ContractStartAtEQ(v time.Time) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEQ(FieldContractStartAt, v))
+}
+
+// ContractStartAtNEQ applies the NEQ predicate on the "contract_start_at" field.
+func ContractStartAtNEQ(v time.Time) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNEQ(FieldContractStartAt, v))
+}
+
+// ContractStartAtIn applies the In predicate on the "contract_start_at" field.
+func ContractStartAtIn(vs ...time.Time) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldIn(FieldContractStartAt, vs...))
+}
+
+// ContractStartAtNotIn applies the NotIn predicate on the "contract_start_at" field.
+func ContractStartAtNotIn(vs ...time.Time) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNotIn(FieldContractStartAt, vs...))
+}
+
+// ContractStartAtGT applies the GT predicate on the "contract_start_at" field.
+func ContractStartAtGT(v time.Time) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldGT(FieldContractStartAt, v))
+}
+
+// ContractStartAtGTE applies the GTE predicate on the "contract_start_at" field.
+func ContractStartAtGTE(v time.Time) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldGTE(FieldContractStartAt, v))
+}
+
+// ContractStartAtLT applies the LT predicate on the "contract_start_at" field.
+func ContractStartAtLT(v time.Time) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldLT(FieldContractStartAt, v))
+}
+
+// ContractStartAtLTE applies the LTE predicate on the "contract_start_at" field.
+func ContractStartAtLTE(v time.Time) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldLTE(FieldContractStartAt, v))
+}
+
+// ContractStartAtIsNil applies the IsNil predicate on the "contract_start_at" field.
+func ContractStartAtIsNil() predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldIsNull(FieldContractStartAt))
+}
+
+// ContractStartAtNotNil applies the NotNil predicate on the "contract_start_at" field.
+func ContractStartAtNotNil() predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNotNull(FieldContractStartAt))
+}
+
+// ContractEndAtEQ applies the EQ predicate on the "contract_end_at" field.
+func ContractEndAtEQ(v time.Time) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEQ(FieldContractEndAt, v))
+}
+
+// ContractEndAtNEQ applies the NEQ predicate on the "contract_end_at" field.
+func ContractEndAtNEQ(v time.Time) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNEQ(FieldContractEndAt, v))
+}
+
+// ContractEndAtIn applies the In predicate on the "contract_end_at" field.
+func ContractEndAtIn(vs ...time.Time) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldIn(FieldContractEndAt, vs...))
+}
+
+// ContractEndAtNotIn applies the NotIn predicate on the "contract_end_at" field.
+func ContractEndAtNotIn(vs ...time.Time) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNotIn(FieldContractEndAt, vs...))
+}
+
+// ContractEndAtGT applies the GT predicate on the "contract_end_at" field.
+func ContractEndAtGT(v time.Time) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldGT(FieldContractEndAt, v))
+}
+
+// ContractEndAtGTE applies the GTE predicate on the "contract_end_at" field.
+func ContractEndAtGTE(v time.Time) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldGTE(FieldContractEndAt, v))
+}
+
+// ContractEndAtLT applies the LT predicate on the "contract_end_at" field.
+func ContractEndAtLT(v time.Time) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldLT(FieldContractEndAt, v))
+}
+
+// ContractEndAtLTE applies the LTE predicate on the "contract_end_at" field.
+func ContractEndAtLTE(v time.Time) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldLTE(FieldContractEndAt, v))
+}
+
+// ContractEndAtIsNil applies the IsNil predicate on the "contract_end_at" field.
+func ContractEndAtIsNil() predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldIsNull(FieldContractEndAt))
+}
+
+// ContractEndAtNotNil applies the NotNil predicate on the "contract_end_at" field.
+func ContractEndAtNotNil() predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNotNull(FieldContractEndAt))
+}
+
+// ChurnAtEQ applies the EQ predicate on the "churn_at" field.
+func ChurnAtEQ(v time.Time) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEQ(FieldChurnAt, v))
+}
+
+// ChurnAtNEQ applies the NEQ predicate on the "churn_at" field.
+func ChurnAtNEQ(v time.Time) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNEQ(FieldChurnAt, v))
+}
+
+// ChurnAtIn applies the In predicate on the "churn_at" field.
+func ChurnAtIn(vs ...time.Time) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldIn(FieldChurnAt, vs...))
+}
+
+// ChurnAtNotIn applies the NotIn predicate on the "churn_at" field.
+func ChurnAtNotIn(vs ...time.Time) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNotIn(FieldChurnAt, vs...))
+}
+
+// ChurnAtGT applies the GT predicate on the "churn_at" field.
+func ChurnAtGT(v time.Time) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldGT(FieldChurnAt, v))
+}
+
+// ChurnAtGTE applies the GTE predicate on the "churn_at" field.
+func ChurnAtGTE(v time.Time) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldGTE(FieldChurnAt, v))
+}
+
+// ChurnAtLT applies the LT predicate on the "churn_at" field.
+func ChurnAtLT(v time.Time) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldLT(FieldChurnAt, v))
+}
+
+// ChurnAtLTE applies the LTE predicate on the "churn_at" field.
+func ChurnAtLTE(v time.Time) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldLTE(FieldChurnAt, v))
+}
+
+// ChurnAtIsNil applies the IsNil predicate on the "churn_at" field.
+func ChurnAtIsNil() predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldIsNull(FieldChurnAt))
+}
+
+// ChurnAtNotNil applies the NotNil predicate on the "churn_at" field.
+func ChurnAtNotNil() predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNotNull(FieldChurnAt))
+}
+
+// ChurnReasonEQ applies the EQ predicate on the "churn_reason" field.
+func ChurnReasonEQ(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEQ(FieldChurnReason, v))
+}
+
+// ChurnReasonNEQ applies the NEQ predicate on the "churn_reason" field.
+func ChurnReasonNEQ(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNEQ(FieldChurnReason, v))
+}
+
+// ChurnReasonIn applies the In predicate on the "churn_reason" field.
+func ChurnReasonIn(vs ...string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldIn(FieldChurnReason, vs...))
+}
+
+// ChurnReasonNotIn applies the NotIn predicate on the "churn_reason" field.
+func ChurnReasonNotIn(vs ...string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNotIn(FieldChurnReason, vs...))
+}
+
+// ChurnReasonGT applies the GT predicate on the "churn_reason" field.
+func ChurnReasonGT(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldGT(FieldChurnReason, v))
+}
+
+// ChurnReasonGTE applies the GTE predicate on the "churn_reason" field.
+func ChurnReasonGTE(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldGTE(FieldChurnReason, v))
+}
+
+// ChurnReasonLT applies the LT predicate on the "churn_reason" field.
+func ChurnReasonLT(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldLT(FieldChurnReason, v))
+}
+
+// ChurnReasonLTE applies the LTE predicate on the "churn_reason" field.
+func ChurnReasonLTE(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldLTE(FieldChurnReason, v))
+}
+
+// ChurnReasonContains applies the Contains predicate on the "churn_reason" field.
+func ChurnReasonContains(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldContains(FieldChurnReason, v))
+}
+
+// ChurnReasonHasPrefix applies the HasPrefix predicate on the "churn_reason" field.
+func ChurnReasonHasPrefix(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldHasPrefix(FieldChurnReason, v))
+}
+
+// ChurnReasonHasSuffix applies the HasSuffix predicate on the "churn_reason" field.
+func ChurnReasonHasSuffix(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldHasSuffix(FieldChurnReason, v))
+}
+
+// ChurnReasonIsNil applies the IsNil predicate on the "churn_reason" field.
+func ChurnReasonIsNil() predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldIsNull(FieldChurnReason))
+}
+
+// ChurnReasonNotNil applies the NotNil predicate on the "churn_reason" field.
+func ChurnReasonNotNil() predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNotNull(FieldChurnReason))
+}
+
+// ChurnReasonEqualFold applies the EqualFold predicate on the "churn_reason" field.
+func ChurnReasonEqualFold(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEqualFold(FieldChurnReason, v))
+}
+
+// ChurnReasonContainsFold applies the ContainsFold predicate on the "churn_reason" field.
+func ChurnReasonContainsFold(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldContainsFold(FieldChurnReason, v))
+}
+
+// DataSourceEQ applies the EQ predicate on the "data_source" field.
+func DataSourceEQ(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEQ(FieldDataSource, v))
+}
+
+// DataSourceNEQ applies the NEQ predicate on the "data_source" field.
+func DataSourceNEQ(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNEQ(FieldDataSource, v))
+}
+
+// DataSourceIn applies the In predicate on the "data_source" field.
+func DataSourceIn(vs ...string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldIn(FieldDataSource, vs...))
+}
+
+// DataSourceNotIn applies the NotIn predicate on the "data_source" field.
+func DataSourceNotIn(vs ...string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNotIn(FieldDataSource, vs...))
+}
+
+// DataSourceGT applies the GT predicate on the "data_source" field.
+func DataSourceGT(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldGT(FieldDataSource, v))
+}
+
+// DataSourceGTE applies the GTE predicate on the "data_source" field.
+func DataSourceGTE(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldGTE(FieldDataSource, v))
+}
+
+// DataSourceLT applies the LT predicate on the "data_source" field.
+func DataSourceLT(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldLT(FieldDataSource, v))
+}
+
+// DataSourceLTE applies the LTE predicate on the "data_source" field.
+func DataSourceLTE(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldLTE(FieldDataSource, v))
+}
+
+// DataSourceContains applies the Contains predicate on the "data_source" field.
+func DataSourceContains(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldContains(FieldDataSource, v))
+}
+
+// DataSourceHasPrefix applies the HasPrefix predicate on the "data_source" field.
+func DataSourceHasPrefix(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldHasPrefix(FieldDataSource, v))
+}
+
+// DataSourceHasSuffix applies the HasSuffix predicate on the "data_source" field.
+func DataSourceHasSuffix(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldHasSuffix(FieldDataSource, v))
+}
+
+// DataSourceEqualFold applies the EqualFold predicate on the "data_source" field.
+func DataSourceEqualFold(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEqualFold(FieldDataSource, v))
+}
+
+// DataSourceContainsFold applies the ContainsFold predicate on the "data_source" field.
+func DataSourceContainsFold(v string) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldContainsFold(FieldDataSource, v))
+}
+
+// DataQualityScoreEQ applies the EQ predicate on the "data_quality_score" field.
+func DataQualityScoreEQ(v int16) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEQ(FieldDataQualityScore, v))
+}
+
+// DataQualityScoreNEQ applies the NEQ predicate on the "data_quality_score" field.
+func DataQualityScoreNEQ(v int16) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNEQ(FieldDataQualityScore, v))
+}
+
+// DataQualityScoreIn applies the In predicate on the "data_quality_score" field.
+func DataQualityScoreIn(vs ...int16) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldIn(FieldDataQualityScore, vs...))
+}
+
+// DataQualityScoreNotIn applies the NotIn predicate on the "data_quality_score" field.
+func DataQualityScoreNotIn(vs ...int16) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNotIn(FieldDataQualityScore, vs...))
+}
+
+// DataQualityScoreGT applies the GT predicate on the "data_quality_score" field.
+func DataQualityScoreGT(v int16) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldGT(FieldDataQualityScore, v))
+}
+
+// DataQualityScoreGTE applies the GTE predicate on the "data_quality_score" field.
+func DataQualityScoreGTE(v int16) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldGTE(FieldDataQualityScore, v))
+}
+
+// DataQualityScoreLT applies the LT predicate on the "data_quality_score" field.
+func DataQualityScoreLT(v int16) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldLT(FieldDataQualityScore, v))
+}
+
+// DataQualityScoreLTE applies the LTE predicate on the "data_quality_score" field.
+func DataQualityScoreLTE(v int16) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldLTE(FieldDataQualityScore, v))
+}
+
+// MergedIntoIDEQ applies the EQ predicate on the "merged_into_id" field.
+func MergedIntoIDEQ(v int) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEQ(FieldMergedIntoID, v))
+}
+
+// MergedIntoIDNEQ applies the NEQ predicate on the "merged_into_id" field.
+func MergedIntoIDNEQ(v int) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNEQ(FieldMergedIntoID, v))
+}
+
+// MergedIntoIDIn applies the In predicate on the "merged_into_id" field.
+func MergedIntoIDIn(vs ...int) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldIn(FieldMergedIntoID, vs...))
+}
+
+// MergedIntoIDNotIn applies the NotIn predicate on the "merged_into_id" field.
+func MergedIntoIDNotIn(vs ...int) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNotIn(FieldMergedIntoID, vs...))
+}
+
+// MergedIntoIDGT applies the GT predicate on the "merged_into_id" field.
+func MergedIntoIDGT(v int) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldGT(FieldMergedIntoID, v))
+}
+
+// MergedIntoIDGTE applies the GTE predicate on the "merged_into_id" field.
+func MergedIntoIDGTE(v int) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldGTE(FieldMergedIntoID, v))
+}
+
+// MergedIntoIDLT applies the LT predicate on the "merged_into_id" field.
+func MergedIntoIDLT(v int) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldLT(FieldMergedIntoID, v))
+}
+
+// MergedIntoIDLTE applies the LTE predicate on the "merged_into_id" field.
+func MergedIntoIDLTE(v int) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldLTE(FieldMergedIntoID, v))
+}
+
+// MergedIntoIDIsNil applies the IsNil predicate on the "merged_into_id" field.
+func MergedIntoIDIsNil() predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldIsNull(FieldMergedIntoID))
+}
+
+// MergedIntoIDNotNil applies the NotNil predicate on the "merged_into_id" field.
+func MergedIntoIDNotNil() predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNotNull(FieldMergedIntoID))
+}
+
+// VersionEQ applies the EQ predicate on the "version" field.
+func VersionEQ(v int64) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEQ(FieldVersion, v))
+}
+
+// VersionNEQ applies the NEQ predicate on the "version" field.
+func VersionNEQ(v int64) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNEQ(FieldVersion, v))
+}
+
+// VersionIn applies the In predicate on the "version" field.
+func VersionIn(vs ...int64) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldIn(FieldVersion, vs...))
+}
+
+// VersionNotIn applies the NotIn predicate on the "version" field.
+func VersionNotIn(vs ...int64) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNotIn(FieldVersion, vs...))
+}
+
+// VersionGT applies the GT predicate on the "version" field.
+func VersionGT(v int64) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldGT(FieldVersion, v))
+}
+
+// VersionGTE applies the GTE predicate on the "version" field.
+func VersionGTE(v int64) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldGTE(FieldVersion, v))
+}
+
+// VersionLT applies the LT predicate on the "version" field.
+func VersionLT(v int64) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldLT(FieldVersion, v))
+}
+
+// VersionLTE applies the LTE predicate on the "version" field.
+func VersionLTE(v int64) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldLTE(FieldVersion, v))
+}
+
+// DeletedAtEQ applies the EQ predicate on the "deleted_at" field.
+func DeletedAtEQ(v time.Time) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEQ(FieldDeletedAt, v))
+}
+
+// DeletedAtNEQ applies the NEQ predicate on the "deleted_at" field.
+func DeletedAtNEQ(v time.Time) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNEQ(FieldDeletedAt, v))
+}
+
+// DeletedAtIn applies the In predicate on the "deleted_at" field.
+func DeletedAtIn(vs ...time.Time) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldIn(FieldDeletedAt, vs...))
+}
+
+// DeletedAtNotIn applies the NotIn predicate on the "deleted_at" field.
+func DeletedAtNotIn(vs ...time.Time) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNotIn(FieldDeletedAt, vs...))
+}
+
+// DeletedAtGT applies the GT predicate on the "deleted_at" field.
+func DeletedAtGT(v time.Time) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldGT(FieldDeletedAt, v))
+}
+
+// DeletedAtGTE applies the GTE predicate on the "deleted_at" field.
+func DeletedAtGTE(v time.Time) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldGTE(FieldDeletedAt, v))
+}
+
+// DeletedAtLT applies the LT predicate on the "deleted_at" field.
+func DeletedAtLT(v time.Time) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldLT(FieldDeletedAt, v))
+}
+
+// DeletedAtLTE applies the LTE predicate on the "deleted_at" field.
+func DeletedAtLTE(v time.Time) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldLTE(FieldDeletedAt, v))
+}
+
+// DeletedAtIsNil applies the IsNil predicate on the "deleted_at" field.
+func DeletedAtIsNil() predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldIsNull(FieldDeletedAt))
+}
+
+// DeletedAtNotNil applies the NotNil predicate on the "deleted_at" field.
+func DeletedAtNotNil() predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNotNull(FieldDeletedAt))
+}
+
+// CreatedByEQ applies the EQ predicate on the "created_by" field.
+func CreatedByEQ(v int) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEQ(FieldCreatedBy, v))
+}
+
+// CreatedByNEQ applies the NEQ predicate on the "created_by" field.
+func CreatedByNEQ(v int) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNEQ(FieldCreatedBy, v))
+}
+
+// CreatedByIn applies the In predicate on the "created_by" field.
+func CreatedByIn(vs ...int) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldIn(FieldCreatedBy, vs...))
+}
+
+// CreatedByNotIn applies the NotIn predicate on the "created_by" field.
+func CreatedByNotIn(vs ...int) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNotIn(FieldCreatedBy, vs...))
+}
+
+// CreatedByGT applies the GT predicate on the "created_by" field.
+func CreatedByGT(v int) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldGT(FieldCreatedBy, v))
+}
+
+// CreatedByGTE applies the GTE predicate on the "created_by" field.
+func CreatedByGTE(v int) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldGTE(FieldCreatedBy, v))
+}
+
+// CreatedByLT applies the LT predicate on the "created_by" field.
+func CreatedByLT(v int) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldLT(FieldCreatedBy, v))
+}
+
+// CreatedByLTE applies the LTE predicate on the "created_by" field.
+func CreatedByLTE(v int) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldLTE(FieldCreatedBy, v))
+}
+
+// CreatedByIsNil applies the IsNil predicate on the "created_by" field.
+func CreatedByIsNil() predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldIsNull(FieldCreatedBy))
+}
+
+// CreatedByNotNil applies the NotNil predicate on the "created_by" field.
+func CreatedByNotNil() predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNotNull(FieldCreatedBy))
+}
+
+// UpdatedByEQ applies the EQ predicate on the "updated_by" field.
+func UpdatedByEQ(v int) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldEQ(FieldUpdatedBy, v))
+}
+
+// UpdatedByNEQ applies the NEQ predicate on the "updated_by" field.
+func UpdatedByNEQ(v int) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNEQ(FieldUpdatedBy, v))
+}
+
+// UpdatedByIn applies the In predicate on the "updated_by" field.
+func UpdatedByIn(vs ...int) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldIn(FieldUpdatedBy, vs...))
+}
+
+// UpdatedByNotIn applies the NotIn predicate on the "updated_by" field.
+func UpdatedByNotIn(vs ...int) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNotIn(FieldUpdatedBy, vs...))
+}
+
+// UpdatedByGT applies the GT predicate on the "updated_by" field.
+func UpdatedByGT(v int) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldGT(FieldUpdatedBy, v))
+}
+
+// UpdatedByGTE applies the GTE predicate on the "updated_by" field.
+func UpdatedByGTE(v int) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldGTE(FieldUpdatedBy, v))
+}
+
+// UpdatedByLT applies the LT predicate on the "updated_by" field.
+func UpdatedByLT(v int) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldLT(FieldUpdatedBy, v))
+}
+
+// UpdatedByLTE applies the LTE predicate on the "updated_by" field.
+func UpdatedByLTE(v int) predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldLTE(FieldUpdatedBy, v))
+}
+
+// UpdatedByIsNil applies the IsNil predicate on the "updated_by" field.
+func UpdatedByIsNil() predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldIsNull(FieldUpdatedBy))
+}
+
+// UpdatedByNotNil applies the NotNil predicate on the "updated_by" field.
+func UpdatedByNotNil() predicate.ServiceCustomer {
+	return predicate.ServiceCustomer(sql.FieldNotNull(FieldUpdatedBy))
 }
 
 // StatusEQ applies the EQ predicate on the "status" field.

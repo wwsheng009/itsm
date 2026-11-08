@@ -53,6 +53,26 @@ func (_u *ServiceCustomerUpdate) AddTenantID(v int) *ServiceCustomerUpdate {
 	return _u
 }
 
+// SetCode sets the "code" field.
+func (_u *ServiceCustomerUpdate) SetCode(v string) *ServiceCustomerUpdate {
+	_u.mutation.SetCode(v)
+	return _u
+}
+
+// SetNillableCode sets the "code" field if the given value is not nil.
+func (_u *ServiceCustomerUpdate) SetNillableCode(v *string) *ServiceCustomerUpdate {
+	if v != nil {
+		_u.SetCode(*v)
+	}
+	return _u
+}
+
+// ClearCode clears the value of the "code" field.
+func (_u *ServiceCustomerUpdate) ClearCode() *ServiceCustomerUpdate {
+	_u.mutation.ClearCode()
+	return _u
+}
+
 // SetName sets the "name" field.
 func (_u *ServiceCustomerUpdate) SetName(v string) *ServiceCustomerUpdate {
 	_u.mutation.SetName(v)
@@ -101,6 +121,46 @@ func (_u *ServiceCustomerUpdate) ClearShortName() *ServiceCustomerUpdate {
 	return _u
 }
 
+// SetLegalName sets the "legal_name" field.
+func (_u *ServiceCustomerUpdate) SetLegalName(v string) *ServiceCustomerUpdate {
+	_u.mutation.SetLegalName(v)
+	return _u
+}
+
+// SetNillableLegalName sets the "legal_name" field if the given value is not nil.
+func (_u *ServiceCustomerUpdate) SetNillableLegalName(v *string) *ServiceCustomerUpdate {
+	if v != nil {
+		_u.SetLegalName(*v)
+	}
+	return _u
+}
+
+// ClearLegalName clears the value of the "legal_name" field.
+func (_u *ServiceCustomerUpdate) ClearLegalName() *ServiceCustomerUpdate {
+	_u.mutation.ClearLegalName()
+	return _u
+}
+
+// SetEnName sets the "en_name" field.
+func (_u *ServiceCustomerUpdate) SetEnName(v string) *ServiceCustomerUpdate {
+	_u.mutation.SetEnName(v)
+	return _u
+}
+
+// SetNillableEnName sets the "en_name" field if the given value is not nil.
+func (_u *ServiceCustomerUpdate) SetNillableEnName(v *string) *ServiceCustomerUpdate {
+	if v != nil {
+		_u.SetEnName(*v)
+	}
+	return _u
+}
+
+// ClearEnName clears the value of the "en_name" field.
+func (_u *ServiceCustomerUpdate) ClearEnName() *ServiceCustomerUpdate {
+	_u.mutation.ClearEnName()
+	return _u
+}
+
 // SetAliases sets the "aliases" field.
 func (_u *ServiceCustomerUpdate) SetAliases(v []string) *ServiceCustomerUpdate {
 	_u.mutation.SetAliases(v)
@@ -134,6 +194,916 @@ func (_u *ServiceCustomerUpdate) AppendHistoricalNames(v []string) *ServiceCusto
 // ClearHistoricalNames clears the value of the "historical_names" field.
 func (_u *ServiceCustomerUpdate) ClearHistoricalNames() *ServiceCustomerUpdate {
 	_u.mutation.ClearHistoricalNames()
+	return _u
+}
+
+// SetTaxID sets the "tax_id" field.
+func (_u *ServiceCustomerUpdate) SetTaxID(v string) *ServiceCustomerUpdate {
+	_u.mutation.SetTaxID(v)
+	return _u
+}
+
+// SetNillableTaxID sets the "tax_id" field if the given value is not nil.
+func (_u *ServiceCustomerUpdate) SetNillableTaxID(v *string) *ServiceCustomerUpdate {
+	if v != nil {
+		_u.SetTaxID(*v)
+	}
+	return _u
+}
+
+// ClearTaxID clears the value of the "tax_id" field.
+func (_u *ServiceCustomerUpdate) ClearTaxID() *ServiceCustomerUpdate {
+	_u.mutation.ClearTaxID()
+	return _u
+}
+
+// SetNormalizedTaxID sets the "normalized_tax_id" field.
+func (_u *ServiceCustomerUpdate) SetNormalizedTaxID(v string) *ServiceCustomerUpdate {
+	_u.mutation.SetNormalizedTaxID(v)
+	return _u
+}
+
+// SetNillableNormalizedTaxID sets the "normalized_tax_id" field if the given value is not nil.
+func (_u *ServiceCustomerUpdate) SetNillableNormalizedTaxID(v *string) *ServiceCustomerUpdate {
+	if v != nil {
+		_u.SetNormalizedTaxID(*v)
+	}
+	return _u
+}
+
+// ClearNormalizedTaxID clears the value of the "normalized_tax_id" field.
+func (_u *ServiceCustomerUpdate) ClearNormalizedTaxID() *ServiceCustomerUpdate {
+	_u.mutation.ClearNormalizedTaxID()
+	return _u
+}
+
+// SetDunsNumber sets the "duns_number" field.
+func (_u *ServiceCustomerUpdate) SetDunsNumber(v string) *ServiceCustomerUpdate {
+	_u.mutation.SetDunsNumber(v)
+	return _u
+}
+
+// SetNillableDunsNumber sets the "duns_number" field if the given value is not nil.
+func (_u *ServiceCustomerUpdate) SetNillableDunsNumber(v *string) *ServiceCustomerUpdate {
+	if v != nil {
+		_u.SetDunsNumber(*v)
+	}
+	return _u
+}
+
+// ClearDunsNumber clears the value of the "duns_number" field.
+func (_u *ServiceCustomerUpdate) ClearDunsNumber() *ServiceCustomerUpdate {
+	_u.mutation.ClearDunsNumber()
+	return _u
+}
+
+// SetRegistrationNo sets the "registration_no" field.
+func (_u *ServiceCustomerUpdate) SetRegistrationNo(v string) *ServiceCustomerUpdate {
+	_u.mutation.SetRegistrationNo(v)
+	return _u
+}
+
+// SetNillableRegistrationNo sets the "registration_no" field if the given value is not nil.
+func (_u *ServiceCustomerUpdate) SetNillableRegistrationNo(v *string) *ServiceCustomerUpdate {
+	if v != nil {
+		_u.SetRegistrationNo(*v)
+	}
+	return _u
+}
+
+// ClearRegistrationNo clears the value of the "registration_no" field.
+func (_u *ServiceCustomerUpdate) ClearRegistrationNo() *ServiceCustomerUpdate {
+	_u.mutation.ClearRegistrationNo()
+	return _u
+}
+
+// SetEmailDomains sets the "email_domains" field.
+func (_u *ServiceCustomerUpdate) SetEmailDomains(v []string) *ServiceCustomerUpdate {
+	_u.mutation.SetEmailDomains(v)
+	return _u
+}
+
+// AppendEmailDomains appends value to the "email_domains" field.
+func (_u *ServiceCustomerUpdate) AppendEmailDomains(v []string) *ServiceCustomerUpdate {
+	_u.mutation.AppendEmailDomains(v)
+	return _u
+}
+
+// ClearEmailDomains clears the value of the "email_domains" field.
+func (_u *ServiceCustomerUpdate) ClearEmailDomains() *ServiceCustomerUpdate {
+	_u.mutation.ClearEmailDomains()
+	return _u
+}
+
+// SetCustomerType sets the "customer_type" field.
+func (_u *ServiceCustomerUpdate) SetCustomerType(v string) *ServiceCustomerUpdate {
+	_u.mutation.SetCustomerType(v)
+	return _u
+}
+
+// SetNillableCustomerType sets the "customer_type" field if the given value is not nil.
+func (_u *ServiceCustomerUpdate) SetNillableCustomerType(v *string) *ServiceCustomerUpdate {
+	if v != nil {
+		_u.SetCustomerType(*v)
+	}
+	return _u
+}
+
+// SetIndustry sets the "industry" field.
+func (_u *ServiceCustomerUpdate) SetIndustry(v string) *ServiceCustomerUpdate {
+	_u.mutation.SetIndustry(v)
+	return _u
+}
+
+// SetNillableIndustry sets the "industry" field if the given value is not nil.
+func (_u *ServiceCustomerUpdate) SetNillableIndustry(v *string) *ServiceCustomerUpdate {
+	if v != nil {
+		_u.SetIndustry(*v)
+	}
+	return _u
+}
+
+// ClearIndustry clears the value of the "industry" field.
+func (_u *ServiceCustomerUpdate) ClearIndustry() *ServiceCustomerUpdate {
+	_u.mutation.ClearIndustry()
+	return _u
+}
+
+// SetSubIndustry sets the "sub_industry" field.
+func (_u *ServiceCustomerUpdate) SetSubIndustry(v string) *ServiceCustomerUpdate {
+	_u.mutation.SetSubIndustry(v)
+	return _u
+}
+
+// SetNillableSubIndustry sets the "sub_industry" field if the given value is not nil.
+func (_u *ServiceCustomerUpdate) SetNillableSubIndustry(v *string) *ServiceCustomerUpdate {
+	if v != nil {
+		_u.SetSubIndustry(*v)
+	}
+	return _u
+}
+
+// ClearSubIndustry clears the value of the "sub_industry" field.
+func (_u *ServiceCustomerUpdate) ClearSubIndustry() *ServiceCustomerUpdate {
+	_u.mutation.ClearSubIndustry()
+	return _u
+}
+
+// SetSizeClass sets the "size_class" field.
+func (_u *ServiceCustomerUpdate) SetSizeClass(v string) *ServiceCustomerUpdate {
+	_u.mutation.SetSizeClass(v)
+	return _u
+}
+
+// SetNillableSizeClass sets the "size_class" field if the given value is not nil.
+func (_u *ServiceCustomerUpdate) SetNillableSizeClass(v *string) *ServiceCustomerUpdate {
+	if v != nil {
+		_u.SetSizeClass(*v)
+	}
+	return _u
+}
+
+// ClearSizeClass clears the value of the "size_class" field.
+func (_u *ServiceCustomerUpdate) ClearSizeClass() *ServiceCustomerUpdate {
+	_u.mutation.ClearSizeClass()
+	return _u
+}
+
+// SetOwnershipType sets the "ownership_type" field.
+func (_u *ServiceCustomerUpdate) SetOwnershipType(v string) *ServiceCustomerUpdate {
+	_u.mutation.SetOwnershipType(v)
+	return _u
+}
+
+// SetNillableOwnershipType sets the "ownership_type" field if the given value is not nil.
+func (_u *ServiceCustomerUpdate) SetNillableOwnershipType(v *string) *ServiceCustomerUpdate {
+	if v != nil {
+		_u.SetOwnershipType(*v)
+	}
+	return _u
+}
+
+// ClearOwnershipType clears the value of the "ownership_type" field.
+func (_u *ServiceCustomerUpdate) ClearOwnershipType() *ServiceCustomerUpdate {
+	_u.mutation.ClearOwnershipType()
+	return _u
+}
+
+// SetTier sets the "tier" field.
+func (_u *ServiceCustomerUpdate) SetTier(v string) *ServiceCustomerUpdate {
+	_u.mutation.SetTier(v)
+	return _u
+}
+
+// SetNillableTier sets the "tier" field if the given value is not nil.
+func (_u *ServiceCustomerUpdate) SetNillableTier(v *string) *ServiceCustomerUpdate {
+	if v != nil {
+		_u.SetTier(*v)
+	}
+	return _u
+}
+
+// SetVipLevel sets the "vip_level" field.
+func (_u *ServiceCustomerUpdate) SetVipLevel(v int16) *ServiceCustomerUpdate {
+	_u.mutation.ResetVipLevel()
+	_u.mutation.SetVipLevel(v)
+	return _u
+}
+
+// SetNillableVipLevel sets the "vip_level" field if the given value is not nil.
+func (_u *ServiceCustomerUpdate) SetNillableVipLevel(v *int16) *ServiceCustomerUpdate {
+	if v != nil {
+		_u.SetVipLevel(*v)
+	}
+	return _u
+}
+
+// AddVipLevel adds value to the "vip_level" field.
+func (_u *ServiceCustomerUpdate) AddVipLevel(v int16) *ServiceCustomerUpdate {
+	_u.mutation.AddVipLevel(v)
+	return _u
+}
+
+// SetCreditRating sets the "credit_rating" field.
+func (_u *ServiceCustomerUpdate) SetCreditRating(v string) *ServiceCustomerUpdate {
+	_u.mutation.SetCreditRating(v)
+	return _u
+}
+
+// SetNillableCreditRating sets the "credit_rating" field if the given value is not nil.
+func (_u *ServiceCustomerUpdate) SetNillableCreditRating(v *string) *ServiceCustomerUpdate {
+	if v != nil {
+		_u.SetCreditRating(*v)
+	}
+	return _u
+}
+
+// ClearCreditRating clears the value of the "credit_rating" field.
+func (_u *ServiceCustomerUpdate) ClearCreditRating() *ServiceCustomerUpdate {
+	_u.mutation.ClearCreditRating()
+	return _u
+}
+
+// SetWebsite sets the "website" field.
+func (_u *ServiceCustomerUpdate) SetWebsite(v string) *ServiceCustomerUpdate {
+	_u.mutation.SetWebsite(v)
+	return _u
+}
+
+// SetNillableWebsite sets the "website" field if the given value is not nil.
+func (_u *ServiceCustomerUpdate) SetNillableWebsite(v *string) *ServiceCustomerUpdate {
+	if v != nil {
+		_u.SetWebsite(*v)
+	}
+	return _u
+}
+
+// ClearWebsite clears the value of the "website" field.
+func (_u *ServiceCustomerUpdate) ClearWebsite() *ServiceCustomerUpdate {
+	_u.mutation.ClearWebsite()
+	return _u
+}
+
+// SetMainPhone sets the "main_phone" field.
+func (_u *ServiceCustomerUpdate) SetMainPhone(v string) *ServiceCustomerUpdate {
+	_u.mutation.SetMainPhone(v)
+	return _u
+}
+
+// SetNillableMainPhone sets the "main_phone" field if the given value is not nil.
+func (_u *ServiceCustomerUpdate) SetNillableMainPhone(v *string) *ServiceCustomerUpdate {
+	if v != nil {
+		_u.SetMainPhone(*v)
+	}
+	return _u
+}
+
+// ClearMainPhone clears the value of the "main_phone" field.
+func (_u *ServiceCustomerUpdate) ClearMainPhone() *ServiceCustomerUpdate {
+	_u.mutation.ClearMainPhone()
+	return _u
+}
+
+// SetServiceEmail sets the "service_email" field.
+func (_u *ServiceCustomerUpdate) SetServiceEmail(v string) *ServiceCustomerUpdate {
+	_u.mutation.SetServiceEmail(v)
+	return _u
+}
+
+// SetNillableServiceEmail sets the "service_email" field if the given value is not nil.
+func (_u *ServiceCustomerUpdate) SetNillableServiceEmail(v *string) *ServiceCustomerUpdate {
+	if v != nil {
+		_u.SetServiceEmail(*v)
+	}
+	return _u
+}
+
+// ClearServiceEmail clears the value of the "service_email" field.
+func (_u *ServiceCustomerUpdate) ClearServiceEmail() *ServiceCustomerUpdate {
+	_u.mutation.ClearServiceEmail()
+	return _u
+}
+
+// SetAddress sets the "address" field.
+func (_u *ServiceCustomerUpdate) SetAddress(v map[string]interface{}) *ServiceCustomerUpdate {
+	_u.mutation.SetAddress(v)
+	return _u
+}
+
+// ClearAddress clears the value of the "address" field.
+func (_u *ServiceCustomerUpdate) ClearAddress() *ServiceCustomerUpdate {
+	_u.mutation.ClearAddress()
+	return _u
+}
+
+// SetTimezone sets the "timezone" field.
+func (_u *ServiceCustomerUpdate) SetTimezone(v string) *ServiceCustomerUpdate {
+	_u.mutation.SetTimezone(v)
+	return _u
+}
+
+// SetNillableTimezone sets the "timezone" field if the given value is not nil.
+func (_u *ServiceCustomerUpdate) SetNillableTimezone(v *string) *ServiceCustomerUpdate {
+	if v != nil {
+		_u.SetTimezone(*v)
+	}
+	return _u
+}
+
+// ClearTimezone clears the value of the "timezone" field.
+func (_u *ServiceCustomerUpdate) ClearTimezone() *ServiceCustomerUpdate {
+	_u.mutation.ClearTimezone()
+	return _u
+}
+
+// SetLanguage sets the "language" field.
+func (_u *ServiceCustomerUpdate) SetLanguage(v string) *ServiceCustomerUpdate {
+	_u.mutation.SetLanguage(v)
+	return _u
+}
+
+// SetNillableLanguage sets the "language" field if the given value is not nil.
+func (_u *ServiceCustomerUpdate) SetNillableLanguage(v *string) *ServiceCustomerUpdate {
+	if v != nil {
+		_u.SetLanguage(*v)
+	}
+	return _u
+}
+
+// SetServiceTier sets the "service_tier" field.
+func (_u *ServiceCustomerUpdate) SetServiceTier(v string) *ServiceCustomerUpdate {
+	_u.mutation.SetServiceTier(v)
+	return _u
+}
+
+// SetNillableServiceTier sets the "service_tier" field if the given value is not nil.
+func (_u *ServiceCustomerUpdate) SetNillableServiceTier(v *string) *ServiceCustomerUpdate {
+	if v != nil {
+		_u.SetServiceTier(*v)
+	}
+	return _u
+}
+
+// ClearServiceTier clears the value of the "service_tier" field.
+func (_u *ServiceCustomerUpdate) ClearServiceTier() *ServiceCustomerUpdate {
+	_u.mutation.ClearServiceTier()
+	return _u
+}
+
+// SetSLADefinitionID sets the "sla_definition_id" field.
+func (_u *ServiceCustomerUpdate) SetSLADefinitionID(v int) *ServiceCustomerUpdate {
+	_u.mutation.ResetSLADefinitionID()
+	_u.mutation.SetSLADefinitionID(v)
+	return _u
+}
+
+// SetNillableSLADefinitionID sets the "sla_definition_id" field if the given value is not nil.
+func (_u *ServiceCustomerUpdate) SetNillableSLADefinitionID(v *int) *ServiceCustomerUpdate {
+	if v != nil {
+		_u.SetSLADefinitionID(*v)
+	}
+	return _u
+}
+
+// AddSLADefinitionID adds value to the "sla_definition_id" field.
+func (_u *ServiceCustomerUpdate) AddSLADefinitionID(v int) *ServiceCustomerUpdate {
+	_u.mutation.AddSLADefinitionID(v)
+	return _u
+}
+
+// ClearSLADefinitionID clears the value of the "sla_definition_id" field.
+func (_u *ServiceCustomerUpdate) ClearSLADefinitionID() *ServiceCustomerUpdate {
+	_u.mutation.ClearSLADefinitionID()
+	return _u
+}
+
+// SetSupportHours sets the "support_hours" field.
+func (_u *ServiceCustomerUpdate) SetSupportHours(v string) *ServiceCustomerUpdate {
+	_u.mutation.SetSupportHours(v)
+	return _u
+}
+
+// SetNillableSupportHours sets the "support_hours" field if the given value is not nil.
+func (_u *ServiceCustomerUpdate) SetNillableSupportHours(v *string) *ServiceCustomerUpdate {
+	if v != nil {
+		_u.SetSupportHours(*v)
+	}
+	return _u
+}
+
+// ClearSupportHours clears the value of the "support_hours" field.
+func (_u *ServiceCustomerUpdate) ClearSupportHours() *ServiceCustomerUpdate {
+	_u.mutation.ClearSupportHours()
+	return _u
+}
+
+// SetCoverageScope sets the "coverage_scope" field.
+func (_u *ServiceCustomerUpdate) SetCoverageScope(v map[string]interface{}) *ServiceCustomerUpdate {
+	_u.mutation.SetCoverageScope(v)
+	return _u
+}
+
+// ClearCoverageScope clears the value of the "coverage_scope" field.
+func (_u *ServiceCustomerUpdate) ClearCoverageScope() *ServiceCustomerUpdate {
+	_u.mutation.ClearCoverageScope()
+	return _u
+}
+
+// SetAccountManagerID sets the "account_manager_id" field.
+func (_u *ServiceCustomerUpdate) SetAccountManagerID(v int) *ServiceCustomerUpdate {
+	_u.mutation.ResetAccountManagerID()
+	_u.mutation.SetAccountManagerID(v)
+	return _u
+}
+
+// SetNillableAccountManagerID sets the "account_manager_id" field if the given value is not nil.
+func (_u *ServiceCustomerUpdate) SetNillableAccountManagerID(v *int) *ServiceCustomerUpdate {
+	if v != nil {
+		_u.SetAccountManagerID(*v)
+	}
+	return _u
+}
+
+// AddAccountManagerID adds value to the "account_manager_id" field.
+func (_u *ServiceCustomerUpdate) AddAccountManagerID(v int) *ServiceCustomerUpdate {
+	_u.mutation.AddAccountManagerID(v)
+	return _u
+}
+
+// ClearAccountManagerID clears the value of the "account_manager_id" field.
+func (_u *ServiceCustomerUpdate) ClearAccountManagerID() *ServiceCustomerUpdate {
+	_u.mutation.ClearAccountManagerID()
+	return _u
+}
+
+// SetServiceOwnerID sets the "service_owner_id" field.
+func (_u *ServiceCustomerUpdate) SetServiceOwnerID(v int) *ServiceCustomerUpdate {
+	_u.mutation.ResetServiceOwnerID()
+	_u.mutation.SetServiceOwnerID(v)
+	return _u
+}
+
+// SetNillableServiceOwnerID sets the "service_owner_id" field if the given value is not nil.
+func (_u *ServiceCustomerUpdate) SetNillableServiceOwnerID(v *int) *ServiceCustomerUpdate {
+	if v != nil {
+		_u.SetServiceOwnerID(*v)
+	}
+	return _u
+}
+
+// AddServiceOwnerID adds value to the "service_owner_id" field.
+func (_u *ServiceCustomerUpdate) AddServiceOwnerID(v int) *ServiceCustomerUpdate {
+	_u.mutation.AddServiceOwnerID(v)
+	return _u
+}
+
+// ClearServiceOwnerID clears the value of the "service_owner_id" field.
+func (_u *ServiceCustomerUpdate) ClearServiceOwnerID() *ServiceCustomerUpdate {
+	_u.mutation.ClearServiceOwnerID()
+	return _u
+}
+
+// SetCsManagerID sets the "cs_manager_id" field.
+func (_u *ServiceCustomerUpdate) SetCsManagerID(v int) *ServiceCustomerUpdate {
+	_u.mutation.ResetCsManagerID()
+	_u.mutation.SetCsManagerID(v)
+	return _u
+}
+
+// SetNillableCsManagerID sets the "cs_manager_id" field if the given value is not nil.
+func (_u *ServiceCustomerUpdate) SetNillableCsManagerID(v *int) *ServiceCustomerUpdate {
+	if v != nil {
+		_u.SetCsManagerID(*v)
+	}
+	return _u
+}
+
+// AddCsManagerID adds value to the "cs_manager_id" field.
+func (_u *ServiceCustomerUpdate) AddCsManagerID(v int) *ServiceCustomerUpdate {
+	_u.mutation.AddCsManagerID(v)
+	return _u
+}
+
+// ClearCsManagerID clears the value of the "cs_manager_id" field.
+func (_u *ServiceCustomerUpdate) ClearCsManagerID() *ServiceCustomerUpdate {
+	_u.mutation.ClearCsManagerID()
+	return _u
+}
+
+// SetOncallGroupID sets the "oncall_group_id" field.
+func (_u *ServiceCustomerUpdate) SetOncallGroupID(v int) *ServiceCustomerUpdate {
+	_u.mutation.ResetOncallGroupID()
+	_u.mutation.SetOncallGroupID(v)
+	return _u
+}
+
+// SetNillableOncallGroupID sets the "oncall_group_id" field if the given value is not nil.
+func (_u *ServiceCustomerUpdate) SetNillableOncallGroupID(v *int) *ServiceCustomerUpdate {
+	if v != nil {
+		_u.SetOncallGroupID(*v)
+	}
+	return _u
+}
+
+// AddOncallGroupID adds value to the "oncall_group_id" field.
+func (_u *ServiceCustomerUpdate) AddOncallGroupID(v int) *ServiceCustomerUpdate {
+	_u.mutation.AddOncallGroupID(v)
+	return _u
+}
+
+// ClearOncallGroupID clears the value of the "oncall_group_id" field.
+func (_u *ServiceCustomerUpdate) ClearOncallGroupID() *ServiceCustomerUpdate {
+	_u.mutation.ClearOncallGroupID()
+	return _u
+}
+
+// SetBillingCurrency sets the "billing_currency" field.
+func (_u *ServiceCustomerUpdate) SetBillingCurrency(v string) *ServiceCustomerUpdate {
+	_u.mutation.SetBillingCurrency(v)
+	return _u
+}
+
+// SetNillableBillingCurrency sets the "billing_currency" field if the given value is not nil.
+func (_u *ServiceCustomerUpdate) SetNillableBillingCurrency(v *string) *ServiceCustomerUpdate {
+	if v != nil {
+		_u.SetBillingCurrency(*v)
+	}
+	return _u
+}
+
+// ClearBillingCurrency clears the value of the "billing_currency" field.
+func (_u *ServiceCustomerUpdate) ClearBillingCurrency() *ServiceCustomerUpdate {
+	_u.mutation.ClearBillingCurrency()
+	return _u
+}
+
+// SetPaymentTerms sets the "payment_terms" field.
+func (_u *ServiceCustomerUpdate) SetPaymentTerms(v string) *ServiceCustomerUpdate {
+	_u.mutation.SetPaymentTerms(v)
+	return _u
+}
+
+// SetNillablePaymentTerms sets the "payment_terms" field if the given value is not nil.
+func (_u *ServiceCustomerUpdate) SetNillablePaymentTerms(v *string) *ServiceCustomerUpdate {
+	if v != nil {
+		_u.SetPaymentTerms(*v)
+	}
+	return _u
+}
+
+// ClearPaymentTerms clears the value of the "payment_terms" field.
+func (_u *ServiceCustomerUpdate) ClearPaymentTerms() *ServiceCustomerUpdate {
+	_u.mutation.ClearPaymentTerms()
+	return _u
+}
+
+// SetCreditLimit sets the "credit_limit" field.
+func (_u *ServiceCustomerUpdate) SetCreditLimit(v float64) *ServiceCustomerUpdate {
+	_u.mutation.ResetCreditLimit()
+	_u.mutation.SetCreditLimit(v)
+	return _u
+}
+
+// SetNillableCreditLimit sets the "credit_limit" field if the given value is not nil.
+func (_u *ServiceCustomerUpdate) SetNillableCreditLimit(v *float64) *ServiceCustomerUpdate {
+	if v != nil {
+		_u.SetCreditLimit(*v)
+	}
+	return _u
+}
+
+// AddCreditLimit adds value to the "credit_limit" field.
+func (_u *ServiceCustomerUpdate) AddCreditLimit(v float64) *ServiceCustomerUpdate {
+	_u.mutation.AddCreditLimit(v)
+	return _u
+}
+
+// ClearCreditLimit clears the value of the "credit_limit" field.
+func (_u *ServiceCustomerUpdate) ClearCreditLimit() *ServiceCustomerUpdate {
+	_u.mutation.ClearCreditLimit()
+	return _u
+}
+
+// SetInvoiceTitle sets the "invoice_title" field.
+func (_u *ServiceCustomerUpdate) SetInvoiceTitle(v string) *ServiceCustomerUpdate {
+	_u.mutation.SetInvoiceTitle(v)
+	return _u
+}
+
+// SetNillableInvoiceTitle sets the "invoice_title" field if the given value is not nil.
+func (_u *ServiceCustomerUpdate) SetNillableInvoiceTitle(v *string) *ServiceCustomerUpdate {
+	if v != nil {
+		_u.SetInvoiceTitle(*v)
+	}
+	return _u
+}
+
+// ClearInvoiceTitle clears the value of the "invoice_title" field.
+func (_u *ServiceCustomerUpdate) ClearInvoiceTitle() *ServiceCustomerUpdate {
+	_u.mutation.ClearInvoiceTitle()
+	return _u
+}
+
+// SetBillingAddress sets the "billing_address" field.
+func (_u *ServiceCustomerUpdate) SetBillingAddress(v map[string]interface{}) *ServiceCustomerUpdate {
+	_u.mutation.SetBillingAddress(v)
+	return _u
+}
+
+// ClearBillingAddress clears the value of the "billing_address" field.
+func (_u *ServiceCustomerUpdate) ClearBillingAddress() *ServiceCustomerUpdate {
+	_u.mutation.ClearBillingAddress()
+	return _u
+}
+
+// SetLifecycleStage sets the "lifecycle_stage" field.
+func (_u *ServiceCustomerUpdate) SetLifecycleStage(v string) *ServiceCustomerUpdate {
+	_u.mutation.SetLifecycleStage(v)
+	return _u
+}
+
+// SetNillableLifecycleStage sets the "lifecycle_stage" field if the given value is not nil.
+func (_u *ServiceCustomerUpdate) SetNillableLifecycleStage(v *string) *ServiceCustomerUpdate {
+	if v != nil {
+		_u.SetLifecycleStage(*v)
+	}
+	return _u
+}
+
+// SetOnboardedAt sets the "onboarded_at" field.
+func (_u *ServiceCustomerUpdate) SetOnboardedAt(v time.Time) *ServiceCustomerUpdate {
+	_u.mutation.SetOnboardedAt(v)
+	return _u
+}
+
+// SetNillableOnboardedAt sets the "onboarded_at" field if the given value is not nil.
+func (_u *ServiceCustomerUpdate) SetNillableOnboardedAt(v *time.Time) *ServiceCustomerUpdate {
+	if v != nil {
+		_u.SetOnboardedAt(*v)
+	}
+	return _u
+}
+
+// ClearOnboardedAt clears the value of the "onboarded_at" field.
+func (_u *ServiceCustomerUpdate) ClearOnboardedAt() *ServiceCustomerUpdate {
+	_u.mutation.ClearOnboardedAt()
+	return _u
+}
+
+// SetContractStartAt sets the "contract_start_at" field.
+func (_u *ServiceCustomerUpdate) SetContractStartAt(v time.Time) *ServiceCustomerUpdate {
+	_u.mutation.SetContractStartAt(v)
+	return _u
+}
+
+// SetNillableContractStartAt sets the "contract_start_at" field if the given value is not nil.
+func (_u *ServiceCustomerUpdate) SetNillableContractStartAt(v *time.Time) *ServiceCustomerUpdate {
+	if v != nil {
+		_u.SetContractStartAt(*v)
+	}
+	return _u
+}
+
+// ClearContractStartAt clears the value of the "contract_start_at" field.
+func (_u *ServiceCustomerUpdate) ClearContractStartAt() *ServiceCustomerUpdate {
+	_u.mutation.ClearContractStartAt()
+	return _u
+}
+
+// SetContractEndAt sets the "contract_end_at" field.
+func (_u *ServiceCustomerUpdate) SetContractEndAt(v time.Time) *ServiceCustomerUpdate {
+	_u.mutation.SetContractEndAt(v)
+	return _u
+}
+
+// SetNillableContractEndAt sets the "contract_end_at" field if the given value is not nil.
+func (_u *ServiceCustomerUpdate) SetNillableContractEndAt(v *time.Time) *ServiceCustomerUpdate {
+	if v != nil {
+		_u.SetContractEndAt(*v)
+	}
+	return _u
+}
+
+// ClearContractEndAt clears the value of the "contract_end_at" field.
+func (_u *ServiceCustomerUpdate) ClearContractEndAt() *ServiceCustomerUpdate {
+	_u.mutation.ClearContractEndAt()
+	return _u
+}
+
+// SetChurnAt sets the "churn_at" field.
+func (_u *ServiceCustomerUpdate) SetChurnAt(v time.Time) *ServiceCustomerUpdate {
+	_u.mutation.SetChurnAt(v)
+	return _u
+}
+
+// SetNillableChurnAt sets the "churn_at" field if the given value is not nil.
+func (_u *ServiceCustomerUpdate) SetNillableChurnAt(v *time.Time) *ServiceCustomerUpdate {
+	if v != nil {
+		_u.SetChurnAt(*v)
+	}
+	return _u
+}
+
+// ClearChurnAt clears the value of the "churn_at" field.
+func (_u *ServiceCustomerUpdate) ClearChurnAt() *ServiceCustomerUpdate {
+	_u.mutation.ClearChurnAt()
+	return _u
+}
+
+// SetChurnReason sets the "churn_reason" field.
+func (_u *ServiceCustomerUpdate) SetChurnReason(v string) *ServiceCustomerUpdate {
+	_u.mutation.SetChurnReason(v)
+	return _u
+}
+
+// SetNillableChurnReason sets the "churn_reason" field if the given value is not nil.
+func (_u *ServiceCustomerUpdate) SetNillableChurnReason(v *string) *ServiceCustomerUpdate {
+	if v != nil {
+		_u.SetChurnReason(*v)
+	}
+	return _u
+}
+
+// ClearChurnReason clears the value of the "churn_reason" field.
+func (_u *ServiceCustomerUpdate) ClearChurnReason() *ServiceCustomerUpdate {
+	_u.mutation.ClearChurnReason()
+	return _u
+}
+
+// SetDataSource sets the "data_source" field.
+func (_u *ServiceCustomerUpdate) SetDataSource(v string) *ServiceCustomerUpdate {
+	_u.mutation.SetDataSource(v)
+	return _u
+}
+
+// SetNillableDataSource sets the "data_source" field if the given value is not nil.
+func (_u *ServiceCustomerUpdate) SetNillableDataSource(v *string) *ServiceCustomerUpdate {
+	if v != nil {
+		_u.SetDataSource(*v)
+	}
+	return _u
+}
+
+// SetDataQualityScore sets the "data_quality_score" field.
+func (_u *ServiceCustomerUpdate) SetDataQualityScore(v int16) *ServiceCustomerUpdate {
+	_u.mutation.ResetDataQualityScore()
+	_u.mutation.SetDataQualityScore(v)
+	return _u
+}
+
+// SetNillableDataQualityScore sets the "data_quality_score" field if the given value is not nil.
+func (_u *ServiceCustomerUpdate) SetNillableDataQualityScore(v *int16) *ServiceCustomerUpdate {
+	if v != nil {
+		_u.SetDataQualityScore(*v)
+	}
+	return _u
+}
+
+// AddDataQualityScore adds value to the "data_quality_score" field.
+func (_u *ServiceCustomerUpdate) AddDataQualityScore(v int16) *ServiceCustomerUpdate {
+	_u.mutation.AddDataQualityScore(v)
+	return _u
+}
+
+// SetMergedIntoID sets the "merged_into_id" field.
+func (_u *ServiceCustomerUpdate) SetMergedIntoID(v int) *ServiceCustomerUpdate {
+	_u.mutation.ResetMergedIntoID()
+	_u.mutation.SetMergedIntoID(v)
+	return _u
+}
+
+// SetNillableMergedIntoID sets the "merged_into_id" field if the given value is not nil.
+func (_u *ServiceCustomerUpdate) SetNillableMergedIntoID(v *int) *ServiceCustomerUpdate {
+	if v != nil {
+		_u.SetMergedIntoID(*v)
+	}
+	return _u
+}
+
+// AddMergedIntoID adds value to the "merged_into_id" field.
+func (_u *ServiceCustomerUpdate) AddMergedIntoID(v int) *ServiceCustomerUpdate {
+	_u.mutation.AddMergedIntoID(v)
+	return _u
+}
+
+// ClearMergedIntoID clears the value of the "merged_into_id" field.
+func (_u *ServiceCustomerUpdate) ClearMergedIntoID() *ServiceCustomerUpdate {
+	_u.mutation.ClearMergedIntoID()
+	return _u
+}
+
+// SetVersion sets the "version" field.
+func (_u *ServiceCustomerUpdate) SetVersion(v int64) *ServiceCustomerUpdate {
+	_u.mutation.ResetVersion()
+	_u.mutation.SetVersion(v)
+	return _u
+}
+
+// SetNillableVersion sets the "version" field if the given value is not nil.
+func (_u *ServiceCustomerUpdate) SetNillableVersion(v *int64) *ServiceCustomerUpdate {
+	if v != nil {
+		_u.SetVersion(*v)
+	}
+	return _u
+}
+
+// AddVersion adds value to the "version" field.
+func (_u *ServiceCustomerUpdate) AddVersion(v int64) *ServiceCustomerUpdate {
+	_u.mutation.AddVersion(v)
+	return _u
+}
+
+// SetDeletedAt sets the "deleted_at" field.
+func (_u *ServiceCustomerUpdate) SetDeletedAt(v time.Time) *ServiceCustomerUpdate {
+	_u.mutation.SetDeletedAt(v)
+	return _u
+}
+
+// SetNillableDeletedAt sets the "deleted_at" field if the given value is not nil.
+func (_u *ServiceCustomerUpdate) SetNillableDeletedAt(v *time.Time) *ServiceCustomerUpdate {
+	if v != nil {
+		_u.SetDeletedAt(*v)
+	}
+	return _u
+}
+
+// ClearDeletedAt clears the value of the "deleted_at" field.
+func (_u *ServiceCustomerUpdate) ClearDeletedAt() *ServiceCustomerUpdate {
+	_u.mutation.ClearDeletedAt()
+	return _u
+}
+
+// SetCreatedBy sets the "created_by" field.
+func (_u *ServiceCustomerUpdate) SetCreatedBy(v int) *ServiceCustomerUpdate {
+	_u.mutation.ResetCreatedBy()
+	_u.mutation.SetCreatedBy(v)
+	return _u
+}
+
+// SetNillableCreatedBy sets the "created_by" field if the given value is not nil.
+func (_u *ServiceCustomerUpdate) SetNillableCreatedBy(v *int) *ServiceCustomerUpdate {
+	if v != nil {
+		_u.SetCreatedBy(*v)
+	}
+	return _u
+}
+
+// AddCreatedBy adds value to the "created_by" field.
+func (_u *ServiceCustomerUpdate) AddCreatedBy(v int) *ServiceCustomerUpdate {
+	_u.mutation.AddCreatedBy(v)
+	return _u
+}
+
+// ClearCreatedBy clears the value of the "created_by" field.
+func (_u *ServiceCustomerUpdate) ClearCreatedBy() *ServiceCustomerUpdate {
+	_u.mutation.ClearCreatedBy()
+	return _u
+}
+
+// SetUpdatedBy sets the "updated_by" field.
+func (_u *ServiceCustomerUpdate) SetUpdatedBy(v int) *ServiceCustomerUpdate {
+	_u.mutation.ResetUpdatedBy()
+	_u.mutation.SetUpdatedBy(v)
+	return _u
+}
+
+// SetNillableUpdatedBy sets the "updated_by" field if the given value is not nil.
+func (_u *ServiceCustomerUpdate) SetNillableUpdatedBy(v *int) *ServiceCustomerUpdate {
+	if v != nil {
+		_u.SetUpdatedBy(*v)
+	}
+	return _u
+}
+
+// AddUpdatedBy adds value to the "updated_by" field.
+func (_u *ServiceCustomerUpdate) AddUpdatedBy(v int) *ServiceCustomerUpdate {
+	_u.mutation.AddUpdatedBy(v)
+	return _u
+}
+
+// ClearUpdatedBy clears the value of the "updated_by" field.
+func (_u *ServiceCustomerUpdate) ClearUpdatedBy() *ServiceCustomerUpdate {
+	_u.mutation.ClearUpdatedBy()
 	return _u
 }
 
@@ -354,6 +1324,11 @@ func (_u *ServiceCustomerUpdate) check() error {
 			return &ValidationError{Name: "tenant_id", err: fmt.Errorf(`ent: validator failed for field "ServiceCustomer.tenant_id": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.Code(); ok {
+		if err := servicecustomer.CodeValidator(v); err != nil {
+			return &ValidationError{Name: "code", err: fmt.Errorf(`ent: validator failed for field "ServiceCustomer.code": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.Name(); ok {
 		if err := servicecustomer.NameValidator(v); err != nil {
 			return &ValidationError{Name: "name", err: fmt.Errorf(`ent: validator failed for field "ServiceCustomer.name": %w`, err)}
@@ -367,6 +1342,136 @@ func (_u *ServiceCustomerUpdate) check() error {
 	if v, ok := _u.mutation.ShortName(); ok {
 		if err := servicecustomer.ShortNameValidator(v); err != nil {
 			return &ValidationError{Name: "short_name", err: fmt.Errorf(`ent: validator failed for field "ServiceCustomer.short_name": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.LegalName(); ok {
+		if err := servicecustomer.LegalNameValidator(v); err != nil {
+			return &ValidationError{Name: "legal_name", err: fmt.Errorf(`ent: validator failed for field "ServiceCustomer.legal_name": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.EnName(); ok {
+		if err := servicecustomer.EnNameValidator(v); err != nil {
+			return &ValidationError{Name: "en_name", err: fmt.Errorf(`ent: validator failed for field "ServiceCustomer.en_name": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.TaxID(); ok {
+		if err := servicecustomer.TaxIDValidator(v); err != nil {
+			return &ValidationError{Name: "tax_id", err: fmt.Errorf(`ent: validator failed for field "ServiceCustomer.tax_id": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.NormalizedTaxID(); ok {
+		if err := servicecustomer.NormalizedTaxIDValidator(v); err != nil {
+			return &ValidationError{Name: "normalized_tax_id", err: fmt.Errorf(`ent: validator failed for field "ServiceCustomer.normalized_tax_id": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.DunsNumber(); ok {
+		if err := servicecustomer.DunsNumberValidator(v); err != nil {
+			return &ValidationError{Name: "duns_number", err: fmt.Errorf(`ent: validator failed for field "ServiceCustomer.duns_number": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.RegistrationNo(); ok {
+		if err := servicecustomer.RegistrationNoValidator(v); err != nil {
+			return &ValidationError{Name: "registration_no", err: fmt.Errorf(`ent: validator failed for field "ServiceCustomer.registration_no": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.CustomerType(); ok {
+		if err := servicecustomer.CustomerTypeValidator(v); err != nil {
+			return &ValidationError{Name: "customer_type", err: fmt.Errorf(`ent: validator failed for field "ServiceCustomer.customer_type": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.Industry(); ok {
+		if err := servicecustomer.IndustryValidator(v); err != nil {
+			return &ValidationError{Name: "industry", err: fmt.Errorf(`ent: validator failed for field "ServiceCustomer.industry": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.SubIndustry(); ok {
+		if err := servicecustomer.SubIndustryValidator(v); err != nil {
+			return &ValidationError{Name: "sub_industry", err: fmt.Errorf(`ent: validator failed for field "ServiceCustomer.sub_industry": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.SizeClass(); ok {
+		if err := servicecustomer.SizeClassValidator(v); err != nil {
+			return &ValidationError{Name: "size_class", err: fmt.Errorf(`ent: validator failed for field "ServiceCustomer.size_class": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.OwnershipType(); ok {
+		if err := servicecustomer.OwnershipTypeValidator(v); err != nil {
+			return &ValidationError{Name: "ownership_type", err: fmt.Errorf(`ent: validator failed for field "ServiceCustomer.ownership_type": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.Tier(); ok {
+		if err := servicecustomer.TierValidator(v); err != nil {
+			return &ValidationError{Name: "tier", err: fmt.Errorf(`ent: validator failed for field "ServiceCustomer.tier": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.CreditRating(); ok {
+		if err := servicecustomer.CreditRatingValidator(v); err != nil {
+			return &ValidationError{Name: "credit_rating", err: fmt.Errorf(`ent: validator failed for field "ServiceCustomer.credit_rating": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.Website(); ok {
+		if err := servicecustomer.WebsiteValidator(v); err != nil {
+			return &ValidationError{Name: "website", err: fmt.Errorf(`ent: validator failed for field "ServiceCustomer.website": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.MainPhone(); ok {
+		if err := servicecustomer.MainPhoneValidator(v); err != nil {
+			return &ValidationError{Name: "main_phone", err: fmt.Errorf(`ent: validator failed for field "ServiceCustomer.main_phone": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.ServiceEmail(); ok {
+		if err := servicecustomer.ServiceEmailValidator(v); err != nil {
+			return &ValidationError{Name: "service_email", err: fmt.Errorf(`ent: validator failed for field "ServiceCustomer.service_email": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.Timezone(); ok {
+		if err := servicecustomer.TimezoneValidator(v); err != nil {
+			return &ValidationError{Name: "timezone", err: fmt.Errorf(`ent: validator failed for field "ServiceCustomer.timezone": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.Language(); ok {
+		if err := servicecustomer.LanguageValidator(v); err != nil {
+			return &ValidationError{Name: "language", err: fmt.Errorf(`ent: validator failed for field "ServiceCustomer.language": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.ServiceTier(); ok {
+		if err := servicecustomer.ServiceTierValidator(v); err != nil {
+			return &ValidationError{Name: "service_tier", err: fmt.Errorf(`ent: validator failed for field "ServiceCustomer.service_tier": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.SupportHours(); ok {
+		if err := servicecustomer.SupportHoursValidator(v); err != nil {
+			return &ValidationError{Name: "support_hours", err: fmt.Errorf(`ent: validator failed for field "ServiceCustomer.support_hours": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.BillingCurrency(); ok {
+		if err := servicecustomer.BillingCurrencyValidator(v); err != nil {
+			return &ValidationError{Name: "billing_currency", err: fmt.Errorf(`ent: validator failed for field "ServiceCustomer.billing_currency": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.PaymentTerms(); ok {
+		if err := servicecustomer.PaymentTermsValidator(v); err != nil {
+			return &ValidationError{Name: "payment_terms", err: fmt.Errorf(`ent: validator failed for field "ServiceCustomer.payment_terms": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.InvoiceTitle(); ok {
+		if err := servicecustomer.InvoiceTitleValidator(v); err != nil {
+			return &ValidationError{Name: "invoice_title", err: fmt.Errorf(`ent: validator failed for field "ServiceCustomer.invoice_title": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.LifecycleStage(); ok {
+		if err := servicecustomer.LifecycleStageValidator(v); err != nil {
+			return &ValidationError{Name: "lifecycle_stage", err: fmt.Errorf(`ent: validator failed for field "ServiceCustomer.lifecycle_stage": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.ChurnReason(); ok {
+		if err := servicecustomer.ChurnReasonValidator(v); err != nil {
+			return &ValidationError{Name: "churn_reason", err: fmt.Errorf(`ent: validator failed for field "ServiceCustomer.churn_reason": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.DataSource(); ok {
+		if err := servicecustomer.DataSourceValidator(v); err != nil {
+			return &ValidationError{Name: "data_source", err: fmt.Errorf(`ent: validator failed for field "ServiceCustomer.data_source": %w`, err)}
 		}
 	}
 	if v, ok := _u.mutation.Status(); ok {
@@ -395,6 +1500,12 @@ func (_u *ServiceCustomerUpdate) sqlSave(ctx context.Context) (_node int, err er
 	if value, ok := _u.mutation.AddedTenantID(); ok {
 		_spec.AddField(servicecustomer.FieldTenantID, field.TypeInt, value)
 	}
+	if value, ok := _u.mutation.Code(); ok {
+		_spec.SetField(servicecustomer.FieldCode, field.TypeString, value)
+	}
+	if _u.mutation.CodeCleared() {
+		_spec.ClearField(servicecustomer.FieldCode, field.TypeString)
+	}
 	if value, ok := _u.mutation.Name(); ok {
 		_spec.SetField(servicecustomer.FieldName, field.TypeString, value)
 	}
@@ -406,6 +1517,18 @@ func (_u *ServiceCustomerUpdate) sqlSave(ctx context.Context) (_node int, err er
 	}
 	if _u.mutation.ShortNameCleared() {
 		_spec.ClearField(servicecustomer.FieldShortName, field.TypeString)
+	}
+	if value, ok := _u.mutation.LegalName(); ok {
+		_spec.SetField(servicecustomer.FieldLegalName, field.TypeString, value)
+	}
+	if _u.mutation.LegalNameCleared() {
+		_spec.ClearField(servicecustomer.FieldLegalName, field.TypeString)
+	}
+	if value, ok := _u.mutation.EnName(); ok {
+		_spec.SetField(servicecustomer.FieldEnName, field.TypeString, value)
+	}
+	if _u.mutation.EnNameCleared() {
+		_spec.ClearField(servicecustomer.FieldEnName, field.TypeString)
 	}
 	if value, ok := _u.mutation.Aliases(); ok {
 		_spec.SetField(servicecustomer.FieldAliases, field.TypeJSON, value)
@@ -428,6 +1551,293 @@ func (_u *ServiceCustomerUpdate) sqlSave(ctx context.Context) (_node int, err er
 	}
 	if _u.mutation.HistoricalNamesCleared() {
 		_spec.ClearField(servicecustomer.FieldHistoricalNames, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.TaxID(); ok {
+		_spec.SetField(servicecustomer.FieldTaxID, field.TypeString, value)
+	}
+	if _u.mutation.TaxIDCleared() {
+		_spec.ClearField(servicecustomer.FieldTaxID, field.TypeString)
+	}
+	if value, ok := _u.mutation.NormalizedTaxID(); ok {
+		_spec.SetField(servicecustomer.FieldNormalizedTaxID, field.TypeString, value)
+	}
+	if _u.mutation.NormalizedTaxIDCleared() {
+		_spec.ClearField(servicecustomer.FieldNormalizedTaxID, field.TypeString)
+	}
+	if value, ok := _u.mutation.DunsNumber(); ok {
+		_spec.SetField(servicecustomer.FieldDunsNumber, field.TypeString, value)
+	}
+	if _u.mutation.DunsNumberCleared() {
+		_spec.ClearField(servicecustomer.FieldDunsNumber, field.TypeString)
+	}
+	if value, ok := _u.mutation.RegistrationNo(); ok {
+		_spec.SetField(servicecustomer.FieldRegistrationNo, field.TypeString, value)
+	}
+	if _u.mutation.RegistrationNoCleared() {
+		_spec.ClearField(servicecustomer.FieldRegistrationNo, field.TypeString)
+	}
+	if value, ok := _u.mutation.EmailDomains(); ok {
+		_spec.SetField(servicecustomer.FieldEmailDomains, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedEmailDomains(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, servicecustomer.FieldEmailDomains, value)
+		})
+	}
+	if _u.mutation.EmailDomainsCleared() {
+		_spec.ClearField(servicecustomer.FieldEmailDomains, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.CustomerType(); ok {
+		_spec.SetField(servicecustomer.FieldCustomerType, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.Industry(); ok {
+		_spec.SetField(servicecustomer.FieldIndustry, field.TypeString, value)
+	}
+	if _u.mutation.IndustryCleared() {
+		_spec.ClearField(servicecustomer.FieldIndustry, field.TypeString)
+	}
+	if value, ok := _u.mutation.SubIndustry(); ok {
+		_spec.SetField(servicecustomer.FieldSubIndustry, field.TypeString, value)
+	}
+	if _u.mutation.SubIndustryCleared() {
+		_spec.ClearField(servicecustomer.FieldSubIndustry, field.TypeString)
+	}
+	if value, ok := _u.mutation.SizeClass(); ok {
+		_spec.SetField(servicecustomer.FieldSizeClass, field.TypeString, value)
+	}
+	if _u.mutation.SizeClassCleared() {
+		_spec.ClearField(servicecustomer.FieldSizeClass, field.TypeString)
+	}
+	if value, ok := _u.mutation.OwnershipType(); ok {
+		_spec.SetField(servicecustomer.FieldOwnershipType, field.TypeString, value)
+	}
+	if _u.mutation.OwnershipTypeCleared() {
+		_spec.ClearField(servicecustomer.FieldOwnershipType, field.TypeString)
+	}
+	if value, ok := _u.mutation.Tier(); ok {
+		_spec.SetField(servicecustomer.FieldTier, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.VipLevel(); ok {
+		_spec.SetField(servicecustomer.FieldVipLevel, field.TypeInt16, value)
+	}
+	if value, ok := _u.mutation.AddedVipLevel(); ok {
+		_spec.AddField(servicecustomer.FieldVipLevel, field.TypeInt16, value)
+	}
+	if value, ok := _u.mutation.CreditRating(); ok {
+		_spec.SetField(servicecustomer.FieldCreditRating, field.TypeString, value)
+	}
+	if _u.mutation.CreditRatingCleared() {
+		_spec.ClearField(servicecustomer.FieldCreditRating, field.TypeString)
+	}
+	if value, ok := _u.mutation.Website(); ok {
+		_spec.SetField(servicecustomer.FieldWebsite, field.TypeString, value)
+	}
+	if _u.mutation.WebsiteCleared() {
+		_spec.ClearField(servicecustomer.FieldWebsite, field.TypeString)
+	}
+	if value, ok := _u.mutation.MainPhone(); ok {
+		_spec.SetField(servicecustomer.FieldMainPhone, field.TypeString, value)
+	}
+	if _u.mutation.MainPhoneCleared() {
+		_spec.ClearField(servicecustomer.FieldMainPhone, field.TypeString)
+	}
+	if value, ok := _u.mutation.ServiceEmail(); ok {
+		_spec.SetField(servicecustomer.FieldServiceEmail, field.TypeString, value)
+	}
+	if _u.mutation.ServiceEmailCleared() {
+		_spec.ClearField(servicecustomer.FieldServiceEmail, field.TypeString)
+	}
+	if value, ok := _u.mutation.Address(); ok {
+		_spec.SetField(servicecustomer.FieldAddress, field.TypeJSON, value)
+	}
+	if _u.mutation.AddressCleared() {
+		_spec.ClearField(servicecustomer.FieldAddress, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.Timezone(); ok {
+		_spec.SetField(servicecustomer.FieldTimezone, field.TypeString, value)
+	}
+	if _u.mutation.TimezoneCleared() {
+		_spec.ClearField(servicecustomer.FieldTimezone, field.TypeString)
+	}
+	if value, ok := _u.mutation.Language(); ok {
+		_spec.SetField(servicecustomer.FieldLanguage, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.ServiceTier(); ok {
+		_spec.SetField(servicecustomer.FieldServiceTier, field.TypeString, value)
+	}
+	if _u.mutation.ServiceTierCleared() {
+		_spec.ClearField(servicecustomer.FieldServiceTier, field.TypeString)
+	}
+	if value, ok := _u.mutation.SLADefinitionID(); ok {
+		_spec.SetField(servicecustomer.FieldSLADefinitionID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedSLADefinitionID(); ok {
+		_spec.AddField(servicecustomer.FieldSLADefinitionID, field.TypeInt, value)
+	}
+	if _u.mutation.SLADefinitionIDCleared() {
+		_spec.ClearField(servicecustomer.FieldSLADefinitionID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.SupportHours(); ok {
+		_spec.SetField(servicecustomer.FieldSupportHours, field.TypeString, value)
+	}
+	if _u.mutation.SupportHoursCleared() {
+		_spec.ClearField(servicecustomer.FieldSupportHours, field.TypeString)
+	}
+	if value, ok := _u.mutation.CoverageScope(); ok {
+		_spec.SetField(servicecustomer.FieldCoverageScope, field.TypeJSON, value)
+	}
+	if _u.mutation.CoverageScopeCleared() {
+		_spec.ClearField(servicecustomer.FieldCoverageScope, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.AccountManagerID(); ok {
+		_spec.SetField(servicecustomer.FieldAccountManagerID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedAccountManagerID(); ok {
+		_spec.AddField(servicecustomer.FieldAccountManagerID, field.TypeInt, value)
+	}
+	if _u.mutation.AccountManagerIDCleared() {
+		_spec.ClearField(servicecustomer.FieldAccountManagerID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.ServiceOwnerID(); ok {
+		_spec.SetField(servicecustomer.FieldServiceOwnerID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedServiceOwnerID(); ok {
+		_spec.AddField(servicecustomer.FieldServiceOwnerID, field.TypeInt, value)
+	}
+	if _u.mutation.ServiceOwnerIDCleared() {
+		_spec.ClearField(servicecustomer.FieldServiceOwnerID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.CsManagerID(); ok {
+		_spec.SetField(servicecustomer.FieldCsManagerID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedCsManagerID(); ok {
+		_spec.AddField(servicecustomer.FieldCsManagerID, field.TypeInt, value)
+	}
+	if _u.mutation.CsManagerIDCleared() {
+		_spec.ClearField(servicecustomer.FieldCsManagerID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.OncallGroupID(); ok {
+		_spec.SetField(servicecustomer.FieldOncallGroupID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedOncallGroupID(); ok {
+		_spec.AddField(servicecustomer.FieldOncallGroupID, field.TypeInt, value)
+	}
+	if _u.mutation.OncallGroupIDCleared() {
+		_spec.ClearField(servicecustomer.FieldOncallGroupID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.BillingCurrency(); ok {
+		_spec.SetField(servicecustomer.FieldBillingCurrency, field.TypeString, value)
+	}
+	if _u.mutation.BillingCurrencyCleared() {
+		_spec.ClearField(servicecustomer.FieldBillingCurrency, field.TypeString)
+	}
+	if value, ok := _u.mutation.PaymentTerms(); ok {
+		_spec.SetField(servicecustomer.FieldPaymentTerms, field.TypeString, value)
+	}
+	if _u.mutation.PaymentTermsCleared() {
+		_spec.ClearField(servicecustomer.FieldPaymentTerms, field.TypeString)
+	}
+	if value, ok := _u.mutation.CreditLimit(); ok {
+		_spec.SetField(servicecustomer.FieldCreditLimit, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedCreditLimit(); ok {
+		_spec.AddField(servicecustomer.FieldCreditLimit, field.TypeFloat64, value)
+	}
+	if _u.mutation.CreditLimitCleared() {
+		_spec.ClearField(servicecustomer.FieldCreditLimit, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.InvoiceTitle(); ok {
+		_spec.SetField(servicecustomer.FieldInvoiceTitle, field.TypeString, value)
+	}
+	if _u.mutation.InvoiceTitleCleared() {
+		_spec.ClearField(servicecustomer.FieldInvoiceTitle, field.TypeString)
+	}
+	if value, ok := _u.mutation.BillingAddress(); ok {
+		_spec.SetField(servicecustomer.FieldBillingAddress, field.TypeJSON, value)
+	}
+	if _u.mutation.BillingAddressCleared() {
+		_spec.ClearField(servicecustomer.FieldBillingAddress, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.LifecycleStage(); ok {
+		_spec.SetField(servicecustomer.FieldLifecycleStage, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.OnboardedAt(); ok {
+		_spec.SetField(servicecustomer.FieldOnboardedAt, field.TypeTime, value)
+	}
+	if _u.mutation.OnboardedAtCleared() {
+		_spec.ClearField(servicecustomer.FieldOnboardedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.ContractStartAt(); ok {
+		_spec.SetField(servicecustomer.FieldContractStartAt, field.TypeTime, value)
+	}
+	if _u.mutation.ContractStartAtCleared() {
+		_spec.ClearField(servicecustomer.FieldContractStartAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.ContractEndAt(); ok {
+		_spec.SetField(servicecustomer.FieldContractEndAt, field.TypeTime, value)
+	}
+	if _u.mutation.ContractEndAtCleared() {
+		_spec.ClearField(servicecustomer.FieldContractEndAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.ChurnAt(); ok {
+		_spec.SetField(servicecustomer.FieldChurnAt, field.TypeTime, value)
+	}
+	if _u.mutation.ChurnAtCleared() {
+		_spec.ClearField(servicecustomer.FieldChurnAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.ChurnReason(); ok {
+		_spec.SetField(servicecustomer.FieldChurnReason, field.TypeString, value)
+	}
+	if _u.mutation.ChurnReasonCleared() {
+		_spec.ClearField(servicecustomer.FieldChurnReason, field.TypeString)
+	}
+	if value, ok := _u.mutation.DataSource(); ok {
+		_spec.SetField(servicecustomer.FieldDataSource, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.DataQualityScore(); ok {
+		_spec.SetField(servicecustomer.FieldDataQualityScore, field.TypeInt16, value)
+	}
+	if value, ok := _u.mutation.AddedDataQualityScore(); ok {
+		_spec.AddField(servicecustomer.FieldDataQualityScore, field.TypeInt16, value)
+	}
+	if value, ok := _u.mutation.MergedIntoID(); ok {
+		_spec.SetField(servicecustomer.FieldMergedIntoID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedMergedIntoID(); ok {
+		_spec.AddField(servicecustomer.FieldMergedIntoID, field.TypeInt, value)
+	}
+	if _u.mutation.MergedIntoIDCleared() {
+		_spec.ClearField(servicecustomer.FieldMergedIntoID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.Version(); ok {
+		_spec.SetField(servicecustomer.FieldVersion, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedVersion(); ok {
+		_spec.AddField(servicecustomer.FieldVersion, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.DeletedAt(); ok {
+		_spec.SetField(servicecustomer.FieldDeletedAt, field.TypeTime, value)
+	}
+	if _u.mutation.DeletedAtCleared() {
+		_spec.ClearField(servicecustomer.FieldDeletedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.CreatedBy(); ok {
+		_spec.SetField(servicecustomer.FieldCreatedBy, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedCreatedBy(); ok {
+		_spec.AddField(servicecustomer.FieldCreatedBy, field.TypeInt, value)
+	}
+	if _u.mutation.CreatedByCleared() {
+		_spec.ClearField(servicecustomer.FieldCreatedBy, field.TypeInt)
+	}
+	if value, ok := _u.mutation.UpdatedBy(); ok {
+		_spec.SetField(servicecustomer.FieldUpdatedBy, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedUpdatedBy(); ok {
+		_spec.AddField(servicecustomer.FieldUpdatedBy, field.TypeInt, value)
+	}
+	if _u.mutation.UpdatedByCleared() {
+		_spec.ClearField(servicecustomer.FieldUpdatedBy, field.TypeInt)
 	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(servicecustomer.FieldStatus, field.TypeString, value)
@@ -623,6 +2033,26 @@ func (_u *ServiceCustomerUpdateOne) AddTenantID(v int) *ServiceCustomerUpdateOne
 	return _u
 }
 
+// SetCode sets the "code" field.
+func (_u *ServiceCustomerUpdateOne) SetCode(v string) *ServiceCustomerUpdateOne {
+	_u.mutation.SetCode(v)
+	return _u
+}
+
+// SetNillableCode sets the "code" field if the given value is not nil.
+func (_u *ServiceCustomerUpdateOne) SetNillableCode(v *string) *ServiceCustomerUpdateOne {
+	if v != nil {
+		_u.SetCode(*v)
+	}
+	return _u
+}
+
+// ClearCode clears the value of the "code" field.
+func (_u *ServiceCustomerUpdateOne) ClearCode() *ServiceCustomerUpdateOne {
+	_u.mutation.ClearCode()
+	return _u
+}
+
 // SetName sets the "name" field.
 func (_u *ServiceCustomerUpdateOne) SetName(v string) *ServiceCustomerUpdateOne {
 	_u.mutation.SetName(v)
@@ -671,6 +2101,46 @@ func (_u *ServiceCustomerUpdateOne) ClearShortName() *ServiceCustomerUpdateOne {
 	return _u
 }
 
+// SetLegalName sets the "legal_name" field.
+func (_u *ServiceCustomerUpdateOne) SetLegalName(v string) *ServiceCustomerUpdateOne {
+	_u.mutation.SetLegalName(v)
+	return _u
+}
+
+// SetNillableLegalName sets the "legal_name" field if the given value is not nil.
+func (_u *ServiceCustomerUpdateOne) SetNillableLegalName(v *string) *ServiceCustomerUpdateOne {
+	if v != nil {
+		_u.SetLegalName(*v)
+	}
+	return _u
+}
+
+// ClearLegalName clears the value of the "legal_name" field.
+func (_u *ServiceCustomerUpdateOne) ClearLegalName() *ServiceCustomerUpdateOne {
+	_u.mutation.ClearLegalName()
+	return _u
+}
+
+// SetEnName sets the "en_name" field.
+func (_u *ServiceCustomerUpdateOne) SetEnName(v string) *ServiceCustomerUpdateOne {
+	_u.mutation.SetEnName(v)
+	return _u
+}
+
+// SetNillableEnName sets the "en_name" field if the given value is not nil.
+func (_u *ServiceCustomerUpdateOne) SetNillableEnName(v *string) *ServiceCustomerUpdateOne {
+	if v != nil {
+		_u.SetEnName(*v)
+	}
+	return _u
+}
+
+// ClearEnName clears the value of the "en_name" field.
+func (_u *ServiceCustomerUpdateOne) ClearEnName() *ServiceCustomerUpdateOne {
+	_u.mutation.ClearEnName()
+	return _u
+}
+
 // SetAliases sets the "aliases" field.
 func (_u *ServiceCustomerUpdateOne) SetAliases(v []string) *ServiceCustomerUpdateOne {
 	_u.mutation.SetAliases(v)
@@ -704,6 +2174,916 @@ func (_u *ServiceCustomerUpdateOne) AppendHistoricalNames(v []string) *ServiceCu
 // ClearHistoricalNames clears the value of the "historical_names" field.
 func (_u *ServiceCustomerUpdateOne) ClearHistoricalNames() *ServiceCustomerUpdateOne {
 	_u.mutation.ClearHistoricalNames()
+	return _u
+}
+
+// SetTaxID sets the "tax_id" field.
+func (_u *ServiceCustomerUpdateOne) SetTaxID(v string) *ServiceCustomerUpdateOne {
+	_u.mutation.SetTaxID(v)
+	return _u
+}
+
+// SetNillableTaxID sets the "tax_id" field if the given value is not nil.
+func (_u *ServiceCustomerUpdateOne) SetNillableTaxID(v *string) *ServiceCustomerUpdateOne {
+	if v != nil {
+		_u.SetTaxID(*v)
+	}
+	return _u
+}
+
+// ClearTaxID clears the value of the "tax_id" field.
+func (_u *ServiceCustomerUpdateOne) ClearTaxID() *ServiceCustomerUpdateOne {
+	_u.mutation.ClearTaxID()
+	return _u
+}
+
+// SetNormalizedTaxID sets the "normalized_tax_id" field.
+func (_u *ServiceCustomerUpdateOne) SetNormalizedTaxID(v string) *ServiceCustomerUpdateOne {
+	_u.mutation.SetNormalizedTaxID(v)
+	return _u
+}
+
+// SetNillableNormalizedTaxID sets the "normalized_tax_id" field if the given value is not nil.
+func (_u *ServiceCustomerUpdateOne) SetNillableNormalizedTaxID(v *string) *ServiceCustomerUpdateOne {
+	if v != nil {
+		_u.SetNormalizedTaxID(*v)
+	}
+	return _u
+}
+
+// ClearNormalizedTaxID clears the value of the "normalized_tax_id" field.
+func (_u *ServiceCustomerUpdateOne) ClearNormalizedTaxID() *ServiceCustomerUpdateOne {
+	_u.mutation.ClearNormalizedTaxID()
+	return _u
+}
+
+// SetDunsNumber sets the "duns_number" field.
+func (_u *ServiceCustomerUpdateOne) SetDunsNumber(v string) *ServiceCustomerUpdateOne {
+	_u.mutation.SetDunsNumber(v)
+	return _u
+}
+
+// SetNillableDunsNumber sets the "duns_number" field if the given value is not nil.
+func (_u *ServiceCustomerUpdateOne) SetNillableDunsNumber(v *string) *ServiceCustomerUpdateOne {
+	if v != nil {
+		_u.SetDunsNumber(*v)
+	}
+	return _u
+}
+
+// ClearDunsNumber clears the value of the "duns_number" field.
+func (_u *ServiceCustomerUpdateOne) ClearDunsNumber() *ServiceCustomerUpdateOne {
+	_u.mutation.ClearDunsNumber()
+	return _u
+}
+
+// SetRegistrationNo sets the "registration_no" field.
+func (_u *ServiceCustomerUpdateOne) SetRegistrationNo(v string) *ServiceCustomerUpdateOne {
+	_u.mutation.SetRegistrationNo(v)
+	return _u
+}
+
+// SetNillableRegistrationNo sets the "registration_no" field if the given value is not nil.
+func (_u *ServiceCustomerUpdateOne) SetNillableRegistrationNo(v *string) *ServiceCustomerUpdateOne {
+	if v != nil {
+		_u.SetRegistrationNo(*v)
+	}
+	return _u
+}
+
+// ClearRegistrationNo clears the value of the "registration_no" field.
+func (_u *ServiceCustomerUpdateOne) ClearRegistrationNo() *ServiceCustomerUpdateOne {
+	_u.mutation.ClearRegistrationNo()
+	return _u
+}
+
+// SetEmailDomains sets the "email_domains" field.
+func (_u *ServiceCustomerUpdateOne) SetEmailDomains(v []string) *ServiceCustomerUpdateOne {
+	_u.mutation.SetEmailDomains(v)
+	return _u
+}
+
+// AppendEmailDomains appends value to the "email_domains" field.
+func (_u *ServiceCustomerUpdateOne) AppendEmailDomains(v []string) *ServiceCustomerUpdateOne {
+	_u.mutation.AppendEmailDomains(v)
+	return _u
+}
+
+// ClearEmailDomains clears the value of the "email_domains" field.
+func (_u *ServiceCustomerUpdateOne) ClearEmailDomains() *ServiceCustomerUpdateOne {
+	_u.mutation.ClearEmailDomains()
+	return _u
+}
+
+// SetCustomerType sets the "customer_type" field.
+func (_u *ServiceCustomerUpdateOne) SetCustomerType(v string) *ServiceCustomerUpdateOne {
+	_u.mutation.SetCustomerType(v)
+	return _u
+}
+
+// SetNillableCustomerType sets the "customer_type" field if the given value is not nil.
+func (_u *ServiceCustomerUpdateOne) SetNillableCustomerType(v *string) *ServiceCustomerUpdateOne {
+	if v != nil {
+		_u.SetCustomerType(*v)
+	}
+	return _u
+}
+
+// SetIndustry sets the "industry" field.
+func (_u *ServiceCustomerUpdateOne) SetIndustry(v string) *ServiceCustomerUpdateOne {
+	_u.mutation.SetIndustry(v)
+	return _u
+}
+
+// SetNillableIndustry sets the "industry" field if the given value is not nil.
+func (_u *ServiceCustomerUpdateOne) SetNillableIndustry(v *string) *ServiceCustomerUpdateOne {
+	if v != nil {
+		_u.SetIndustry(*v)
+	}
+	return _u
+}
+
+// ClearIndustry clears the value of the "industry" field.
+func (_u *ServiceCustomerUpdateOne) ClearIndustry() *ServiceCustomerUpdateOne {
+	_u.mutation.ClearIndustry()
+	return _u
+}
+
+// SetSubIndustry sets the "sub_industry" field.
+func (_u *ServiceCustomerUpdateOne) SetSubIndustry(v string) *ServiceCustomerUpdateOne {
+	_u.mutation.SetSubIndustry(v)
+	return _u
+}
+
+// SetNillableSubIndustry sets the "sub_industry" field if the given value is not nil.
+func (_u *ServiceCustomerUpdateOne) SetNillableSubIndustry(v *string) *ServiceCustomerUpdateOne {
+	if v != nil {
+		_u.SetSubIndustry(*v)
+	}
+	return _u
+}
+
+// ClearSubIndustry clears the value of the "sub_industry" field.
+func (_u *ServiceCustomerUpdateOne) ClearSubIndustry() *ServiceCustomerUpdateOne {
+	_u.mutation.ClearSubIndustry()
+	return _u
+}
+
+// SetSizeClass sets the "size_class" field.
+func (_u *ServiceCustomerUpdateOne) SetSizeClass(v string) *ServiceCustomerUpdateOne {
+	_u.mutation.SetSizeClass(v)
+	return _u
+}
+
+// SetNillableSizeClass sets the "size_class" field if the given value is not nil.
+func (_u *ServiceCustomerUpdateOne) SetNillableSizeClass(v *string) *ServiceCustomerUpdateOne {
+	if v != nil {
+		_u.SetSizeClass(*v)
+	}
+	return _u
+}
+
+// ClearSizeClass clears the value of the "size_class" field.
+func (_u *ServiceCustomerUpdateOne) ClearSizeClass() *ServiceCustomerUpdateOne {
+	_u.mutation.ClearSizeClass()
+	return _u
+}
+
+// SetOwnershipType sets the "ownership_type" field.
+func (_u *ServiceCustomerUpdateOne) SetOwnershipType(v string) *ServiceCustomerUpdateOne {
+	_u.mutation.SetOwnershipType(v)
+	return _u
+}
+
+// SetNillableOwnershipType sets the "ownership_type" field if the given value is not nil.
+func (_u *ServiceCustomerUpdateOne) SetNillableOwnershipType(v *string) *ServiceCustomerUpdateOne {
+	if v != nil {
+		_u.SetOwnershipType(*v)
+	}
+	return _u
+}
+
+// ClearOwnershipType clears the value of the "ownership_type" field.
+func (_u *ServiceCustomerUpdateOne) ClearOwnershipType() *ServiceCustomerUpdateOne {
+	_u.mutation.ClearOwnershipType()
+	return _u
+}
+
+// SetTier sets the "tier" field.
+func (_u *ServiceCustomerUpdateOne) SetTier(v string) *ServiceCustomerUpdateOne {
+	_u.mutation.SetTier(v)
+	return _u
+}
+
+// SetNillableTier sets the "tier" field if the given value is not nil.
+func (_u *ServiceCustomerUpdateOne) SetNillableTier(v *string) *ServiceCustomerUpdateOne {
+	if v != nil {
+		_u.SetTier(*v)
+	}
+	return _u
+}
+
+// SetVipLevel sets the "vip_level" field.
+func (_u *ServiceCustomerUpdateOne) SetVipLevel(v int16) *ServiceCustomerUpdateOne {
+	_u.mutation.ResetVipLevel()
+	_u.mutation.SetVipLevel(v)
+	return _u
+}
+
+// SetNillableVipLevel sets the "vip_level" field if the given value is not nil.
+func (_u *ServiceCustomerUpdateOne) SetNillableVipLevel(v *int16) *ServiceCustomerUpdateOne {
+	if v != nil {
+		_u.SetVipLevel(*v)
+	}
+	return _u
+}
+
+// AddVipLevel adds value to the "vip_level" field.
+func (_u *ServiceCustomerUpdateOne) AddVipLevel(v int16) *ServiceCustomerUpdateOne {
+	_u.mutation.AddVipLevel(v)
+	return _u
+}
+
+// SetCreditRating sets the "credit_rating" field.
+func (_u *ServiceCustomerUpdateOne) SetCreditRating(v string) *ServiceCustomerUpdateOne {
+	_u.mutation.SetCreditRating(v)
+	return _u
+}
+
+// SetNillableCreditRating sets the "credit_rating" field if the given value is not nil.
+func (_u *ServiceCustomerUpdateOne) SetNillableCreditRating(v *string) *ServiceCustomerUpdateOne {
+	if v != nil {
+		_u.SetCreditRating(*v)
+	}
+	return _u
+}
+
+// ClearCreditRating clears the value of the "credit_rating" field.
+func (_u *ServiceCustomerUpdateOne) ClearCreditRating() *ServiceCustomerUpdateOne {
+	_u.mutation.ClearCreditRating()
+	return _u
+}
+
+// SetWebsite sets the "website" field.
+func (_u *ServiceCustomerUpdateOne) SetWebsite(v string) *ServiceCustomerUpdateOne {
+	_u.mutation.SetWebsite(v)
+	return _u
+}
+
+// SetNillableWebsite sets the "website" field if the given value is not nil.
+func (_u *ServiceCustomerUpdateOne) SetNillableWebsite(v *string) *ServiceCustomerUpdateOne {
+	if v != nil {
+		_u.SetWebsite(*v)
+	}
+	return _u
+}
+
+// ClearWebsite clears the value of the "website" field.
+func (_u *ServiceCustomerUpdateOne) ClearWebsite() *ServiceCustomerUpdateOne {
+	_u.mutation.ClearWebsite()
+	return _u
+}
+
+// SetMainPhone sets the "main_phone" field.
+func (_u *ServiceCustomerUpdateOne) SetMainPhone(v string) *ServiceCustomerUpdateOne {
+	_u.mutation.SetMainPhone(v)
+	return _u
+}
+
+// SetNillableMainPhone sets the "main_phone" field if the given value is not nil.
+func (_u *ServiceCustomerUpdateOne) SetNillableMainPhone(v *string) *ServiceCustomerUpdateOne {
+	if v != nil {
+		_u.SetMainPhone(*v)
+	}
+	return _u
+}
+
+// ClearMainPhone clears the value of the "main_phone" field.
+func (_u *ServiceCustomerUpdateOne) ClearMainPhone() *ServiceCustomerUpdateOne {
+	_u.mutation.ClearMainPhone()
+	return _u
+}
+
+// SetServiceEmail sets the "service_email" field.
+func (_u *ServiceCustomerUpdateOne) SetServiceEmail(v string) *ServiceCustomerUpdateOne {
+	_u.mutation.SetServiceEmail(v)
+	return _u
+}
+
+// SetNillableServiceEmail sets the "service_email" field if the given value is not nil.
+func (_u *ServiceCustomerUpdateOne) SetNillableServiceEmail(v *string) *ServiceCustomerUpdateOne {
+	if v != nil {
+		_u.SetServiceEmail(*v)
+	}
+	return _u
+}
+
+// ClearServiceEmail clears the value of the "service_email" field.
+func (_u *ServiceCustomerUpdateOne) ClearServiceEmail() *ServiceCustomerUpdateOne {
+	_u.mutation.ClearServiceEmail()
+	return _u
+}
+
+// SetAddress sets the "address" field.
+func (_u *ServiceCustomerUpdateOne) SetAddress(v map[string]interface{}) *ServiceCustomerUpdateOne {
+	_u.mutation.SetAddress(v)
+	return _u
+}
+
+// ClearAddress clears the value of the "address" field.
+func (_u *ServiceCustomerUpdateOne) ClearAddress() *ServiceCustomerUpdateOne {
+	_u.mutation.ClearAddress()
+	return _u
+}
+
+// SetTimezone sets the "timezone" field.
+func (_u *ServiceCustomerUpdateOne) SetTimezone(v string) *ServiceCustomerUpdateOne {
+	_u.mutation.SetTimezone(v)
+	return _u
+}
+
+// SetNillableTimezone sets the "timezone" field if the given value is not nil.
+func (_u *ServiceCustomerUpdateOne) SetNillableTimezone(v *string) *ServiceCustomerUpdateOne {
+	if v != nil {
+		_u.SetTimezone(*v)
+	}
+	return _u
+}
+
+// ClearTimezone clears the value of the "timezone" field.
+func (_u *ServiceCustomerUpdateOne) ClearTimezone() *ServiceCustomerUpdateOne {
+	_u.mutation.ClearTimezone()
+	return _u
+}
+
+// SetLanguage sets the "language" field.
+func (_u *ServiceCustomerUpdateOne) SetLanguage(v string) *ServiceCustomerUpdateOne {
+	_u.mutation.SetLanguage(v)
+	return _u
+}
+
+// SetNillableLanguage sets the "language" field if the given value is not nil.
+func (_u *ServiceCustomerUpdateOne) SetNillableLanguage(v *string) *ServiceCustomerUpdateOne {
+	if v != nil {
+		_u.SetLanguage(*v)
+	}
+	return _u
+}
+
+// SetServiceTier sets the "service_tier" field.
+func (_u *ServiceCustomerUpdateOne) SetServiceTier(v string) *ServiceCustomerUpdateOne {
+	_u.mutation.SetServiceTier(v)
+	return _u
+}
+
+// SetNillableServiceTier sets the "service_tier" field if the given value is not nil.
+func (_u *ServiceCustomerUpdateOne) SetNillableServiceTier(v *string) *ServiceCustomerUpdateOne {
+	if v != nil {
+		_u.SetServiceTier(*v)
+	}
+	return _u
+}
+
+// ClearServiceTier clears the value of the "service_tier" field.
+func (_u *ServiceCustomerUpdateOne) ClearServiceTier() *ServiceCustomerUpdateOne {
+	_u.mutation.ClearServiceTier()
+	return _u
+}
+
+// SetSLADefinitionID sets the "sla_definition_id" field.
+func (_u *ServiceCustomerUpdateOne) SetSLADefinitionID(v int) *ServiceCustomerUpdateOne {
+	_u.mutation.ResetSLADefinitionID()
+	_u.mutation.SetSLADefinitionID(v)
+	return _u
+}
+
+// SetNillableSLADefinitionID sets the "sla_definition_id" field if the given value is not nil.
+func (_u *ServiceCustomerUpdateOne) SetNillableSLADefinitionID(v *int) *ServiceCustomerUpdateOne {
+	if v != nil {
+		_u.SetSLADefinitionID(*v)
+	}
+	return _u
+}
+
+// AddSLADefinitionID adds value to the "sla_definition_id" field.
+func (_u *ServiceCustomerUpdateOne) AddSLADefinitionID(v int) *ServiceCustomerUpdateOne {
+	_u.mutation.AddSLADefinitionID(v)
+	return _u
+}
+
+// ClearSLADefinitionID clears the value of the "sla_definition_id" field.
+func (_u *ServiceCustomerUpdateOne) ClearSLADefinitionID() *ServiceCustomerUpdateOne {
+	_u.mutation.ClearSLADefinitionID()
+	return _u
+}
+
+// SetSupportHours sets the "support_hours" field.
+func (_u *ServiceCustomerUpdateOne) SetSupportHours(v string) *ServiceCustomerUpdateOne {
+	_u.mutation.SetSupportHours(v)
+	return _u
+}
+
+// SetNillableSupportHours sets the "support_hours" field if the given value is not nil.
+func (_u *ServiceCustomerUpdateOne) SetNillableSupportHours(v *string) *ServiceCustomerUpdateOne {
+	if v != nil {
+		_u.SetSupportHours(*v)
+	}
+	return _u
+}
+
+// ClearSupportHours clears the value of the "support_hours" field.
+func (_u *ServiceCustomerUpdateOne) ClearSupportHours() *ServiceCustomerUpdateOne {
+	_u.mutation.ClearSupportHours()
+	return _u
+}
+
+// SetCoverageScope sets the "coverage_scope" field.
+func (_u *ServiceCustomerUpdateOne) SetCoverageScope(v map[string]interface{}) *ServiceCustomerUpdateOne {
+	_u.mutation.SetCoverageScope(v)
+	return _u
+}
+
+// ClearCoverageScope clears the value of the "coverage_scope" field.
+func (_u *ServiceCustomerUpdateOne) ClearCoverageScope() *ServiceCustomerUpdateOne {
+	_u.mutation.ClearCoverageScope()
+	return _u
+}
+
+// SetAccountManagerID sets the "account_manager_id" field.
+func (_u *ServiceCustomerUpdateOne) SetAccountManagerID(v int) *ServiceCustomerUpdateOne {
+	_u.mutation.ResetAccountManagerID()
+	_u.mutation.SetAccountManagerID(v)
+	return _u
+}
+
+// SetNillableAccountManagerID sets the "account_manager_id" field if the given value is not nil.
+func (_u *ServiceCustomerUpdateOne) SetNillableAccountManagerID(v *int) *ServiceCustomerUpdateOne {
+	if v != nil {
+		_u.SetAccountManagerID(*v)
+	}
+	return _u
+}
+
+// AddAccountManagerID adds value to the "account_manager_id" field.
+func (_u *ServiceCustomerUpdateOne) AddAccountManagerID(v int) *ServiceCustomerUpdateOne {
+	_u.mutation.AddAccountManagerID(v)
+	return _u
+}
+
+// ClearAccountManagerID clears the value of the "account_manager_id" field.
+func (_u *ServiceCustomerUpdateOne) ClearAccountManagerID() *ServiceCustomerUpdateOne {
+	_u.mutation.ClearAccountManagerID()
+	return _u
+}
+
+// SetServiceOwnerID sets the "service_owner_id" field.
+func (_u *ServiceCustomerUpdateOne) SetServiceOwnerID(v int) *ServiceCustomerUpdateOne {
+	_u.mutation.ResetServiceOwnerID()
+	_u.mutation.SetServiceOwnerID(v)
+	return _u
+}
+
+// SetNillableServiceOwnerID sets the "service_owner_id" field if the given value is not nil.
+func (_u *ServiceCustomerUpdateOne) SetNillableServiceOwnerID(v *int) *ServiceCustomerUpdateOne {
+	if v != nil {
+		_u.SetServiceOwnerID(*v)
+	}
+	return _u
+}
+
+// AddServiceOwnerID adds value to the "service_owner_id" field.
+func (_u *ServiceCustomerUpdateOne) AddServiceOwnerID(v int) *ServiceCustomerUpdateOne {
+	_u.mutation.AddServiceOwnerID(v)
+	return _u
+}
+
+// ClearServiceOwnerID clears the value of the "service_owner_id" field.
+func (_u *ServiceCustomerUpdateOne) ClearServiceOwnerID() *ServiceCustomerUpdateOne {
+	_u.mutation.ClearServiceOwnerID()
+	return _u
+}
+
+// SetCsManagerID sets the "cs_manager_id" field.
+func (_u *ServiceCustomerUpdateOne) SetCsManagerID(v int) *ServiceCustomerUpdateOne {
+	_u.mutation.ResetCsManagerID()
+	_u.mutation.SetCsManagerID(v)
+	return _u
+}
+
+// SetNillableCsManagerID sets the "cs_manager_id" field if the given value is not nil.
+func (_u *ServiceCustomerUpdateOne) SetNillableCsManagerID(v *int) *ServiceCustomerUpdateOne {
+	if v != nil {
+		_u.SetCsManagerID(*v)
+	}
+	return _u
+}
+
+// AddCsManagerID adds value to the "cs_manager_id" field.
+func (_u *ServiceCustomerUpdateOne) AddCsManagerID(v int) *ServiceCustomerUpdateOne {
+	_u.mutation.AddCsManagerID(v)
+	return _u
+}
+
+// ClearCsManagerID clears the value of the "cs_manager_id" field.
+func (_u *ServiceCustomerUpdateOne) ClearCsManagerID() *ServiceCustomerUpdateOne {
+	_u.mutation.ClearCsManagerID()
+	return _u
+}
+
+// SetOncallGroupID sets the "oncall_group_id" field.
+func (_u *ServiceCustomerUpdateOne) SetOncallGroupID(v int) *ServiceCustomerUpdateOne {
+	_u.mutation.ResetOncallGroupID()
+	_u.mutation.SetOncallGroupID(v)
+	return _u
+}
+
+// SetNillableOncallGroupID sets the "oncall_group_id" field if the given value is not nil.
+func (_u *ServiceCustomerUpdateOne) SetNillableOncallGroupID(v *int) *ServiceCustomerUpdateOne {
+	if v != nil {
+		_u.SetOncallGroupID(*v)
+	}
+	return _u
+}
+
+// AddOncallGroupID adds value to the "oncall_group_id" field.
+func (_u *ServiceCustomerUpdateOne) AddOncallGroupID(v int) *ServiceCustomerUpdateOne {
+	_u.mutation.AddOncallGroupID(v)
+	return _u
+}
+
+// ClearOncallGroupID clears the value of the "oncall_group_id" field.
+func (_u *ServiceCustomerUpdateOne) ClearOncallGroupID() *ServiceCustomerUpdateOne {
+	_u.mutation.ClearOncallGroupID()
+	return _u
+}
+
+// SetBillingCurrency sets the "billing_currency" field.
+func (_u *ServiceCustomerUpdateOne) SetBillingCurrency(v string) *ServiceCustomerUpdateOne {
+	_u.mutation.SetBillingCurrency(v)
+	return _u
+}
+
+// SetNillableBillingCurrency sets the "billing_currency" field if the given value is not nil.
+func (_u *ServiceCustomerUpdateOne) SetNillableBillingCurrency(v *string) *ServiceCustomerUpdateOne {
+	if v != nil {
+		_u.SetBillingCurrency(*v)
+	}
+	return _u
+}
+
+// ClearBillingCurrency clears the value of the "billing_currency" field.
+func (_u *ServiceCustomerUpdateOne) ClearBillingCurrency() *ServiceCustomerUpdateOne {
+	_u.mutation.ClearBillingCurrency()
+	return _u
+}
+
+// SetPaymentTerms sets the "payment_terms" field.
+func (_u *ServiceCustomerUpdateOne) SetPaymentTerms(v string) *ServiceCustomerUpdateOne {
+	_u.mutation.SetPaymentTerms(v)
+	return _u
+}
+
+// SetNillablePaymentTerms sets the "payment_terms" field if the given value is not nil.
+func (_u *ServiceCustomerUpdateOne) SetNillablePaymentTerms(v *string) *ServiceCustomerUpdateOne {
+	if v != nil {
+		_u.SetPaymentTerms(*v)
+	}
+	return _u
+}
+
+// ClearPaymentTerms clears the value of the "payment_terms" field.
+func (_u *ServiceCustomerUpdateOne) ClearPaymentTerms() *ServiceCustomerUpdateOne {
+	_u.mutation.ClearPaymentTerms()
+	return _u
+}
+
+// SetCreditLimit sets the "credit_limit" field.
+func (_u *ServiceCustomerUpdateOne) SetCreditLimit(v float64) *ServiceCustomerUpdateOne {
+	_u.mutation.ResetCreditLimit()
+	_u.mutation.SetCreditLimit(v)
+	return _u
+}
+
+// SetNillableCreditLimit sets the "credit_limit" field if the given value is not nil.
+func (_u *ServiceCustomerUpdateOne) SetNillableCreditLimit(v *float64) *ServiceCustomerUpdateOne {
+	if v != nil {
+		_u.SetCreditLimit(*v)
+	}
+	return _u
+}
+
+// AddCreditLimit adds value to the "credit_limit" field.
+func (_u *ServiceCustomerUpdateOne) AddCreditLimit(v float64) *ServiceCustomerUpdateOne {
+	_u.mutation.AddCreditLimit(v)
+	return _u
+}
+
+// ClearCreditLimit clears the value of the "credit_limit" field.
+func (_u *ServiceCustomerUpdateOne) ClearCreditLimit() *ServiceCustomerUpdateOne {
+	_u.mutation.ClearCreditLimit()
+	return _u
+}
+
+// SetInvoiceTitle sets the "invoice_title" field.
+func (_u *ServiceCustomerUpdateOne) SetInvoiceTitle(v string) *ServiceCustomerUpdateOne {
+	_u.mutation.SetInvoiceTitle(v)
+	return _u
+}
+
+// SetNillableInvoiceTitle sets the "invoice_title" field if the given value is not nil.
+func (_u *ServiceCustomerUpdateOne) SetNillableInvoiceTitle(v *string) *ServiceCustomerUpdateOne {
+	if v != nil {
+		_u.SetInvoiceTitle(*v)
+	}
+	return _u
+}
+
+// ClearInvoiceTitle clears the value of the "invoice_title" field.
+func (_u *ServiceCustomerUpdateOne) ClearInvoiceTitle() *ServiceCustomerUpdateOne {
+	_u.mutation.ClearInvoiceTitle()
+	return _u
+}
+
+// SetBillingAddress sets the "billing_address" field.
+func (_u *ServiceCustomerUpdateOne) SetBillingAddress(v map[string]interface{}) *ServiceCustomerUpdateOne {
+	_u.mutation.SetBillingAddress(v)
+	return _u
+}
+
+// ClearBillingAddress clears the value of the "billing_address" field.
+func (_u *ServiceCustomerUpdateOne) ClearBillingAddress() *ServiceCustomerUpdateOne {
+	_u.mutation.ClearBillingAddress()
+	return _u
+}
+
+// SetLifecycleStage sets the "lifecycle_stage" field.
+func (_u *ServiceCustomerUpdateOne) SetLifecycleStage(v string) *ServiceCustomerUpdateOne {
+	_u.mutation.SetLifecycleStage(v)
+	return _u
+}
+
+// SetNillableLifecycleStage sets the "lifecycle_stage" field if the given value is not nil.
+func (_u *ServiceCustomerUpdateOne) SetNillableLifecycleStage(v *string) *ServiceCustomerUpdateOne {
+	if v != nil {
+		_u.SetLifecycleStage(*v)
+	}
+	return _u
+}
+
+// SetOnboardedAt sets the "onboarded_at" field.
+func (_u *ServiceCustomerUpdateOne) SetOnboardedAt(v time.Time) *ServiceCustomerUpdateOne {
+	_u.mutation.SetOnboardedAt(v)
+	return _u
+}
+
+// SetNillableOnboardedAt sets the "onboarded_at" field if the given value is not nil.
+func (_u *ServiceCustomerUpdateOne) SetNillableOnboardedAt(v *time.Time) *ServiceCustomerUpdateOne {
+	if v != nil {
+		_u.SetOnboardedAt(*v)
+	}
+	return _u
+}
+
+// ClearOnboardedAt clears the value of the "onboarded_at" field.
+func (_u *ServiceCustomerUpdateOne) ClearOnboardedAt() *ServiceCustomerUpdateOne {
+	_u.mutation.ClearOnboardedAt()
+	return _u
+}
+
+// SetContractStartAt sets the "contract_start_at" field.
+func (_u *ServiceCustomerUpdateOne) SetContractStartAt(v time.Time) *ServiceCustomerUpdateOne {
+	_u.mutation.SetContractStartAt(v)
+	return _u
+}
+
+// SetNillableContractStartAt sets the "contract_start_at" field if the given value is not nil.
+func (_u *ServiceCustomerUpdateOne) SetNillableContractStartAt(v *time.Time) *ServiceCustomerUpdateOne {
+	if v != nil {
+		_u.SetContractStartAt(*v)
+	}
+	return _u
+}
+
+// ClearContractStartAt clears the value of the "contract_start_at" field.
+func (_u *ServiceCustomerUpdateOne) ClearContractStartAt() *ServiceCustomerUpdateOne {
+	_u.mutation.ClearContractStartAt()
+	return _u
+}
+
+// SetContractEndAt sets the "contract_end_at" field.
+func (_u *ServiceCustomerUpdateOne) SetContractEndAt(v time.Time) *ServiceCustomerUpdateOne {
+	_u.mutation.SetContractEndAt(v)
+	return _u
+}
+
+// SetNillableContractEndAt sets the "contract_end_at" field if the given value is not nil.
+func (_u *ServiceCustomerUpdateOne) SetNillableContractEndAt(v *time.Time) *ServiceCustomerUpdateOne {
+	if v != nil {
+		_u.SetContractEndAt(*v)
+	}
+	return _u
+}
+
+// ClearContractEndAt clears the value of the "contract_end_at" field.
+func (_u *ServiceCustomerUpdateOne) ClearContractEndAt() *ServiceCustomerUpdateOne {
+	_u.mutation.ClearContractEndAt()
+	return _u
+}
+
+// SetChurnAt sets the "churn_at" field.
+func (_u *ServiceCustomerUpdateOne) SetChurnAt(v time.Time) *ServiceCustomerUpdateOne {
+	_u.mutation.SetChurnAt(v)
+	return _u
+}
+
+// SetNillableChurnAt sets the "churn_at" field if the given value is not nil.
+func (_u *ServiceCustomerUpdateOne) SetNillableChurnAt(v *time.Time) *ServiceCustomerUpdateOne {
+	if v != nil {
+		_u.SetChurnAt(*v)
+	}
+	return _u
+}
+
+// ClearChurnAt clears the value of the "churn_at" field.
+func (_u *ServiceCustomerUpdateOne) ClearChurnAt() *ServiceCustomerUpdateOne {
+	_u.mutation.ClearChurnAt()
+	return _u
+}
+
+// SetChurnReason sets the "churn_reason" field.
+func (_u *ServiceCustomerUpdateOne) SetChurnReason(v string) *ServiceCustomerUpdateOne {
+	_u.mutation.SetChurnReason(v)
+	return _u
+}
+
+// SetNillableChurnReason sets the "churn_reason" field if the given value is not nil.
+func (_u *ServiceCustomerUpdateOne) SetNillableChurnReason(v *string) *ServiceCustomerUpdateOne {
+	if v != nil {
+		_u.SetChurnReason(*v)
+	}
+	return _u
+}
+
+// ClearChurnReason clears the value of the "churn_reason" field.
+func (_u *ServiceCustomerUpdateOne) ClearChurnReason() *ServiceCustomerUpdateOne {
+	_u.mutation.ClearChurnReason()
+	return _u
+}
+
+// SetDataSource sets the "data_source" field.
+func (_u *ServiceCustomerUpdateOne) SetDataSource(v string) *ServiceCustomerUpdateOne {
+	_u.mutation.SetDataSource(v)
+	return _u
+}
+
+// SetNillableDataSource sets the "data_source" field if the given value is not nil.
+func (_u *ServiceCustomerUpdateOne) SetNillableDataSource(v *string) *ServiceCustomerUpdateOne {
+	if v != nil {
+		_u.SetDataSource(*v)
+	}
+	return _u
+}
+
+// SetDataQualityScore sets the "data_quality_score" field.
+func (_u *ServiceCustomerUpdateOne) SetDataQualityScore(v int16) *ServiceCustomerUpdateOne {
+	_u.mutation.ResetDataQualityScore()
+	_u.mutation.SetDataQualityScore(v)
+	return _u
+}
+
+// SetNillableDataQualityScore sets the "data_quality_score" field if the given value is not nil.
+func (_u *ServiceCustomerUpdateOne) SetNillableDataQualityScore(v *int16) *ServiceCustomerUpdateOne {
+	if v != nil {
+		_u.SetDataQualityScore(*v)
+	}
+	return _u
+}
+
+// AddDataQualityScore adds value to the "data_quality_score" field.
+func (_u *ServiceCustomerUpdateOne) AddDataQualityScore(v int16) *ServiceCustomerUpdateOne {
+	_u.mutation.AddDataQualityScore(v)
+	return _u
+}
+
+// SetMergedIntoID sets the "merged_into_id" field.
+func (_u *ServiceCustomerUpdateOne) SetMergedIntoID(v int) *ServiceCustomerUpdateOne {
+	_u.mutation.ResetMergedIntoID()
+	_u.mutation.SetMergedIntoID(v)
+	return _u
+}
+
+// SetNillableMergedIntoID sets the "merged_into_id" field if the given value is not nil.
+func (_u *ServiceCustomerUpdateOne) SetNillableMergedIntoID(v *int) *ServiceCustomerUpdateOne {
+	if v != nil {
+		_u.SetMergedIntoID(*v)
+	}
+	return _u
+}
+
+// AddMergedIntoID adds value to the "merged_into_id" field.
+func (_u *ServiceCustomerUpdateOne) AddMergedIntoID(v int) *ServiceCustomerUpdateOne {
+	_u.mutation.AddMergedIntoID(v)
+	return _u
+}
+
+// ClearMergedIntoID clears the value of the "merged_into_id" field.
+func (_u *ServiceCustomerUpdateOne) ClearMergedIntoID() *ServiceCustomerUpdateOne {
+	_u.mutation.ClearMergedIntoID()
+	return _u
+}
+
+// SetVersion sets the "version" field.
+func (_u *ServiceCustomerUpdateOne) SetVersion(v int64) *ServiceCustomerUpdateOne {
+	_u.mutation.ResetVersion()
+	_u.mutation.SetVersion(v)
+	return _u
+}
+
+// SetNillableVersion sets the "version" field if the given value is not nil.
+func (_u *ServiceCustomerUpdateOne) SetNillableVersion(v *int64) *ServiceCustomerUpdateOne {
+	if v != nil {
+		_u.SetVersion(*v)
+	}
+	return _u
+}
+
+// AddVersion adds value to the "version" field.
+func (_u *ServiceCustomerUpdateOne) AddVersion(v int64) *ServiceCustomerUpdateOne {
+	_u.mutation.AddVersion(v)
+	return _u
+}
+
+// SetDeletedAt sets the "deleted_at" field.
+func (_u *ServiceCustomerUpdateOne) SetDeletedAt(v time.Time) *ServiceCustomerUpdateOne {
+	_u.mutation.SetDeletedAt(v)
+	return _u
+}
+
+// SetNillableDeletedAt sets the "deleted_at" field if the given value is not nil.
+func (_u *ServiceCustomerUpdateOne) SetNillableDeletedAt(v *time.Time) *ServiceCustomerUpdateOne {
+	if v != nil {
+		_u.SetDeletedAt(*v)
+	}
+	return _u
+}
+
+// ClearDeletedAt clears the value of the "deleted_at" field.
+func (_u *ServiceCustomerUpdateOne) ClearDeletedAt() *ServiceCustomerUpdateOne {
+	_u.mutation.ClearDeletedAt()
+	return _u
+}
+
+// SetCreatedBy sets the "created_by" field.
+func (_u *ServiceCustomerUpdateOne) SetCreatedBy(v int) *ServiceCustomerUpdateOne {
+	_u.mutation.ResetCreatedBy()
+	_u.mutation.SetCreatedBy(v)
+	return _u
+}
+
+// SetNillableCreatedBy sets the "created_by" field if the given value is not nil.
+func (_u *ServiceCustomerUpdateOne) SetNillableCreatedBy(v *int) *ServiceCustomerUpdateOne {
+	if v != nil {
+		_u.SetCreatedBy(*v)
+	}
+	return _u
+}
+
+// AddCreatedBy adds value to the "created_by" field.
+func (_u *ServiceCustomerUpdateOne) AddCreatedBy(v int) *ServiceCustomerUpdateOne {
+	_u.mutation.AddCreatedBy(v)
+	return _u
+}
+
+// ClearCreatedBy clears the value of the "created_by" field.
+func (_u *ServiceCustomerUpdateOne) ClearCreatedBy() *ServiceCustomerUpdateOne {
+	_u.mutation.ClearCreatedBy()
+	return _u
+}
+
+// SetUpdatedBy sets the "updated_by" field.
+func (_u *ServiceCustomerUpdateOne) SetUpdatedBy(v int) *ServiceCustomerUpdateOne {
+	_u.mutation.ResetUpdatedBy()
+	_u.mutation.SetUpdatedBy(v)
+	return _u
+}
+
+// SetNillableUpdatedBy sets the "updated_by" field if the given value is not nil.
+func (_u *ServiceCustomerUpdateOne) SetNillableUpdatedBy(v *int) *ServiceCustomerUpdateOne {
+	if v != nil {
+		_u.SetUpdatedBy(*v)
+	}
+	return _u
+}
+
+// AddUpdatedBy adds value to the "updated_by" field.
+func (_u *ServiceCustomerUpdateOne) AddUpdatedBy(v int) *ServiceCustomerUpdateOne {
+	_u.mutation.AddUpdatedBy(v)
+	return _u
+}
+
+// ClearUpdatedBy clears the value of the "updated_by" field.
+func (_u *ServiceCustomerUpdateOne) ClearUpdatedBy() *ServiceCustomerUpdateOne {
+	_u.mutation.ClearUpdatedBy()
 	return _u
 }
 
@@ -937,6 +3317,11 @@ func (_u *ServiceCustomerUpdateOne) check() error {
 			return &ValidationError{Name: "tenant_id", err: fmt.Errorf(`ent: validator failed for field "ServiceCustomer.tenant_id": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.Code(); ok {
+		if err := servicecustomer.CodeValidator(v); err != nil {
+			return &ValidationError{Name: "code", err: fmt.Errorf(`ent: validator failed for field "ServiceCustomer.code": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.Name(); ok {
 		if err := servicecustomer.NameValidator(v); err != nil {
 			return &ValidationError{Name: "name", err: fmt.Errorf(`ent: validator failed for field "ServiceCustomer.name": %w`, err)}
@@ -950,6 +3335,136 @@ func (_u *ServiceCustomerUpdateOne) check() error {
 	if v, ok := _u.mutation.ShortName(); ok {
 		if err := servicecustomer.ShortNameValidator(v); err != nil {
 			return &ValidationError{Name: "short_name", err: fmt.Errorf(`ent: validator failed for field "ServiceCustomer.short_name": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.LegalName(); ok {
+		if err := servicecustomer.LegalNameValidator(v); err != nil {
+			return &ValidationError{Name: "legal_name", err: fmt.Errorf(`ent: validator failed for field "ServiceCustomer.legal_name": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.EnName(); ok {
+		if err := servicecustomer.EnNameValidator(v); err != nil {
+			return &ValidationError{Name: "en_name", err: fmt.Errorf(`ent: validator failed for field "ServiceCustomer.en_name": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.TaxID(); ok {
+		if err := servicecustomer.TaxIDValidator(v); err != nil {
+			return &ValidationError{Name: "tax_id", err: fmt.Errorf(`ent: validator failed for field "ServiceCustomer.tax_id": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.NormalizedTaxID(); ok {
+		if err := servicecustomer.NormalizedTaxIDValidator(v); err != nil {
+			return &ValidationError{Name: "normalized_tax_id", err: fmt.Errorf(`ent: validator failed for field "ServiceCustomer.normalized_tax_id": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.DunsNumber(); ok {
+		if err := servicecustomer.DunsNumberValidator(v); err != nil {
+			return &ValidationError{Name: "duns_number", err: fmt.Errorf(`ent: validator failed for field "ServiceCustomer.duns_number": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.RegistrationNo(); ok {
+		if err := servicecustomer.RegistrationNoValidator(v); err != nil {
+			return &ValidationError{Name: "registration_no", err: fmt.Errorf(`ent: validator failed for field "ServiceCustomer.registration_no": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.CustomerType(); ok {
+		if err := servicecustomer.CustomerTypeValidator(v); err != nil {
+			return &ValidationError{Name: "customer_type", err: fmt.Errorf(`ent: validator failed for field "ServiceCustomer.customer_type": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.Industry(); ok {
+		if err := servicecustomer.IndustryValidator(v); err != nil {
+			return &ValidationError{Name: "industry", err: fmt.Errorf(`ent: validator failed for field "ServiceCustomer.industry": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.SubIndustry(); ok {
+		if err := servicecustomer.SubIndustryValidator(v); err != nil {
+			return &ValidationError{Name: "sub_industry", err: fmt.Errorf(`ent: validator failed for field "ServiceCustomer.sub_industry": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.SizeClass(); ok {
+		if err := servicecustomer.SizeClassValidator(v); err != nil {
+			return &ValidationError{Name: "size_class", err: fmt.Errorf(`ent: validator failed for field "ServiceCustomer.size_class": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.OwnershipType(); ok {
+		if err := servicecustomer.OwnershipTypeValidator(v); err != nil {
+			return &ValidationError{Name: "ownership_type", err: fmt.Errorf(`ent: validator failed for field "ServiceCustomer.ownership_type": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.Tier(); ok {
+		if err := servicecustomer.TierValidator(v); err != nil {
+			return &ValidationError{Name: "tier", err: fmt.Errorf(`ent: validator failed for field "ServiceCustomer.tier": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.CreditRating(); ok {
+		if err := servicecustomer.CreditRatingValidator(v); err != nil {
+			return &ValidationError{Name: "credit_rating", err: fmt.Errorf(`ent: validator failed for field "ServiceCustomer.credit_rating": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.Website(); ok {
+		if err := servicecustomer.WebsiteValidator(v); err != nil {
+			return &ValidationError{Name: "website", err: fmt.Errorf(`ent: validator failed for field "ServiceCustomer.website": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.MainPhone(); ok {
+		if err := servicecustomer.MainPhoneValidator(v); err != nil {
+			return &ValidationError{Name: "main_phone", err: fmt.Errorf(`ent: validator failed for field "ServiceCustomer.main_phone": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.ServiceEmail(); ok {
+		if err := servicecustomer.ServiceEmailValidator(v); err != nil {
+			return &ValidationError{Name: "service_email", err: fmt.Errorf(`ent: validator failed for field "ServiceCustomer.service_email": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.Timezone(); ok {
+		if err := servicecustomer.TimezoneValidator(v); err != nil {
+			return &ValidationError{Name: "timezone", err: fmt.Errorf(`ent: validator failed for field "ServiceCustomer.timezone": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.Language(); ok {
+		if err := servicecustomer.LanguageValidator(v); err != nil {
+			return &ValidationError{Name: "language", err: fmt.Errorf(`ent: validator failed for field "ServiceCustomer.language": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.ServiceTier(); ok {
+		if err := servicecustomer.ServiceTierValidator(v); err != nil {
+			return &ValidationError{Name: "service_tier", err: fmt.Errorf(`ent: validator failed for field "ServiceCustomer.service_tier": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.SupportHours(); ok {
+		if err := servicecustomer.SupportHoursValidator(v); err != nil {
+			return &ValidationError{Name: "support_hours", err: fmt.Errorf(`ent: validator failed for field "ServiceCustomer.support_hours": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.BillingCurrency(); ok {
+		if err := servicecustomer.BillingCurrencyValidator(v); err != nil {
+			return &ValidationError{Name: "billing_currency", err: fmt.Errorf(`ent: validator failed for field "ServiceCustomer.billing_currency": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.PaymentTerms(); ok {
+		if err := servicecustomer.PaymentTermsValidator(v); err != nil {
+			return &ValidationError{Name: "payment_terms", err: fmt.Errorf(`ent: validator failed for field "ServiceCustomer.payment_terms": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.InvoiceTitle(); ok {
+		if err := servicecustomer.InvoiceTitleValidator(v); err != nil {
+			return &ValidationError{Name: "invoice_title", err: fmt.Errorf(`ent: validator failed for field "ServiceCustomer.invoice_title": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.LifecycleStage(); ok {
+		if err := servicecustomer.LifecycleStageValidator(v); err != nil {
+			return &ValidationError{Name: "lifecycle_stage", err: fmt.Errorf(`ent: validator failed for field "ServiceCustomer.lifecycle_stage": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.ChurnReason(); ok {
+		if err := servicecustomer.ChurnReasonValidator(v); err != nil {
+			return &ValidationError{Name: "churn_reason", err: fmt.Errorf(`ent: validator failed for field "ServiceCustomer.churn_reason": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.DataSource(); ok {
+		if err := servicecustomer.DataSourceValidator(v); err != nil {
+			return &ValidationError{Name: "data_source", err: fmt.Errorf(`ent: validator failed for field "ServiceCustomer.data_source": %w`, err)}
 		}
 	}
 	if v, ok := _u.mutation.Status(); ok {
@@ -995,6 +3510,12 @@ func (_u *ServiceCustomerUpdateOne) sqlSave(ctx context.Context) (_node *Service
 	if value, ok := _u.mutation.AddedTenantID(); ok {
 		_spec.AddField(servicecustomer.FieldTenantID, field.TypeInt, value)
 	}
+	if value, ok := _u.mutation.Code(); ok {
+		_spec.SetField(servicecustomer.FieldCode, field.TypeString, value)
+	}
+	if _u.mutation.CodeCleared() {
+		_spec.ClearField(servicecustomer.FieldCode, field.TypeString)
+	}
 	if value, ok := _u.mutation.Name(); ok {
 		_spec.SetField(servicecustomer.FieldName, field.TypeString, value)
 	}
@@ -1006,6 +3527,18 @@ func (_u *ServiceCustomerUpdateOne) sqlSave(ctx context.Context) (_node *Service
 	}
 	if _u.mutation.ShortNameCleared() {
 		_spec.ClearField(servicecustomer.FieldShortName, field.TypeString)
+	}
+	if value, ok := _u.mutation.LegalName(); ok {
+		_spec.SetField(servicecustomer.FieldLegalName, field.TypeString, value)
+	}
+	if _u.mutation.LegalNameCleared() {
+		_spec.ClearField(servicecustomer.FieldLegalName, field.TypeString)
+	}
+	if value, ok := _u.mutation.EnName(); ok {
+		_spec.SetField(servicecustomer.FieldEnName, field.TypeString, value)
+	}
+	if _u.mutation.EnNameCleared() {
+		_spec.ClearField(servicecustomer.FieldEnName, field.TypeString)
 	}
 	if value, ok := _u.mutation.Aliases(); ok {
 		_spec.SetField(servicecustomer.FieldAliases, field.TypeJSON, value)
@@ -1028,6 +3561,293 @@ func (_u *ServiceCustomerUpdateOne) sqlSave(ctx context.Context) (_node *Service
 	}
 	if _u.mutation.HistoricalNamesCleared() {
 		_spec.ClearField(servicecustomer.FieldHistoricalNames, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.TaxID(); ok {
+		_spec.SetField(servicecustomer.FieldTaxID, field.TypeString, value)
+	}
+	if _u.mutation.TaxIDCleared() {
+		_spec.ClearField(servicecustomer.FieldTaxID, field.TypeString)
+	}
+	if value, ok := _u.mutation.NormalizedTaxID(); ok {
+		_spec.SetField(servicecustomer.FieldNormalizedTaxID, field.TypeString, value)
+	}
+	if _u.mutation.NormalizedTaxIDCleared() {
+		_spec.ClearField(servicecustomer.FieldNormalizedTaxID, field.TypeString)
+	}
+	if value, ok := _u.mutation.DunsNumber(); ok {
+		_spec.SetField(servicecustomer.FieldDunsNumber, field.TypeString, value)
+	}
+	if _u.mutation.DunsNumberCleared() {
+		_spec.ClearField(servicecustomer.FieldDunsNumber, field.TypeString)
+	}
+	if value, ok := _u.mutation.RegistrationNo(); ok {
+		_spec.SetField(servicecustomer.FieldRegistrationNo, field.TypeString, value)
+	}
+	if _u.mutation.RegistrationNoCleared() {
+		_spec.ClearField(servicecustomer.FieldRegistrationNo, field.TypeString)
+	}
+	if value, ok := _u.mutation.EmailDomains(); ok {
+		_spec.SetField(servicecustomer.FieldEmailDomains, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedEmailDomains(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, servicecustomer.FieldEmailDomains, value)
+		})
+	}
+	if _u.mutation.EmailDomainsCleared() {
+		_spec.ClearField(servicecustomer.FieldEmailDomains, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.CustomerType(); ok {
+		_spec.SetField(servicecustomer.FieldCustomerType, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.Industry(); ok {
+		_spec.SetField(servicecustomer.FieldIndustry, field.TypeString, value)
+	}
+	if _u.mutation.IndustryCleared() {
+		_spec.ClearField(servicecustomer.FieldIndustry, field.TypeString)
+	}
+	if value, ok := _u.mutation.SubIndustry(); ok {
+		_spec.SetField(servicecustomer.FieldSubIndustry, field.TypeString, value)
+	}
+	if _u.mutation.SubIndustryCleared() {
+		_spec.ClearField(servicecustomer.FieldSubIndustry, field.TypeString)
+	}
+	if value, ok := _u.mutation.SizeClass(); ok {
+		_spec.SetField(servicecustomer.FieldSizeClass, field.TypeString, value)
+	}
+	if _u.mutation.SizeClassCleared() {
+		_spec.ClearField(servicecustomer.FieldSizeClass, field.TypeString)
+	}
+	if value, ok := _u.mutation.OwnershipType(); ok {
+		_spec.SetField(servicecustomer.FieldOwnershipType, field.TypeString, value)
+	}
+	if _u.mutation.OwnershipTypeCleared() {
+		_spec.ClearField(servicecustomer.FieldOwnershipType, field.TypeString)
+	}
+	if value, ok := _u.mutation.Tier(); ok {
+		_spec.SetField(servicecustomer.FieldTier, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.VipLevel(); ok {
+		_spec.SetField(servicecustomer.FieldVipLevel, field.TypeInt16, value)
+	}
+	if value, ok := _u.mutation.AddedVipLevel(); ok {
+		_spec.AddField(servicecustomer.FieldVipLevel, field.TypeInt16, value)
+	}
+	if value, ok := _u.mutation.CreditRating(); ok {
+		_spec.SetField(servicecustomer.FieldCreditRating, field.TypeString, value)
+	}
+	if _u.mutation.CreditRatingCleared() {
+		_spec.ClearField(servicecustomer.FieldCreditRating, field.TypeString)
+	}
+	if value, ok := _u.mutation.Website(); ok {
+		_spec.SetField(servicecustomer.FieldWebsite, field.TypeString, value)
+	}
+	if _u.mutation.WebsiteCleared() {
+		_spec.ClearField(servicecustomer.FieldWebsite, field.TypeString)
+	}
+	if value, ok := _u.mutation.MainPhone(); ok {
+		_spec.SetField(servicecustomer.FieldMainPhone, field.TypeString, value)
+	}
+	if _u.mutation.MainPhoneCleared() {
+		_spec.ClearField(servicecustomer.FieldMainPhone, field.TypeString)
+	}
+	if value, ok := _u.mutation.ServiceEmail(); ok {
+		_spec.SetField(servicecustomer.FieldServiceEmail, field.TypeString, value)
+	}
+	if _u.mutation.ServiceEmailCleared() {
+		_spec.ClearField(servicecustomer.FieldServiceEmail, field.TypeString)
+	}
+	if value, ok := _u.mutation.Address(); ok {
+		_spec.SetField(servicecustomer.FieldAddress, field.TypeJSON, value)
+	}
+	if _u.mutation.AddressCleared() {
+		_spec.ClearField(servicecustomer.FieldAddress, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.Timezone(); ok {
+		_spec.SetField(servicecustomer.FieldTimezone, field.TypeString, value)
+	}
+	if _u.mutation.TimezoneCleared() {
+		_spec.ClearField(servicecustomer.FieldTimezone, field.TypeString)
+	}
+	if value, ok := _u.mutation.Language(); ok {
+		_spec.SetField(servicecustomer.FieldLanguage, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.ServiceTier(); ok {
+		_spec.SetField(servicecustomer.FieldServiceTier, field.TypeString, value)
+	}
+	if _u.mutation.ServiceTierCleared() {
+		_spec.ClearField(servicecustomer.FieldServiceTier, field.TypeString)
+	}
+	if value, ok := _u.mutation.SLADefinitionID(); ok {
+		_spec.SetField(servicecustomer.FieldSLADefinitionID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedSLADefinitionID(); ok {
+		_spec.AddField(servicecustomer.FieldSLADefinitionID, field.TypeInt, value)
+	}
+	if _u.mutation.SLADefinitionIDCleared() {
+		_spec.ClearField(servicecustomer.FieldSLADefinitionID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.SupportHours(); ok {
+		_spec.SetField(servicecustomer.FieldSupportHours, field.TypeString, value)
+	}
+	if _u.mutation.SupportHoursCleared() {
+		_spec.ClearField(servicecustomer.FieldSupportHours, field.TypeString)
+	}
+	if value, ok := _u.mutation.CoverageScope(); ok {
+		_spec.SetField(servicecustomer.FieldCoverageScope, field.TypeJSON, value)
+	}
+	if _u.mutation.CoverageScopeCleared() {
+		_spec.ClearField(servicecustomer.FieldCoverageScope, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.AccountManagerID(); ok {
+		_spec.SetField(servicecustomer.FieldAccountManagerID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedAccountManagerID(); ok {
+		_spec.AddField(servicecustomer.FieldAccountManagerID, field.TypeInt, value)
+	}
+	if _u.mutation.AccountManagerIDCleared() {
+		_spec.ClearField(servicecustomer.FieldAccountManagerID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.ServiceOwnerID(); ok {
+		_spec.SetField(servicecustomer.FieldServiceOwnerID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedServiceOwnerID(); ok {
+		_spec.AddField(servicecustomer.FieldServiceOwnerID, field.TypeInt, value)
+	}
+	if _u.mutation.ServiceOwnerIDCleared() {
+		_spec.ClearField(servicecustomer.FieldServiceOwnerID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.CsManagerID(); ok {
+		_spec.SetField(servicecustomer.FieldCsManagerID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedCsManagerID(); ok {
+		_spec.AddField(servicecustomer.FieldCsManagerID, field.TypeInt, value)
+	}
+	if _u.mutation.CsManagerIDCleared() {
+		_spec.ClearField(servicecustomer.FieldCsManagerID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.OncallGroupID(); ok {
+		_spec.SetField(servicecustomer.FieldOncallGroupID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedOncallGroupID(); ok {
+		_spec.AddField(servicecustomer.FieldOncallGroupID, field.TypeInt, value)
+	}
+	if _u.mutation.OncallGroupIDCleared() {
+		_spec.ClearField(servicecustomer.FieldOncallGroupID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.BillingCurrency(); ok {
+		_spec.SetField(servicecustomer.FieldBillingCurrency, field.TypeString, value)
+	}
+	if _u.mutation.BillingCurrencyCleared() {
+		_spec.ClearField(servicecustomer.FieldBillingCurrency, field.TypeString)
+	}
+	if value, ok := _u.mutation.PaymentTerms(); ok {
+		_spec.SetField(servicecustomer.FieldPaymentTerms, field.TypeString, value)
+	}
+	if _u.mutation.PaymentTermsCleared() {
+		_spec.ClearField(servicecustomer.FieldPaymentTerms, field.TypeString)
+	}
+	if value, ok := _u.mutation.CreditLimit(); ok {
+		_spec.SetField(servicecustomer.FieldCreditLimit, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedCreditLimit(); ok {
+		_spec.AddField(servicecustomer.FieldCreditLimit, field.TypeFloat64, value)
+	}
+	if _u.mutation.CreditLimitCleared() {
+		_spec.ClearField(servicecustomer.FieldCreditLimit, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.InvoiceTitle(); ok {
+		_spec.SetField(servicecustomer.FieldInvoiceTitle, field.TypeString, value)
+	}
+	if _u.mutation.InvoiceTitleCleared() {
+		_spec.ClearField(servicecustomer.FieldInvoiceTitle, field.TypeString)
+	}
+	if value, ok := _u.mutation.BillingAddress(); ok {
+		_spec.SetField(servicecustomer.FieldBillingAddress, field.TypeJSON, value)
+	}
+	if _u.mutation.BillingAddressCleared() {
+		_spec.ClearField(servicecustomer.FieldBillingAddress, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.LifecycleStage(); ok {
+		_spec.SetField(servicecustomer.FieldLifecycleStage, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.OnboardedAt(); ok {
+		_spec.SetField(servicecustomer.FieldOnboardedAt, field.TypeTime, value)
+	}
+	if _u.mutation.OnboardedAtCleared() {
+		_spec.ClearField(servicecustomer.FieldOnboardedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.ContractStartAt(); ok {
+		_spec.SetField(servicecustomer.FieldContractStartAt, field.TypeTime, value)
+	}
+	if _u.mutation.ContractStartAtCleared() {
+		_spec.ClearField(servicecustomer.FieldContractStartAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.ContractEndAt(); ok {
+		_spec.SetField(servicecustomer.FieldContractEndAt, field.TypeTime, value)
+	}
+	if _u.mutation.ContractEndAtCleared() {
+		_spec.ClearField(servicecustomer.FieldContractEndAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.ChurnAt(); ok {
+		_spec.SetField(servicecustomer.FieldChurnAt, field.TypeTime, value)
+	}
+	if _u.mutation.ChurnAtCleared() {
+		_spec.ClearField(servicecustomer.FieldChurnAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.ChurnReason(); ok {
+		_spec.SetField(servicecustomer.FieldChurnReason, field.TypeString, value)
+	}
+	if _u.mutation.ChurnReasonCleared() {
+		_spec.ClearField(servicecustomer.FieldChurnReason, field.TypeString)
+	}
+	if value, ok := _u.mutation.DataSource(); ok {
+		_spec.SetField(servicecustomer.FieldDataSource, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.DataQualityScore(); ok {
+		_spec.SetField(servicecustomer.FieldDataQualityScore, field.TypeInt16, value)
+	}
+	if value, ok := _u.mutation.AddedDataQualityScore(); ok {
+		_spec.AddField(servicecustomer.FieldDataQualityScore, field.TypeInt16, value)
+	}
+	if value, ok := _u.mutation.MergedIntoID(); ok {
+		_spec.SetField(servicecustomer.FieldMergedIntoID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedMergedIntoID(); ok {
+		_spec.AddField(servicecustomer.FieldMergedIntoID, field.TypeInt, value)
+	}
+	if _u.mutation.MergedIntoIDCleared() {
+		_spec.ClearField(servicecustomer.FieldMergedIntoID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.Version(); ok {
+		_spec.SetField(servicecustomer.FieldVersion, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedVersion(); ok {
+		_spec.AddField(servicecustomer.FieldVersion, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.DeletedAt(); ok {
+		_spec.SetField(servicecustomer.FieldDeletedAt, field.TypeTime, value)
+	}
+	if _u.mutation.DeletedAtCleared() {
+		_spec.ClearField(servicecustomer.FieldDeletedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.CreatedBy(); ok {
+		_spec.SetField(servicecustomer.FieldCreatedBy, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedCreatedBy(); ok {
+		_spec.AddField(servicecustomer.FieldCreatedBy, field.TypeInt, value)
+	}
+	if _u.mutation.CreatedByCleared() {
+		_spec.ClearField(servicecustomer.FieldCreatedBy, field.TypeInt)
+	}
+	if value, ok := _u.mutation.UpdatedBy(); ok {
+		_spec.SetField(servicecustomer.FieldUpdatedBy, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedUpdatedBy(); ok {
+		_spec.AddField(servicecustomer.FieldUpdatedBy, field.TypeInt, value)
+	}
+	if _u.mutation.UpdatedByCleared() {
+		_spec.ClearField(servicecustomer.FieldUpdatedBy, field.TypeInt)
 	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(servicecustomer.FieldStatus, field.TypeString, value)

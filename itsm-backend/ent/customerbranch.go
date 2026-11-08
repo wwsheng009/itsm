@@ -23,14 +23,36 @@ type CustomerBranch struct {
 	TenantID int `json:"tenant_id,omitempty"`
 	// CustomerID holds the value of the "customer_id" field.
 	CustomerID int `json:"customer_id,omitempty"`
+	// Code holds the value of the "code" field.
+	Code string `json:"code,omitempty"`
 	// Name holds the value of the "name" field.
 	Name string `json:"name,omitempty"`
 	// NormalizedName holds the value of the "normalized_name" field.
 	NormalizedName string `json:"normalized_name,omitempty"`
+	// BranchType holds the value of the "branch_type" field.
+	BranchType string `json:"branch_type,omitempty"`
 	// Aliases holds the value of the "aliases" field.
 	Aliases []string `json:"aliases,omitempty"`
+	// Address holds the value of the "address" field.
+	Address map[string]interface{} `json:"address,omitempty"`
+	// Timezone holds the value of the "timezone" field.
+	Timezone string `json:"timezone,omitempty"`
+	// ContactPhone holds the value of the "contact_phone" field.
+	ContactPhone string `json:"contact_phone,omitempty"`
+	// EmailDomains holds the value of the "email_domains" field.
+	EmailDomains []string `json:"email_domains,omitempty"`
+	// ServiceTier holds the value of the "service_tier" field.
+	ServiceTier string `json:"service_tier,omitempty"`
+	// SupportHours holds the value of the "support_hours" field.
+	SupportHours string `json:"support_hours,omitempty"`
+	// IsPrimary holds the value of the "is_primary" field.
+	IsPrimary bool `json:"is_primary,omitempty"`
+	// LinkedTenantID holds the value of the "linked_tenant_id" field.
+	LinkedTenantID *int `json:"linked_tenant_id,omitempty"`
 	// Status holds the value of the "status" field.
 	Status string `json:"status,omitempty"`
+	// DeletedAt holds the value of the "deleted_at" field.
+	DeletedAt *time.Time `json:"deleted_at,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
 	CreatedAt time.Time `json:"created_at,omitempty"`
 	// UpdatedAt holds the value of the "updated_at" field.
@@ -88,13 +110,15 @@ func (*CustomerBranch) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case customerbranch.FieldAliases:
+		case customerbranch.FieldAliases, customerbranch.FieldAddress, customerbranch.FieldEmailDomains:
 			values[i] = new([]byte)
-		case customerbranch.FieldID, customerbranch.FieldTenantID, customerbranch.FieldCustomerID:
+		case customerbranch.FieldIsPrimary:
+			values[i] = new(sql.NullBool)
+		case customerbranch.FieldID, customerbranch.FieldTenantID, customerbranch.FieldCustomerID, customerbranch.FieldLinkedTenantID:
 			values[i] = new(sql.NullInt64)
-		case customerbranch.FieldName, customerbranch.FieldNormalizedName, customerbranch.FieldStatus:
+		case customerbranch.FieldCode, customerbranch.FieldName, customerbranch.FieldNormalizedName, customerbranch.FieldBranchType, customerbranch.FieldTimezone, customerbranch.FieldContactPhone, customerbranch.FieldServiceTier, customerbranch.FieldSupportHours, customerbranch.FieldStatus:
 			values[i] = new(sql.NullString)
-		case customerbranch.FieldCreatedAt, customerbranch.FieldUpdatedAt:
+		case customerbranch.FieldDeletedAt, customerbranch.FieldCreatedAt, customerbranch.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
 		default:
 			values[i] = new(sql.UnknownType)
@@ -129,6 +153,12 @@ func (_m *CustomerBranch) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.CustomerID = int(value.Int64)
 			}
+		case customerbranch.FieldCode:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field code", values[i])
+			} else if value.Valid {
+				_m.Code = value.String
+			}
 		case customerbranch.FieldName:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field name", values[i])
@@ -141,6 +171,12 @@ func (_m *CustomerBranch) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.NormalizedName = value.String
 			}
+		case customerbranch.FieldBranchType:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field branch_type", values[i])
+			} else if value.Valid {
+				_m.BranchType = value.String
+			}
 		case customerbranch.FieldAliases:
 			if value, ok := values[i].(*[]byte); !ok {
 				return fmt.Errorf("unexpected type %T for field aliases", values[i])
@@ -149,11 +185,71 @@ func (_m *CustomerBranch) assignValues(columns []string, values []any) error {
 					return fmt.Errorf("unmarshal field aliases: %w", err)
 				}
 			}
+		case customerbranch.FieldAddress:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field address", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.Address); err != nil {
+					return fmt.Errorf("unmarshal field address: %w", err)
+				}
+			}
+		case customerbranch.FieldTimezone:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field timezone", values[i])
+			} else if value.Valid {
+				_m.Timezone = value.String
+			}
+		case customerbranch.FieldContactPhone:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field contact_phone", values[i])
+			} else if value.Valid {
+				_m.ContactPhone = value.String
+			}
+		case customerbranch.FieldEmailDomains:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field email_domains", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.EmailDomains); err != nil {
+					return fmt.Errorf("unmarshal field email_domains: %w", err)
+				}
+			}
+		case customerbranch.FieldServiceTier:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field service_tier", values[i])
+			} else if value.Valid {
+				_m.ServiceTier = value.String
+			}
+		case customerbranch.FieldSupportHours:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field support_hours", values[i])
+			} else if value.Valid {
+				_m.SupportHours = value.String
+			}
+		case customerbranch.FieldIsPrimary:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field is_primary", values[i])
+			} else if value.Valid {
+				_m.IsPrimary = value.Bool
+			}
+		case customerbranch.FieldLinkedTenantID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field linked_tenant_id", values[i])
+			} else if value.Valid {
+				_m.LinkedTenantID = new(int)
+				*_m.LinkedTenantID = int(value.Int64)
+			}
 		case customerbranch.FieldStatus:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field status", values[i])
 			} else if value.Valid {
 				_m.Status = value.String
+			}
+		case customerbranch.FieldDeletedAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field deleted_at", values[i])
+			} else if value.Valid {
+				_m.DeletedAt = new(time.Time)
+				*_m.DeletedAt = value.Time
 			}
 		case customerbranch.FieldCreatedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
@@ -224,17 +320,54 @@ func (_m *CustomerBranch) String() string {
 	builder.WriteString("customer_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.CustomerID))
 	builder.WriteString(", ")
+	builder.WriteString("code=")
+	builder.WriteString(_m.Code)
+	builder.WriteString(", ")
 	builder.WriteString("name=")
 	builder.WriteString(_m.Name)
 	builder.WriteString(", ")
 	builder.WriteString("normalized_name=")
 	builder.WriteString(_m.NormalizedName)
 	builder.WriteString(", ")
+	builder.WriteString("branch_type=")
+	builder.WriteString(_m.BranchType)
+	builder.WriteString(", ")
 	builder.WriteString("aliases=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Aliases))
 	builder.WriteString(", ")
+	builder.WriteString("address=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Address))
+	builder.WriteString(", ")
+	builder.WriteString("timezone=")
+	builder.WriteString(_m.Timezone)
+	builder.WriteString(", ")
+	builder.WriteString("contact_phone=")
+	builder.WriteString(_m.ContactPhone)
+	builder.WriteString(", ")
+	builder.WriteString("email_domains=")
+	builder.WriteString(fmt.Sprintf("%v", _m.EmailDomains))
+	builder.WriteString(", ")
+	builder.WriteString("service_tier=")
+	builder.WriteString(_m.ServiceTier)
+	builder.WriteString(", ")
+	builder.WriteString("support_hours=")
+	builder.WriteString(_m.SupportHours)
+	builder.WriteString(", ")
+	builder.WriteString("is_primary=")
+	builder.WriteString(fmt.Sprintf("%v", _m.IsPrimary))
+	builder.WriteString(", ")
+	if v := _m.LinkedTenantID; v != nil {
+		builder.WriteString("linked_tenant_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
 	builder.WriteString("status=")
 	builder.WriteString(_m.Status)
+	builder.WriteString(", ")
+	if v := _m.DeletedAt; v != nil {
+		builder.WriteString("deleted_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
 	builder.WriteString(", ")
 	builder.WriteString("created_at=")
 	builder.WriteString(_m.CreatedAt.Format(time.ANSIC))

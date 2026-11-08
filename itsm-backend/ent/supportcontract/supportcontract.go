@@ -32,6 +32,42 @@ const (
 	FieldEndAt = "end_at"
 	// FieldSourceDocumentID holds the string denoting the source_document_id field in the database.
 	FieldSourceDocumentID = "source_document_id"
+	// FieldEffectiveFrom holds the string denoting the effective_from field in the database.
+	FieldEffectiveFrom = "effective_from"
+	// FieldEffectiveUntil holds the string denoting the effective_until field in the database.
+	FieldEffectiveUntil = "effective_until"
+	// FieldSignedAt holds the string denoting the signed_at field in the database.
+	FieldSignedAt = "signed_at"
+	// FieldAmount holds the string denoting the amount field in the database.
+	FieldAmount = "amount"
+	// FieldCurrency holds the string denoting the currency field in the database.
+	FieldCurrency = "currency"
+	// FieldContractType holds the string denoting the contract_type field in the database.
+	FieldContractType = "contract_type"
+	// FieldContractName holds the string denoting the contract_name field in the database.
+	FieldContractName = "contract_name"
+	// FieldParentContractID holds the string denoting the parent_contract_id field in the database.
+	FieldParentContractID = "parent_contract_id"
+	// FieldRenewalOfContractID holds the string denoting the renewal_of_contract_id field in the database.
+	FieldRenewalOfContractID = "renewal_of_contract_id"
+	// FieldAmendmentCount holds the string denoting the amendment_count field in the database.
+	FieldAmendmentCount = "amendment_count"
+	// FieldSLADefinitionID holds the string denoting the sla_definition_id field in the database.
+	FieldSLADefinitionID = "sla_definition_id"
+	// FieldAutoRenew holds the string denoting the auto_renew field in the database.
+	FieldAutoRenew = "auto_renew"
+	// FieldTerminatedAt holds the string denoting the terminated_at field in the database.
+	FieldTerminatedAt = "terminated_at"
+	// FieldTerminationReason holds the string denoting the termination_reason field in the database.
+	FieldTerminationReason = "termination_reason"
+	// FieldDeletedAt holds the string denoting the deleted_at field in the database.
+	FieldDeletedAt = "deleted_at"
+	// FieldVersion holds the string denoting the version field in the database.
+	FieldVersion = "version"
+	// FieldCreatedBy holds the string denoting the created_by field in the database.
+	FieldCreatedBy = "created_by"
+	// FieldUpdatedBy holds the string denoting the updated_by field in the database.
+	FieldUpdatedBy = "updated_by"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
 	FieldCreatedAt = "created_at"
 	// FieldUpdatedAt holds the string denoting the updated_at field in the database.
@@ -88,6 +124,24 @@ var Columns = []string{
 	FieldStartAt,
 	FieldEndAt,
 	FieldSourceDocumentID,
+	FieldEffectiveFrom,
+	FieldEffectiveUntil,
+	FieldSignedAt,
+	FieldAmount,
+	FieldCurrency,
+	FieldContractType,
+	FieldContractName,
+	FieldParentContractID,
+	FieldRenewalOfContractID,
+	FieldAmendmentCount,
+	FieldSLADefinitionID,
+	FieldAutoRenew,
+	FieldTerminatedAt,
+	FieldTerminationReason,
+	FieldDeletedAt,
+	FieldVersion,
+	FieldCreatedBy,
+	FieldUpdatedBy,
 	FieldCreatedAt,
 	FieldUpdatedAt,
 }
@@ -115,6 +169,22 @@ var (
 	DefaultStatus string
 	// StatusValidator is a validator for the "status" field. It is called by the builders before save.
 	StatusValidator func(string) error
+	// CurrencyValidator is a validator for the "currency" field. It is called by the builders before save.
+	CurrencyValidator func(string) error
+	// DefaultContractType holds the default value on creation for the "contract_type" field.
+	DefaultContractType string
+	// ContractTypeValidator is a validator for the "contract_type" field. It is called by the builders before save.
+	ContractTypeValidator func(string) error
+	// ContractNameValidator is a validator for the "contract_name" field. It is called by the builders before save.
+	ContractNameValidator func(string) error
+	// DefaultAmendmentCount holds the default value on creation for the "amendment_count" field.
+	DefaultAmendmentCount int
+	// DefaultAutoRenew holds the default value on creation for the "auto_renew" field.
+	DefaultAutoRenew bool
+	// TerminationReasonValidator is a validator for the "termination_reason" field. It is called by the builders before save.
+	TerminationReasonValidator func(string) error
+	// DefaultVersion holds the default value on creation for the "version" field.
+	DefaultVersion int64
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
 	DefaultCreatedAt func() time.Time
 	// DefaultUpdatedAt holds the default value on creation for the "updated_at" field.
@@ -174,6 +244,96 @@ func ByEndAt(opts ...sql.OrderTermOption) OrderOption {
 // BySourceDocumentID orders the results by the source_document_id field.
 func BySourceDocumentID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldSourceDocumentID, opts...).ToFunc()
+}
+
+// ByEffectiveFrom orders the results by the effective_from field.
+func ByEffectiveFrom(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldEffectiveFrom, opts...).ToFunc()
+}
+
+// ByEffectiveUntil orders the results by the effective_until field.
+func ByEffectiveUntil(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldEffectiveUntil, opts...).ToFunc()
+}
+
+// BySignedAt orders the results by the signed_at field.
+func BySignedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSignedAt, opts...).ToFunc()
+}
+
+// ByAmount orders the results by the amount field.
+func ByAmount(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldAmount, opts...).ToFunc()
+}
+
+// ByCurrency orders the results by the currency field.
+func ByCurrency(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCurrency, opts...).ToFunc()
+}
+
+// ByContractType orders the results by the contract_type field.
+func ByContractType(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldContractType, opts...).ToFunc()
+}
+
+// ByContractName orders the results by the contract_name field.
+func ByContractName(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldContractName, opts...).ToFunc()
+}
+
+// ByParentContractID orders the results by the parent_contract_id field.
+func ByParentContractID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldParentContractID, opts...).ToFunc()
+}
+
+// ByRenewalOfContractID orders the results by the renewal_of_contract_id field.
+func ByRenewalOfContractID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldRenewalOfContractID, opts...).ToFunc()
+}
+
+// ByAmendmentCount orders the results by the amendment_count field.
+func ByAmendmentCount(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldAmendmentCount, opts...).ToFunc()
+}
+
+// BySLADefinitionID orders the results by the sla_definition_id field.
+func BySLADefinitionID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSLADefinitionID, opts...).ToFunc()
+}
+
+// ByAutoRenew orders the results by the auto_renew field.
+func ByAutoRenew(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldAutoRenew, opts...).ToFunc()
+}
+
+// ByTerminatedAt orders the results by the terminated_at field.
+func ByTerminatedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldTerminatedAt, opts...).ToFunc()
+}
+
+// ByTerminationReason orders the results by the termination_reason field.
+func ByTerminationReason(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldTerminationReason, opts...).ToFunc()
+}
+
+// ByDeletedAt orders the results by the deleted_at field.
+func ByDeletedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldDeletedAt, opts...).ToFunc()
+}
+
+// ByVersion orders the results by the version field.
+func ByVersion(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldVersion, opts...).ToFunc()
+}
+
+// ByCreatedBy orders the results by the created_by field.
+func ByCreatedBy(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCreatedBy, opts...).ToFunc()
+}
+
+// ByUpdatedBy orders the results by the updated_by field.
+func ByUpdatedBy(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldUpdatedBy, opts...).ToFunc()
 }
 
 // ByCreatedAt orders the results by the created_at field.

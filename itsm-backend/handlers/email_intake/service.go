@@ -50,6 +50,8 @@ func NormalizeContractNumber(value string) string {
 type IntakeFields struct {
 	SourceOrganizationName string     `json:"sourceOrganizationName"`
 	CustomerName           string     `json:"customerName"`
+	SenderEmail            string     `json:"senderEmail,omitempty"`
+	TaxID                  string     `json:"taxId,omitempty"`
 	BranchName             string     `json:"branchName"`
 	ReportedContractNumber string     `json:"reportedContractNumber"`
 	Title                  string     `json:"title"`
@@ -61,13 +63,17 @@ type IntakeFields struct {
 }
 
 type Resolution struct {
-	Status               string   `json:"status"`
-	CustomerID           int      `json:"customerId,omitempty"`
-	BranchID             int      `json:"branchId,omitempty"`
-	SupportContractID    int      `json:"supportContractId,omitempty"`
-	SourceOrganizationID int      `json:"sourceOrganizationId,omitempty"`
-	MissingFields        []string `json:"missingFields"`
-	Reasons              []string `json:"reasons"`
+	Status               string                   `json:"status"`
+	CustomerID           int                      `json:"customerId,omitempty"`
+	BranchID             int                      `json:"branchId,omitempty"`
+	SupportContractID    int                      `json:"supportContractId,omitempty"`
+	SourceOrganizationID int                      `json:"sourceOrganizationId,omitempty"`
+	MatchedLevel         string                   `json:"matchedLevel,omitempty"`
+	MatchConfidence      float64                  `json:"matchConfidence,omitempty"`
+	Candidates           []CustomerMatchCandidate `json:"candidates,omitempty"`
+	FieldSources         map[string]interface{}   `json:"fieldSources,omitempty"`
+	MissingFields        []string                 `json:"missingFields"`
+	Reasons              []string                 `json:"reasons"`
 }
 
 type Resolver struct{ client *ent.Client }
@@ -121,41 +127,56 @@ func (s *Service) CurrentOnCall(ctx context.Context, tenantID, groupID int, at t
 }
 
 func (r *Resolver) Resolve(ctx context.Context, tenantID int, fields IntakeFields) (Resolution, error) {
-	result := Resolution{}
-	if strings.TrimSpace(fields.CustomerName) == "" {
-		result.MissingFields = append(result.MissingFields, "customerName")
-	}
+	result := Resolution{FieldSources: map[string]interface{}{}}
 	if strings.TrimSpace(fields.ReportedContractNumber) == "" {
 		result.MissingFields = append(result.MissingFields, "reportedContractNumber")
+	}
+
+	match, err := r.matchCustomer(ctx, tenantID, fields)
+	if err != nil {
+		return result, err
+	}
+	result.CustomerID = match.CustomerID
+	result.MatchedLevel = match.Level
+	result.MatchConfidence = match.Confidence
+	result.Candidates = match.Candidates
+	if match.Level != "" {
+		result.FieldSources["customerMatch"] = map[string]interface{}{
+			"level": match.Level, "field": match.Field, "value": match.Value, "confidence": match.Confidence,
+		}
+	}
+	if match.CustomerID != 0 {
+		result.FieldSources["customerId"] = map[string]interface{}{
+			"level": match.Level, "field": match.Field, "value": match.Value, "confidence": match.Confidence,
+		}
+	}
+	if match.CustomerID == 0 {
+		if len(match.Candidates) > 0 && !match.Ambiguous {
+			result.Status = ResolutionManualReview
+			result.Reasons = []string{match.Reason}
+			result.MissingFields = append(result.MissingFields, "customerName")
+			return result, nil
+		}
+		if match.Ambiguous {
+			result.Status = ResolutionAmbiguous
+			result.Reasons = []string{match.Reason}
+			result.MissingFields = append(result.MissingFields, "customerName")
+			return result, nil
+		}
+		if len(result.MissingFields) > 0 {
+			result.Status = ResolutionNeedInfo
+			result.MissingFields = append(result.MissingFields, "customerName")
+			return result, nil
+		}
+		result.Status = ResolutionManualReview
+		result.Reasons = []string{"customer_not_matched"}
+		result.MissingFields = append(result.MissingFields, "customerName")
+		return result, nil
 	}
 	if len(result.MissingFields) > 0 {
 		result.Status = ResolutionNeedInfo
 		return result, nil
 	}
-
-	customers, err := r.client.ServiceCustomer.Query().
-		Where(servicecustomer.TenantIDEQ(tenantID), servicecustomer.StatusEQ("active")).All(ctx)
-	if err != nil {
-		return result, fmt.Errorf("query service customers: %w", err)
-	}
-	needle := NormalizeName(fields.CustomerName)
-	matches := make([]*ent.ServiceCustomer, 0, 1)
-	for _, candidate := range customers {
-		if NormalizeName(candidate.Name) == needle || NormalizeName(candidate.ShortName) == needle || containsNormalized(candidate.Aliases, needle) || containsNormalized(candidate.HistoricalNames, needle) {
-			matches = append(matches, candidate)
-		}
-	}
-	if len(matches) == 0 {
-		result.Status = ResolutionManualReview
-		result.Reasons = []string{"customer_not_exactly_matched"}
-		return result, nil
-	}
-	if len(matches) > 1 {
-		result.Status = ResolutionAmbiguous
-		result.Reasons = []string{"multiple_customer_matches"}
-		return result, nil
-	}
-	result.CustomerID = matches[0].ID
 
 	if strings.TrimSpace(fields.SourceOrganizationName) != "" {
 		sources, sourceErr := r.client.SourceOrganization.Query().Where(
@@ -172,6 +193,11 @@ func (r *Resolver) Resolve(ctx context.Context, tenantID int, fields IntakeField
 			result.Status = ResolutionManualReview
 			result.Reasons = []string{"source_organization_not_verified"}
 			return result, nil
+		}
+	}
+	if result.SourceOrganizationID != 0 {
+		result.FieldSources["sourceOrganizationId"] = map[string]interface{}{
+			"level": "L4", "field": "sourceOrganizationName", "value": fields.SourceOrganizationName,
 		}
 	}
 
@@ -207,6 +233,11 @@ func (r *Resolver) Resolve(ctx context.Context, tenantID int, fields IntakeField
 				result.Reasons = []string{"branch_not_exactly_matched"}
 				return result, nil
 			}
+		}
+	}
+	if result.BranchID != 0 {
+		result.FieldSources["branchId"] = map[string]interface{}{
+			"field": "branchName", "value": fields.BranchName,
 		}
 	}
 
@@ -249,6 +280,9 @@ func (r *Resolver) Resolve(ctx context.Context, tenantID int, fields IntakeField
 		return result, nil
 	}
 	result.SupportContractID = contract.ID
+	result.FieldSources["supportContractId"] = map[string]interface{}{
+		"field": "reportedContractNumber", "value": fields.ReportedContractNumber,
+	}
 	if contract.Status != "active" {
 		result.Status = ResolutionRejected
 		result.Reasons = []string{"contract_not_active"}
@@ -397,54 +431,109 @@ func (s *OnCallService) CurrentResolver(ctx context.Context, tenantID, groupID i
 
 // ─── ServiceCustomer ────────────────────────────────────────────────
 
-func (s *Service) CreateCustomer(ctx context.Context, tenantID int, req *customerRequest) (*ent.ServiceCustomer, error) {
-	status := defaultString(req.Status, "active")
-	return s.client.ServiceCustomer.Create().SetTenantID(tenantID).SetName(strings.TrimSpace(req.Name)).
-		SetNormalizedName(NormalizeName(req.Name)).SetShortName(req.ShortName).SetAliases(req.Aliases).
-		SetHistoricalNames(req.HistoricalNames).SetStatus(status).SetNillableLinkedCustomerTenantID(req.LinkedCustomerTenantID).Save(ctx)
-}
-
-func (s *Service) ListCustomers(ctx context.Context, tenantID int) ([]*ent.ServiceCustomer, error) {
-	return s.client.ServiceCustomer.Query().Where(servicecustomer.TenantIDEQ(tenantID)).Order(ent.Desc(servicecustomer.FieldUpdatedAt)).All(ctx)
-}
-
-func (s *Service) UpdateCustomer(ctx context.Context, tenantID, id int, req *customerRequest) (*ent.ServiceCustomer, error) {
-	return s.client.ServiceCustomer.UpdateOneID(id).Where(servicecustomer.TenantIDEQ(tenantID)).SetName(strings.TrimSpace(req.Name)).SetNormalizedName(NormalizeName(req.Name)).SetShortName(req.ShortName).SetAliases(req.Aliases).SetHistoricalNames(req.HistoricalNames).SetStatus(defaultString(req.Status, "active")).SetNillableLinkedCustomerTenantID(req.LinkedCustomerTenantID).Save(ctx)
-}
-
-func (s *Service) DisableCustomer(ctx context.Context, tenantID, id int) (*ent.ServiceCustomer, error) {
-	return s.client.ServiceCustomer.UpdateOneID(id).Where(servicecustomer.TenantIDEQ(tenantID)).SetStatus("inactive").Save(ctx)
-}
-
 func (s *Service) CustomerExists(ctx context.Context, tenantID, id int) (bool, error) {
-	return s.client.ServiceCustomer.Query().Where(servicecustomer.IDEQ(id), servicecustomer.TenantIDEQ(tenantID)).Exist(ctx)
+	return s.client.ServiceCustomer.Query().Where(servicecustomer.IDEQ(id), servicecustomer.TenantIDEQ(tenantID), servicecustomer.DeletedAtIsNil()).Exist(ctx)
 }
 
 // ─── CustomerBranch ─────────────────────────────────────────────────
 
 func (s *Service) CreateBranch(ctx context.Context, tenantID int, req *branchRequest) (*ent.CustomerBranch, error) {
 	status := defaultString(req.Status, "active")
-	return s.client.CustomerBranch.Create().SetTenantID(tenantID).SetCustomerID(req.CustomerID).SetName(strings.TrimSpace(req.Name)).SetNormalizedName(NormalizeName(req.Name)).SetAliases(req.Aliases).SetStatus(status).Save(ctx)
+	if req.IsPrimary {
+		if _, err := s.client.CustomerBranch.Update().
+			Where(
+				customerbranch.TenantIDEQ(tenantID),
+				customerbranch.CustomerIDEQ(req.CustomerID),
+				customerbranch.IsPrimaryEQ(true),
+				customerbranch.DeletedAtIsNil(),
+			).
+			SetIsPrimary(false).
+			Save(ctx); err != nil {
+			return nil, err
+		}
+	}
+	return s.client.CustomerBranch.Create().
+		SetTenantID(tenantID).
+		SetCustomerID(req.CustomerID).
+		SetCode(req.Code).
+		SetName(strings.TrimSpace(req.Name)).
+		SetNormalizedName(NormalizeName(req.Name)).
+		SetBranchType(defaultString(req.BranchType, "site")).
+		SetAliases(nonNilStrings(req.Aliases)).
+		SetAddress(nonNilMap(req.Address)).
+		SetTimezone(req.Timezone).
+		SetContactPhone(req.ContactPhone).
+		SetEmailDomains(nonNilStrings(req.EmailDomains)).
+		SetServiceTier(req.ServiceTier).
+		SetSupportHours(req.SupportHours).
+		SetIsPrimary(req.IsPrimary).
+		SetNillableLinkedTenantID(req.LinkedTenantID).
+		SetStatus(status).
+		Save(ctx)
 }
 
 func (s *Service) ListBranches(ctx context.Context, tenantID, customerID int) ([]*ent.CustomerBranch, error) {
-	query := s.client.CustomerBranch.Query().Where(customerbranch.TenantIDEQ(tenantID))
+	query := s.client.CustomerBranch.Query().Where(
+		customerbranch.TenantIDEQ(tenantID),
+		customerbranch.DeletedAtIsNil(),
+	)
 	if customerID > 0 {
 		query.Where(customerbranch.CustomerIDEQ(customerID))
 	}
-	return query.All(ctx)
+	return query.
+		Order(ent.Desc(customerbranch.FieldIsPrimary), ent.Asc(customerbranch.FieldName)).
+		All(ctx)
 }
 
 func (s *Service) UpdateBranch(ctx context.Context, tenantID, id int, req *branchRequest) (*ent.CustomerBranch, error) {
-	return s.client.CustomerBranch.UpdateOneID(id).Where(customerbranch.TenantIDEQ(tenantID)).SetCustomerID(req.CustomerID).SetName(strings.TrimSpace(req.Name)).SetNormalizedName(NormalizeName(req.Name)).SetAliases(req.Aliases).SetStatus(defaultString(req.Status, "active")).Save(ctx)
+	if req.IsPrimary {
+		if _, err := s.client.CustomerBranch.Update().
+			Where(
+				customerbranch.TenantIDEQ(tenantID),
+				customerbranch.CustomerIDEQ(req.CustomerID),
+				customerbranch.IDNEQ(id),
+				customerbranch.IsPrimaryEQ(true),
+				customerbranch.DeletedAtIsNil(),
+			).
+			SetIsPrimary(false).
+			Save(ctx); err != nil {
+			return nil, err
+		}
+	}
+	update := s.client.CustomerBranch.UpdateOneID(id).
+		Where(customerbranch.TenantIDEQ(tenantID), customerbranch.DeletedAtIsNil()).
+		SetCustomerID(req.CustomerID).
+		SetCode(req.Code).
+		SetName(strings.TrimSpace(req.Name)).
+		SetNormalizedName(NormalizeName(req.Name)).
+		SetBranchType(defaultString(req.BranchType, "site")).
+		SetAliases(nonNilStrings(req.Aliases)).
+		SetAddress(nonNilMap(req.Address)).
+		SetTimezone(req.Timezone).
+		SetContactPhone(req.ContactPhone).
+		SetEmailDomains(nonNilStrings(req.EmailDomains)).
+		SetServiceTier(req.ServiceTier).
+		SetSupportHours(req.SupportHours).
+		SetIsPrimary(req.IsPrimary).
+		SetStatus(defaultString(req.Status, "active"))
+	if req.LinkedTenantID != nil {
+		update.SetLinkedTenantID(*req.LinkedTenantID)
+	} else {
+		update.ClearLinkedTenantID()
+	}
+	return update.Save(ctx)
 }
 
 func (s *Service) DisableBranch(ctx context.Context, tenantID, id int) (*ent.CustomerBranch, error) {
-	return s.client.CustomerBranch.UpdateOneID(id).Where(customerbranch.TenantIDEQ(tenantID)).SetStatus("inactive").Save(ctx)
+	return s.client.CustomerBranch.UpdateOneID(id).
+		Where(customerbranch.TenantIDEQ(tenantID), customerbranch.DeletedAtIsNil()).
+		SetStatus("inactive").
+		SetIsPrimary(false).
+		Save(ctx)
 }
 
 func (s *Service) BranchExistsForCustomer(ctx context.Context, tenantID, branchID, customerID int) (bool, error) {
-	return s.client.CustomerBranch.Query().Where(customerbranch.IDEQ(branchID), customerbranch.CustomerIDEQ(customerID), customerbranch.TenantIDEQ(tenantID)).Exist(ctx)
+	return s.client.CustomerBranch.Query().Where(customerbranch.IDEQ(branchID), customerbranch.CustomerIDEQ(customerID), customerbranch.TenantIDEQ(tenantID), customerbranch.DeletedAtIsNil()).Exist(ctx)
 }
 
 // ─── SourceOrganization ─────────────────────────────────────────────
@@ -469,24 +558,26 @@ func (s *Service) DisableSourceOrganization(ctx context.Context, tenantID, id in
 // ─── SupportContract ────────────────────────────────────────────────
 
 func (s *Service) CreateSupportContract(ctx context.Context, tenantID int, req *supportContractRequest) (*ent.SupportContract, error) {
-	status := defaultString(req.Status, "active")
-	return s.client.SupportContract.Create().SetTenantID(tenantID).SetCustomerID(req.CustomerID).SetNillableBranchID(req.BranchID).SetContractNumber(strings.TrimSpace(req.ContractNumber)).SetNormalizedContractNumber(NormalizeContractNumber(req.ContractNumber)).SetStatus(status).SetNillableStartAt(req.StartAt).SetNillableEndAt(req.EndAt).Save(ctx)
+	return s.createSupportContractEntity(ctx, tenantID, 0, req)
 }
 
 func (s *Service) ListSupportContracts(ctx context.Context, tenantID int) ([]*ent.SupportContract, error) {
-	return s.client.SupportContract.Query().Where(supportcontract.TenantIDEQ(tenantID)).All(ctx)
+	return s.client.SupportContract.Query().
+		Where(supportcontract.TenantIDEQ(tenantID), supportcontract.DeletedAtIsNil()).
+		Order(ent.Desc(supportcontract.FieldUpdatedAt)).
+		All(ctx)
 }
 
 func (s *Service) UpdateSupportContract(ctx context.Context, tenantID, id int, req *supportContractRequest) (*ent.SupportContract, error) {
-	return s.client.SupportContract.UpdateOneID(id).Where(supportcontract.TenantIDEQ(tenantID)).SetCustomerID(req.CustomerID).SetNillableBranchID(req.BranchID).SetContractNumber(strings.TrimSpace(req.ContractNumber)).SetNormalizedContractNumber(NormalizeContractNumber(req.ContractNumber)).SetStatus(defaultString(req.Status, "active")).SetNillableStartAt(req.StartAt).SetNillableEndAt(req.EndAt).Save(ctx)
+	return s.updateSupportContractEntity(ctx, tenantID, 0, id, req)
 }
 
 func (s *Service) TerminateSupportContract(ctx context.Context, tenantID, id int) (*ent.SupportContract, error) {
-	return s.client.SupportContract.UpdateOneID(id).Where(supportcontract.TenantIDEQ(tenantID)).SetStatus("terminated").Save(ctx)
+	return s.TerminateSupportContractWithReason(ctx, tenantID, 0, id, &contractTerminateRequest{Reason: "legacy_terminate"})
 }
 
 func (s *Service) SupportContractExists(ctx context.Context, tenantID, id int) (bool, error) {
-	return s.client.SupportContract.Query().Where(supportcontract.IDEQ(id), supportcontract.TenantIDEQ(tenantID)).Exist(ctx)
+	return s.client.SupportContract.Query().Where(supportcontract.IDEQ(id), supportcontract.TenantIDEQ(tenantID), supportcontract.DeletedAtIsNil()).Exist(ctx)
 }
 
 // ─── ExternalContractReference ──────────────────────────────────────

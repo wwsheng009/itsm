@@ -65,6 +65,11 @@ func CustomerID(v int) predicate.CustomerBranch {
 	return predicate.CustomerBranch(sql.FieldEQ(FieldCustomerID, v))
 }
 
+// Code applies equality check predicate on the "code" field. It's identical to CodeEQ.
+func Code(v string) predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldEQ(FieldCode, v))
+}
+
 // Name applies equality check predicate on the "name" field. It's identical to NameEQ.
 func Name(v string) predicate.CustomerBranch {
 	return predicate.CustomerBranch(sql.FieldEQ(FieldName, v))
@@ -75,9 +80,49 @@ func NormalizedName(v string) predicate.CustomerBranch {
 	return predicate.CustomerBranch(sql.FieldEQ(FieldNormalizedName, v))
 }
 
+// BranchType applies equality check predicate on the "branch_type" field. It's identical to BranchTypeEQ.
+func BranchType(v string) predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldEQ(FieldBranchType, v))
+}
+
+// Timezone applies equality check predicate on the "timezone" field. It's identical to TimezoneEQ.
+func Timezone(v string) predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldEQ(FieldTimezone, v))
+}
+
+// ContactPhone applies equality check predicate on the "contact_phone" field. It's identical to ContactPhoneEQ.
+func ContactPhone(v string) predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldEQ(FieldContactPhone, v))
+}
+
+// ServiceTier applies equality check predicate on the "service_tier" field. It's identical to ServiceTierEQ.
+func ServiceTier(v string) predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldEQ(FieldServiceTier, v))
+}
+
+// SupportHours applies equality check predicate on the "support_hours" field. It's identical to SupportHoursEQ.
+func SupportHours(v string) predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldEQ(FieldSupportHours, v))
+}
+
+// IsPrimary applies equality check predicate on the "is_primary" field. It's identical to IsPrimaryEQ.
+func IsPrimary(v bool) predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldEQ(FieldIsPrimary, v))
+}
+
+// LinkedTenantID applies equality check predicate on the "linked_tenant_id" field. It's identical to LinkedTenantIDEQ.
+func LinkedTenantID(v int) predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldEQ(FieldLinkedTenantID, v))
+}
+
 // Status applies equality check predicate on the "status" field. It's identical to StatusEQ.
 func Status(v string) predicate.CustomerBranch {
 	return predicate.CustomerBranch(sql.FieldEQ(FieldStatus, v))
+}
+
+// DeletedAt applies equality check predicate on the "deleted_at" field. It's identical to DeletedAtEQ.
+func DeletedAt(v time.Time) predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldEQ(FieldDeletedAt, v))
 }
 
 // CreatedAt applies equality check predicate on the "created_at" field. It's identical to CreatedAtEQ.
@@ -148,6 +193,81 @@ func CustomerIDIn(vs ...int) predicate.CustomerBranch {
 // CustomerIDNotIn applies the NotIn predicate on the "customer_id" field.
 func CustomerIDNotIn(vs ...int) predicate.CustomerBranch {
 	return predicate.CustomerBranch(sql.FieldNotIn(FieldCustomerID, vs...))
+}
+
+// CodeEQ applies the EQ predicate on the "code" field.
+func CodeEQ(v string) predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldEQ(FieldCode, v))
+}
+
+// CodeNEQ applies the NEQ predicate on the "code" field.
+func CodeNEQ(v string) predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldNEQ(FieldCode, v))
+}
+
+// CodeIn applies the In predicate on the "code" field.
+func CodeIn(vs ...string) predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldIn(FieldCode, vs...))
+}
+
+// CodeNotIn applies the NotIn predicate on the "code" field.
+func CodeNotIn(vs ...string) predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldNotIn(FieldCode, vs...))
+}
+
+// CodeGT applies the GT predicate on the "code" field.
+func CodeGT(v string) predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldGT(FieldCode, v))
+}
+
+// CodeGTE applies the GTE predicate on the "code" field.
+func CodeGTE(v string) predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldGTE(FieldCode, v))
+}
+
+// CodeLT applies the LT predicate on the "code" field.
+func CodeLT(v string) predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldLT(FieldCode, v))
+}
+
+// CodeLTE applies the LTE predicate on the "code" field.
+func CodeLTE(v string) predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldLTE(FieldCode, v))
+}
+
+// CodeContains applies the Contains predicate on the "code" field.
+func CodeContains(v string) predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldContains(FieldCode, v))
+}
+
+// CodeHasPrefix applies the HasPrefix predicate on the "code" field.
+func CodeHasPrefix(v string) predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldHasPrefix(FieldCode, v))
+}
+
+// CodeHasSuffix applies the HasSuffix predicate on the "code" field.
+func CodeHasSuffix(v string) predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldHasSuffix(FieldCode, v))
+}
+
+// CodeIsNil applies the IsNil predicate on the "code" field.
+func CodeIsNil() predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldIsNull(FieldCode))
+}
+
+// CodeNotNil applies the NotNil predicate on the "code" field.
+func CodeNotNil() predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldNotNull(FieldCode))
+}
+
+// CodeEqualFold applies the EqualFold predicate on the "code" field.
+func CodeEqualFold(v string) predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldEqualFold(FieldCode, v))
+}
+
+// CodeContainsFold applies the ContainsFold predicate on the "code" field.
+func CodeContainsFold(v string) predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldContainsFold(FieldCode, v))
 }
 
 // NameEQ applies the EQ predicate on the "name" field.
@@ -280,6 +400,71 @@ func NormalizedNameContainsFold(v string) predicate.CustomerBranch {
 	return predicate.CustomerBranch(sql.FieldContainsFold(FieldNormalizedName, v))
 }
 
+// BranchTypeEQ applies the EQ predicate on the "branch_type" field.
+func BranchTypeEQ(v string) predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldEQ(FieldBranchType, v))
+}
+
+// BranchTypeNEQ applies the NEQ predicate on the "branch_type" field.
+func BranchTypeNEQ(v string) predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldNEQ(FieldBranchType, v))
+}
+
+// BranchTypeIn applies the In predicate on the "branch_type" field.
+func BranchTypeIn(vs ...string) predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldIn(FieldBranchType, vs...))
+}
+
+// BranchTypeNotIn applies the NotIn predicate on the "branch_type" field.
+func BranchTypeNotIn(vs ...string) predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldNotIn(FieldBranchType, vs...))
+}
+
+// BranchTypeGT applies the GT predicate on the "branch_type" field.
+func BranchTypeGT(v string) predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldGT(FieldBranchType, v))
+}
+
+// BranchTypeGTE applies the GTE predicate on the "branch_type" field.
+func BranchTypeGTE(v string) predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldGTE(FieldBranchType, v))
+}
+
+// BranchTypeLT applies the LT predicate on the "branch_type" field.
+func BranchTypeLT(v string) predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldLT(FieldBranchType, v))
+}
+
+// BranchTypeLTE applies the LTE predicate on the "branch_type" field.
+func BranchTypeLTE(v string) predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldLTE(FieldBranchType, v))
+}
+
+// BranchTypeContains applies the Contains predicate on the "branch_type" field.
+func BranchTypeContains(v string) predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldContains(FieldBranchType, v))
+}
+
+// BranchTypeHasPrefix applies the HasPrefix predicate on the "branch_type" field.
+func BranchTypeHasPrefix(v string) predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldHasPrefix(FieldBranchType, v))
+}
+
+// BranchTypeHasSuffix applies the HasSuffix predicate on the "branch_type" field.
+func BranchTypeHasSuffix(v string) predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldHasSuffix(FieldBranchType, v))
+}
+
+// BranchTypeEqualFold applies the EqualFold predicate on the "branch_type" field.
+func BranchTypeEqualFold(v string) predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldEqualFold(FieldBranchType, v))
+}
+
+// BranchTypeContainsFold applies the ContainsFold predicate on the "branch_type" field.
+func BranchTypeContainsFold(v string) predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldContainsFold(FieldBranchType, v))
+}
+
 // AliasesIsNil applies the IsNil predicate on the "aliases" field.
 func AliasesIsNil() predicate.CustomerBranch {
 	return predicate.CustomerBranch(sql.FieldIsNull(FieldAliases))
@@ -288,6 +473,386 @@ func AliasesIsNil() predicate.CustomerBranch {
 // AliasesNotNil applies the NotNil predicate on the "aliases" field.
 func AliasesNotNil() predicate.CustomerBranch {
 	return predicate.CustomerBranch(sql.FieldNotNull(FieldAliases))
+}
+
+// AddressIsNil applies the IsNil predicate on the "address" field.
+func AddressIsNil() predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldIsNull(FieldAddress))
+}
+
+// AddressNotNil applies the NotNil predicate on the "address" field.
+func AddressNotNil() predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldNotNull(FieldAddress))
+}
+
+// TimezoneEQ applies the EQ predicate on the "timezone" field.
+func TimezoneEQ(v string) predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldEQ(FieldTimezone, v))
+}
+
+// TimezoneNEQ applies the NEQ predicate on the "timezone" field.
+func TimezoneNEQ(v string) predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldNEQ(FieldTimezone, v))
+}
+
+// TimezoneIn applies the In predicate on the "timezone" field.
+func TimezoneIn(vs ...string) predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldIn(FieldTimezone, vs...))
+}
+
+// TimezoneNotIn applies the NotIn predicate on the "timezone" field.
+func TimezoneNotIn(vs ...string) predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldNotIn(FieldTimezone, vs...))
+}
+
+// TimezoneGT applies the GT predicate on the "timezone" field.
+func TimezoneGT(v string) predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldGT(FieldTimezone, v))
+}
+
+// TimezoneGTE applies the GTE predicate on the "timezone" field.
+func TimezoneGTE(v string) predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldGTE(FieldTimezone, v))
+}
+
+// TimezoneLT applies the LT predicate on the "timezone" field.
+func TimezoneLT(v string) predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldLT(FieldTimezone, v))
+}
+
+// TimezoneLTE applies the LTE predicate on the "timezone" field.
+func TimezoneLTE(v string) predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldLTE(FieldTimezone, v))
+}
+
+// TimezoneContains applies the Contains predicate on the "timezone" field.
+func TimezoneContains(v string) predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldContains(FieldTimezone, v))
+}
+
+// TimezoneHasPrefix applies the HasPrefix predicate on the "timezone" field.
+func TimezoneHasPrefix(v string) predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldHasPrefix(FieldTimezone, v))
+}
+
+// TimezoneHasSuffix applies the HasSuffix predicate on the "timezone" field.
+func TimezoneHasSuffix(v string) predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldHasSuffix(FieldTimezone, v))
+}
+
+// TimezoneIsNil applies the IsNil predicate on the "timezone" field.
+func TimezoneIsNil() predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldIsNull(FieldTimezone))
+}
+
+// TimezoneNotNil applies the NotNil predicate on the "timezone" field.
+func TimezoneNotNil() predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldNotNull(FieldTimezone))
+}
+
+// TimezoneEqualFold applies the EqualFold predicate on the "timezone" field.
+func TimezoneEqualFold(v string) predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldEqualFold(FieldTimezone, v))
+}
+
+// TimezoneContainsFold applies the ContainsFold predicate on the "timezone" field.
+func TimezoneContainsFold(v string) predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldContainsFold(FieldTimezone, v))
+}
+
+// ContactPhoneEQ applies the EQ predicate on the "contact_phone" field.
+func ContactPhoneEQ(v string) predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldEQ(FieldContactPhone, v))
+}
+
+// ContactPhoneNEQ applies the NEQ predicate on the "contact_phone" field.
+func ContactPhoneNEQ(v string) predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldNEQ(FieldContactPhone, v))
+}
+
+// ContactPhoneIn applies the In predicate on the "contact_phone" field.
+func ContactPhoneIn(vs ...string) predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldIn(FieldContactPhone, vs...))
+}
+
+// ContactPhoneNotIn applies the NotIn predicate on the "contact_phone" field.
+func ContactPhoneNotIn(vs ...string) predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldNotIn(FieldContactPhone, vs...))
+}
+
+// ContactPhoneGT applies the GT predicate on the "contact_phone" field.
+func ContactPhoneGT(v string) predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldGT(FieldContactPhone, v))
+}
+
+// ContactPhoneGTE applies the GTE predicate on the "contact_phone" field.
+func ContactPhoneGTE(v string) predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldGTE(FieldContactPhone, v))
+}
+
+// ContactPhoneLT applies the LT predicate on the "contact_phone" field.
+func ContactPhoneLT(v string) predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldLT(FieldContactPhone, v))
+}
+
+// ContactPhoneLTE applies the LTE predicate on the "contact_phone" field.
+func ContactPhoneLTE(v string) predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldLTE(FieldContactPhone, v))
+}
+
+// ContactPhoneContains applies the Contains predicate on the "contact_phone" field.
+func ContactPhoneContains(v string) predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldContains(FieldContactPhone, v))
+}
+
+// ContactPhoneHasPrefix applies the HasPrefix predicate on the "contact_phone" field.
+func ContactPhoneHasPrefix(v string) predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldHasPrefix(FieldContactPhone, v))
+}
+
+// ContactPhoneHasSuffix applies the HasSuffix predicate on the "contact_phone" field.
+func ContactPhoneHasSuffix(v string) predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldHasSuffix(FieldContactPhone, v))
+}
+
+// ContactPhoneIsNil applies the IsNil predicate on the "contact_phone" field.
+func ContactPhoneIsNil() predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldIsNull(FieldContactPhone))
+}
+
+// ContactPhoneNotNil applies the NotNil predicate on the "contact_phone" field.
+func ContactPhoneNotNil() predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldNotNull(FieldContactPhone))
+}
+
+// ContactPhoneEqualFold applies the EqualFold predicate on the "contact_phone" field.
+func ContactPhoneEqualFold(v string) predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldEqualFold(FieldContactPhone, v))
+}
+
+// ContactPhoneContainsFold applies the ContainsFold predicate on the "contact_phone" field.
+func ContactPhoneContainsFold(v string) predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldContainsFold(FieldContactPhone, v))
+}
+
+// EmailDomainsIsNil applies the IsNil predicate on the "email_domains" field.
+func EmailDomainsIsNil() predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldIsNull(FieldEmailDomains))
+}
+
+// EmailDomainsNotNil applies the NotNil predicate on the "email_domains" field.
+func EmailDomainsNotNil() predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldNotNull(FieldEmailDomains))
+}
+
+// ServiceTierEQ applies the EQ predicate on the "service_tier" field.
+func ServiceTierEQ(v string) predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldEQ(FieldServiceTier, v))
+}
+
+// ServiceTierNEQ applies the NEQ predicate on the "service_tier" field.
+func ServiceTierNEQ(v string) predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldNEQ(FieldServiceTier, v))
+}
+
+// ServiceTierIn applies the In predicate on the "service_tier" field.
+func ServiceTierIn(vs ...string) predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldIn(FieldServiceTier, vs...))
+}
+
+// ServiceTierNotIn applies the NotIn predicate on the "service_tier" field.
+func ServiceTierNotIn(vs ...string) predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldNotIn(FieldServiceTier, vs...))
+}
+
+// ServiceTierGT applies the GT predicate on the "service_tier" field.
+func ServiceTierGT(v string) predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldGT(FieldServiceTier, v))
+}
+
+// ServiceTierGTE applies the GTE predicate on the "service_tier" field.
+func ServiceTierGTE(v string) predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldGTE(FieldServiceTier, v))
+}
+
+// ServiceTierLT applies the LT predicate on the "service_tier" field.
+func ServiceTierLT(v string) predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldLT(FieldServiceTier, v))
+}
+
+// ServiceTierLTE applies the LTE predicate on the "service_tier" field.
+func ServiceTierLTE(v string) predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldLTE(FieldServiceTier, v))
+}
+
+// ServiceTierContains applies the Contains predicate on the "service_tier" field.
+func ServiceTierContains(v string) predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldContains(FieldServiceTier, v))
+}
+
+// ServiceTierHasPrefix applies the HasPrefix predicate on the "service_tier" field.
+func ServiceTierHasPrefix(v string) predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldHasPrefix(FieldServiceTier, v))
+}
+
+// ServiceTierHasSuffix applies the HasSuffix predicate on the "service_tier" field.
+func ServiceTierHasSuffix(v string) predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldHasSuffix(FieldServiceTier, v))
+}
+
+// ServiceTierIsNil applies the IsNil predicate on the "service_tier" field.
+func ServiceTierIsNil() predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldIsNull(FieldServiceTier))
+}
+
+// ServiceTierNotNil applies the NotNil predicate on the "service_tier" field.
+func ServiceTierNotNil() predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldNotNull(FieldServiceTier))
+}
+
+// ServiceTierEqualFold applies the EqualFold predicate on the "service_tier" field.
+func ServiceTierEqualFold(v string) predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldEqualFold(FieldServiceTier, v))
+}
+
+// ServiceTierContainsFold applies the ContainsFold predicate on the "service_tier" field.
+func ServiceTierContainsFold(v string) predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldContainsFold(FieldServiceTier, v))
+}
+
+// SupportHoursEQ applies the EQ predicate on the "support_hours" field.
+func SupportHoursEQ(v string) predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldEQ(FieldSupportHours, v))
+}
+
+// SupportHoursNEQ applies the NEQ predicate on the "support_hours" field.
+func SupportHoursNEQ(v string) predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldNEQ(FieldSupportHours, v))
+}
+
+// SupportHoursIn applies the In predicate on the "support_hours" field.
+func SupportHoursIn(vs ...string) predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldIn(FieldSupportHours, vs...))
+}
+
+// SupportHoursNotIn applies the NotIn predicate on the "support_hours" field.
+func SupportHoursNotIn(vs ...string) predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldNotIn(FieldSupportHours, vs...))
+}
+
+// SupportHoursGT applies the GT predicate on the "support_hours" field.
+func SupportHoursGT(v string) predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldGT(FieldSupportHours, v))
+}
+
+// SupportHoursGTE applies the GTE predicate on the "support_hours" field.
+func SupportHoursGTE(v string) predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldGTE(FieldSupportHours, v))
+}
+
+// SupportHoursLT applies the LT predicate on the "support_hours" field.
+func SupportHoursLT(v string) predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldLT(FieldSupportHours, v))
+}
+
+// SupportHoursLTE applies the LTE predicate on the "support_hours" field.
+func SupportHoursLTE(v string) predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldLTE(FieldSupportHours, v))
+}
+
+// SupportHoursContains applies the Contains predicate on the "support_hours" field.
+func SupportHoursContains(v string) predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldContains(FieldSupportHours, v))
+}
+
+// SupportHoursHasPrefix applies the HasPrefix predicate on the "support_hours" field.
+func SupportHoursHasPrefix(v string) predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldHasPrefix(FieldSupportHours, v))
+}
+
+// SupportHoursHasSuffix applies the HasSuffix predicate on the "support_hours" field.
+func SupportHoursHasSuffix(v string) predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldHasSuffix(FieldSupportHours, v))
+}
+
+// SupportHoursIsNil applies the IsNil predicate on the "support_hours" field.
+func SupportHoursIsNil() predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldIsNull(FieldSupportHours))
+}
+
+// SupportHoursNotNil applies the NotNil predicate on the "support_hours" field.
+func SupportHoursNotNil() predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldNotNull(FieldSupportHours))
+}
+
+// SupportHoursEqualFold applies the EqualFold predicate on the "support_hours" field.
+func SupportHoursEqualFold(v string) predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldEqualFold(FieldSupportHours, v))
+}
+
+// SupportHoursContainsFold applies the ContainsFold predicate on the "support_hours" field.
+func SupportHoursContainsFold(v string) predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldContainsFold(FieldSupportHours, v))
+}
+
+// IsPrimaryEQ applies the EQ predicate on the "is_primary" field.
+func IsPrimaryEQ(v bool) predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldEQ(FieldIsPrimary, v))
+}
+
+// IsPrimaryNEQ applies the NEQ predicate on the "is_primary" field.
+func IsPrimaryNEQ(v bool) predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldNEQ(FieldIsPrimary, v))
+}
+
+// LinkedTenantIDEQ applies the EQ predicate on the "linked_tenant_id" field.
+func LinkedTenantIDEQ(v int) predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldEQ(FieldLinkedTenantID, v))
+}
+
+// LinkedTenantIDNEQ applies the NEQ predicate on the "linked_tenant_id" field.
+func LinkedTenantIDNEQ(v int) predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldNEQ(FieldLinkedTenantID, v))
+}
+
+// LinkedTenantIDIn applies the In predicate on the "linked_tenant_id" field.
+func LinkedTenantIDIn(vs ...int) predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldIn(FieldLinkedTenantID, vs...))
+}
+
+// LinkedTenantIDNotIn applies the NotIn predicate on the "linked_tenant_id" field.
+func LinkedTenantIDNotIn(vs ...int) predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldNotIn(FieldLinkedTenantID, vs...))
+}
+
+// LinkedTenantIDGT applies the GT predicate on the "linked_tenant_id" field.
+func LinkedTenantIDGT(v int) predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldGT(FieldLinkedTenantID, v))
+}
+
+// LinkedTenantIDGTE applies the GTE predicate on the "linked_tenant_id" field.
+func LinkedTenantIDGTE(v int) predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldGTE(FieldLinkedTenantID, v))
+}
+
+// LinkedTenantIDLT applies the LT predicate on the "linked_tenant_id" field.
+func LinkedTenantIDLT(v int) predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldLT(FieldLinkedTenantID, v))
+}
+
+// LinkedTenantIDLTE applies the LTE predicate on the "linked_tenant_id" field.
+func LinkedTenantIDLTE(v int) predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldLTE(FieldLinkedTenantID, v))
+}
+
+// LinkedTenantIDIsNil applies the IsNil predicate on the "linked_tenant_id" field.
+func LinkedTenantIDIsNil() predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldIsNull(FieldLinkedTenantID))
+}
+
+// LinkedTenantIDNotNil applies the NotNil predicate on the "linked_tenant_id" field.
+func LinkedTenantIDNotNil() predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldNotNull(FieldLinkedTenantID))
 }
 
 // StatusEQ applies the EQ predicate on the "status" field.
@@ -353,6 +918,56 @@ func StatusEqualFold(v string) predicate.CustomerBranch {
 // StatusContainsFold applies the ContainsFold predicate on the "status" field.
 func StatusContainsFold(v string) predicate.CustomerBranch {
 	return predicate.CustomerBranch(sql.FieldContainsFold(FieldStatus, v))
+}
+
+// DeletedAtEQ applies the EQ predicate on the "deleted_at" field.
+func DeletedAtEQ(v time.Time) predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldEQ(FieldDeletedAt, v))
+}
+
+// DeletedAtNEQ applies the NEQ predicate on the "deleted_at" field.
+func DeletedAtNEQ(v time.Time) predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldNEQ(FieldDeletedAt, v))
+}
+
+// DeletedAtIn applies the In predicate on the "deleted_at" field.
+func DeletedAtIn(vs ...time.Time) predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldIn(FieldDeletedAt, vs...))
+}
+
+// DeletedAtNotIn applies the NotIn predicate on the "deleted_at" field.
+func DeletedAtNotIn(vs ...time.Time) predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldNotIn(FieldDeletedAt, vs...))
+}
+
+// DeletedAtGT applies the GT predicate on the "deleted_at" field.
+func DeletedAtGT(v time.Time) predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldGT(FieldDeletedAt, v))
+}
+
+// DeletedAtGTE applies the GTE predicate on the "deleted_at" field.
+func DeletedAtGTE(v time.Time) predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldGTE(FieldDeletedAt, v))
+}
+
+// DeletedAtLT applies the LT predicate on the "deleted_at" field.
+func DeletedAtLT(v time.Time) predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldLT(FieldDeletedAt, v))
+}
+
+// DeletedAtLTE applies the LTE predicate on the "deleted_at" field.
+func DeletedAtLTE(v time.Time) predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldLTE(FieldDeletedAt, v))
+}
+
+// DeletedAtIsNil applies the IsNil predicate on the "deleted_at" field.
+func DeletedAtIsNil() predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldIsNull(FieldDeletedAt))
+}
+
+// DeletedAtNotNil applies the NotNil predicate on the "deleted_at" field.
+func DeletedAtNotNil() predicate.CustomerBranch {
+	return predicate.CustomerBranch(sql.FieldNotNull(FieldDeletedAt))
 }
 
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.

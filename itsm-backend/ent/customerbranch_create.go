@@ -35,6 +35,20 @@ func (_c *CustomerBranchCreate) SetCustomerID(v int) *CustomerBranchCreate {
 	return _c
 }
 
+// SetCode sets the "code" field.
+func (_c *CustomerBranchCreate) SetCode(v string) *CustomerBranchCreate {
+	_c.mutation.SetCode(v)
+	return _c
+}
+
+// SetNillableCode sets the "code" field if the given value is not nil.
+func (_c *CustomerBranchCreate) SetNillableCode(v *string) *CustomerBranchCreate {
+	if v != nil {
+		_c.SetCode(*v)
+	}
+	return _c
+}
+
 // SetName sets the "name" field.
 func (_c *CustomerBranchCreate) SetName(v string) *CustomerBranchCreate {
 	_c.mutation.SetName(v)
@@ -47,9 +61,119 @@ func (_c *CustomerBranchCreate) SetNormalizedName(v string) *CustomerBranchCreat
 	return _c
 }
 
+// SetBranchType sets the "branch_type" field.
+func (_c *CustomerBranchCreate) SetBranchType(v string) *CustomerBranchCreate {
+	_c.mutation.SetBranchType(v)
+	return _c
+}
+
+// SetNillableBranchType sets the "branch_type" field if the given value is not nil.
+func (_c *CustomerBranchCreate) SetNillableBranchType(v *string) *CustomerBranchCreate {
+	if v != nil {
+		_c.SetBranchType(*v)
+	}
+	return _c
+}
+
 // SetAliases sets the "aliases" field.
 func (_c *CustomerBranchCreate) SetAliases(v []string) *CustomerBranchCreate {
 	_c.mutation.SetAliases(v)
+	return _c
+}
+
+// SetAddress sets the "address" field.
+func (_c *CustomerBranchCreate) SetAddress(v map[string]interface{}) *CustomerBranchCreate {
+	_c.mutation.SetAddress(v)
+	return _c
+}
+
+// SetTimezone sets the "timezone" field.
+func (_c *CustomerBranchCreate) SetTimezone(v string) *CustomerBranchCreate {
+	_c.mutation.SetTimezone(v)
+	return _c
+}
+
+// SetNillableTimezone sets the "timezone" field if the given value is not nil.
+func (_c *CustomerBranchCreate) SetNillableTimezone(v *string) *CustomerBranchCreate {
+	if v != nil {
+		_c.SetTimezone(*v)
+	}
+	return _c
+}
+
+// SetContactPhone sets the "contact_phone" field.
+func (_c *CustomerBranchCreate) SetContactPhone(v string) *CustomerBranchCreate {
+	_c.mutation.SetContactPhone(v)
+	return _c
+}
+
+// SetNillableContactPhone sets the "contact_phone" field if the given value is not nil.
+func (_c *CustomerBranchCreate) SetNillableContactPhone(v *string) *CustomerBranchCreate {
+	if v != nil {
+		_c.SetContactPhone(*v)
+	}
+	return _c
+}
+
+// SetEmailDomains sets the "email_domains" field.
+func (_c *CustomerBranchCreate) SetEmailDomains(v []string) *CustomerBranchCreate {
+	_c.mutation.SetEmailDomains(v)
+	return _c
+}
+
+// SetServiceTier sets the "service_tier" field.
+func (_c *CustomerBranchCreate) SetServiceTier(v string) *CustomerBranchCreate {
+	_c.mutation.SetServiceTier(v)
+	return _c
+}
+
+// SetNillableServiceTier sets the "service_tier" field if the given value is not nil.
+func (_c *CustomerBranchCreate) SetNillableServiceTier(v *string) *CustomerBranchCreate {
+	if v != nil {
+		_c.SetServiceTier(*v)
+	}
+	return _c
+}
+
+// SetSupportHours sets the "support_hours" field.
+func (_c *CustomerBranchCreate) SetSupportHours(v string) *CustomerBranchCreate {
+	_c.mutation.SetSupportHours(v)
+	return _c
+}
+
+// SetNillableSupportHours sets the "support_hours" field if the given value is not nil.
+func (_c *CustomerBranchCreate) SetNillableSupportHours(v *string) *CustomerBranchCreate {
+	if v != nil {
+		_c.SetSupportHours(*v)
+	}
+	return _c
+}
+
+// SetIsPrimary sets the "is_primary" field.
+func (_c *CustomerBranchCreate) SetIsPrimary(v bool) *CustomerBranchCreate {
+	_c.mutation.SetIsPrimary(v)
+	return _c
+}
+
+// SetNillableIsPrimary sets the "is_primary" field if the given value is not nil.
+func (_c *CustomerBranchCreate) SetNillableIsPrimary(v *bool) *CustomerBranchCreate {
+	if v != nil {
+		_c.SetIsPrimary(*v)
+	}
+	return _c
+}
+
+// SetLinkedTenantID sets the "linked_tenant_id" field.
+func (_c *CustomerBranchCreate) SetLinkedTenantID(v int) *CustomerBranchCreate {
+	_c.mutation.SetLinkedTenantID(v)
+	return _c
+}
+
+// SetNillableLinkedTenantID sets the "linked_tenant_id" field if the given value is not nil.
+func (_c *CustomerBranchCreate) SetNillableLinkedTenantID(v *int) *CustomerBranchCreate {
+	if v != nil {
+		_c.SetLinkedTenantID(*v)
+	}
 	return _c
 }
 
@@ -63,6 +187,20 @@ func (_c *CustomerBranchCreate) SetStatus(v string) *CustomerBranchCreate {
 func (_c *CustomerBranchCreate) SetNillableStatus(v *string) *CustomerBranchCreate {
 	if v != nil {
 		_c.SetStatus(*v)
+	}
+	return _c
+}
+
+// SetDeletedAt sets the "deleted_at" field.
+func (_c *CustomerBranchCreate) SetDeletedAt(v time.Time) *CustomerBranchCreate {
+	_c.mutation.SetDeletedAt(v)
+	return _c
+}
+
+// SetNillableDeletedAt sets the "deleted_at" field if the given value is not nil.
+func (_c *CustomerBranchCreate) SetNillableDeletedAt(v *time.Time) *CustomerBranchCreate {
+	if v != nil {
+		_c.SetDeletedAt(*v)
 	}
 	return _c
 }
@@ -165,6 +303,14 @@ func (_c *CustomerBranchCreate) ExecX(ctx context.Context) {
 
 // defaults sets the default values of the builder before save.
 func (_c *CustomerBranchCreate) defaults() {
+	if _, ok := _c.mutation.BranchType(); !ok {
+		v := customerbranch.DefaultBranchType
+		_c.mutation.SetBranchType(v)
+	}
+	if _, ok := _c.mutation.IsPrimary(); !ok {
+		v := customerbranch.DefaultIsPrimary
+		_c.mutation.SetIsPrimary(v)
+	}
 	if _, ok := _c.mutation.Status(); !ok {
 		v := customerbranch.DefaultStatus
 		_c.mutation.SetStatus(v)
@@ -197,6 +343,11 @@ func (_c *CustomerBranchCreate) check() error {
 			return &ValidationError{Name: "customer_id", err: fmt.Errorf(`ent: validator failed for field "CustomerBranch.customer_id": %w`, err)}
 		}
 	}
+	if v, ok := _c.mutation.Code(); ok {
+		if err := customerbranch.CodeValidator(v); err != nil {
+			return &ValidationError{Name: "code", err: fmt.Errorf(`ent: validator failed for field "CustomerBranch.code": %w`, err)}
+		}
+	}
 	if _, ok := _c.mutation.Name(); !ok {
 		return &ValidationError{Name: "name", err: errors.New(`ent: missing required field "CustomerBranch.name"`)}
 	}
@@ -212,6 +363,37 @@ func (_c *CustomerBranchCreate) check() error {
 		if err := customerbranch.NormalizedNameValidator(v); err != nil {
 			return &ValidationError{Name: "normalized_name", err: fmt.Errorf(`ent: validator failed for field "CustomerBranch.normalized_name": %w`, err)}
 		}
+	}
+	if _, ok := _c.mutation.BranchType(); !ok {
+		return &ValidationError{Name: "branch_type", err: errors.New(`ent: missing required field "CustomerBranch.branch_type"`)}
+	}
+	if v, ok := _c.mutation.BranchType(); ok {
+		if err := customerbranch.BranchTypeValidator(v); err != nil {
+			return &ValidationError{Name: "branch_type", err: fmt.Errorf(`ent: validator failed for field "CustomerBranch.branch_type": %w`, err)}
+		}
+	}
+	if v, ok := _c.mutation.Timezone(); ok {
+		if err := customerbranch.TimezoneValidator(v); err != nil {
+			return &ValidationError{Name: "timezone", err: fmt.Errorf(`ent: validator failed for field "CustomerBranch.timezone": %w`, err)}
+		}
+	}
+	if v, ok := _c.mutation.ContactPhone(); ok {
+		if err := customerbranch.ContactPhoneValidator(v); err != nil {
+			return &ValidationError{Name: "contact_phone", err: fmt.Errorf(`ent: validator failed for field "CustomerBranch.contact_phone": %w`, err)}
+		}
+	}
+	if v, ok := _c.mutation.ServiceTier(); ok {
+		if err := customerbranch.ServiceTierValidator(v); err != nil {
+			return &ValidationError{Name: "service_tier", err: fmt.Errorf(`ent: validator failed for field "CustomerBranch.service_tier": %w`, err)}
+		}
+	}
+	if v, ok := _c.mutation.SupportHours(); ok {
+		if err := customerbranch.SupportHoursValidator(v); err != nil {
+			return &ValidationError{Name: "support_hours", err: fmt.Errorf(`ent: validator failed for field "CustomerBranch.support_hours": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.IsPrimary(); !ok {
+		return &ValidationError{Name: "is_primary", err: errors.New(`ent: missing required field "CustomerBranch.is_primary"`)}
 	}
 	if _, ok := _c.mutation.Status(); !ok {
 		return &ValidationError{Name: "status", err: errors.New(`ent: missing required field "CustomerBranch.status"`)}
@@ -260,6 +442,10 @@ func (_c *CustomerBranchCreate) createSpec() (*CustomerBranch, *sqlgraph.CreateS
 		_spec.SetField(customerbranch.FieldTenantID, field.TypeInt, value)
 		_node.TenantID = value
 	}
+	if value, ok := _c.mutation.Code(); ok {
+		_spec.SetField(customerbranch.FieldCode, field.TypeString, value)
+		_node.Code = value
+	}
 	if value, ok := _c.mutation.Name(); ok {
 		_spec.SetField(customerbranch.FieldName, field.TypeString, value)
 		_node.Name = value
@@ -268,13 +454,53 @@ func (_c *CustomerBranchCreate) createSpec() (*CustomerBranch, *sqlgraph.CreateS
 		_spec.SetField(customerbranch.FieldNormalizedName, field.TypeString, value)
 		_node.NormalizedName = value
 	}
+	if value, ok := _c.mutation.BranchType(); ok {
+		_spec.SetField(customerbranch.FieldBranchType, field.TypeString, value)
+		_node.BranchType = value
+	}
 	if value, ok := _c.mutation.Aliases(); ok {
 		_spec.SetField(customerbranch.FieldAliases, field.TypeJSON, value)
 		_node.Aliases = value
 	}
+	if value, ok := _c.mutation.Address(); ok {
+		_spec.SetField(customerbranch.FieldAddress, field.TypeJSON, value)
+		_node.Address = value
+	}
+	if value, ok := _c.mutation.Timezone(); ok {
+		_spec.SetField(customerbranch.FieldTimezone, field.TypeString, value)
+		_node.Timezone = value
+	}
+	if value, ok := _c.mutation.ContactPhone(); ok {
+		_spec.SetField(customerbranch.FieldContactPhone, field.TypeString, value)
+		_node.ContactPhone = value
+	}
+	if value, ok := _c.mutation.EmailDomains(); ok {
+		_spec.SetField(customerbranch.FieldEmailDomains, field.TypeJSON, value)
+		_node.EmailDomains = value
+	}
+	if value, ok := _c.mutation.ServiceTier(); ok {
+		_spec.SetField(customerbranch.FieldServiceTier, field.TypeString, value)
+		_node.ServiceTier = value
+	}
+	if value, ok := _c.mutation.SupportHours(); ok {
+		_spec.SetField(customerbranch.FieldSupportHours, field.TypeString, value)
+		_node.SupportHours = value
+	}
+	if value, ok := _c.mutation.IsPrimary(); ok {
+		_spec.SetField(customerbranch.FieldIsPrimary, field.TypeBool, value)
+		_node.IsPrimary = value
+	}
+	if value, ok := _c.mutation.LinkedTenantID(); ok {
+		_spec.SetField(customerbranch.FieldLinkedTenantID, field.TypeInt, value)
+		_node.LinkedTenantID = &value
+	}
 	if value, ok := _c.mutation.Status(); ok {
 		_spec.SetField(customerbranch.FieldStatus, field.TypeString, value)
 		_node.Status = value
+	}
+	if value, ok := _c.mutation.DeletedAt(); ok {
+		_spec.SetField(customerbranch.FieldDeletedAt, field.TypeTime, value)
+		_node.DeletedAt = &value
 	}
 	if value, ok := _c.mutation.CreatedAt(); ok {
 		_spec.SetField(customerbranch.FieldCreatedAt, field.TypeTime, value)

@@ -39,8 +39,16 @@ import (
 	"itsm-backend/ent/connectorconfig"
 	"itsm-backend/ent/connectorinbounddedup"
 	"itsm-backend/ent/contract"
+	"itsm-backend/ent/contractamendment"
+	"itsm-backend/ent/contractprojectlink"
+	"itsm-backend/ent/contractserviceitem"
+	"itsm-backend/ent/contractusageledger"
 	"itsm-backend/ent/conversation"
 	"itsm-backend/ent/customerbranch"
+	"itsm-backend/ent/customercontact"
+	"itsm-backend/ent/customerexternalid"
+	"itsm-backend/ent/customerrelationship"
+	"itsm-backend/ent/customertenantlink"
 	"itsm-backend/ent/department"
 	"itsm-backend/ent/discoveryjob"
 	"itsm-backend/ent/discoveryresult"
@@ -107,6 +115,7 @@ import (
 	"itsm-backend/ent/projectassetlink"
 	"itsm-backend/ent/projectbaseline"
 	"itsm-backend/ent/projectclosure"
+	"itsm-backend/ent/projectcustomerlink"
 	"itsm-backend/ent/projectgate"
 	"itsm-backend/ent/projectmember"
 	"itsm-backend/ent/projectmilestone"
@@ -1712,6 +1721,276 @@ func init() {
 	contractDescUpdatedAt := contractFields[11].Descriptor()
 	// contract.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	contract.DefaultUpdatedAt = contractDescUpdatedAt.Default.(func() time.Time)
+	contractamendmentFields := schema.ContractAmendment{}.Fields()
+	_ = contractamendmentFields
+	// contractamendmentDescTenantID is the schema descriptor for tenant_id field.
+	contractamendmentDescTenantID := contractamendmentFields[0].Descriptor()
+	// contractamendment.TenantIDValidator is a validator for the "tenant_id" field. It is called by the builders before save.
+	contractamendment.TenantIDValidator = contractamendmentDescTenantID.Validators[0].(func(int) error)
+	// contractamendmentDescContractID is the schema descriptor for contract_id field.
+	contractamendmentDescContractID := contractamendmentFields[1].Descriptor()
+	// contractamendment.ContractIDValidator is a validator for the "contract_id" field. It is called by the builders before save.
+	contractamendment.ContractIDValidator = contractamendmentDescContractID.Validators[0].(func(int) error)
+	// contractamendmentDescAmendmentNo is the schema descriptor for amendment_no field.
+	contractamendmentDescAmendmentNo := contractamendmentFields[2].Descriptor()
+	// contractamendment.AmendmentNoValidator is a validator for the "amendment_no" field. It is called by the builders before save.
+	contractamendment.AmendmentNoValidator = func() func(string) error {
+		validators := contractamendmentDescAmendmentNo.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(amendment_no string) error {
+			for _, fn := range fns {
+				if err := fn(amendment_no); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// contractamendmentDescAmendType is the schema descriptor for amend_type field.
+	contractamendmentDescAmendType := contractamendmentFields[3].Descriptor()
+	// contractamendment.AmendTypeValidator is a validator for the "amend_type" field. It is called by the builders before save.
+	contractamendment.AmendTypeValidator = func() func(string) error {
+		validators := contractamendmentDescAmendType.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(amend_type string) error {
+			for _, fn := range fns {
+				if err := fn(amend_type); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// contractamendmentDescAmountDelta is the schema descriptor for amount_delta field.
+	contractamendmentDescAmountDelta := contractamendmentFields[5].Descriptor()
+	// contractamendment.DefaultAmountDelta holds the default value on creation for the amount_delta field.
+	contractamendment.DefaultAmountDelta = contractamendmentDescAmountDelta.Default.(float64)
+	// contractamendmentDescReason is the schema descriptor for reason field.
+	contractamendmentDescReason := contractamendmentFields[8].Descriptor()
+	// contractamendment.ReasonValidator is a validator for the "reason" field. It is called by the builders before save.
+	contractamendment.ReasonValidator = contractamendmentDescReason.Validators[0].(func(string) error)
+	// contractamendmentDescStatus is the schema descriptor for status field.
+	contractamendmentDescStatus := contractamendmentFields[9].Descriptor()
+	// contractamendment.DefaultStatus holds the default value on creation for the status field.
+	contractamendment.DefaultStatus = contractamendmentDescStatus.Default.(string)
+	// contractamendment.StatusValidator is a validator for the "status" field. It is called by the builders before save.
+	contractamendment.StatusValidator = contractamendmentDescStatus.Validators[0].(func(string) error)
+	// contractamendmentDescCreatedAt is the schema descriptor for created_at field.
+	contractamendmentDescCreatedAt := contractamendmentFields[13].Descriptor()
+	// contractamendment.DefaultCreatedAt holds the default value on creation for the created_at field.
+	contractamendment.DefaultCreatedAt = contractamendmentDescCreatedAt.Default.(func() time.Time)
+	// contractamendmentDescUpdatedAt is the schema descriptor for updated_at field.
+	contractamendmentDescUpdatedAt := contractamendmentFields[14].Descriptor()
+	// contractamendment.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	contractamendment.DefaultUpdatedAt = contractamendmentDescUpdatedAt.Default.(func() time.Time)
+	// contractamendment.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	contractamendment.UpdateDefaultUpdatedAt = contractamendmentDescUpdatedAt.UpdateDefault.(func() time.Time)
+	contractprojectlinkFields := schema.ContractProjectLink{}.Fields()
+	_ = contractprojectlinkFields
+	// contractprojectlinkDescTenantID is the schema descriptor for tenant_id field.
+	contractprojectlinkDescTenantID := contractprojectlinkFields[0].Descriptor()
+	// contractprojectlink.TenantIDValidator is a validator for the "tenant_id" field. It is called by the builders before save.
+	contractprojectlink.TenantIDValidator = contractprojectlinkDescTenantID.Validators[0].(func(int) error)
+	// contractprojectlinkDescContractID is the schema descriptor for contract_id field.
+	contractprojectlinkDescContractID := contractprojectlinkFields[1].Descriptor()
+	// contractprojectlink.ContractIDValidator is a validator for the "contract_id" field. It is called by the builders before save.
+	contractprojectlink.ContractIDValidator = contractprojectlinkDescContractID.Validators[0].(func(int) error)
+	// contractprojectlinkDescProjectID is the schema descriptor for project_id field.
+	contractprojectlinkDescProjectID := contractprojectlinkFields[2].Descriptor()
+	// contractprojectlink.ProjectIDValidator is a validator for the "project_id" field. It is called by the builders before save.
+	contractprojectlink.ProjectIDValidator = contractprojectlinkDescProjectID.Validators[0].(func(int) error)
+	// contractprojectlinkDescRelationType is the schema descriptor for relation_type field.
+	contractprojectlinkDescRelationType := contractprojectlinkFields[4].Descriptor()
+	// contractprojectlink.DefaultRelationType holds the default value on creation for the relation_type field.
+	contractprojectlink.DefaultRelationType = contractprojectlinkDescRelationType.Default.(string)
+	// contractprojectlink.RelationTypeValidator is a validator for the "relation_type" field. It is called by the builders before save.
+	contractprojectlink.RelationTypeValidator = contractprojectlinkDescRelationType.Validators[0].(func(string) error)
+	// contractprojectlinkDescIsPrimary is the schema descriptor for is_primary field.
+	contractprojectlinkDescIsPrimary := contractprojectlinkFields[8].Descriptor()
+	// contractprojectlink.DefaultIsPrimary holds the default value on creation for the is_primary field.
+	contractprojectlink.DefaultIsPrimary = contractprojectlinkDescIsPrimary.Default.(bool)
+	// contractprojectlinkDescNote is the schema descriptor for note field.
+	contractprojectlinkDescNote := contractprojectlinkFields[9].Descriptor()
+	// contractprojectlink.NoteValidator is a validator for the "note" field. It is called by the builders before save.
+	contractprojectlink.NoteValidator = contractprojectlinkDescNote.Validators[0].(func(string) error)
+	// contractprojectlinkDescStatus is the schema descriptor for status field.
+	contractprojectlinkDescStatus := contractprojectlinkFields[12].Descriptor()
+	// contractprojectlink.DefaultStatus holds the default value on creation for the status field.
+	contractprojectlink.DefaultStatus = contractprojectlinkDescStatus.Default.(string)
+	// contractprojectlink.StatusValidator is a validator for the "status" field. It is called by the builders before save.
+	contractprojectlink.StatusValidator = contractprojectlinkDescStatus.Validators[0].(func(string) error)
+	// contractprojectlinkDescCreatedAt is the schema descriptor for created_at field.
+	contractprojectlinkDescCreatedAt := contractprojectlinkFields[15].Descriptor()
+	// contractprojectlink.DefaultCreatedAt holds the default value on creation for the created_at field.
+	contractprojectlink.DefaultCreatedAt = contractprojectlinkDescCreatedAt.Default.(func() time.Time)
+	// contractprojectlinkDescUpdatedAt is the schema descriptor for updated_at field.
+	contractprojectlinkDescUpdatedAt := contractprojectlinkFields[16].Descriptor()
+	// contractprojectlink.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	contractprojectlink.DefaultUpdatedAt = contractprojectlinkDescUpdatedAt.Default.(func() time.Time)
+	// contractprojectlink.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	contractprojectlink.UpdateDefaultUpdatedAt = contractprojectlinkDescUpdatedAt.UpdateDefault.(func() time.Time)
+	contractserviceitemFields := schema.ContractServiceItem{}.Fields()
+	_ = contractserviceitemFields
+	// contractserviceitemDescTenantID is the schema descriptor for tenant_id field.
+	contractserviceitemDescTenantID := contractserviceitemFields[0].Descriptor()
+	// contractserviceitem.TenantIDValidator is a validator for the "tenant_id" field. It is called by the builders before save.
+	contractserviceitem.TenantIDValidator = contractserviceitemDescTenantID.Validators[0].(func(int) error)
+	// contractserviceitemDescContractID is the schema descriptor for contract_id field.
+	contractserviceitemDescContractID := contractserviceitemFields[1].Descriptor()
+	// contractserviceitem.ContractIDValidator is a validator for the "contract_id" field. It is called by the builders before save.
+	contractserviceitem.ContractIDValidator = contractserviceitemDescContractID.Validators[0].(func(int) error)
+	// contractserviceitemDescItemCode is the schema descriptor for item_code field.
+	contractserviceitemDescItemCode := contractserviceitemFields[3].Descriptor()
+	// contractserviceitem.ItemCodeValidator is a validator for the "item_code" field. It is called by the builders before save.
+	contractserviceitem.ItemCodeValidator = contractserviceitemDescItemCode.Validators[0].(func(string) error)
+	// contractserviceitemDescItemName is the schema descriptor for item_name field.
+	contractserviceitemDescItemName := contractserviceitemFields[4].Descriptor()
+	// contractserviceitem.ItemNameValidator is a validator for the "item_name" field. It is called by the builders before save.
+	contractserviceitem.ItemNameValidator = func() func(string) error {
+		validators := contractserviceitemDescItemName.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(item_name string) error {
+			for _, fn := range fns {
+				if err := fn(item_name); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// contractserviceitemDescSpec is the schema descriptor for spec field.
+	contractserviceitemDescSpec := contractserviceitemFields[5].Descriptor()
+	// contractserviceitem.SpecValidator is a validator for the "spec" field. It is called by the builders before save.
+	contractserviceitem.SpecValidator = contractserviceitemDescSpec.Validators[0].(func(string) error)
+	// contractserviceitemDescBillingUnit is the schema descriptor for billing_unit field.
+	contractserviceitemDescBillingUnit := contractserviceitemFields[6].Descriptor()
+	// contractserviceitem.DefaultBillingUnit holds the default value on creation for the billing_unit field.
+	contractserviceitem.DefaultBillingUnit = contractserviceitemDescBillingUnit.Default.(string)
+	// contractserviceitem.BillingUnitValidator is a validator for the "billing_unit" field. It is called by the builders before save.
+	contractserviceitem.BillingUnitValidator = contractserviceitemDescBillingUnit.Validators[0].(func(string) error)
+	// contractserviceitemDescQuantity is the schema descriptor for quantity field.
+	contractserviceitemDescQuantity := contractserviceitemFields[7].Descriptor()
+	// contractserviceitem.DefaultQuantity holds the default value on creation for the quantity field.
+	contractserviceitem.DefaultQuantity = contractserviceitemDescQuantity.Default.(float64)
+	// contractserviceitemDescPeriodCount is the schema descriptor for period_count field.
+	contractserviceitemDescPeriodCount := contractserviceitemFields[8].Descriptor()
+	// contractserviceitem.DefaultPeriodCount holds the default value on creation for the period_count field.
+	contractserviceitem.DefaultPeriodCount = contractserviceitemDescPeriodCount.Default.(float64)
+	// contractserviceitemDescUnitPrice is the schema descriptor for unit_price field.
+	contractserviceitemDescUnitPrice := contractserviceitemFields[9].Descriptor()
+	// contractserviceitem.DefaultUnitPrice holds the default value on creation for the unit_price field.
+	contractserviceitem.DefaultUnitPrice = contractserviceitemDescUnitPrice.Default.(float64)
+	// contractserviceitemDescAmount is the schema descriptor for amount field.
+	contractserviceitemDescAmount := contractserviceitemFields[10].Descriptor()
+	// contractserviceitem.DefaultAmount holds the default value on creation for the amount field.
+	contractserviceitem.DefaultAmount = contractserviceitemDescAmount.Default.(float64)
+	// contractserviceitemDescQuotaUsed is the schema descriptor for quota_used field.
+	contractserviceitemDescQuotaUsed := contractserviceitemFields[12].Descriptor()
+	// contractserviceitem.DefaultQuotaUsed holds the default value on creation for the quota_used field.
+	contractserviceitem.DefaultQuotaUsed = contractserviceitemDescQuotaUsed.Default.(float64)
+	// contractserviceitemDescNote is the schema descriptor for note field.
+	contractserviceitemDescNote := contractserviceitemFields[13].Descriptor()
+	// contractserviceitem.NoteValidator is a validator for the "note" field. It is called by the builders before save.
+	contractserviceitem.NoteValidator = contractserviceitemDescNote.Validators[0].(func(string) error)
+	// contractserviceitemDescSortOrder is the schema descriptor for sort_order field.
+	contractserviceitemDescSortOrder := contractserviceitemFields[17].Descriptor()
+	// contractserviceitem.DefaultSortOrder holds the default value on creation for the sort_order field.
+	contractserviceitem.DefaultSortOrder = contractserviceitemDescSortOrder.Default.(int)
+	// contractserviceitemDescStatus is the schema descriptor for status field.
+	contractserviceitemDescStatus := contractserviceitemFields[18].Descriptor()
+	// contractserviceitem.DefaultStatus holds the default value on creation for the status field.
+	contractserviceitem.DefaultStatus = contractserviceitemDescStatus.Default.(string)
+	// contractserviceitem.StatusValidator is a validator for the "status" field. It is called by the builders before save.
+	contractserviceitem.StatusValidator = contractserviceitemDescStatus.Validators[0].(func(string) error)
+	// contractserviceitemDescCreatedAt is the schema descriptor for created_at field.
+	contractserviceitemDescCreatedAt := contractserviceitemFields[22].Descriptor()
+	// contractserviceitem.DefaultCreatedAt holds the default value on creation for the created_at field.
+	contractserviceitem.DefaultCreatedAt = contractserviceitemDescCreatedAt.Default.(func() time.Time)
+	// contractserviceitemDescUpdatedAt is the schema descriptor for updated_at field.
+	contractserviceitemDescUpdatedAt := contractserviceitemFields[23].Descriptor()
+	// contractserviceitem.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	contractserviceitem.DefaultUpdatedAt = contractserviceitemDescUpdatedAt.Default.(func() time.Time)
+	// contractserviceitem.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	contractserviceitem.UpdateDefaultUpdatedAt = contractserviceitemDescUpdatedAt.UpdateDefault.(func() time.Time)
+	contractusageledgerFields := schema.ContractUsageLedger{}.Fields()
+	_ = contractusageledgerFields
+	// contractusageledgerDescTenantID is the schema descriptor for tenant_id field.
+	contractusageledgerDescTenantID := contractusageledgerFields[0].Descriptor()
+	// contractusageledger.TenantIDValidator is a validator for the "tenant_id" field. It is called by the builders before save.
+	contractusageledger.TenantIDValidator = contractusageledgerDescTenantID.Validators[0].(func(int) error)
+	// contractusageledgerDescContractID is the schema descriptor for contract_id field.
+	contractusageledgerDescContractID := contractusageledgerFields[1].Descriptor()
+	// contractusageledger.ContractIDValidator is a validator for the "contract_id" field. It is called by the builders before save.
+	contractusageledger.ContractIDValidator = contractusageledgerDescContractID.Validators[0].(func(int) error)
+	// contractusageledgerDescServiceItemID is the schema descriptor for service_item_id field.
+	contractusageledgerDescServiceItemID := contractusageledgerFields[2].Descriptor()
+	// contractusageledger.ServiceItemIDValidator is a validator for the "service_item_id" field. It is called by the builders before save.
+	contractusageledger.ServiceItemIDValidator = contractusageledgerDescServiceItemID.Validators[0].(func(int) error)
+	// contractusageledgerDescSourceType is the schema descriptor for source_type field.
+	contractusageledgerDescSourceType := contractusageledgerFields[3].Descriptor()
+	// contractusageledger.SourceTypeValidator is a validator for the "source_type" field. It is called by the builders before save.
+	contractusageledger.SourceTypeValidator = func() func(string) error {
+		validators := contractusageledgerDescSourceType.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(source_type string) error {
+			for _, fn := range fns {
+				if err := fn(source_type); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// contractusageledgerDescSourceRef is the schema descriptor for source_ref field.
+	contractusageledgerDescSourceRef := contractusageledgerFields[4].Descriptor()
+	// contractusageledger.SourceRefValidator is a validator for the "source_ref" field. It is called by the builders before save.
+	contractusageledger.SourceRefValidator = func() func(string) error {
+		validators := contractusageledgerDescSourceRef.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(source_ref string) error {
+			for _, fn := range fns {
+				if err := fn(source_ref); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// contractusageledgerDescQuantityDelta is the schema descriptor for quantity_delta field.
+	contractusageledgerDescQuantityDelta := contractusageledgerFields[5].Descriptor()
+	// contractusageledger.DefaultQuantityDelta holds the default value on creation for the quantity_delta field.
+	contractusageledger.DefaultQuantityDelta = contractusageledgerDescQuantityDelta.Default.(float64)
+	// contractusageledgerDescAmountDelta is the schema descriptor for amount_delta field.
+	contractusageledgerDescAmountDelta := contractusageledgerFields[6].Descriptor()
+	// contractusageledger.DefaultAmountDelta holds the default value on creation for the amount_delta field.
+	contractusageledger.DefaultAmountDelta = contractusageledgerDescAmountDelta.Default.(float64)
+	// contractusageledgerDescOccurredAt is the schema descriptor for occurred_at field.
+	contractusageledgerDescOccurredAt := contractusageledgerFields[7].Descriptor()
+	// contractusageledger.DefaultOccurredAt holds the default value on creation for the occurred_at field.
+	contractusageledger.DefaultOccurredAt = contractusageledgerDescOccurredAt.Default.(func() time.Time)
+	// contractusageledgerDescNote is the schema descriptor for note field.
+	contractusageledgerDescNote := contractusageledgerFields[8].Descriptor()
+	// contractusageledger.NoteValidator is a validator for the "note" field. It is called by the builders before save.
+	contractusageledger.NoteValidator = contractusageledgerDescNote.Validators[0].(func(string) error)
+	// contractusageledgerDescCreatedAt is the schema descriptor for created_at field.
+	contractusageledgerDescCreatedAt := contractusageledgerFields[10].Descriptor()
+	// contractusageledger.DefaultCreatedAt holds the default value on creation for the created_at field.
+	contractusageledger.DefaultCreatedAt = contractusageledgerDescCreatedAt.Default.(func() time.Time)
 	conversationFields := schema.Conversation{}.Fields()
 	_ = conversationFields
 	// conversationDescCreatedAt is the schema descriptor for created_at field.
@@ -1736,8 +2015,12 @@ func init() {
 	customerbranchDescCustomerID := customerbranchFields[1].Descriptor()
 	// customerbranch.CustomerIDValidator is a validator for the "customer_id" field. It is called by the builders before save.
 	customerbranch.CustomerIDValidator = customerbranchDescCustomerID.Validators[0].(func(int) error)
+	// customerbranchDescCode is the schema descriptor for code field.
+	customerbranchDescCode := customerbranchFields[2].Descriptor()
+	// customerbranch.CodeValidator is a validator for the "code" field. It is called by the builders before save.
+	customerbranch.CodeValidator = customerbranchDescCode.Validators[0].(func(string) error)
 	// customerbranchDescName is the schema descriptor for name field.
-	customerbranchDescName := customerbranchFields[2].Descriptor()
+	customerbranchDescName := customerbranchFields[3].Descriptor()
 	// customerbranch.NameValidator is a validator for the "name" field. It is called by the builders before save.
 	customerbranch.NameValidator = func() func(string) error {
 		validators := customerbranchDescName.Validators
@@ -1755,7 +2038,7 @@ func init() {
 		}
 	}()
 	// customerbranchDescNormalizedName is the schema descriptor for normalized_name field.
-	customerbranchDescNormalizedName := customerbranchFields[3].Descriptor()
+	customerbranchDescNormalizedName := customerbranchFields[4].Descriptor()
 	// customerbranch.NormalizedNameValidator is a validator for the "normalized_name" field. It is called by the builders before save.
 	customerbranch.NormalizedNameValidator = func() func(string) error {
 		validators := customerbranchDescNormalizedName.Validators
@@ -1772,22 +2055,298 @@ func init() {
 			return nil
 		}
 	}()
+	// customerbranchDescBranchType is the schema descriptor for branch_type field.
+	customerbranchDescBranchType := customerbranchFields[5].Descriptor()
+	// customerbranch.DefaultBranchType holds the default value on creation for the branch_type field.
+	customerbranch.DefaultBranchType = customerbranchDescBranchType.Default.(string)
+	// customerbranch.BranchTypeValidator is a validator for the "branch_type" field. It is called by the builders before save.
+	customerbranch.BranchTypeValidator = customerbranchDescBranchType.Validators[0].(func(string) error)
+	// customerbranchDescTimezone is the schema descriptor for timezone field.
+	customerbranchDescTimezone := customerbranchFields[8].Descriptor()
+	// customerbranch.TimezoneValidator is a validator for the "timezone" field. It is called by the builders before save.
+	customerbranch.TimezoneValidator = customerbranchDescTimezone.Validators[0].(func(string) error)
+	// customerbranchDescContactPhone is the schema descriptor for contact_phone field.
+	customerbranchDescContactPhone := customerbranchFields[9].Descriptor()
+	// customerbranch.ContactPhoneValidator is a validator for the "contact_phone" field. It is called by the builders before save.
+	customerbranch.ContactPhoneValidator = customerbranchDescContactPhone.Validators[0].(func(string) error)
+	// customerbranchDescServiceTier is the schema descriptor for service_tier field.
+	customerbranchDescServiceTier := customerbranchFields[11].Descriptor()
+	// customerbranch.ServiceTierValidator is a validator for the "service_tier" field. It is called by the builders before save.
+	customerbranch.ServiceTierValidator = customerbranchDescServiceTier.Validators[0].(func(string) error)
+	// customerbranchDescSupportHours is the schema descriptor for support_hours field.
+	customerbranchDescSupportHours := customerbranchFields[12].Descriptor()
+	// customerbranch.SupportHoursValidator is a validator for the "support_hours" field. It is called by the builders before save.
+	customerbranch.SupportHoursValidator = customerbranchDescSupportHours.Validators[0].(func(string) error)
+	// customerbranchDescIsPrimary is the schema descriptor for is_primary field.
+	customerbranchDescIsPrimary := customerbranchFields[13].Descriptor()
+	// customerbranch.DefaultIsPrimary holds the default value on creation for the is_primary field.
+	customerbranch.DefaultIsPrimary = customerbranchDescIsPrimary.Default.(bool)
 	// customerbranchDescStatus is the schema descriptor for status field.
-	customerbranchDescStatus := customerbranchFields[5].Descriptor()
+	customerbranchDescStatus := customerbranchFields[15].Descriptor()
 	// customerbranch.DefaultStatus holds the default value on creation for the status field.
 	customerbranch.DefaultStatus = customerbranchDescStatus.Default.(string)
 	// customerbranch.StatusValidator is a validator for the "status" field. It is called by the builders before save.
 	customerbranch.StatusValidator = customerbranchDescStatus.Validators[0].(func(string) error)
 	// customerbranchDescCreatedAt is the schema descriptor for created_at field.
-	customerbranchDescCreatedAt := customerbranchFields[6].Descriptor()
+	customerbranchDescCreatedAt := customerbranchFields[17].Descriptor()
 	// customerbranch.DefaultCreatedAt holds the default value on creation for the created_at field.
 	customerbranch.DefaultCreatedAt = customerbranchDescCreatedAt.Default.(func() time.Time)
 	// customerbranchDescUpdatedAt is the schema descriptor for updated_at field.
-	customerbranchDescUpdatedAt := customerbranchFields[7].Descriptor()
+	customerbranchDescUpdatedAt := customerbranchFields[18].Descriptor()
 	// customerbranch.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	customerbranch.DefaultUpdatedAt = customerbranchDescUpdatedAt.Default.(func() time.Time)
 	// customerbranch.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
 	customerbranch.UpdateDefaultUpdatedAt = customerbranchDescUpdatedAt.UpdateDefault.(func() time.Time)
+	customercontactFields := schema.CustomerContact{}.Fields()
+	_ = customercontactFields
+	// customercontactDescTenantID is the schema descriptor for tenant_id field.
+	customercontactDescTenantID := customercontactFields[0].Descriptor()
+	// customercontact.TenantIDValidator is a validator for the "tenant_id" field. It is called by the builders before save.
+	customercontact.TenantIDValidator = customercontactDescTenantID.Validators[0].(func(int) error)
+	// customercontactDescCustomerID is the schema descriptor for customer_id field.
+	customercontactDescCustomerID := customercontactFields[1].Descriptor()
+	// customercontact.CustomerIDValidator is a validator for the "customer_id" field. It is called by the builders before save.
+	customercontact.CustomerIDValidator = customercontactDescCustomerID.Validators[0].(func(int) error)
+	// customercontactDescName is the schema descriptor for name field.
+	customercontactDescName := customercontactFields[3].Descriptor()
+	// customercontact.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	customercontact.NameValidator = func() func(string) error {
+		validators := customercontactDescName.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(name string) error {
+			for _, fn := range fns {
+				if err := fn(name); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// customercontactDescNameEn is the schema descriptor for name_en field.
+	customercontactDescNameEn := customercontactFields[4].Descriptor()
+	// customercontact.NameEnValidator is a validator for the "name_en" field. It is called by the builders before save.
+	customercontact.NameEnValidator = customercontactDescNameEn.Validators[0].(func(string) error)
+	// customercontactDescTitle is the schema descriptor for title field.
+	customercontactDescTitle := customercontactFields[5].Descriptor()
+	// customercontact.TitleValidator is a validator for the "title" field. It is called by the builders before save.
+	customercontact.TitleValidator = customercontactDescTitle.Validators[0].(func(string) error)
+	// customercontactDescDepartment is the schema descriptor for department field.
+	customercontactDescDepartment := customercontactFields[6].Descriptor()
+	// customercontact.DepartmentValidator is a validator for the "department" field. It is called by the builders before save.
+	customercontact.DepartmentValidator = customercontactDescDepartment.Validators[0].(func(string) error)
+	// customercontactDescEmail is the schema descriptor for email field.
+	customercontactDescEmail := customercontactFields[7].Descriptor()
+	// customercontact.EmailValidator is a validator for the "email" field. It is called by the builders before save.
+	customercontact.EmailValidator = customercontactDescEmail.Validators[0].(func(string) error)
+	// customercontactDescNormalizedEmail is the schema descriptor for normalized_email field.
+	customercontactDescNormalizedEmail := customercontactFields[8].Descriptor()
+	// customercontact.NormalizedEmailValidator is a validator for the "normalized_email" field. It is called by the builders before save.
+	customercontact.NormalizedEmailValidator = customercontactDescNormalizedEmail.Validators[0].(func(string) error)
+	// customercontactDescMobile is the schema descriptor for mobile field.
+	customercontactDescMobile := customercontactFields[9].Descriptor()
+	// customercontact.MobileValidator is a validator for the "mobile" field. It is called by the builders before save.
+	customercontact.MobileValidator = customercontactDescMobile.Validators[0].(func(string) error)
+	// customercontactDescPhone is the schema descriptor for phone field.
+	customercontactDescPhone := customercontactFields[10].Descriptor()
+	// customercontact.PhoneValidator is a validator for the "phone" field. It is called by the builders before save.
+	customercontact.PhoneValidator = customercontactDescPhone.Validators[0].(func(string) error)
+	// customercontactDescWechat is the schema descriptor for wechat field.
+	customercontactDescWechat := customercontactFields[11].Descriptor()
+	// customercontact.WechatValidator is a validator for the "wechat" field. It is called by the builders before save.
+	customercontact.WechatValidator = customercontactDescWechat.Validators[0].(func(string) error)
+	// customercontactDescContactRole is the schema descriptor for contact_role field.
+	customercontactDescContactRole := customercontactFields[12].Descriptor()
+	// customercontact.DefaultContactRole holds the default value on creation for the contact_role field.
+	customercontact.DefaultContactRole = customercontactDescContactRole.Default.(string)
+	// customercontact.ContactRoleValidator is a validator for the "contact_role" field. It is called by the builders before save.
+	customercontact.ContactRoleValidator = customercontactDescContactRole.Validators[0].(func(string) error)
+	// customercontactDescIsPrimary is the schema descriptor for is_primary field.
+	customercontactDescIsPrimary := customercontactFields[13].Descriptor()
+	// customercontact.DefaultIsPrimary holds the default value on creation for the is_primary field.
+	customercontact.DefaultIsPrimary = customercontactDescIsPrimary.Default.(bool)
+	// customercontactDescLanguage is the schema descriptor for language field.
+	customercontactDescLanguage := customercontactFields[14].Descriptor()
+	// customercontact.LanguageValidator is a validator for the "language" field. It is called by the builders before save.
+	customercontact.LanguageValidator = customercontactDescLanguage.Validators[0].(func(string) error)
+	// customercontactDescTimezone is the schema descriptor for timezone field.
+	customercontactDescTimezone := customercontactFields[15].Descriptor()
+	// customercontact.TimezoneValidator is a validator for the "timezone" field. It is called by the builders before save.
+	customercontact.TimezoneValidator = customercontactDescTimezone.Validators[0].(func(string) error)
+	// customercontactDescOptIn is the schema descriptor for opt_in field.
+	customercontactDescOptIn := customercontactFields[16].Descriptor()
+	// customercontact.DefaultOptIn holds the default value on creation for the opt_in field.
+	customercontact.DefaultOptIn = customercontactDescOptIn.Default.(bool)
+	// customercontactDescSource is the schema descriptor for source field.
+	customercontactDescSource := customercontactFields[18].Descriptor()
+	// customercontact.DefaultSource holds the default value on creation for the source field.
+	customercontact.DefaultSource = customercontactDescSource.Default.(string)
+	// customercontact.SourceValidator is a validator for the "source" field. It is called by the builders before save.
+	customercontact.SourceValidator = customercontactDescSource.Validators[0].(func(string) error)
+	// customercontactDescStatus is the schema descriptor for status field.
+	customercontactDescStatus := customercontactFields[19].Descriptor()
+	// customercontact.DefaultStatus holds the default value on creation for the status field.
+	customercontact.DefaultStatus = customercontactDescStatus.Default.(string)
+	// customercontact.StatusValidator is a validator for the "status" field. It is called by the builders before save.
+	customercontact.StatusValidator = customercontactDescStatus.Validators[0].(func(string) error)
+	// customercontactDescCreatedAt is the schema descriptor for created_at field.
+	customercontactDescCreatedAt := customercontactFields[21].Descriptor()
+	// customercontact.DefaultCreatedAt holds the default value on creation for the created_at field.
+	customercontact.DefaultCreatedAt = customercontactDescCreatedAt.Default.(func() time.Time)
+	// customercontactDescUpdatedAt is the schema descriptor for updated_at field.
+	customercontactDescUpdatedAt := customercontactFields[22].Descriptor()
+	// customercontact.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	customercontact.DefaultUpdatedAt = customercontactDescUpdatedAt.Default.(func() time.Time)
+	// customercontact.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	customercontact.UpdateDefaultUpdatedAt = customercontactDescUpdatedAt.UpdateDefault.(func() time.Time)
+	customerexternalidFields := schema.CustomerExternalID{}.Fields()
+	_ = customerexternalidFields
+	// customerexternalidDescTenantID is the schema descriptor for tenant_id field.
+	customerexternalidDescTenantID := customerexternalidFields[0].Descriptor()
+	// customerexternalid.TenantIDValidator is a validator for the "tenant_id" field. It is called by the builders before save.
+	customerexternalid.TenantIDValidator = customerexternalidDescTenantID.Validators[0].(func(int) error)
+	// customerexternalidDescCustomerID is the schema descriptor for customer_id field.
+	customerexternalidDescCustomerID := customerexternalidFields[1].Descriptor()
+	// customerexternalid.CustomerIDValidator is a validator for the "customer_id" field. It is called by the builders before save.
+	customerexternalid.CustomerIDValidator = customerexternalidDescCustomerID.Validators[0].(func(int) error)
+	// customerexternalidDescSystemCode is the schema descriptor for system_code field.
+	customerexternalidDescSystemCode := customerexternalidFields[2].Descriptor()
+	// customerexternalid.SystemCodeValidator is a validator for the "system_code" field. It is called by the builders before save.
+	customerexternalid.SystemCodeValidator = func() func(string) error {
+		validators := customerexternalidDescSystemCode.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(system_code string) error {
+			for _, fn := range fns {
+				if err := fn(system_code); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// customerexternalidDescExternalID is the schema descriptor for external_id field.
+	customerexternalidDescExternalID := customerexternalidFields[3].Descriptor()
+	// customerexternalid.ExternalIDValidator is a validator for the "external_id" field. It is called by the builders before save.
+	customerexternalid.ExternalIDValidator = func() func(string) error {
+		validators := customerexternalidDescExternalID.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(external_id string) error {
+			for _, fn := range fns {
+				if err := fn(external_id); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// customerexternalidDescExternalURL is the schema descriptor for external_url field.
+	customerexternalidDescExternalURL := customerexternalidFields[4].Descriptor()
+	// customerexternalid.ExternalURLValidator is a validator for the "external_url" field. It is called by the builders before save.
+	customerexternalid.ExternalURLValidator = customerexternalidDescExternalURL.Validators[0].(func(string) error)
+	// customerexternalidDescCreatedAt is the schema descriptor for created_at field.
+	customerexternalidDescCreatedAt := customerexternalidFields[5].Descriptor()
+	// customerexternalid.DefaultCreatedAt holds the default value on creation for the created_at field.
+	customerexternalid.DefaultCreatedAt = customerexternalidDescCreatedAt.Default.(func() time.Time)
+	customerrelationshipFields := schema.CustomerRelationship{}.Fields()
+	_ = customerrelationshipFields
+	// customerrelationshipDescTenantID is the schema descriptor for tenant_id field.
+	customerrelationshipDescTenantID := customerrelationshipFields[0].Descriptor()
+	// customerrelationship.TenantIDValidator is a validator for the "tenant_id" field. It is called by the builders before save.
+	customerrelationship.TenantIDValidator = customerrelationshipDescTenantID.Validators[0].(func(int) error)
+	// customerrelationshipDescFromCustomerID is the schema descriptor for from_customer_id field.
+	customerrelationshipDescFromCustomerID := customerrelationshipFields[1].Descriptor()
+	// customerrelationship.FromCustomerIDValidator is a validator for the "from_customer_id" field. It is called by the builders before save.
+	customerrelationship.FromCustomerIDValidator = customerrelationshipDescFromCustomerID.Validators[0].(func(int) error)
+	// customerrelationshipDescToCustomerID is the schema descriptor for to_customer_id field.
+	customerrelationshipDescToCustomerID := customerrelationshipFields[2].Descriptor()
+	// customerrelationship.ToCustomerIDValidator is a validator for the "to_customer_id" field. It is called by the builders before save.
+	customerrelationship.ToCustomerIDValidator = customerrelationshipDescToCustomerID.Validators[0].(func(int) error)
+	// customerrelationshipDescRelationType is the schema descriptor for relation_type field.
+	customerrelationshipDescRelationType := customerrelationshipFields[3].Descriptor()
+	// customerrelationship.RelationTypeValidator is a validator for the "relation_type" field. It is called by the builders before save.
+	customerrelationship.RelationTypeValidator = customerrelationshipDescRelationType.Validators[0].(func(string) error)
+	// customerrelationshipDescRelationRole is the schema descriptor for relation_role field.
+	customerrelationshipDescRelationRole := customerrelationshipFields[4].Descriptor()
+	// customerrelationship.DefaultRelationRole holds the default value on creation for the relation_role field.
+	customerrelationship.DefaultRelationRole = customerrelationshipDescRelationRole.Default.(string)
+	// customerrelationship.RelationRoleValidator is a validator for the "relation_role" field. It is called by the builders before save.
+	customerrelationship.RelationRoleValidator = customerrelationshipDescRelationRole.Validators[0].(func(string) error)
+	// customerrelationshipDescIsBidirectional is the schema descriptor for is_bidirectional field.
+	customerrelationshipDescIsBidirectional := customerrelationshipFields[5].Descriptor()
+	// customerrelationship.DefaultIsBidirectional holds the default value on creation for the is_bidirectional field.
+	customerrelationship.DefaultIsBidirectional = customerrelationshipDescIsBidirectional.Default.(bool)
+	// customerrelationshipDescNote is the schema descriptor for note field.
+	customerrelationshipDescNote := customerrelationshipFields[8].Descriptor()
+	// customerrelationship.NoteValidator is a validator for the "note" field. It is called by the builders before save.
+	customerrelationship.NoteValidator = customerrelationshipDescNote.Validators[0].(func(string) error)
+	// customerrelationshipDescStatus is the schema descriptor for status field.
+	customerrelationshipDescStatus := customerrelationshipFields[9].Descriptor()
+	// customerrelationship.DefaultStatus holds the default value on creation for the status field.
+	customerrelationship.DefaultStatus = customerrelationshipDescStatus.Default.(string)
+	// customerrelationship.StatusValidator is a validator for the "status" field. It is called by the builders before save.
+	customerrelationship.StatusValidator = customerrelationshipDescStatus.Validators[0].(func(string) error)
+	// customerrelationshipDescCreatedAt is the schema descriptor for created_at field.
+	customerrelationshipDescCreatedAt := customerrelationshipFields[12].Descriptor()
+	// customerrelationship.DefaultCreatedAt holds the default value on creation for the created_at field.
+	customerrelationship.DefaultCreatedAt = customerrelationshipDescCreatedAt.Default.(func() time.Time)
+	// customerrelationshipDescUpdatedAt is the schema descriptor for updated_at field.
+	customerrelationshipDescUpdatedAt := customerrelationshipFields[13].Descriptor()
+	// customerrelationship.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	customerrelationship.DefaultUpdatedAt = customerrelationshipDescUpdatedAt.Default.(func() time.Time)
+	// customerrelationship.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	customerrelationship.UpdateDefaultUpdatedAt = customerrelationshipDescUpdatedAt.UpdateDefault.(func() time.Time)
+	customertenantlinkFields := schema.CustomerTenantLink{}.Fields()
+	_ = customertenantlinkFields
+	// customertenantlinkDescTenantID is the schema descriptor for tenant_id field.
+	customertenantlinkDescTenantID := customertenantlinkFields[0].Descriptor()
+	// customertenantlink.TenantIDValidator is a validator for the "tenant_id" field. It is called by the builders before save.
+	customertenantlink.TenantIDValidator = customertenantlinkDescTenantID.Validators[0].(func(int) error)
+	// customertenantlinkDescCustomerID is the schema descriptor for customer_id field.
+	customertenantlinkDescCustomerID := customertenantlinkFields[1].Descriptor()
+	// customertenantlink.CustomerIDValidator is a validator for the "customer_id" field. It is called by the builders before save.
+	customertenantlink.CustomerIDValidator = customertenantlinkDescCustomerID.Validators[0].(func(int) error)
+	// customertenantlinkDescLinkedTenantID is the schema descriptor for linked_tenant_id field.
+	customertenantlinkDescLinkedTenantID := customertenantlinkFields[2].Descriptor()
+	// customertenantlink.LinkedTenantIDValidator is a validator for the "linked_tenant_id" field. It is called by the builders before save.
+	customertenantlink.LinkedTenantIDValidator = customertenantlinkDescLinkedTenantID.Validators[0].(func(int) error)
+	// customertenantlinkDescLinkType is the schema descriptor for link_type field.
+	customertenantlinkDescLinkType := customertenantlinkFields[3].Descriptor()
+	// customertenantlink.DefaultLinkType holds the default value on creation for the link_type field.
+	customertenantlink.DefaultLinkType = customertenantlinkDescLinkType.Default.(string)
+	// customertenantlink.LinkTypeValidator is a validator for the "link_type" field. It is called by the builders before save.
+	customertenantlink.LinkTypeValidator = customertenantlinkDescLinkType.Validators[0].(func(string) error)
+	// customertenantlinkDescIsBillingAnchor is the schema descriptor for is_billing_anchor field.
+	customertenantlinkDescIsBillingAnchor := customertenantlinkFields[4].Descriptor()
+	// customertenantlink.DefaultIsBillingAnchor holds the default value on creation for the is_billing_anchor field.
+	customertenantlink.DefaultIsBillingAnchor = customertenantlinkDescIsBillingAnchor.Default.(bool)
+	// customertenantlinkDescProvisionStatus is the schema descriptor for provision_status field.
+	customertenantlinkDescProvisionStatus := customertenantlinkFields[5].Descriptor()
+	// customertenantlink.DefaultProvisionStatus holds the default value on creation for the provision_status field.
+	customertenantlink.DefaultProvisionStatus = customertenantlinkDescProvisionStatus.Default.(string)
+	// customertenantlink.ProvisionStatusValidator is a validator for the "provision_status" field. It is called by the builders before save.
+	customertenantlink.ProvisionStatusValidator = customertenantlinkDescProvisionStatus.Validators[0].(func(string) error)
+	// customertenantlinkDescNote is the schema descriptor for note field.
+	customertenantlinkDescNote := customertenantlinkFields[7].Descriptor()
+	// customertenantlink.NoteValidator is a validator for the "note" field. It is called by the builders before save.
+	customertenantlink.NoteValidator = customertenantlinkDescNote.Validators[0].(func(string) error)
+	// customertenantlinkDescCreatedAt is the schema descriptor for created_at field.
+	customertenantlinkDescCreatedAt := customertenantlinkFields[9].Descriptor()
+	// customertenantlink.DefaultCreatedAt holds the default value on creation for the created_at field.
+	customertenantlink.DefaultCreatedAt = customertenantlinkDescCreatedAt.Default.(func() time.Time)
+	// customertenantlinkDescUpdatedAt is the schema descriptor for updated_at field.
+	customertenantlinkDescUpdatedAt := customertenantlinkFields[10].Descriptor()
+	// customertenantlink.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	customertenantlink.DefaultUpdatedAt = customertenantlinkDescUpdatedAt.Default.(func() time.Time)
+	// customertenantlink.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	customertenantlink.UpdateDefaultUpdatedAt = customertenantlinkDescUpdatedAt.UpdateDefault.(func() time.Time)
 	departmentFields := schema.Department{}.Fields()
 	_ = departmentFields
 	// departmentDescName is the schema descriptor for name field.
@@ -4852,6 +5411,44 @@ func init() {
 	projectclosure.DefaultUpdatedAt = projectclosureDescUpdatedAt.Default.(func() time.Time)
 	// projectclosure.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
 	projectclosure.UpdateDefaultUpdatedAt = projectclosureDescUpdatedAt.UpdateDefault.(func() time.Time)
+	projectcustomerlinkFields := schema.ProjectCustomerLink{}.Fields()
+	_ = projectcustomerlinkFields
+	// projectcustomerlinkDescTenantID is the schema descriptor for tenant_id field.
+	projectcustomerlinkDescTenantID := projectcustomerlinkFields[0].Descriptor()
+	// projectcustomerlink.TenantIDValidator is a validator for the "tenant_id" field. It is called by the builders before save.
+	projectcustomerlink.TenantIDValidator = projectcustomerlinkDescTenantID.Validators[0].(func(int) error)
+	// projectcustomerlinkDescProjectID is the schema descriptor for project_id field.
+	projectcustomerlinkDescProjectID := projectcustomerlinkFields[1].Descriptor()
+	// projectcustomerlink.ProjectIDValidator is a validator for the "project_id" field. It is called by the builders before save.
+	projectcustomerlink.ProjectIDValidator = projectcustomerlinkDescProjectID.Validators[0].(func(int) error)
+	// projectcustomerlinkDescCustomerID is the schema descriptor for customer_id field.
+	projectcustomerlinkDescCustomerID := projectcustomerlinkFields[2].Descriptor()
+	// projectcustomerlink.CustomerIDValidator is a validator for the "customer_id" field. It is called by the builders before save.
+	projectcustomerlink.CustomerIDValidator = projectcustomerlinkDescCustomerID.Validators[0].(func(int) error)
+	// projectcustomerlinkDescRelationType is the schema descriptor for relation_type field.
+	projectcustomerlinkDescRelationType := projectcustomerlinkFields[4].Descriptor()
+	// projectcustomerlink.DefaultRelationType holds the default value on creation for the relation_type field.
+	projectcustomerlink.DefaultRelationType = projectcustomerlinkDescRelationType.Default.(string)
+	// projectcustomerlink.RelationTypeValidator is a validator for the "relation_type" field. It is called by the builders before save.
+	projectcustomerlink.RelationTypeValidator = projectcustomerlinkDescRelationType.Validators[0].(func(string) error)
+	// projectcustomerlinkDescIsPrimary is the schema descriptor for is_primary field.
+	projectcustomerlinkDescIsPrimary := projectcustomerlinkFields[5].Descriptor()
+	// projectcustomerlink.DefaultIsPrimary holds the default value on creation for the is_primary field.
+	projectcustomerlink.DefaultIsPrimary = projectcustomerlinkDescIsPrimary.Default.(bool)
+	// projectcustomerlinkDescNote is the schema descriptor for note field.
+	projectcustomerlinkDescNote := projectcustomerlinkFields[6].Descriptor()
+	// projectcustomerlink.NoteValidator is a validator for the "note" field. It is called by the builders before save.
+	projectcustomerlink.NoteValidator = projectcustomerlinkDescNote.Validators[0].(func(string) error)
+	// projectcustomerlinkDescCreatedAt is the schema descriptor for created_at field.
+	projectcustomerlinkDescCreatedAt := projectcustomerlinkFields[9].Descriptor()
+	// projectcustomerlink.DefaultCreatedAt holds the default value on creation for the created_at field.
+	projectcustomerlink.DefaultCreatedAt = projectcustomerlinkDescCreatedAt.Default.(func() time.Time)
+	// projectcustomerlinkDescUpdatedAt is the schema descriptor for updated_at field.
+	projectcustomerlinkDescUpdatedAt := projectcustomerlinkFields[10].Descriptor()
+	// projectcustomerlink.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	projectcustomerlink.DefaultUpdatedAt = projectcustomerlinkDescUpdatedAt.Default.(func() time.Time)
+	// projectcustomerlink.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	projectcustomerlink.UpdateDefaultUpdatedAt = projectcustomerlinkDescUpdatedAt.UpdateDefault.(func() time.Time)
 	projectgateFields := schema.ProjectGate{}.Fields()
 	_ = projectgateFields
 	// projectgateDescTenantID is the schema descriptor for tenant_id field.
@@ -6032,8 +6629,12 @@ func init() {
 	servicecustomerDescTenantID := servicecustomerFields[0].Descriptor()
 	// servicecustomer.TenantIDValidator is a validator for the "tenant_id" field. It is called by the builders before save.
 	servicecustomer.TenantIDValidator = servicecustomerDescTenantID.Validators[0].(func(int) error)
+	// servicecustomerDescCode is the schema descriptor for code field.
+	servicecustomerDescCode := servicecustomerFields[1].Descriptor()
+	// servicecustomer.CodeValidator is a validator for the "code" field. It is called by the builders before save.
+	servicecustomer.CodeValidator = servicecustomerDescCode.Validators[0].(func(string) error)
 	// servicecustomerDescName is the schema descriptor for name field.
-	servicecustomerDescName := servicecustomerFields[1].Descriptor()
+	servicecustomerDescName := servicecustomerFields[2].Descriptor()
 	// servicecustomer.NameValidator is a validator for the "name" field. It is called by the builders before save.
 	servicecustomer.NameValidator = func() func(string) error {
 		validators := servicecustomerDescName.Validators
@@ -6051,7 +6652,7 @@ func init() {
 		}
 	}()
 	// servicecustomerDescNormalizedName is the schema descriptor for normalized_name field.
-	servicecustomerDescNormalizedName := servicecustomerFields[2].Descriptor()
+	servicecustomerDescNormalizedName := servicecustomerFields[3].Descriptor()
 	// servicecustomer.NormalizedNameValidator is a validator for the "normalized_name" field. It is called by the builders before save.
 	servicecustomer.NormalizedNameValidator = func() func(string) error {
 		validators := servicecustomerDescNormalizedName.Validators
@@ -6069,21 +6670,147 @@ func init() {
 		}
 	}()
 	// servicecustomerDescShortName is the schema descriptor for short_name field.
-	servicecustomerDescShortName := servicecustomerFields[3].Descriptor()
+	servicecustomerDescShortName := servicecustomerFields[4].Descriptor()
 	// servicecustomer.ShortNameValidator is a validator for the "short_name" field. It is called by the builders before save.
 	servicecustomer.ShortNameValidator = servicecustomerDescShortName.Validators[0].(func(string) error)
+	// servicecustomerDescLegalName is the schema descriptor for legal_name field.
+	servicecustomerDescLegalName := servicecustomerFields[5].Descriptor()
+	// servicecustomer.LegalNameValidator is a validator for the "legal_name" field. It is called by the builders before save.
+	servicecustomer.LegalNameValidator = servicecustomerDescLegalName.Validators[0].(func(string) error)
+	// servicecustomerDescEnName is the schema descriptor for en_name field.
+	servicecustomerDescEnName := servicecustomerFields[6].Descriptor()
+	// servicecustomer.EnNameValidator is a validator for the "en_name" field. It is called by the builders before save.
+	servicecustomer.EnNameValidator = servicecustomerDescEnName.Validators[0].(func(string) error)
+	// servicecustomerDescTaxID is the schema descriptor for tax_id field.
+	servicecustomerDescTaxID := servicecustomerFields[9].Descriptor()
+	// servicecustomer.TaxIDValidator is a validator for the "tax_id" field. It is called by the builders before save.
+	servicecustomer.TaxIDValidator = servicecustomerDescTaxID.Validators[0].(func(string) error)
+	// servicecustomerDescNormalizedTaxID is the schema descriptor for normalized_tax_id field.
+	servicecustomerDescNormalizedTaxID := servicecustomerFields[10].Descriptor()
+	// servicecustomer.NormalizedTaxIDValidator is a validator for the "normalized_tax_id" field. It is called by the builders before save.
+	servicecustomer.NormalizedTaxIDValidator = servicecustomerDescNormalizedTaxID.Validators[0].(func(string) error)
+	// servicecustomerDescDunsNumber is the schema descriptor for duns_number field.
+	servicecustomerDescDunsNumber := servicecustomerFields[11].Descriptor()
+	// servicecustomer.DunsNumberValidator is a validator for the "duns_number" field. It is called by the builders before save.
+	servicecustomer.DunsNumberValidator = servicecustomerDescDunsNumber.Validators[0].(func(string) error)
+	// servicecustomerDescRegistrationNo is the schema descriptor for registration_no field.
+	servicecustomerDescRegistrationNo := servicecustomerFields[12].Descriptor()
+	// servicecustomer.RegistrationNoValidator is a validator for the "registration_no" field. It is called by the builders before save.
+	servicecustomer.RegistrationNoValidator = servicecustomerDescRegistrationNo.Validators[0].(func(string) error)
+	// servicecustomerDescCustomerType is the schema descriptor for customer_type field.
+	servicecustomerDescCustomerType := servicecustomerFields[14].Descriptor()
+	// servicecustomer.DefaultCustomerType holds the default value on creation for the customer_type field.
+	servicecustomer.DefaultCustomerType = servicecustomerDescCustomerType.Default.(string)
+	// servicecustomer.CustomerTypeValidator is a validator for the "customer_type" field. It is called by the builders before save.
+	servicecustomer.CustomerTypeValidator = servicecustomerDescCustomerType.Validators[0].(func(string) error)
+	// servicecustomerDescIndustry is the schema descriptor for industry field.
+	servicecustomerDescIndustry := servicecustomerFields[15].Descriptor()
+	// servicecustomer.IndustryValidator is a validator for the "industry" field. It is called by the builders before save.
+	servicecustomer.IndustryValidator = servicecustomerDescIndustry.Validators[0].(func(string) error)
+	// servicecustomerDescSubIndustry is the schema descriptor for sub_industry field.
+	servicecustomerDescSubIndustry := servicecustomerFields[16].Descriptor()
+	// servicecustomer.SubIndustryValidator is a validator for the "sub_industry" field. It is called by the builders before save.
+	servicecustomer.SubIndustryValidator = servicecustomerDescSubIndustry.Validators[0].(func(string) error)
+	// servicecustomerDescSizeClass is the schema descriptor for size_class field.
+	servicecustomerDescSizeClass := servicecustomerFields[17].Descriptor()
+	// servicecustomer.SizeClassValidator is a validator for the "size_class" field. It is called by the builders before save.
+	servicecustomer.SizeClassValidator = servicecustomerDescSizeClass.Validators[0].(func(string) error)
+	// servicecustomerDescOwnershipType is the schema descriptor for ownership_type field.
+	servicecustomerDescOwnershipType := servicecustomerFields[18].Descriptor()
+	// servicecustomer.OwnershipTypeValidator is a validator for the "ownership_type" field. It is called by the builders before save.
+	servicecustomer.OwnershipTypeValidator = servicecustomerDescOwnershipType.Validators[0].(func(string) error)
+	// servicecustomerDescTier is the schema descriptor for tier field.
+	servicecustomerDescTier := servicecustomerFields[19].Descriptor()
+	// servicecustomer.DefaultTier holds the default value on creation for the tier field.
+	servicecustomer.DefaultTier = servicecustomerDescTier.Default.(string)
+	// servicecustomer.TierValidator is a validator for the "tier" field. It is called by the builders before save.
+	servicecustomer.TierValidator = servicecustomerDescTier.Validators[0].(func(string) error)
+	// servicecustomerDescVipLevel is the schema descriptor for vip_level field.
+	servicecustomerDescVipLevel := servicecustomerFields[20].Descriptor()
+	// servicecustomer.DefaultVipLevel holds the default value on creation for the vip_level field.
+	servicecustomer.DefaultVipLevel = servicecustomerDescVipLevel.Default.(int16)
+	// servicecustomerDescCreditRating is the schema descriptor for credit_rating field.
+	servicecustomerDescCreditRating := servicecustomerFields[21].Descriptor()
+	// servicecustomer.CreditRatingValidator is a validator for the "credit_rating" field. It is called by the builders before save.
+	servicecustomer.CreditRatingValidator = servicecustomerDescCreditRating.Validators[0].(func(string) error)
+	// servicecustomerDescWebsite is the schema descriptor for website field.
+	servicecustomerDescWebsite := servicecustomerFields[22].Descriptor()
+	// servicecustomer.WebsiteValidator is a validator for the "website" field. It is called by the builders before save.
+	servicecustomer.WebsiteValidator = servicecustomerDescWebsite.Validators[0].(func(string) error)
+	// servicecustomerDescMainPhone is the schema descriptor for main_phone field.
+	servicecustomerDescMainPhone := servicecustomerFields[23].Descriptor()
+	// servicecustomer.MainPhoneValidator is a validator for the "main_phone" field. It is called by the builders before save.
+	servicecustomer.MainPhoneValidator = servicecustomerDescMainPhone.Validators[0].(func(string) error)
+	// servicecustomerDescServiceEmail is the schema descriptor for service_email field.
+	servicecustomerDescServiceEmail := servicecustomerFields[24].Descriptor()
+	// servicecustomer.ServiceEmailValidator is a validator for the "service_email" field. It is called by the builders before save.
+	servicecustomer.ServiceEmailValidator = servicecustomerDescServiceEmail.Validators[0].(func(string) error)
+	// servicecustomerDescTimezone is the schema descriptor for timezone field.
+	servicecustomerDescTimezone := servicecustomerFields[26].Descriptor()
+	// servicecustomer.TimezoneValidator is a validator for the "timezone" field. It is called by the builders before save.
+	servicecustomer.TimezoneValidator = servicecustomerDescTimezone.Validators[0].(func(string) error)
+	// servicecustomerDescLanguage is the schema descriptor for language field.
+	servicecustomerDescLanguage := servicecustomerFields[27].Descriptor()
+	// servicecustomer.DefaultLanguage holds the default value on creation for the language field.
+	servicecustomer.DefaultLanguage = servicecustomerDescLanguage.Default.(string)
+	// servicecustomer.LanguageValidator is a validator for the "language" field. It is called by the builders before save.
+	servicecustomer.LanguageValidator = servicecustomerDescLanguage.Validators[0].(func(string) error)
+	// servicecustomerDescServiceTier is the schema descriptor for service_tier field.
+	servicecustomerDescServiceTier := servicecustomerFields[28].Descriptor()
+	// servicecustomer.ServiceTierValidator is a validator for the "service_tier" field. It is called by the builders before save.
+	servicecustomer.ServiceTierValidator = servicecustomerDescServiceTier.Validators[0].(func(string) error)
+	// servicecustomerDescSupportHours is the schema descriptor for support_hours field.
+	servicecustomerDescSupportHours := servicecustomerFields[30].Descriptor()
+	// servicecustomer.SupportHoursValidator is a validator for the "support_hours" field. It is called by the builders before save.
+	servicecustomer.SupportHoursValidator = servicecustomerDescSupportHours.Validators[0].(func(string) error)
+	// servicecustomerDescBillingCurrency is the schema descriptor for billing_currency field.
+	servicecustomerDescBillingCurrency := servicecustomerFields[36].Descriptor()
+	// servicecustomer.BillingCurrencyValidator is a validator for the "billing_currency" field. It is called by the builders before save.
+	servicecustomer.BillingCurrencyValidator = servicecustomerDescBillingCurrency.Validators[0].(func(string) error)
+	// servicecustomerDescPaymentTerms is the schema descriptor for payment_terms field.
+	servicecustomerDescPaymentTerms := servicecustomerFields[37].Descriptor()
+	// servicecustomer.PaymentTermsValidator is a validator for the "payment_terms" field. It is called by the builders before save.
+	servicecustomer.PaymentTermsValidator = servicecustomerDescPaymentTerms.Validators[0].(func(string) error)
+	// servicecustomerDescInvoiceTitle is the schema descriptor for invoice_title field.
+	servicecustomerDescInvoiceTitle := servicecustomerFields[39].Descriptor()
+	// servicecustomer.InvoiceTitleValidator is a validator for the "invoice_title" field. It is called by the builders before save.
+	servicecustomer.InvoiceTitleValidator = servicecustomerDescInvoiceTitle.Validators[0].(func(string) error)
+	// servicecustomerDescLifecycleStage is the schema descriptor for lifecycle_stage field.
+	servicecustomerDescLifecycleStage := servicecustomerFields[41].Descriptor()
+	// servicecustomer.DefaultLifecycleStage holds the default value on creation for the lifecycle_stage field.
+	servicecustomer.DefaultLifecycleStage = servicecustomerDescLifecycleStage.Default.(string)
+	// servicecustomer.LifecycleStageValidator is a validator for the "lifecycle_stage" field. It is called by the builders before save.
+	servicecustomer.LifecycleStageValidator = servicecustomerDescLifecycleStage.Validators[0].(func(string) error)
+	// servicecustomerDescChurnReason is the schema descriptor for churn_reason field.
+	servicecustomerDescChurnReason := servicecustomerFields[46].Descriptor()
+	// servicecustomer.ChurnReasonValidator is a validator for the "churn_reason" field. It is called by the builders before save.
+	servicecustomer.ChurnReasonValidator = servicecustomerDescChurnReason.Validators[0].(func(string) error)
+	// servicecustomerDescDataSource is the schema descriptor for data_source field.
+	servicecustomerDescDataSource := servicecustomerFields[47].Descriptor()
+	// servicecustomer.DefaultDataSource holds the default value on creation for the data_source field.
+	servicecustomer.DefaultDataSource = servicecustomerDescDataSource.Default.(string)
+	// servicecustomer.DataSourceValidator is a validator for the "data_source" field. It is called by the builders before save.
+	servicecustomer.DataSourceValidator = servicecustomerDescDataSource.Validators[0].(func(string) error)
+	// servicecustomerDescDataQualityScore is the schema descriptor for data_quality_score field.
+	servicecustomerDescDataQualityScore := servicecustomerFields[48].Descriptor()
+	// servicecustomer.DefaultDataQualityScore holds the default value on creation for the data_quality_score field.
+	servicecustomer.DefaultDataQualityScore = servicecustomerDescDataQualityScore.Default.(int16)
+	// servicecustomerDescVersion is the schema descriptor for version field.
+	servicecustomerDescVersion := servicecustomerFields[50].Descriptor()
+	// servicecustomer.DefaultVersion holds the default value on creation for the version field.
+	servicecustomer.DefaultVersion = servicecustomerDescVersion.Default.(int64)
 	// servicecustomerDescStatus is the schema descriptor for status field.
-	servicecustomerDescStatus := servicecustomerFields[6].Descriptor()
+	servicecustomerDescStatus := servicecustomerFields[54].Descriptor()
 	// servicecustomer.DefaultStatus holds the default value on creation for the status field.
 	servicecustomer.DefaultStatus = servicecustomerDescStatus.Default.(string)
 	// servicecustomer.StatusValidator is a validator for the "status" field. It is called by the builders before save.
 	servicecustomer.StatusValidator = servicecustomerDescStatus.Validators[0].(func(string) error)
 	// servicecustomerDescCreatedAt is the schema descriptor for created_at field.
-	servicecustomerDescCreatedAt := servicecustomerFields[8].Descriptor()
+	servicecustomerDescCreatedAt := servicecustomerFields[56].Descriptor()
 	// servicecustomer.DefaultCreatedAt holds the default value on creation for the created_at field.
 	servicecustomer.DefaultCreatedAt = servicecustomerDescCreatedAt.Default.(func() time.Time)
 	// servicecustomerDescUpdatedAt is the schema descriptor for updated_at field.
-	servicecustomerDescUpdatedAt := servicecustomerFields[9].Descriptor()
+	servicecustomerDescUpdatedAt := servicecustomerFields[57].Descriptor()
 	// servicecustomer.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	servicecustomer.DefaultUpdatedAt = servicecustomerDescUpdatedAt.Default.(func() time.Time)
 	// servicecustomer.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
@@ -6338,12 +7065,42 @@ func init() {
 	supportcontract.DefaultStatus = supportcontractDescStatus.Default.(string)
 	// supportcontract.StatusValidator is a validator for the "status" field. It is called by the builders before save.
 	supportcontract.StatusValidator = supportcontractDescStatus.Validators[0].(func(string) error)
+	// supportcontractDescCurrency is the schema descriptor for currency field.
+	supportcontractDescCurrency := supportcontractFields[13].Descriptor()
+	// supportcontract.CurrencyValidator is a validator for the "currency" field. It is called by the builders before save.
+	supportcontract.CurrencyValidator = supportcontractDescCurrency.Validators[0].(func(string) error)
+	// supportcontractDescContractType is the schema descriptor for contract_type field.
+	supportcontractDescContractType := supportcontractFields[14].Descriptor()
+	// supportcontract.DefaultContractType holds the default value on creation for the contract_type field.
+	supportcontract.DefaultContractType = supportcontractDescContractType.Default.(string)
+	// supportcontract.ContractTypeValidator is a validator for the "contract_type" field. It is called by the builders before save.
+	supportcontract.ContractTypeValidator = supportcontractDescContractType.Validators[0].(func(string) error)
+	// supportcontractDescContractName is the schema descriptor for contract_name field.
+	supportcontractDescContractName := supportcontractFields[15].Descriptor()
+	// supportcontract.ContractNameValidator is a validator for the "contract_name" field. It is called by the builders before save.
+	supportcontract.ContractNameValidator = supportcontractDescContractName.Validators[0].(func(string) error)
+	// supportcontractDescAmendmentCount is the schema descriptor for amendment_count field.
+	supportcontractDescAmendmentCount := supportcontractFields[18].Descriptor()
+	// supportcontract.DefaultAmendmentCount holds the default value on creation for the amendment_count field.
+	supportcontract.DefaultAmendmentCount = supportcontractDescAmendmentCount.Default.(int)
+	// supportcontractDescAutoRenew is the schema descriptor for auto_renew field.
+	supportcontractDescAutoRenew := supportcontractFields[20].Descriptor()
+	// supportcontract.DefaultAutoRenew holds the default value on creation for the auto_renew field.
+	supportcontract.DefaultAutoRenew = supportcontractDescAutoRenew.Default.(bool)
+	// supportcontractDescTerminationReason is the schema descriptor for termination_reason field.
+	supportcontractDescTerminationReason := supportcontractFields[22].Descriptor()
+	// supportcontract.TerminationReasonValidator is a validator for the "termination_reason" field. It is called by the builders before save.
+	supportcontract.TerminationReasonValidator = supportcontractDescTerminationReason.Validators[0].(func(string) error)
+	// supportcontractDescVersion is the schema descriptor for version field.
+	supportcontractDescVersion := supportcontractFields[24].Descriptor()
+	// supportcontract.DefaultVersion holds the default value on creation for the version field.
+	supportcontract.DefaultVersion = supportcontractDescVersion.Default.(int64)
 	// supportcontractDescCreatedAt is the schema descriptor for created_at field.
-	supportcontractDescCreatedAt := supportcontractFields[9].Descriptor()
+	supportcontractDescCreatedAt := supportcontractFields[27].Descriptor()
 	// supportcontract.DefaultCreatedAt holds the default value on creation for the created_at field.
 	supportcontract.DefaultCreatedAt = supportcontractDescCreatedAt.Default.(func() time.Time)
 	// supportcontractDescUpdatedAt is the schema descriptor for updated_at field.
-	supportcontractDescUpdatedAt := supportcontractFields[10].Descriptor()
+	supportcontractDescUpdatedAt := supportcontractFields[28].Descriptor()
 	// supportcontract.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	supportcontract.DefaultUpdatedAt = supportcontractDescUpdatedAt.Default.(func() time.Time)
 	// supportcontract.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.

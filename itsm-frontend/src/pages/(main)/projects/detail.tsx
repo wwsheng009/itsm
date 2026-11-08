@@ -64,6 +64,8 @@ import { ProjectResourceHeatmap } from './components/ProjectResourceHeatmap';
 import { ProjectRiskPanel } from './components/ProjectRiskPanel';
 import { ProjectAITab } from './components/ProjectAITab';
 import { ProjectHealthTag } from './components/ProjectHealthTag';
+import ProjectCustomerLinksPanel from './components/ProjectCustomerLinksPanel';
+import ProjectContractsPanel from './components/ProjectContractsPanel';
 
 /**
  * 单任务工时上限（B1）：与后端 `project.MaxTaskHours` 保持一致。
@@ -2458,6 +2460,24 @@ export default function ProjectDetailPage() {
             label: '资源负荷',
             children: <ProjectResourceHeatmap projectId={project.id} canWrite={canWrite} />,
           },
+          ...(project.type !== 'internal'
+            ? [
+                {
+                  key: 'customers',
+                  label: '关联客户',
+                  children: (
+                    <ProjectCustomerLinksPanel projectId={project.id} canWrite={canWrite} />
+                  ),
+                },
+                {
+                  key: 'contracts',
+                  label: '关联合同',
+                  children: (
+                    <ProjectContractsPanel projectId={project.id} canWrite={canWrite} />
+                  ),
+                },
+              ]
+            : []),
           {
             key: 'ai',
             label: 'AI 助手',

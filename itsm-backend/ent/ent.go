@@ -42,8 +42,16 @@ import (
 	"itsm-backend/ent/connectorconfig"
 	"itsm-backend/ent/connectorinbounddedup"
 	"itsm-backend/ent/contract"
+	"itsm-backend/ent/contractamendment"
+	"itsm-backend/ent/contractprojectlink"
+	"itsm-backend/ent/contractserviceitem"
+	"itsm-backend/ent/contractusageledger"
 	"itsm-backend/ent/conversation"
 	"itsm-backend/ent/customerbranch"
+	"itsm-backend/ent/customercontact"
+	"itsm-backend/ent/customerexternalid"
+	"itsm-backend/ent/customerrelationship"
+	"itsm-backend/ent/customertenantlink"
 	"itsm-backend/ent/department"
 	"itsm-backend/ent/discoveryjob"
 	"itsm-backend/ent/discoveryresult"
@@ -110,6 +118,7 @@ import (
 	"itsm-backend/ent/projectassetlink"
 	"itsm-backend/ent/projectbaseline"
 	"itsm-backend/ent/projectclosure"
+	"itsm-backend/ent/projectcustomerlink"
 	"itsm-backend/ent/projectgate"
 	"itsm-backend/ent/projectmember"
 	"itsm-backend/ent/projectmilestone"
@@ -276,8 +285,16 @@ func checkColumn(t, c string) error {
 			connectorconfig.Table:             connectorconfig.ValidColumn,
 			connectorinbounddedup.Table:       connectorinbounddedup.ValidColumn,
 			contract.Table:                    contract.ValidColumn,
+			contractamendment.Table:           contractamendment.ValidColumn,
+			contractprojectlink.Table:         contractprojectlink.ValidColumn,
+			contractserviceitem.Table:         contractserviceitem.ValidColumn,
+			contractusageledger.Table:         contractusageledger.ValidColumn,
 			conversation.Table:                conversation.ValidColumn,
 			customerbranch.Table:              customerbranch.ValidColumn,
+			customercontact.Table:             customercontact.ValidColumn,
+			customerexternalid.Table:          customerexternalid.ValidColumn,
+			customerrelationship.Table:        customerrelationship.ValidColumn,
+			customertenantlink.Table:          customertenantlink.ValidColumn,
 			department.Table:                  department.ValidColumn,
 			discoveryjob.Table:                discoveryjob.ValidColumn,
 			discoveryresult.Table:             discoveryresult.ValidColumn,
@@ -344,6 +361,7 @@ func checkColumn(t, c string) error {
 			projectassetlink.Table:            projectassetlink.ValidColumn,
 			projectbaseline.Table:             projectbaseline.ValidColumn,
 			projectclosure.Table:              projectclosure.ValidColumn,
+			projectcustomerlink.Table:         projectcustomerlink.ValidColumn,
 			projectgate.Table:                 projectgate.ValidColumn,
 			projectmember.Table:               projectmember.ValidColumn,
 			projectmilestone.Table:            projectmilestone.ValidColumn,

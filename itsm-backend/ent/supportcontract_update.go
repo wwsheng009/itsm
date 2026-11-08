@@ -196,6 +196,398 @@ func (_u *SupportContractUpdate) ClearSourceDocumentID() *SupportContractUpdate 
 	return _u
 }
 
+// SetEffectiveFrom sets the "effective_from" field.
+func (_u *SupportContractUpdate) SetEffectiveFrom(v time.Time) *SupportContractUpdate {
+	_u.mutation.SetEffectiveFrom(v)
+	return _u
+}
+
+// SetNillableEffectiveFrom sets the "effective_from" field if the given value is not nil.
+func (_u *SupportContractUpdate) SetNillableEffectiveFrom(v *time.Time) *SupportContractUpdate {
+	if v != nil {
+		_u.SetEffectiveFrom(*v)
+	}
+	return _u
+}
+
+// ClearEffectiveFrom clears the value of the "effective_from" field.
+func (_u *SupportContractUpdate) ClearEffectiveFrom() *SupportContractUpdate {
+	_u.mutation.ClearEffectiveFrom()
+	return _u
+}
+
+// SetEffectiveUntil sets the "effective_until" field.
+func (_u *SupportContractUpdate) SetEffectiveUntil(v time.Time) *SupportContractUpdate {
+	_u.mutation.SetEffectiveUntil(v)
+	return _u
+}
+
+// SetNillableEffectiveUntil sets the "effective_until" field if the given value is not nil.
+func (_u *SupportContractUpdate) SetNillableEffectiveUntil(v *time.Time) *SupportContractUpdate {
+	if v != nil {
+		_u.SetEffectiveUntil(*v)
+	}
+	return _u
+}
+
+// ClearEffectiveUntil clears the value of the "effective_until" field.
+func (_u *SupportContractUpdate) ClearEffectiveUntil() *SupportContractUpdate {
+	_u.mutation.ClearEffectiveUntil()
+	return _u
+}
+
+// SetSignedAt sets the "signed_at" field.
+func (_u *SupportContractUpdate) SetSignedAt(v time.Time) *SupportContractUpdate {
+	_u.mutation.SetSignedAt(v)
+	return _u
+}
+
+// SetNillableSignedAt sets the "signed_at" field if the given value is not nil.
+func (_u *SupportContractUpdate) SetNillableSignedAt(v *time.Time) *SupportContractUpdate {
+	if v != nil {
+		_u.SetSignedAt(*v)
+	}
+	return _u
+}
+
+// ClearSignedAt clears the value of the "signed_at" field.
+func (_u *SupportContractUpdate) ClearSignedAt() *SupportContractUpdate {
+	_u.mutation.ClearSignedAt()
+	return _u
+}
+
+// SetAmount sets the "amount" field.
+func (_u *SupportContractUpdate) SetAmount(v float64) *SupportContractUpdate {
+	_u.mutation.ResetAmount()
+	_u.mutation.SetAmount(v)
+	return _u
+}
+
+// SetNillableAmount sets the "amount" field if the given value is not nil.
+func (_u *SupportContractUpdate) SetNillableAmount(v *float64) *SupportContractUpdate {
+	if v != nil {
+		_u.SetAmount(*v)
+	}
+	return _u
+}
+
+// AddAmount adds value to the "amount" field.
+func (_u *SupportContractUpdate) AddAmount(v float64) *SupportContractUpdate {
+	_u.mutation.AddAmount(v)
+	return _u
+}
+
+// ClearAmount clears the value of the "amount" field.
+func (_u *SupportContractUpdate) ClearAmount() *SupportContractUpdate {
+	_u.mutation.ClearAmount()
+	return _u
+}
+
+// SetCurrency sets the "currency" field.
+func (_u *SupportContractUpdate) SetCurrency(v string) *SupportContractUpdate {
+	_u.mutation.SetCurrency(v)
+	return _u
+}
+
+// SetNillableCurrency sets the "currency" field if the given value is not nil.
+func (_u *SupportContractUpdate) SetNillableCurrency(v *string) *SupportContractUpdate {
+	if v != nil {
+		_u.SetCurrency(*v)
+	}
+	return _u
+}
+
+// ClearCurrency clears the value of the "currency" field.
+func (_u *SupportContractUpdate) ClearCurrency() *SupportContractUpdate {
+	_u.mutation.ClearCurrency()
+	return _u
+}
+
+// SetContractType sets the "contract_type" field.
+func (_u *SupportContractUpdate) SetContractType(v string) *SupportContractUpdate {
+	_u.mutation.SetContractType(v)
+	return _u
+}
+
+// SetNillableContractType sets the "contract_type" field if the given value is not nil.
+func (_u *SupportContractUpdate) SetNillableContractType(v *string) *SupportContractUpdate {
+	if v != nil {
+		_u.SetContractType(*v)
+	}
+	return _u
+}
+
+// SetContractName sets the "contract_name" field.
+func (_u *SupportContractUpdate) SetContractName(v string) *SupportContractUpdate {
+	_u.mutation.SetContractName(v)
+	return _u
+}
+
+// SetNillableContractName sets the "contract_name" field if the given value is not nil.
+func (_u *SupportContractUpdate) SetNillableContractName(v *string) *SupportContractUpdate {
+	if v != nil {
+		_u.SetContractName(*v)
+	}
+	return _u
+}
+
+// ClearContractName clears the value of the "contract_name" field.
+func (_u *SupportContractUpdate) ClearContractName() *SupportContractUpdate {
+	_u.mutation.ClearContractName()
+	return _u
+}
+
+// SetParentContractID sets the "parent_contract_id" field.
+func (_u *SupportContractUpdate) SetParentContractID(v int) *SupportContractUpdate {
+	_u.mutation.ResetParentContractID()
+	_u.mutation.SetParentContractID(v)
+	return _u
+}
+
+// SetNillableParentContractID sets the "parent_contract_id" field if the given value is not nil.
+func (_u *SupportContractUpdate) SetNillableParentContractID(v *int) *SupportContractUpdate {
+	if v != nil {
+		_u.SetParentContractID(*v)
+	}
+	return _u
+}
+
+// AddParentContractID adds value to the "parent_contract_id" field.
+func (_u *SupportContractUpdate) AddParentContractID(v int) *SupportContractUpdate {
+	_u.mutation.AddParentContractID(v)
+	return _u
+}
+
+// ClearParentContractID clears the value of the "parent_contract_id" field.
+func (_u *SupportContractUpdate) ClearParentContractID() *SupportContractUpdate {
+	_u.mutation.ClearParentContractID()
+	return _u
+}
+
+// SetRenewalOfContractID sets the "renewal_of_contract_id" field.
+func (_u *SupportContractUpdate) SetRenewalOfContractID(v int) *SupportContractUpdate {
+	_u.mutation.ResetRenewalOfContractID()
+	_u.mutation.SetRenewalOfContractID(v)
+	return _u
+}
+
+// SetNillableRenewalOfContractID sets the "renewal_of_contract_id" field if the given value is not nil.
+func (_u *SupportContractUpdate) SetNillableRenewalOfContractID(v *int) *SupportContractUpdate {
+	if v != nil {
+		_u.SetRenewalOfContractID(*v)
+	}
+	return _u
+}
+
+// AddRenewalOfContractID adds value to the "renewal_of_contract_id" field.
+func (_u *SupportContractUpdate) AddRenewalOfContractID(v int) *SupportContractUpdate {
+	_u.mutation.AddRenewalOfContractID(v)
+	return _u
+}
+
+// ClearRenewalOfContractID clears the value of the "renewal_of_contract_id" field.
+func (_u *SupportContractUpdate) ClearRenewalOfContractID() *SupportContractUpdate {
+	_u.mutation.ClearRenewalOfContractID()
+	return _u
+}
+
+// SetAmendmentCount sets the "amendment_count" field.
+func (_u *SupportContractUpdate) SetAmendmentCount(v int) *SupportContractUpdate {
+	_u.mutation.ResetAmendmentCount()
+	_u.mutation.SetAmendmentCount(v)
+	return _u
+}
+
+// SetNillableAmendmentCount sets the "amendment_count" field if the given value is not nil.
+func (_u *SupportContractUpdate) SetNillableAmendmentCount(v *int) *SupportContractUpdate {
+	if v != nil {
+		_u.SetAmendmentCount(*v)
+	}
+	return _u
+}
+
+// AddAmendmentCount adds value to the "amendment_count" field.
+func (_u *SupportContractUpdate) AddAmendmentCount(v int) *SupportContractUpdate {
+	_u.mutation.AddAmendmentCount(v)
+	return _u
+}
+
+// SetSLADefinitionID sets the "sla_definition_id" field.
+func (_u *SupportContractUpdate) SetSLADefinitionID(v int) *SupportContractUpdate {
+	_u.mutation.ResetSLADefinitionID()
+	_u.mutation.SetSLADefinitionID(v)
+	return _u
+}
+
+// SetNillableSLADefinitionID sets the "sla_definition_id" field if the given value is not nil.
+func (_u *SupportContractUpdate) SetNillableSLADefinitionID(v *int) *SupportContractUpdate {
+	if v != nil {
+		_u.SetSLADefinitionID(*v)
+	}
+	return _u
+}
+
+// AddSLADefinitionID adds value to the "sla_definition_id" field.
+func (_u *SupportContractUpdate) AddSLADefinitionID(v int) *SupportContractUpdate {
+	_u.mutation.AddSLADefinitionID(v)
+	return _u
+}
+
+// ClearSLADefinitionID clears the value of the "sla_definition_id" field.
+func (_u *SupportContractUpdate) ClearSLADefinitionID() *SupportContractUpdate {
+	_u.mutation.ClearSLADefinitionID()
+	return _u
+}
+
+// SetAutoRenew sets the "auto_renew" field.
+func (_u *SupportContractUpdate) SetAutoRenew(v bool) *SupportContractUpdate {
+	_u.mutation.SetAutoRenew(v)
+	return _u
+}
+
+// SetNillableAutoRenew sets the "auto_renew" field if the given value is not nil.
+func (_u *SupportContractUpdate) SetNillableAutoRenew(v *bool) *SupportContractUpdate {
+	if v != nil {
+		_u.SetAutoRenew(*v)
+	}
+	return _u
+}
+
+// SetTerminatedAt sets the "terminated_at" field.
+func (_u *SupportContractUpdate) SetTerminatedAt(v time.Time) *SupportContractUpdate {
+	_u.mutation.SetTerminatedAt(v)
+	return _u
+}
+
+// SetNillableTerminatedAt sets the "terminated_at" field if the given value is not nil.
+func (_u *SupportContractUpdate) SetNillableTerminatedAt(v *time.Time) *SupportContractUpdate {
+	if v != nil {
+		_u.SetTerminatedAt(*v)
+	}
+	return _u
+}
+
+// ClearTerminatedAt clears the value of the "terminated_at" field.
+func (_u *SupportContractUpdate) ClearTerminatedAt() *SupportContractUpdate {
+	_u.mutation.ClearTerminatedAt()
+	return _u
+}
+
+// SetTerminationReason sets the "termination_reason" field.
+func (_u *SupportContractUpdate) SetTerminationReason(v string) *SupportContractUpdate {
+	_u.mutation.SetTerminationReason(v)
+	return _u
+}
+
+// SetNillableTerminationReason sets the "termination_reason" field if the given value is not nil.
+func (_u *SupportContractUpdate) SetNillableTerminationReason(v *string) *SupportContractUpdate {
+	if v != nil {
+		_u.SetTerminationReason(*v)
+	}
+	return _u
+}
+
+// ClearTerminationReason clears the value of the "termination_reason" field.
+func (_u *SupportContractUpdate) ClearTerminationReason() *SupportContractUpdate {
+	_u.mutation.ClearTerminationReason()
+	return _u
+}
+
+// SetDeletedAt sets the "deleted_at" field.
+func (_u *SupportContractUpdate) SetDeletedAt(v time.Time) *SupportContractUpdate {
+	_u.mutation.SetDeletedAt(v)
+	return _u
+}
+
+// SetNillableDeletedAt sets the "deleted_at" field if the given value is not nil.
+func (_u *SupportContractUpdate) SetNillableDeletedAt(v *time.Time) *SupportContractUpdate {
+	if v != nil {
+		_u.SetDeletedAt(*v)
+	}
+	return _u
+}
+
+// ClearDeletedAt clears the value of the "deleted_at" field.
+func (_u *SupportContractUpdate) ClearDeletedAt() *SupportContractUpdate {
+	_u.mutation.ClearDeletedAt()
+	return _u
+}
+
+// SetVersion sets the "version" field.
+func (_u *SupportContractUpdate) SetVersion(v int64) *SupportContractUpdate {
+	_u.mutation.ResetVersion()
+	_u.mutation.SetVersion(v)
+	return _u
+}
+
+// SetNillableVersion sets the "version" field if the given value is not nil.
+func (_u *SupportContractUpdate) SetNillableVersion(v *int64) *SupportContractUpdate {
+	if v != nil {
+		_u.SetVersion(*v)
+	}
+	return _u
+}
+
+// AddVersion adds value to the "version" field.
+func (_u *SupportContractUpdate) AddVersion(v int64) *SupportContractUpdate {
+	_u.mutation.AddVersion(v)
+	return _u
+}
+
+// SetCreatedBy sets the "created_by" field.
+func (_u *SupportContractUpdate) SetCreatedBy(v int) *SupportContractUpdate {
+	_u.mutation.ResetCreatedBy()
+	_u.mutation.SetCreatedBy(v)
+	return _u
+}
+
+// SetNillableCreatedBy sets the "created_by" field if the given value is not nil.
+func (_u *SupportContractUpdate) SetNillableCreatedBy(v *int) *SupportContractUpdate {
+	if v != nil {
+		_u.SetCreatedBy(*v)
+	}
+	return _u
+}
+
+// AddCreatedBy adds value to the "created_by" field.
+func (_u *SupportContractUpdate) AddCreatedBy(v int) *SupportContractUpdate {
+	_u.mutation.AddCreatedBy(v)
+	return _u
+}
+
+// ClearCreatedBy clears the value of the "created_by" field.
+func (_u *SupportContractUpdate) ClearCreatedBy() *SupportContractUpdate {
+	_u.mutation.ClearCreatedBy()
+	return _u
+}
+
+// SetUpdatedBy sets the "updated_by" field.
+func (_u *SupportContractUpdate) SetUpdatedBy(v int) *SupportContractUpdate {
+	_u.mutation.ResetUpdatedBy()
+	_u.mutation.SetUpdatedBy(v)
+	return _u
+}
+
+// SetNillableUpdatedBy sets the "updated_by" field if the given value is not nil.
+func (_u *SupportContractUpdate) SetNillableUpdatedBy(v *int) *SupportContractUpdate {
+	if v != nil {
+		_u.SetUpdatedBy(*v)
+	}
+	return _u
+}
+
+// AddUpdatedBy adds value to the "updated_by" field.
+func (_u *SupportContractUpdate) AddUpdatedBy(v int) *SupportContractUpdate {
+	_u.mutation.AddUpdatedBy(v)
+	return _u
+}
+
+// ClearUpdatedBy clears the value of the "updated_by" field.
+func (_u *SupportContractUpdate) ClearUpdatedBy() *SupportContractUpdate {
+	_u.mutation.ClearUpdatedBy()
+	return _u
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (_u *SupportContractUpdate) SetCreatedAt(v time.Time) *SupportContractUpdate {
 	_u.mutation.SetCreatedAt(v)
@@ -378,6 +770,26 @@ func (_u *SupportContractUpdate) check() error {
 			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "SupportContract.status": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.Currency(); ok {
+		if err := supportcontract.CurrencyValidator(v); err != nil {
+			return &ValidationError{Name: "currency", err: fmt.Errorf(`ent: validator failed for field "SupportContract.currency": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.ContractType(); ok {
+		if err := supportcontract.ContractTypeValidator(v); err != nil {
+			return &ValidationError{Name: "contract_type", err: fmt.Errorf(`ent: validator failed for field "SupportContract.contract_type": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.ContractName(); ok {
+		if err := supportcontract.ContractNameValidator(v); err != nil {
+			return &ValidationError{Name: "contract_name", err: fmt.Errorf(`ent: validator failed for field "SupportContract.contract_name": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.TerminationReason(); ok {
+		if err := supportcontract.TerminationReasonValidator(v); err != nil {
+			return &ValidationError{Name: "termination_reason", err: fmt.Errorf(`ent: validator failed for field "SupportContract.termination_reason": %w`, err)}
+		}
+	}
 	if _u.mutation.CustomerCleared() && len(_u.mutation.CustomerIDs()) > 0 {
 		return errors.New(`ent: clearing a required unique edge "SupportContract.customer"`)
 	}
@@ -431,6 +843,126 @@ func (_u *SupportContractUpdate) sqlSave(ctx context.Context) (_node int, err er
 	}
 	if _u.mutation.SourceDocumentIDCleared() {
 		_spec.ClearField(supportcontract.FieldSourceDocumentID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.EffectiveFrom(); ok {
+		_spec.SetField(supportcontract.FieldEffectiveFrom, field.TypeTime, value)
+	}
+	if _u.mutation.EffectiveFromCleared() {
+		_spec.ClearField(supportcontract.FieldEffectiveFrom, field.TypeTime)
+	}
+	if value, ok := _u.mutation.EffectiveUntil(); ok {
+		_spec.SetField(supportcontract.FieldEffectiveUntil, field.TypeTime, value)
+	}
+	if _u.mutation.EffectiveUntilCleared() {
+		_spec.ClearField(supportcontract.FieldEffectiveUntil, field.TypeTime)
+	}
+	if value, ok := _u.mutation.SignedAt(); ok {
+		_spec.SetField(supportcontract.FieldSignedAt, field.TypeTime, value)
+	}
+	if _u.mutation.SignedAtCleared() {
+		_spec.ClearField(supportcontract.FieldSignedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.Amount(); ok {
+		_spec.SetField(supportcontract.FieldAmount, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedAmount(); ok {
+		_spec.AddField(supportcontract.FieldAmount, field.TypeFloat64, value)
+	}
+	if _u.mutation.AmountCleared() {
+		_spec.ClearField(supportcontract.FieldAmount, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.Currency(); ok {
+		_spec.SetField(supportcontract.FieldCurrency, field.TypeString, value)
+	}
+	if _u.mutation.CurrencyCleared() {
+		_spec.ClearField(supportcontract.FieldCurrency, field.TypeString)
+	}
+	if value, ok := _u.mutation.ContractType(); ok {
+		_spec.SetField(supportcontract.FieldContractType, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.ContractName(); ok {
+		_spec.SetField(supportcontract.FieldContractName, field.TypeString, value)
+	}
+	if _u.mutation.ContractNameCleared() {
+		_spec.ClearField(supportcontract.FieldContractName, field.TypeString)
+	}
+	if value, ok := _u.mutation.ParentContractID(); ok {
+		_spec.SetField(supportcontract.FieldParentContractID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedParentContractID(); ok {
+		_spec.AddField(supportcontract.FieldParentContractID, field.TypeInt, value)
+	}
+	if _u.mutation.ParentContractIDCleared() {
+		_spec.ClearField(supportcontract.FieldParentContractID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.RenewalOfContractID(); ok {
+		_spec.SetField(supportcontract.FieldRenewalOfContractID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedRenewalOfContractID(); ok {
+		_spec.AddField(supportcontract.FieldRenewalOfContractID, field.TypeInt, value)
+	}
+	if _u.mutation.RenewalOfContractIDCleared() {
+		_spec.ClearField(supportcontract.FieldRenewalOfContractID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.AmendmentCount(); ok {
+		_spec.SetField(supportcontract.FieldAmendmentCount, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedAmendmentCount(); ok {
+		_spec.AddField(supportcontract.FieldAmendmentCount, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.SLADefinitionID(); ok {
+		_spec.SetField(supportcontract.FieldSLADefinitionID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedSLADefinitionID(); ok {
+		_spec.AddField(supportcontract.FieldSLADefinitionID, field.TypeInt, value)
+	}
+	if _u.mutation.SLADefinitionIDCleared() {
+		_spec.ClearField(supportcontract.FieldSLADefinitionID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.AutoRenew(); ok {
+		_spec.SetField(supportcontract.FieldAutoRenew, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.TerminatedAt(); ok {
+		_spec.SetField(supportcontract.FieldTerminatedAt, field.TypeTime, value)
+	}
+	if _u.mutation.TerminatedAtCleared() {
+		_spec.ClearField(supportcontract.FieldTerminatedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.TerminationReason(); ok {
+		_spec.SetField(supportcontract.FieldTerminationReason, field.TypeString, value)
+	}
+	if _u.mutation.TerminationReasonCleared() {
+		_spec.ClearField(supportcontract.FieldTerminationReason, field.TypeString)
+	}
+	if value, ok := _u.mutation.DeletedAt(); ok {
+		_spec.SetField(supportcontract.FieldDeletedAt, field.TypeTime, value)
+	}
+	if _u.mutation.DeletedAtCleared() {
+		_spec.ClearField(supportcontract.FieldDeletedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.Version(); ok {
+		_spec.SetField(supportcontract.FieldVersion, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedVersion(); ok {
+		_spec.AddField(supportcontract.FieldVersion, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.CreatedBy(); ok {
+		_spec.SetField(supportcontract.FieldCreatedBy, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedCreatedBy(); ok {
+		_spec.AddField(supportcontract.FieldCreatedBy, field.TypeInt, value)
+	}
+	if _u.mutation.CreatedByCleared() {
+		_spec.ClearField(supportcontract.FieldCreatedBy, field.TypeInt)
+	}
+	if value, ok := _u.mutation.UpdatedBy(); ok {
+		_spec.SetField(supportcontract.FieldUpdatedBy, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedUpdatedBy(); ok {
+		_spec.AddField(supportcontract.FieldUpdatedBy, field.TypeInt, value)
+	}
+	if _u.mutation.UpdatedByCleared() {
+		_spec.ClearField(supportcontract.FieldUpdatedBy, field.TypeInt)
 	}
 	if value, ok := _u.mutation.CreatedAt(); ok {
 		_spec.SetField(supportcontract.FieldCreatedAt, field.TypeTime, value)
@@ -770,6 +1302,398 @@ func (_u *SupportContractUpdateOne) ClearSourceDocumentID() *SupportContractUpda
 	return _u
 }
 
+// SetEffectiveFrom sets the "effective_from" field.
+func (_u *SupportContractUpdateOne) SetEffectiveFrom(v time.Time) *SupportContractUpdateOne {
+	_u.mutation.SetEffectiveFrom(v)
+	return _u
+}
+
+// SetNillableEffectiveFrom sets the "effective_from" field if the given value is not nil.
+func (_u *SupportContractUpdateOne) SetNillableEffectiveFrom(v *time.Time) *SupportContractUpdateOne {
+	if v != nil {
+		_u.SetEffectiveFrom(*v)
+	}
+	return _u
+}
+
+// ClearEffectiveFrom clears the value of the "effective_from" field.
+func (_u *SupportContractUpdateOne) ClearEffectiveFrom() *SupportContractUpdateOne {
+	_u.mutation.ClearEffectiveFrom()
+	return _u
+}
+
+// SetEffectiveUntil sets the "effective_until" field.
+func (_u *SupportContractUpdateOne) SetEffectiveUntil(v time.Time) *SupportContractUpdateOne {
+	_u.mutation.SetEffectiveUntil(v)
+	return _u
+}
+
+// SetNillableEffectiveUntil sets the "effective_until" field if the given value is not nil.
+func (_u *SupportContractUpdateOne) SetNillableEffectiveUntil(v *time.Time) *SupportContractUpdateOne {
+	if v != nil {
+		_u.SetEffectiveUntil(*v)
+	}
+	return _u
+}
+
+// ClearEffectiveUntil clears the value of the "effective_until" field.
+func (_u *SupportContractUpdateOne) ClearEffectiveUntil() *SupportContractUpdateOne {
+	_u.mutation.ClearEffectiveUntil()
+	return _u
+}
+
+// SetSignedAt sets the "signed_at" field.
+func (_u *SupportContractUpdateOne) SetSignedAt(v time.Time) *SupportContractUpdateOne {
+	_u.mutation.SetSignedAt(v)
+	return _u
+}
+
+// SetNillableSignedAt sets the "signed_at" field if the given value is not nil.
+func (_u *SupportContractUpdateOne) SetNillableSignedAt(v *time.Time) *SupportContractUpdateOne {
+	if v != nil {
+		_u.SetSignedAt(*v)
+	}
+	return _u
+}
+
+// ClearSignedAt clears the value of the "signed_at" field.
+func (_u *SupportContractUpdateOne) ClearSignedAt() *SupportContractUpdateOne {
+	_u.mutation.ClearSignedAt()
+	return _u
+}
+
+// SetAmount sets the "amount" field.
+func (_u *SupportContractUpdateOne) SetAmount(v float64) *SupportContractUpdateOne {
+	_u.mutation.ResetAmount()
+	_u.mutation.SetAmount(v)
+	return _u
+}
+
+// SetNillableAmount sets the "amount" field if the given value is not nil.
+func (_u *SupportContractUpdateOne) SetNillableAmount(v *float64) *SupportContractUpdateOne {
+	if v != nil {
+		_u.SetAmount(*v)
+	}
+	return _u
+}
+
+// AddAmount adds value to the "amount" field.
+func (_u *SupportContractUpdateOne) AddAmount(v float64) *SupportContractUpdateOne {
+	_u.mutation.AddAmount(v)
+	return _u
+}
+
+// ClearAmount clears the value of the "amount" field.
+func (_u *SupportContractUpdateOne) ClearAmount() *SupportContractUpdateOne {
+	_u.mutation.ClearAmount()
+	return _u
+}
+
+// SetCurrency sets the "currency" field.
+func (_u *SupportContractUpdateOne) SetCurrency(v string) *SupportContractUpdateOne {
+	_u.mutation.SetCurrency(v)
+	return _u
+}
+
+// SetNillableCurrency sets the "currency" field if the given value is not nil.
+func (_u *SupportContractUpdateOne) SetNillableCurrency(v *string) *SupportContractUpdateOne {
+	if v != nil {
+		_u.SetCurrency(*v)
+	}
+	return _u
+}
+
+// ClearCurrency clears the value of the "currency" field.
+func (_u *SupportContractUpdateOne) ClearCurrency() *SupportContractUpdateOne {
+	_u.mutation.ClearCurrency()
+	return _u
+}
+
+// SetContractType sets the "contract_type" field.
+func (_u *SupportContractUpdateOne) SetContractType(v string) *SupportContractUpdateOne {
+	_u.mutation.SetContractType(v)
+	return _u
+}
+
+// SetNillableContractType sets the "contract_type" field if the given value is not nil.
+func (_u *SupportContractUpdateOne) SetNillableContractType(v *string) *SupportContractUpdateOne {
+	if v != nil {
+		_u.SetContractType(*v)
+	}
+	return _u
+}
+
+// SetContractName sets the "contract_name" field.
+func (_u *SupportContractUpdateOne) SetContractName(v string) *SupportContractUpdateOne {
+	_u.mutation.SetContractName(v)
+	return _u
+}
+
+// SetNillableContractName sets the "contract_name" field if the given value is not nil.
+func (_u *SupportContractUpdateOne) SetNillableContractName(v *string) *SupportContractUpdateOne {
+	if v != nil {
+		_u.SetContractName(*v)
+	}
+	return _u
+}
+
+// ClearContractName clears the value of the "contract_name" field.
+func (_u *SupportContractUpdateOne) ClearContractName() *SupportContractUpdateOne {
+	_u.mutation.ClearContractName()
+	return _u
+}
+
+// SetParentContractID sets the "parent_contract_id" field.
+func (_u *SupportContractUpdateOne) SetParentContractID(v int) *SupportContractUpdateOne {
+	_u.mutation.ResetParentContractID()
+	_u.mutation.SetParentContractID(v)
+	return _u
+}
+
+// SetNillableParentContractID sets the "parent_contract_id" field if the given value is not nil.
+func (_u *SupportContractUpdateOne) SetNillableParentContractID(v *int) *SupportContractUpdateOne {
+	if v != nil {
+		_u.SetParentContractID(*v)
+	}
+	return _u
+}
+
+// AddParentContractID adds value to the "parent_contract_id" field.
+func (_u *SupportContractUpdateOne) AddParentContractID(v int) *SupportContractUpdateOne {
+	_u.mutation.AddParentContractID(v)
+	return _u
+}
+
+// ClearParentContractID clears the value of the "parent_contract_id" field.
+func (_u *SupportContractUpdateOne) ClearParentContractID() *SupportContractUpdateOne {
+	_u.mutation.ClearParentContractID()
+	return _u
+}
+
+// SetRenewalOfContractID sets the "renewal_of_contract_id" field.
+func (_u *SupportContractUpdateOne) SetRenewalOfContractID(v int) *SupportContractUpdateOne {
+	_u.mutation.ResetRenewalOfContractID()
+	_u.mutation.SetRenewalOfContractID(v)
+	return _u
+}
+
+// SetNillableRenewalOfContractID sets the "renewal_of_contract_id" field if the given value is not nil.
+func (_u *SupportContractUpdateOne) SetNillableRenewalOfContractID(v *int) *SupportContractUpdateOne {
+	if v != nil {
+		_u.SetRenewalOfContractID(*v)
+	}
+	return _u
+}
+
+// AddRenewalOfContractID adds value to the "renewal_of_contract_id" field.
+func (_u *SupportContractUpdateOne) AddRenewalOfContractID(v int) *SupportContractUpdateOne {
+	_u.mutation.AddRenewalOfContractID(v)
+	return _u
+}
+
+// ClearRenewalOfContractID clears the value of the "renewal_of_contract_id" field.
+func (_u *SupportContractUpdateOne) ClearRenewalOfContractID() *SupportContractUpdateOne {
+	_u.mutation.ClearRenewalOfContractID()
+	return _u
+}
+
+// SetAmendmentCount sets the "amendment_count" field.
+func (_u *SupportContractUpdateOne) SetAmendmentCount(v int) *SupportContractUpdateOne {
+	_u.mutation.ResetAmendmentCount()
+	_u.mutation.SetAmendmentCount(v)
+	return _u
+}
+
+// SetNillableAmendmentCount sets the "amendment_count" field if the given value is not nil.
+func (_u *SupportContractUpdateOne) SetNillableAmendmentCount(v *int) *SupportContractUpdateOne {
+	if v != nil {
+		_u.SetAmendmentCount(*v)
+	}
+	return _u
+}
+
+// AddAmendmentCount adds value to the "amendment_count" field.
+func (_u *SupportContractUpdateOne) AddAmendmentCount(v int) *SupportContractUpdateOne {
+	_u.mutation.AddAmendmentCount(v)
+	return _u
+}
+
+// SetSLADefinitionID sets the "sla_definition_id" field.
+func (_u *SupportContractUpdateOne) SetSLADefinitionID(v int) *SupportContractUpdateOne {
+	_u.mutation.ResetSLADefinitionID()
+	_u.mutation.SetSLADefinitionID(v)
+	return _u
+}
+
+// SetNillableSLADefinitionID sets the "sla_definition_id" field if the given value is not nil.
+func (_u *SupportContractUpdateOne) SetNillableSLADefinitionID(v *int) *SupportContractUpdateOne {
+	if v != nil {
+		_u.SetSLADefinitionID(*v)
+	}
+	return _u
+}
+
+// AddSLADefinitionID adds value to the "sla_definition_id" field.
+func (_u *SupportContractUpdateOne) AddSLADefinitionID(v int) *SupportContractUpdateOne {
+	_u.mutation.AddSLADefinitionID(v)
+	return _u
+}
+
+// ClearSLADefinitionID clears the value of the "sla_definition_id" field.
+func (_u *SupportContractUpdateOne) ClearSLADefinitionID() *SupportContractUpdateOne {
+	_u.mutation.ClearSLADefinitionID()
+	return _u
+}
+
+// SetAutoRenew sets the "auto_renew" field.
+func (_u *SupportContractUpdateOne) SetAutoRenew(v bool) *SupportContractUpdateOne {
+	_u.mutation.SetAutoRenew(v)
+	return _u
+}
+
+// SetNillableAutoRenew sets the "auto_renew" field if the given value is not nil.
+func (_u *SupportContractUpdateOne) SetNillableAutoRenew(v *bool) *SupportContractUpdateOne {
+	if v != nil {
+		_u.SetAutoRenew(*v)
+	}
+	return _u
+}
+
+// SetTerminatedAt sets the "terminated_at" field.
+func (_u *SupportContractUpdateOne) SetTerminatedAt(v time.Time) *SupportContractUpdateOne {
+	_u.mutation.SetTerminatedAt(v)
+	return _u
+}
+
+// SetNillableTerminatedAt sets the "terminated_at" field if the given value is not nil.
+func (_u *SupportContractUpdateOne) SetNillableTerminatedAt(v *time.Time) *SupportContractUpdateOne {
+	if v != nil {
+		_u.SetTerminatedAt(*v)
+	}
+	return _u
+}
+
+// ClearTerminatedAt clears the value of the "terminated_at" field.
+func (_u *SupportContractUpdateOne) ClearTerminatedAt() *SupportContractUpdateOne {
+	_u.mutation.ClearTerminatedAt()
+	return _u
+}
+
+// SetTerminationReason sets the "termination_reason" field.
+func (_u *SupportContractUpdateOne) SetTerminationReason(v string) *SupportContractUpdateOne {
+	_u.mutation.SetTerminationReason(v)
+	return _u
+}
+
+// SetNillableTerminationReason sets the "termination_reason" field if the given value is not nil.
+func (_u *SupportContractUpdateOne) SetNillableTerminationReason(v *string) *SupportContractUpdateOne {
+	if v != nil {
+		_u.SetTerminationReason(*v)
+	}
+	return _u
+}
+
+// ClearTerminationReason clears the value of the "termination_reason" field.
+func (_u *SupportContractUpdateOne) ClearTerminationReason() *SupportContractUpdateOne {
+	_u.mutation.ClearTerminationReason()
+	return _u
+}
+
+// SetDeletedAt sets the "deleted_at" field.
+func (_u *SupportContractUpdateOne) SetDeletedAt(v time.Time) *SupportContractUpdateOne {
+	_u.mutation.SetDeletedAt(v)
+	return _u
+}
+
+// SetNillableDeletedAt sets the "deleted_at" field if the given value is not nil.
+func (_u *SupportContractUpdateOne) SetNillableDeletedAt(v *time.Time) *SupportContractUpdateOne {
+	if v != nil {
+		_u.SetDeletedAt(*v)
+	}
+	return _u
+}
+
+// ClearDeletedAt clears the value of the "deleted_at" field.
+func (_u *SupportContractUpdateOne) ClearDeletedAt() *SupportContractUpdateOne {
+	_u.mutation.ClearDeletedAt()
+	return _u
+}
+
+// SetVersion sets the "version" field.
+func (_u *SupportContractUpdateOne) SetVersion(v int64) *SupportContractUpdateOne {
+	_u.mutation.ResetVersion()
+	_u.mutation.SetVersion(v)
+	return _u
+}
+
+// SetNillableVersion sets the "version" field if the given value is not nil.
+func (_u *SupportContractUpdateOne) SetNillableVersion(v *int64) *SupportContractUpdateOne {
+	if v != nil {
+		_u.SetVersion(*v)
+	}
+	return _u
+}
+
+// AddVersion adds value to the "version" field.
+func (_u *SupportContractUpdateOne) AddVersion(v int64) *SupportContractUpdateOne {
+	_u.mutation.AddVersion(v)
+	return _u
+}
+
+// SetCreatedBy sets the "created_by" field.
+func (_u *SupportContractUpdateOne) SetCreatedBy(v int) *SupportContractUpdateOne {
+	_u.mutation.ResetCreatedBy()
+	_u.mutation.SetCreatedBy(v)
+	return _u
+}
+
+// SetNillableCreatedBy sets the "created_by" field if the given value is not nil.
+func (_u *SupportContractUpdateOne) SetNillableCreatedBy(v *int) *SupportContractUpdateOne {
+	if v != nil {
+		_u.SetCreatedBy(*v)
+	}
+	return _u
+}
+
+// AddCreatedBy adds value to the "created_by" field.
+func (_u *SupportContractUpdateOne) AddCreatedBy(v int) *SupportContractUpdateOne {
+	_u.mutation.AddCreatedBy(v)
+	return _u
+}
+
+// ClearCreatedBy clears the value of the "created_by" field.
+func (_u *SupportContractUpdateOne) ClearCreatedBy() *SupportContractUpdateOne {
+	_u.mutation.ClearCreatedBy()
+	return _u
+}
+
+// SetUpdatedBy sets the "updated_by" field.
+func (_u *SupportContractUpdateOne) SetUpdatedBy(v int) *SupportContractUpdateOne {
+	_u.mutation.ResetUpdatedBy()
+	_u.mutation.SetUpdatedBy(v)
+	return _u
+}
+
+// SetNillableUpdatedBy sets the "updated_by" field if the given value is not nil.
+func (_u *SupportContractUpdateOne) SetNillableUpdatedBy(v *int) *SupportContractUpdateOne {
+	if v != nil {
+		_u.SetUpdatedBy(*v)
+	}
+	return _u
+}
+
+// AddUpdatedBy adds value to the "updated_by" field.
+func (_u *SupportContractUpdateOne) AddUpdatedBy(v int) *SupportContractUpdateOne {
+	_u.mutation.AddUpdatedBy(v)
+	return _u
+}
+
+// ClearUpdatedBy clears the value of the "updated_by" field.
+func (_u *SupportContractUpdateOne) ClearUpdatedBy() *SupportContractUpdateOne {
+	_u.mutation.ClearUpdatedBy()
+	return _u
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (_u *SupportContractUpdateOne) SetCreatedAt(v time.Time) *SupportContractUpdateOne {
 	_u.mutation.SetCreatedAt(v)
@@ -965,6 +1889,26 @@ func (_u *SupportContractUpdateOne) check() error {
 			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "SupportContract.status": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.Currency(); ok {
+		if err := supportcontract.CurrencyValidator(v); err != nil {
+			return &ValidationError{Name: "currency", err: fmt.Errorf(`ent: validator failed for field "SupportContract.currency": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.ContractType(); ok {
+		if err := supportcontract.ContractTypeValidator(v); err != nil {
+			return &ValidationError{Name: "contract_type", err: fmt.Errorf(`ent: validator failed for field "SupportContract.contract_type": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.ContractName(); ok {
+		if err := supportcontract.ContractNameValidator(v); err != nil {
+			return &ValidationError{Name: "contract_name", err: fmt.Errorf(`ent: validator failed for field "SupportContract.contract_name": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.TerminationReason(); ok {
+		if err := supportcontract.TerminationReasonValidator(v); err != nil {
+			return &ValidationError{Name: "termination_reason", err: fmt.Errorf(`ent: validator failed for field "SupportContract.termination_reason": %w`, err)}
+		}
+	}
 	if _u.mutation.CustomerCleared() && len(_u.mutation.CustomerIDs()) > 0 {
 		return errors.New(`ent: clearing a required unique edge "SupportContract.customer"`)
 	}
@@ -1035,6 +1979,126 @@ func (_u *SupportContractUpdateOne) sqlSave(ctx context.Context) (_node *Support
 	}
 	if _u.mutation.SourceDocumentIDCleared() {
 		_spec.ClearField(supportcontract.FieldSourceDocumentID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.EffectiveFrom(); ok {
+		_spec.SetField(supportcontract.FieldEffectiveFrom, field.TypeTime, value)
+	}
+	if _u.mutation.EffectiveFromCleared() {
+		_spec.ClearField(supportcontract.FieldEffectiveFrom, field.TypeTime)
+	}
+	if value, ok := _u.mutation.EffectiveUntil(); ok {
+		_spec.SetField(supportcontract.FieldEffectiveUntil, field.TypeTime, value)
+	}
+	if _u.mutation.EffectiveUntilCleared() {
+		_spec.ClearField(supportcontract.FieldEffectiveUntil, field.TypeTime)
+	}
+	if value, ok := _u.mutation.SignedAt(); ok {
+		_spec.SetField(supportcontract.FieldSignedAt, field.TypeTime, value)
+	}
+	if _u.mutation.SignedAtCleared() {
+		_spec.ClearField(supportcontract.FieldSignedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.Amount(); ok {
+		_spec.SetField(supportcontract.FieldAmount, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedAmount(); ok {
+		_spec.AddField(supportcontract.FieldAmount, field.TypeFloat64, value)
+	}
+	if _u.mutation.AmountCleared() {
+		_spec.ClearField(supportcontract.FieldAmount, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.Currency(); ok {
+		_spec.SetField(supportcontract.FieldCurrency, field.TypeString, value)
+	}
+	if _u.mutation.CurrencyCleared() {
+		_spec.ClearField(supportcontract.FieldCurrency, field.TypeString)
+	}
+	if value, ok := _u.mutation.ContractType(); ok {
+		_spec.SetField(supportcontract.FieldContractType, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.ContractName(); ok {
+		_spec.SetField(supportcontract.FieldContractName, field.TypeString, value)
+	}
+	if _u.mutation.ContractNameCleared() {
+		_spec.ClearField(supportcontract.FieldContractName, field.TypeString)
+	}
+	if value, ok := _u.mutation.ParentContractID(); ok {
+		_spec.SetField(supportcontract.FieldParentContractID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedParentContractID(); ok {
+		_spec.AddField(supportcontract.FieldParentContractID, field.TypeInt, value)
+	}
+	if _u.mutation.ParentContractIDCleared() {
+		_spec.ClearField(supportcontract.FieldParentContractID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.RenewalOfContractID(); ok {
+		_spec.SetField(supportcontract.FieldRenewalOfContractID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedRenewalOfContractID(); ok {
+		_spec.AddField(supportcontract.FieldRenewalOfContractID, field.TypeInt, value)
+	}
+	if _u.mutation.RenewalOfContractIDCleared() {
+		_spec.ClearField(supportcontract.FieldRenewalOfContractID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.AmendmentCount(); ok {
+		_spec.SetField(supportcontract.FieldAmendmentCount, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedAmendmentCount(); ok {
+		_spec.AddField(supportcontract.FieldAmendmentCount, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.SLADefinitionID(); ok {
+		_spec.SetField(supportcontract.FieldSLADefinitionID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedSLADefinitionID(); ok {
+		_spec.AddField(supportcontract.FieldSLADefinitionID, field.TypeInt, value)
+	}
+	if _u.mutation.SLADefinitionIDCleared() {
+		_spec.ClearField(supportcontract.FieldSLADefinitionID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.AutoRenew(); ok {
+		_spec.SetField(supportcontract.FieldAutoRenew, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.TerminatedAt(); ok {
+		_spec.SetField(supportcontract.FieldTerminatedAt, field.TypeTime, value)
+	}
+	if _u.mutation.TerminatedAtCleared() {
+		_spec.ClearField(supportcontract.FieldTerminatedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.TerminationReason(); ok {
+		_spec.SetField(supportcontract.FieldTerminationReason, field.TypeString, value)
+	}
+	if _u.mutation.TerminationReasonCleared() {
+		_spec.ClearField(supportcontract.FieldTerminationReason, field.TypeString)
+	}
+	if value, ok := _u.mutation.DeletedAt(); ok {
+		_spec.SetField(supportcontract.FieldDeletedAt, field.TypeTime, value)
+	}
+	if _u.mutation.DeletedAtCleared() {
+		_spec.ClearField(supportcontract.FieldDeletedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.Version(); ok {
+		_spec.SetField(supportcontract.FieldVersion, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedVersion(); ok {
+		_spec.AddField(supportcontract.FieldVersion, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.CreatedBy(); ok {
+		_spec.SetField(supportcontract.FieldCreatedBy, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedCreatedBy(); ok {
+		_spec.AddField(supportcontract.FieldCreatedBy, field.TypeInt, value)
+	}
+	if _u.mutation.CreatedByCleared() {
+		_spec.ClearField(supportcontract.FieldCreatedBy, field.TypeInt)
+	}
+	if value, ok := _u.mutation.UpdatedBy(); ok {
+		_spec.SetField(supportcontract.FieldUpdatedBy, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedUpdatedBy(); ok {
+		_spec.AddField(supportcontract.FieldUpdatedBy, field.TypeInt, value)
+	}
+	if _u.mutation.UpdatedByCleared() {
+		_spec.ClearField(supportcontract.FieldUpdatedBy, field.TypeInt)
 	}
 	if value, ok := _u.mutation.CreatedAt(); ok {
 		_spec.SetField(supportcontract.FieldCreatedAt, field.TypeTime, value)

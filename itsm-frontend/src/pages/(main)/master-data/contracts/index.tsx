@@ -4,11 +4,11 @@ import {
   App,
   Button,
   Card,
+  Checkbox,
   DatePicker,
-  Descriptions,
-  Drawer,
   Form,
   Input,
+  InputNumber,
   Modal,
   Popconfirm,
   Select,
@@ -32,10 +32,10 @@ import {
   type CustomerBranch,
   type ExternalContractReference,
   type ServiceCustomer,
-  type SourceOrganization,
   type SupportContract,
 } from '@/lib/services/masterDataService';
 import MasterDataTabs from '../components/MasterDataTabs';
+import ContractDetailDrawer from './components/ContractDetailDrawer';
 
 const { Title, Text } = Typography;
 
@@ -44,22 +44,33 @@ interface ContractFormValues {
   customerId: number;
   branchId?: number;
   status?: SupportContract['status'];
+  contractName?: string;
+  contractType?: string;
+  amount?: number;
+  currency?: string;
+  autoRenew?: boolean;
   range?: [Dayjs | null, Dayjs | null];
 }
 
 const STATUS_META: Record<string, { label: string; color: string }> = {
   active: { label: '有效', color: 'green' },
   pending: { label: '待生效', color: 'blue' },
+  draft: { label: '草稿', color: 'default' },
+  pending_sign: { label: '待签订', color: 'blue' },
+  expiring: { label: '即将到期', color: 'orange' },
   expired: { label: '已过期', color: 'orange' },
   terminated: { label: '已终止', color: 'red' },
+  renewed: { label: '已续签', color: 'purple' },
 };
 
 const formatDate = (value?: string) =>
   value ? dayjs(value).format('YYYY-MM-DD') : '-';
 
-const remainingDays = (endAt?: string): number | null => {
-  if (!endAt) return null;
-  return dayjs(endAt).startOf('day').diff(dayjs().startOf('day'), 'day');
+const remainingDays = (contract: SupportContract): number | null => {
+  if (contract.remainingDays != null) return contract.remainingDays;
+  const until = contract.effectiveUntil ?? contract.endAt;
+  if (!until) return null;
+  return dayjs(until).startOf('day').diff(dayjs().startOf('day'), 'day');
 };
 
 export default function ContractsPage() {
@@ -69,7 +80,6 @@ export default function ContractsPage() {
   const [contracts, setContracts] = useState<SupportContract[]>([]);
   const [customers, setCustomers] = useState<ServiceCustomer[]>([]);
   const [branches, setBranches] = useState<CustomerBranch[]>([]);
-  const [sources, setSources] = useState<SourceOrganization[]>([]);
   const [references, setReferences] = useState<ExternalContractReference[]>([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
@@ -83,18 +93,16 @@ export default function ContractsPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [contractResult, customerResult, branchResult, sourceResult, referenceResult] =
+      const [contractResult, customerResult, branchResult, referenceResult] =
         await Promise.all([
           masterDataService.contracts(),
-          masterDataService.customers(),
+          masterDataService.customers({ page: 1, pageSize: 200 }),
           masterDataService.branches(),
-          masterDataService.sourceOrganizations(),
           masterDataService.externalContractReferences(),
         ]);
       setContracts(contractResult.items);
       setCustomers(customerResult.items);
       setBranches(branchResult.items);
-      setSources(sourceResult.items);
       setReferences(referenceResult.items);
     } catch {
       message.error('加载支持合同失败');
@@ -111,9 +119,6 @@ export default function ContractsPage() {
     customers.find(customer => customer.id === id)?.name ?? `#${id}`;
   const branchName = (id?: number) =>
     id ? branches.find(branch => branch.id === id)?.name ?? `#${id}` : '-';
-  const sourceName = (id: number) =>
-    sources.find(source => source.id === id)?.name ?? `#${id}`;
-
   const referencesByContract = useMemo(() => {
     const result = new Map<number, ExternalContractReference[]>();
     for (const reference of references) {
@@ -145,14 +150,23 @@ export default function ContractsPage() {
         customerId: contract.customerId,
         branchId: contract.branchId,
         status: contract.status,
+        contractName: contract.contractName,
+        contractType: contract.contractType,
+        amount: contract.amount,
+        currency: contract.currency,
+        autoRenew: contract.autoRenew,
         range: [
-          contract.startAt ? dayjs(contract.startAt) : null,
-          contract.endAt ? dayjs(contract.endAt) : null,
+          contract.effectiveFrom ?? contract.startAt
+            ? dayjs(contract.effectiveFrom ?? contract.startAt)
+            : null,
+          contract.effectiveUntil ?? contract.endAt
+            ? dayjs(contract.effectiveUntil ?? contract.endAt)
+            : null,
         ],
       });
     } else {
       form.resetFields();
-      form.setFieldsValue({ status: 'active' });
+      form.setFieldsValue({ status: 'draft', currency: 'CNY', autoRenew: false });
     }
   };
 
@@ -162,9 +176,17 @@ export default function ContractsPage() {
       contractNumber: values.contractNumber,
       customerId: values.customerId,
       branchId: values.branchId,
-      status: values.status ?? editingContract?.status ?? 'active',
+      status: values.status ?? editingContract?.status ?? 'draft',
+      contractName: values.contractName,
+      contractType: values.contractType ?? 'support',
+      amount: values.amount,
+      currency: values.currency ?? 'CNY',
+      autoRenew: values.autoRenew ?? false,
       startAt: values.range?.[0]?.toISOString(),
       endAt: values.range?.[1]?.toISOString(),
+      effectiveFrom: values.range?.[0]?.toISOString(),
+      effectiveUntil: values.range?.[1]?.toISOString(),
+      version: editingContract?.version,
     };
     try {
       if (editingContract) {
@@ -194,7 +216,7 @@ export default function ContractsPage() {
   };
 
   const contractStatusTag = (contract: SupportContract) => {
-    const remaining = remainingDays(contract.endAt);
+    const remaining = remainingDays(contract);
     if (
       contract.status === 'active' &&
       remaining !== null &&
@@ -203,8 +225,9 @@ export default function ContractsPage() {
     ) {
       return <Tag color="warning">即将到期</Tag>;
     }
-    const meta = STATUS_META[contract.status] ?? {
-      label: contract.status,
+    const value = contract.displayStatus ?? contract.status;
+    const meta = STATUS_META[value] ?? {
+      label: value,
       color: 'default',
     };
     return <Tag color={meta.color}>{meta.label}</Tag>;
@@ -214,12 +237,6 @@ export default function ContractsPage() {
     branch => branch.customerId === selectedCustomerId
   );
 
-  const referenceColumns: ColumnsType<ExternalContractReference> = [
-    { title: '来源组织', render: (_, reference) => sourceName(reference.sourceOrganizationId) },
-    { title: '外部合同号', dataIndex: 'externalContractNumber' },
-    { title: '创建时间', dataIndex: 'createdAt', render: formatDate },
-  ];
-
   const columns: ColumnsType<SupportContract> = [
     {
       title: '合同号',
@@ -227,9 +244,17 @@ export default function ContractsPage() {
       render: (_, contract) => (
         <div>
           <Text strong>{contract.contractNumber}</Text>
-          <div className="text-xs text-gray-500">#{contract.id}</div>
+          <div className="text-xs text-gray-500">
+            #{contract.id} · {contract.contractName || '未命名合同'}
+          </div>
         </div>
       ),
+    },
+    {
+      title: '类型',
+      dataIndex: 'contractType',
+      width: 100,
+      render: (value?: string) => <Tag>{value || 'support'}</Tag>,
     },
     {
       title: '客户',
@@ -252,18 +277,41 @@ export default function ContractsPage() {
       key: 'period',
       width: 210,
       render: (_, contract) =>
-        `${formatDate(contract.startAt)} ~ ${contract.endAt ? formatDate(contract.endAt) : '长期'}`,
+        `${formatDate(contract.effectiveFrom ?? contract.startAt)} ~ ${
+          contract.effectiveUntil ?? contract.endAt
+            ? formatDate(contract.effectiveUntil ?? contract.endAt)
+            : '长期'
+        }`,
     },
     {
       title: '剩余',
       key: 'remaining',
       width: 100,
       render: (_, contract) => {
-        const remaining = remainingDays(contract.endAt);
+        const remaining = remainingDays(contract);
         if (remaining === null) return '长期';
         if (remaining < 0) return <Text type="danger">已过期 {Math.abs(remaining)} 天</Text>;
         return `${remaining} 天`;
       },
+    },
+    {
+      title: '合同额 / 已分配 / 已实耗',
+      key: 'amounts',
+      width: 210,
+      render: (_, contract) => (
+        <div className="text-xs">
+          <div>
+            原始 {contract.amount == null ? '-' : Number(contract.amount).toFixed(2)}
+            {contract.currency ? ` ${contract.currency}` : ''}
+          </div>
+          <div>
+            有效 {contract.effectiveAmount == null ? '-' : Number(contract.effectiveAmount).toFixed(2)}
+          </div>
+          <div>
+            分配 {contract.allocatedAmount ?? 0} / 实耗 {contract.usedAmount ?? 0}
+          </div>
+        </div>
+      ),
     },
     {
       title: '外部映射',
@@ -337,10 +385,13 @@ export default function ContractsPage() {
               onChange={setStatusFilter}
               options={[
                 { value: 'all', label: '全部状态' },
+                { value: 'draft', label: '草稿' },
+                { value: 'pending_sign', label: '待签订' },
                 { value: 'active', label: '有效' },
                 { value: 'pending', label: '待生效' },
                 { value: 'expired', label: '已过期' },
                 { value: 'terminated', label: '已终止' },
+                { value: 'renewed', label: '已续签' },
               ]}
             />
             <Button icon={<ReloadOutlined />} onClick={() => void load()}>
@@ -359,7 +410,7 @@ export default function ContractsPage() {
           type="info"
           showIcon
           message="支持合同与 MSP SLA 合同不同"
-          description="本页维护客户支持合同（合同号、有效期、分支与外部映射）；provider 的 SLA 条款与结算合同在 /admin/sla-contracts。"
+          description="本页维护客户支持合同聚合根（合同额、服务项、变更单、用量台账、项目分配与外部映射）；provider 的 SLA 条款与结算合同在 /admin/sla-contracts。"
         />
 
         <Table
@@ -386,6 +437,28 @@ export default function ContractsPage() {
           <Form.Item name="contractNumber" label="合同号" rules={[{ required: true }]}>
             <Input placeholder="例如：HT-2026-001" />
           </Form.Item>
+          <Form.Item name="contractName" label="合同名称">
+            <Input placeholder="例如：2026 年度运维支持合同" maxLength={255} />
+          </Form.Item>
+          <Space size="middle" wrap>
+            <Form.Item name="contractType" label="合同类型">
+              <Select
+                style={{ width: 160 }}
+                options={[
+                  { value: 'support', label: 'support · 支持' },
+                  { value: 'maintenance', label: 'maintenance · 运维' },
+                  { value: 'implementation', label: 'implementation · 实施' },
+                  { value: 'framework', label: 'framework · 框架' },
+                ]}
+              />
+            </Form.Item>
+            <Form.Item name="amount" label="合同授权额">
+              <InputNumber min={0} precision={2} style={{ width: 160 }} />
+            </Form.Item>
+            <Form.Item name="currency" label="币种">
+              <Input style={{ width: 100 }} maxLength={8} />
+            </Form.Item>
+          </Space>
           <Form.Item name="customerId" label="客户" rules={[{ required: true }]}>
             <Select
               showSearch
@@ -411,77 +484,40 @@ export default function ContractsPage() {
           <Form.Item name="status" label="状态">
             <Select
               options={[
+                { value: 'draft', label: '草稿' },
+                { value: 'pending_sign', label: '待签订' },
                 { value: 'active', label: '有效' },
                 { value: 'pending', label: '待生效' },
                 { value: 'expired', label: '已过期' },
                 { value: 'terminated', label: '已终止' },
+                { value: 'renewed', label: '已续签' },
               ]}
             />
           </Form.Item>
           <Form.Item name="range" label="有效期">
             <DatePicker.RangePicker className="w-full" />
           </Form.Item>
+          <Form.Item name="autoRenew" valuePropName="checked">
+            <Checkbox>自动续约</Checkbox>
+          </Form.Item>
         </Form>
       </Modal>
 
-      <Drawer
-        title={
-          detailContract
-            ? `支持合同详情 · ${detailContract.contractNumber}`
-            : '支持合同详情'
-        }
+      <ContractDetailDrawer
         open={!!detailContract}
+        contract={detailContract}
+        customers={customers}
+        references={
+          detailContract ? (referencesByContract.get(detailContract.id) ?? []) : []
+        }
+        canWrite={canWrite}
         onClose={() => setDetailContract(null)}
-        width={680}
-      >
-        {detailContract && (
-          <div className="space-y-4">
-            <Descriptions column={2} bordered size="small">
-              <Descriptions.Item label="合同号">{detailContract.contractNumber}</Descriptions.Item>
-              <Descriptions.Item label="状态">
-                {contractStatusTag(detailContract)}
-              </Descriptions.Item>
-              <Descriptions.Item label="客户">
-                {customerName(detailContract.customerId)}
-              </Descriptions.Item>
-              <Descriptions.Item label="分支">
-                {branchName(detailContract.branchId)}
-              </Descriptions.Item>
-              <Descriptions.Item label="开始日期">
-                {formatDate(detailContract.startAt)}
-              </Descriptions.Item>
-              <Descriptions.Item label="结束日期">
-                {detailContract.endAt ? formatDate(detailContract.endAt) : '长期'}
-              </Descriptions.Item>
-              <Descriptions.Item label="剩余天数">
-                {remainingDays(detailContract.endAt) ?? '长期'}
-              </Descriptions.Item>
-              <Descriptions.Item label="外部映射数">
-                {referencesByContract.get(detailContract.id)?.length ?? 0}
-              </Descriptions.Item>
-              <Descriptions.Item label="创建时间">
-                {formatDate(detailContract.createdAt)}
-              </Descriptions.Item>
-              <Descriptions.Item label="更新时间">
-                {formatDate(detailContract.updatedAt)}
-              </Descriptions.Item>
-            </Descriptions>
-
-            <div>
-              <Text strong>外部合同号映射</Text>
-              <Table
-                className="mt-2"
-                rowKey="id"
-                size="small"
-                columns={referenceColumns}
-                dataSource={referencesByContract.get(detailContract.id) ?? []}
-                pagination={false}
-                locale={{ emptyText: '暂无外部合同号映射' }}
-              />
-            </div>
-          </div>
-        )}
-      </Drawer>
+        onChanged={() => void load()}
+        onEdit={contract => {
+          setDetailContract(null);
+          openContractModal(contract);
+        }}
+      />
     </div>
   );
 }

@@ -37,6 +37,42 @@ type SupportContract struct {
 	EndAt *time.Time `json:"end_at,omitempty"`
 	// SourceDocumentID holds the value of the "source_document_id" field.
 	SourceDocumentID *int `json:"source_document_id,omitempty"`
+	// EffectiveFrom holds the value of the "effective_from" field.
+	EffectiveFrom *time.Time `json:"effective_from,omitempty"`
+	// EffectiveUntil holds the value of the "effective_until" field.
+	EffectiveUntil *time.Time `json:"effective_until,omitempty"`
+	// SignedAt holds the value of the "signed_at" field.
+	SignedAt *time.Time `json:"signed_at,omitempty"`
+	// Amount holds the value of the "amount" field.
+	Amount *float64 `json:"amount,omitempty"`
+	// Currency holds the value of the "currency" field.
+	Currency string `json:"currency,omitempty"`
+	// ContractType holds the value of the "contract_type" field.
+	ContractType string `json:"contract_type,omitempty"`
+	// ContractName holds the value of the "contract_name" field.
+	ContractName string `json:"contract_name,omitempty"`
+	// ParentContractID holds the value of the "parent_contract_id" field.
+	ParentContractID *int `json:"parent_contract_id,omitempty"`
+	// RenewalOfContractID holds the value of the "renewal_of_contract_id" field.
+	RenewalOfContractID *int `json:"renewal_of_contract_id,omitempty"`
+	// AmendmentCount holds the value of the "amendment_count" field.
+	AmendmentCount int `json:"amendment_count,omitempty"`
+	// SLADefinitionID holds the value of the "sla_definition_id" field.
+	SLADefinitionID *int `json:"sla_definition_id,omitempty"`
+	// AutoRenew holds the value of the "auto_renew" field.
+	AutoRenew bool `json:"auto_renew,omitempty"`
+	// TerminatedAt holds the value of the "terminated_at" field.
+	TerminatedAt *time.Time `json:"terminated_at,omitempty"`
+	// TerminationReason holds the value of the "termination_reason" field.
+	TerminationReason string `json:"termination_reason,omitempty"`
+	// DeletedAt holds the value of the "deleted_at" field.
+	DeletedAt *time.Time `json:"deleted_at,omitempty"`
+	// Version holds the value of the "version" field.
+	Version int64 `json:"version,omitempty"`
+	// CreatedBy holds the value of the "created_by" field.
+	CreatedBy *int `json:"created_by,omitempty"`
+	// UpdatedBy holds the value of the "updated_by" field.
+	UpdatedBy *int `json:"updated_by,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
 	CreatedAt time.Time `json:"created_at,omitempty"`
 	// UpdatedAt holds the value of the "updated_at" field.
@@ -107,11 +143,15 @@ func (*SupportContract) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case supportcontract.FieldID, supportcontract.FieldTenantID, supportcontract.FieldCustomerID, supportcontract.FieldBranchID, supportcontract.FieldSourceDocumentID:
+		case supportcontract.FieldAutoRenew:
+			values[i] = new(sql.NullBool)
+		case supportcontract.FieldAmount:
+			values[i] = new(sql.NullFloat64)
+		case supportcontract.FieldID, supportcontract.FieldTenantID, supportcontract.FieldCustomerID, supportcontract.FieldBranchID, supportcontract.FieldSourceDocumentID, supportcontract.FieldParentContractID, supportcontract.FieldRenewalOfContractID, supportcontract.FieldAmendmentCount, supportcontract.FieldSLADefinitionID, supportcontract.FieldVersion, supportcontract.FieldCreatedBy, supportcontract.FieldUpdatedBy:
 			values[i] = new(sql.NullInt64)
-		case supportcontract.FieldContractNumber, supportcontract.FieldNormalizedContractNumber, supportcontract.FieldStatus:
+		case supportcontract.FieldContractNumber, supportcontract.FieldNormalizedContractNumber, supportcontract.FieldStatus, supportcontract.FieldCurrency, supportcontract.FieldContractType, supportcontract.FieldContractName, supportcontract.FieldTerminationReason:
 			values[i] = new(sql.NullString)
-		case supportcontract.FieldStartAt, supportcontract.FieldEndAt, supportcontract.FieldCreatedAt, supportcontract.FieldUpdatedAt:
+		case supportcontract.FieldStartAt, supportcontract.FieldEndAt, supportcontract.FieldEffectiveFrom, supportcontract.FieldEffectiveUntil, supportcontract.FieldSignedAt, supportcontract.FieldTerminatedAt, supportcontract.FieldDeletedAt, supportcontract.FieldCreatedAt, supportcontract.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
 		default:
 			values[i] = new(sql.UnknownType)
@@ -191,6 +231,125 @@ func (_m *SupportContract) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.SourceDocumentID = new(int)
 				*_m.SourceDocumentID = int(value.Int64)
+			}
+		case supportcontract.FieldEffectiveFrom:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field effective_from", values[i])
+			} else if value.Valid {
+				_m.EffectiveFrom = new(time.Time)
+				*_m.EffectiveFrom = value.Time
+			}
+		case supportcontract.FieldEffectiveUntil:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field effective_until", values[i])
+			} else if value.Valid {
+				_m.EffectiveUntil = new(time.Time)
+				*_m.EffectiveUntil = value.Time
+			}
+		case supportcontract.FieldSignedAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field signed_at", values[i])
+			} else if value.Valid {
+				_m.SignedAt = new(time.Time)
+				*_m.SignedAt = value.Time
+			}
+		case supportcontract.FieldAmount:
+			if value, ok := values[i].(*sql.NullFloat64); !ok {
+				return fmt.Errorf("unexpected type %T for field amount", values[i])
+			} else if value.Valid {
+				_m.Amount = new(float64)
+				*_m.Amount = value.Float64
+			}
+		case supportcontract.FieldCurrency:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field currency", values[i])
+			} else if value.Valid {
+				_m.Currency = value.String
+			}
+		case supportcontract.FieldContractType:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field contract_type", values[i])
+			} else if value.Valid {
+				_m.ContractType = value.String
+			}
+		case supportcontract.FieldContractName:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field contract_name", values[i])
+			} else if value.Valid {
+				_m.ContractName = value.String
+			}
+		case supportcontract.FieldParentContractID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field parent_contract_id", values[i])
+			} else if value.Valid {
+				_m.ParentContractID = new(int)
+				*_m.ParentContractID = int(value.Int64)
+			}
+		case supportcontract.FieldRenewalOfContractID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field renewal_of_contract_id", values[i])
+			} else if value.Valid {
+				_m.RenewalOfContractID = new(int)
+				*_m.RenewalOfContractID = int(value.Int64)
+			}
+		case supportcontract.FieldAmendmentCount:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field amendment_count", values[i])
+			} else if value.Valid {
+				_m.AmendmentCount = int(value.Int64)
+			}
+		case supportcontract.FieldSLADefinitionID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field sla_definition_id", values[i])
+			} else if value.Valid {
+				_m.SLADefinitionID = new(int)
+				*_m.SLADefinitionID = int(value.Int64)
+			}
+		case supportcontract.FieldAutoRenew:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field auto_renew", values[i])
+			} else if value.Valid {
+				_m.AutoRenew = value.Bool
+			}
+		case supportcontract.FieldTerminatedAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field terminated_at", values[i])
+			} else if value.Valid {
+				_m.TerminatedAt = new(time.Time)
+				*_m.TerminatedAt = value.Time
+			}
+		case supportcontract.FieldTerminationReason:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field termination_reason", values[i])
+			} else if value.Valid {
+				_m.TerminationReason = value.String
+			}
+		case supportcontract.FieldDeletedAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field deleted_at", values[i])
+			} else if value.Valid {
+				_m.DeletedAt = new(time.Time)
+				*_m.DeletedAt = value.Time
+			}
+		case supportcontract.FieldVersion:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field version", values[i])
+			} else if value.Valid {
+				_m.Version = value.Int64
+			}
+		case supportcontract.FieldCreatedBy:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field created_by", values[i])
+			} else if value.Valid {
+				_m.CreatedBy = new(int)
+				*_m.CreatedBy = int(value.Int64)
+			}
+		case supportcontract.FieldUpdatedBy:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field updated_by", values[i])
+			} else if value.Valid {
+				_m.UpdatedBy = new(int)
+				*_m.UpdatedBy = int(value.Int64)
 			}
 		case supportcontract.FieldCreatedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
@@ -292,6 +451,82 @@ func (_m *SupportContract) String() string {
 	builder.WriteString(", ")
 	if v := _m.SourceDocumentID; v != nil {
 		builder.WriteString("source_document_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.EffectiveFrom; v != nil {
+		builder.WriteString("effective_from=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
+	builder.WriteString(", ")
+	if v := _m.EffectiveUntil; v != nil {
+		builder.WriteString("effective_until=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
+	builder.WriteString(", ")
+	if v := _m.SignedAt; v != nil {
+		builder.WriteString("signed_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
+	builder.WriteString(", ")
+	if v := _m.Amount; v != nil {
+		builder.WriteString("amount=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	builder.WriteString("currency=")
+	builder.WriteString(_m.Currency)
+	builder.WriteString(", ")
+	builder.WriteString("contract_type=")
+	builder.WriteString(_m.ContractType)
+	builder.WriteString(", ")
+	builder.WriteString("contract_name=")
+	builder.WriteString(_m.ContractName)
+	builder.WriteString(", ")
+	if v := _m.ParentContractID; v != nil {
+		builder.WriteString("parent_contract_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.RenewalOfContractID; v != nil {
+		builder.WriteString("renewal_of_contract_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	builder.WriteString("amendment_count=")
+	builder.WriteString(fmt.Sprintf("%v", _m.AmendmentCount))
+	builder.WriteString(", ")
+	if v := _m.SLADefinitionID; v != nil {
+		builder.WriteString("sla_definition_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	builder.WriteString("auto_renew=")
+	builder.WriteString(fmt.Sprintf("%v", _m.AutoRenew))
+	builder.WriteString(", ")
+	if v := _m.TerminatedAt; v != nil {
+		builder.WriteString("terminated_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
+	builder.WriteString(", ")
+	builder.WriteString("termination_reason=")
+	builder.WriteString(_m.TerminationReason)
+	builder.WriteString(", ")
+	if v := _m.DeletedAt; v != nil {
+		builder.WriteString("deleted_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
+	builder.WriteString(", ")
+	builder.WriteString("version=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Version))
+	builder.WriteString(", ")
+	if v := _m.CreatedBy; v != nil {
+		builder.WriteString("created_by=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.UpdatedBy; v != nil {
+		builder.WriteString("updated_by=")
 		builder.WriteString(fmt.Sprintf("%v", *v))
 	}
 	builder.WriteString(", ")

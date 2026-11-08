@@ -29,6 +29,7 @@ import {
   emailIntakeService,
   type EmailConversation,
   type EmailConversationDetail,
+  type CustomerMatchCandidate,
   type ExternalContractReference,
   type ServiceCustomer,
   type SourceOrganization,
@@ -109,7 +110,7 @@ export default function EmailIntakePage() {
     try {
       const [customerResult, contractResult, sourceResult, externalReferenceResult, scheduleResult, userResult] =
         await Promise.allSettled([
-          emailIntakeService.customers(),
+          emailIntakeService.customers({ page: 1, pageSize: 200 }),
           emailIntakeService.contracts(),
           emailIntakeService.sourceOrganizations(),
           emailIntakeService.externalContractReferences(),
@@ -209,6 +210,7 @@ export default function EmailIntakePage() {
       const values = await form.validateFields();
       if (entityModal === 'customer') {
         const payload = {
+          ...(editingCustomer ?? {}),
           name: values.name,
           shortName: values.shortName ?? '',
           aliases: values.aliases ?? [],
@@ -668,6 +670,54 @@ export default function EmailIntakePage() {
                 },
               ]}
             />
+            {Boolean(detail.canonicalData?.matchLevel || detail.canonicalData?.candidates) && (
+              <Card size='small' title='AI 客户匹配'>
+                <Space wrap className='mb-2'>
+                  <Tag color='blue'>
+                    匹配级别 {String(detail.canonicalData?.matchLevel ?? '-')}
+                  </Tag>
+                  <Tag>
+                    匹配置信度{' '}
+                    {Math.round(Number(detail.canonicalData?.matchConfidence ?? 0) * 100)}%
+                  </Tag>
+                </Space>
+                {Array.isArray(detail.canonicalData?.candidates) &&
+                detail.canonicalData.candidates.length > 0 ? (
+                  <Space orientation='vertical' className='w-full'>
+                    {(detail.canonicalData.candidates as CustomerMatchCandidate[]).map(candidate => (
+                      <div
+                        key={candidate.id}
+                        className='flex flex-wrap items-center justify-between gap-2 rounded border border-slate-200 px-3 py-2'
+                      >
+                        <Space wrap>
+                          <Text strong>{candidate.name}</Text>
+                          <Tag>{candidate.code || `#${candidate.id}`}</Tag>
+                          <Tag color='orange'>
+                            {candidate.level} · {Math.round(candidate.confidence * 100)}%
+                          </Tag>
+                          <Text type='secondary'>{candidate.reason}</Text>
+                        </Space>
+                        {canReviewIntake && (
+                          <Button
+                            size='small'
+                            onClick={() => {
+                              correctionForm.setFieldValue('customerName', candidate.name);
+                              message.info('已填入候选客户名称，请保存并重新核验');
+                            }}
+                          >
+                            使用此客户
+                          </Button>
+                        )}
+                      </div>
+                    ))}
+                  </Space>
+                ) : (
+                  <Text type='secondary'>
+                    未自动绑定客户；请人工核对客户名称后保存并重新核验。
+                  </Text>
+                )}
+              </Card>
+            )}
             <Card size='small' title='人工修正'>
               {/* V1-02 邮件场景：AI 先理解邮件（只读建议）；采纳只回填空白字段，仍需人工保存。 */}
               <EmailIntentSuggest
@@ -775,7 +825,11 @@ export default function EmailIntakePage() {
             <Card size='small' title='AI 与发送审计'>
               <pre className='max-h-72 overflow-auto rounded bg-slate-50 p-3 text-xs'>
                 {JSON.stringify(
-                  { analyses: detail.analyses, outboundMessages: detail.outboundMessages },
+                  {
+                    analyses: detail.analyses,
+                    fieldSources: detail.fieldSources,
+                    outboundMessages: detail.outboundMessages,
+                  },
                   null,
                   2
                 )}

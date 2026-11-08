@@ -114,11 +114,35 @@ type ConnectorInboundDedup func(*sql.Selector)
 // Contract is the predicate function for contract builders.
 type Contract func(*sql.Selector)
 
+// ContractAmendment is the predicate function for contractamendment builders.
+type ContractAmendment func(*sql.Selector)
+
+// ContractProjectLink is the predicate function for contractprojectlink builders.
+type ContractProjectLink func(*sql.Selector)
+
+// ContractServiceItem is the predicate function for contractserviceitem builders.
+type ContractServiceItem func(*sql.Selector)
+
+// ContractUsageLedger is the predicate function for contractusageledger builders.
+type ContractUsageLedger func(*sql.Selector)
+
 // Conversation is the predicate function for conversation builders.
 type Conversation func(*sql.Selector)
 
 // CustomerBranch is the predicate function for customerbranch builders.
 type CustomerBranch func(*sql.Selector)
+
+// CustomerContact is the predicate function for customercontact builders.
+type CustomerContact func(*sql.Selector)
+
+// CustomerExternalID is the predicate function for customerexternalid builders.
+type CustomerExternalID func(*sql.Selector)
+
+// CustomerRelationship is the predicate function for customerrelationship builders.
+type CustomerRelationship func(*sql.Selector)
+
+// CustomerTenantLink is the predicate function for customertenantlink builders.
+type CustomerTenantLink func(*sql.Selector)
 
 // Department is the predicate function for department builders.
 type Department func(*sql.Selector)
@@ -317,6 +341,9 @@ type ProjectBaseline func(*sql.Selector)
 
 // ProjectClosure is the predicate function for projectclosure builders.
 type ProjectClosure func(*sql.Selector)
+
+// ProjectCustomerLink is the predicate function for projectcustomerlink builders.
+type ProjectCustomerLink func(*sql.Selector)
 
 // ProjectGate is the predicate function for projectgate builders.
 type ProjectGate func(*sql.Selector)

@@ -18,14 +18,36 @@ const (
 	FieldTenantID = "tenant_id"
 	// FieldCustomerID holds the string denoting the customer_id field in the database.
 	FieldCustomerID = "customer_id"
+	// FieldCode holds the string denoting the code field in the database.
+	FieldCode = "code"
 	// FieldName holds the string denoting the name field in the database.
 	FieldName = "name"
 	// FieldNormalizedName holds the string denoting the normalized_name field in the database.
 	FieldNormalizedName = "normalized_name"
+	// FieldBranchType holds the string denoting the branch_type field in the database.
+	FieldBranchType = "branch_type"
 	// FieldAliases holds the string denoting the aliases field in the database.
 	FieldAliases = "aliases"
+	// FieldAddress holds the string denoting the address field in the database.
+	FieldAddress = "address"
+	// FieldTimezone holds the string denoting the timezone field in the database.
+	FieldTimezone = "timezone"
+	// FieldContactPhone holds the string denoting the contact_phone field in the database.
+	FieldContactPhone = "contact_phone"
+	// FieldEmailDomains holds the string denoting the email_domains field in the database.
+	FieldEmailDomains = "email_domains"
+	// FieldServiceTier holds the string denoting the service_tier field in the database.
+	FieldServiceTier = "service_tier"
+	// FieldSupportHours holds the string denoting the support_hours field in the database.
+	FieldSupportHours = "support_hours"
+	// FieldIsPrimary holds the string denoting the is_primary field in the database.
+	FieldIsPrimary = "is_primary"
+	// FieldLinkedTenantID holds the string denoting the linked_tenant_id field in the database.
+	FieldLinkedTenantID = "linked_tenant_id"
 	// FieldStatus holds the string denoting the status field in the database.
 	FieldStatus = "status"
+	// FieldDeletedAt holds the string denoting the deleted_at field in the database.
+	FieldDeletedAt = "deleted_at"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
 	FieldCreatedAt = "created_at"
 	// FieldUpdatedAt holds the string denoting the updated_at field in the database.
@@ -66,10 +88,21 @@ var Columns = []string{
 	FieldID,
 	FieldTenantID,
 	FieldCustomerID,
+	FieldCode,
 	FieldName,
 	FieldNormalizedName,
+	FieldBranchType,
 	FieldAliases,
+	FieldAddress,
+	FieldTimezone,
+	FieldContactPhone,
+	FieldEmailDomains,
+	FieldServiceTier,
+	FieldSupportHours,
+	FieldIsPrimary,
+	FieldLinkedTenantID,
 	FieldStatus,
+	FieldDeletedAt,
 	FieldCreatedAt,
 	FieldUpdatedAt,
 }
@@ -89,10 +122,26 @@ var (
 	TenantIDValidator func(int) error
 	// CustomerIDValidator is a validator for the "customer_id" field. It is called by the builders before save.
 	CustomerIDValidator func(int) error
+	// CodeValidator is a validator for the "code" field. It is called by the builders before save.
+	CodeValidator func(string) error
 	// NameValidator is a validator for the "name" field. It is called by the builders before save.
 	NameValidator func(string) error
 	// NormalizedNameValidator is a validator for the "normalized_name" field. It is called by the builders before save.
 	NormalizedNameValidator func(string) error
+	// DefaultBranchType holds the default value on creation for the "branch_type" field.
+	DefaultBranchType string
+	// BranchTypeValidator is a validator for the "branch_type" field. It is called by the builders before save.
+	BranchTypeValidator func(string) error
+	// TimezoneValidator is a validator for the "timezone" field. It is called by the builders before save.
+	TimezoneValidator func(string) error
+	// ContactPhoneValidator is a validator for the "contact_phone" field. It is called by the builders before save.
+	ContactPhoneValidator func(string) error
+	// ServiceTierValidator is a validator for the "service_tier" field. It is called by the builders before save.
+	ServiceTierValidator func(string) error
+	// SupportHoursValidator is a validator for the "support_hours" field. It is called by the builders before save.
+	SupportHoursValidator func(string) error
+	// DefaultIsPrimary holds the default value on creation for the "is_primary" field.
+	DefaultIsPrimary bool
 	// DefaultStatus holds the default value on creation for the "status" field.
 	DefaultStatus string
 	// StatusValidator is a validator for the "status" field. It is called by the builders before save.
@@ -123,6 +172,11 @@ func ByCustomerID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldCustomerID, opts...).ToFunc()
 }
 
+// ByCode orders the results by the code field.
+func ByCode(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCode, opts...).ToFunc()
+}
+
 // ByName orders the results by the name field.
 func ByName(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldName, opts...).ToFunc()
@@ -133,9 +187,49 @@ func ByNormalizedName(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldNormalizedName, opts...).ToFunc()
 }
 
+// ByBranchType orders the results by the branch_type field.
+func ByBranchType(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldBranchType, opts...).ToFunc()
+}
+
+// ByTimezone orders the results by the timezone field.
+func ByTimezone(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldTimezone, opts...).ToFunc()
+}
+
+// ByContactPhone orders the results by the contact_phone field.
+func ByContactPhone(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldContactPhone, opts...).ToFunc()
+}
+
+// ByServiceTier orders the results by the service_tier field.
+func ByServiceTier(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldServiceTier, opts...).ToFunc()
+}
+
+// BySupportHours orders the results by the support_hours field.
+func BySupportHours(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSupportHours, opts...).ToFunc()
+}
+
+// ByIsPrimary orders the results by the is_primary field.
+func ByIsPrimary(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldIsPrimary, opts...).ToFunc()
+}
+
+// ByLinkedTenantID orders the results by the linked_tenant_id field.
+func ByLinkedTenantID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldLinkedTenantID, opts...).ToFunc()
+}
+
 // ByStatus orders the results by the status field.
 func ByStatus(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldStatus, opts...).ToFunc()
+}
+
+// ByDeletedAt orders the results by the deleted_at field.
+func ByDeletedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldDeletedAt, opts...).ToFunc()
 }
 
 // ByCreatedAt orders the results by the created_at field.

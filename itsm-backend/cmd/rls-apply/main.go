@@ -37,7 +37,7 @@ import (
 	_ "github.com/lib/pq"
 )
 
-// rlsManagedTables — -verify 的受管表清单（与 database/rls/migrations 002–020 对齐）。
+// rlsManagedTables — -verify 的受管表清单（与 database/rls/migrations 002–025 对齐）。
 // 002 试点表在前、003 批次 1、004 批次 2、005 批次 3 依次在后；存在的表必须已启用 RLS 且有策略，否则 -verify 非零退出。
 var rlsManagedTables = []string{
 	"changes", "vectors", // 002 试点
@@ -87,9 +87,11 @@ var rlsManagedTables = []string{
 	"incident_rules", "incident_escalation_rules", "incident_rule_executions",
 	"incident_metrics", "incident_events",
 	"problems", "root_cause_analyses", "known_errors", "releases",
-	"teams", "departments", "customer_branches", "source_organizations",
+	"teams", "departments", "customer_branches", "customer_contacts", "customer_relationships", "customer_tenant_links",
+	"project_customer_links", "customer_external_ids", "source_organizations",
 	"relationship_types", "service_customers", "contracts", "support_contracts",
 	"external_contract_references", "vendors", "on_call_schedules", "on_call_shifts",
+	"contract_service_items", "contract_amendments", "contract_usage_ledger", "contract_project_links",
 	"engineer_skills",
 	"ticket_categories", "ticket_assignment_rules", "ticket_automation_rules",
 	"ticket_views", "ticket_tags", "tags",

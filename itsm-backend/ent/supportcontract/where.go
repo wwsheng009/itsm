@@ -100,6 +100,96 @@ func SourceDocumentID(v int) predicate.SupportContract {
 	return predicate.SupportContract(sql.FieldEQ(FieldSourceDocumentID, v))
 }
 
+// EffectiveFrom applies equality check predicate on the "effective_from" field. It's identical to EffectiveFromEQ.
+func EffectiveFrom(v time.Time) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldEQ(FieldEffectiveFrom, v))
+}
+
+// EffectiveUntil applies equality check predicate on the "effective_until" field. It's identical to EffectiveUntilEQ.
+func EffectiveUntil(v time.Time) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldEQ(FieldEffectiveUntil, v))
+}
+
+// SignedAt applies equality check predicate on the "signed_at" field. It's identical to SignedAtEQ.
+func SignedAt(v time.Time) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldEQ(FieldSignedAt, v))
+}
+
+// Amount applies equality check predicate on the "amount" field. It's identical to AmountEQ.
+func Amount(v float64) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldEQ(FieldAmount, v))
+}
+
+// Currency applies equality check predicate on the "currency" field. It's identical to CurrencyEQ.
+func Currency(v string) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldEQ(FieldCurrency, v))
+}
+
+// ContractType applies equality check predicate on the "contract_type" field. It's identical to ContractTypeEQ.
+func ContractType(v string) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldEQ(FieldContractType, v))
+}
+
+// ContractName applies equality check predicate on the "contract_name" field. It's identical to ContractNameEQ.
+func ContractName(v string) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldEQ(FieldContractName, v))
+}
+
+// ParentContractID applies equality check predicate on the "parent_contract_id" field. It's identical to ParentContractIDEQ.
+func ParentContractID(v int) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldEQ(FieldParentContractID, v))
+}
+
+// RenewalOfContractID applies equality check predicate on the "renewal_of_contract_id" field. It's identical to RenewalOfContractIDEQ.
+func RenewalOfContractID(v int) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldEQ(FieldRenewalOfContractID, v))
+}
+
+// AmendmentCount applies equality check predicate on the "amendment_count" field. It's identical to AmendmentCountEQ.
+func AmendmentCount(v int) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldEQ(FieldAmendmentCount, v))
+}
+
+// SLADefinitionID applies equality check predicate on the "sla_definition_id" field. It's identical to SLADefinitionIDEQ.
+func SLADefinitionID(v int) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldEQ(FieldSLADefinitionID, v))
+}
+
+// AutoRenew applies equality check predicate on the "auto_renew" field. It's identical to AutoRenewEQ.
+func AutoRenew(v bool) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldEQ(FieldAutoRenew, v))
+}
+
+// TerminatedAt applies equality check predicate on the "terminated_at" field. It's identical to TerminatedAtEQ.
+func TerminatedAt(v time.Time) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldEQ(FieldTerminatedAt, v))
+}
+
+// TerminationReason applies equality check predicate on the "termination_reason" field. It's identical to TerminationReasonEQ.
+func TerminationReason(v string) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldEQ(FieldTerminationReason, v))
+}
+
+// DeletedAt applies equality check predicate on the "deleted_at" field. It's identical to DeletedAtEQ.
+func DeletedAt(v time.Time) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldEQ(FieldDeletedAt, v))
+}
+
+// Version applies equality check predicate on the "version" field. It's identical to VersionEQ.
+func Version(v int64) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldEQ(FieldVersion, v))
+}
+
+// CreatedBy applies equality check predicate on the "created_by" field. It's identical to CreatedByEQ.
+func CreatedBy(v int) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldEQ(FieldCreatedBy, v))
+}
+
+// UpdatedBy applies equality check predicate on the "updated_by" field. It's identical to UpdatedByEQ.
+func UpdatedBy(v int) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldEQ(FieldUpdatedBy, v))
+}
+
 // CreatedAt applies equality check predicate on the "created_at" field. It's identical to CreatedAtEQ.
 func CreatedAt(v time.Time) predicate.SupportContract {
 	return predicate.SupportContract(sql.FieldEQ(FieldCreatedAt, v))
@@ -543,6 +633,936 @@ func SourceDocumentIDIsNil() predicate.SupportContract {
 // SourceDocumentIDNotNil applies the NotNil predicate on the "source_document_id" field.
 func SourceDocumentIDNotNil() predicate.SupportContract {
 	return predicate.SupportContract(sql.FieldNotNull(FieldSourceDocumentID))
+}
+
+// EffectiveFromEQ applies the EQ predicate on the "effective_from" field.
+func EffectiveFromEQ(v time.Time) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldEQ(FieldEffectiveFrom, v))
+}
+
+// EffectiveFromNEQ applies the NEQ predicate on the "effective_from" field.
+func EffectiveFromNEQ(v time.Time) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldNEQ(FieldEffectiveFrom, v))
+}
+
+// EffectiveFromIn applies the In predicate on the "effective_from" field.
+func EffectiveFromIn(vs ...time.Time) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldIn(FieldEffectiveFrom, vs...))
+}
+
+// EffectiveFromNotIn applies the NotIn predicate on the "effective_from" field.
+func EffectiveFromNotIn(vs ...time.Time) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldNotIn(FieldEffectiveFrom, vs...))
+}
+
+// EffectiveFromGT applies the GT predicate on the "effective_from" field.
+func EffectiveFromGT(v time.Time) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldGT(FieldEffectiveFrom, v))
+}
+
+// EffectiveFromGTE applies the GTE predicate on the "effective_from" field.
+func EffectiveFromGTE(v time.Time) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldGTE(FieldEffectiveFrom, v))
+}
+
+// EffectiveFromLT applies the LT predicate on the "effective_from" field.
+func EffectiveFromLT(v time.Time) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldLT(FieldEffectiveFrom, v))
+}
+
+// EffectiveFromLTE applies the LTE predicate on the "effective_from" field.
+func EffectiveFromLTE(v time.Time) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldLTE(FieldEffectiveFrom, v))
+}
+
+// EffectiveFromIsNil applies the IsNil predicate on the "effective_from" field.
+func EffectiveFromIsNil() predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldIsNull(FieldEffectiveFrom))
+}
+
+// EffectiveFromNotNil applies the NotNil predicate on the "effective_from" field.
+func EffectiveFromNotNil() predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldNotNull(FieldEffectiveFrom))
+}
+
+// EffectiveUntilEQ applies the EQ predicate on the "effective_until" field.
+func EffectiveUntilEQ(v time.Time) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldEQ(FieldEffectiveUntil, v))
+}
+
+// EffectiveUntilNEQ applies the NEQ predicate on the "effective_until" field.
+func EffectiveUntilNEQ(v time.Time) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldNEQ(FieldEffectiveUntil, v))
+}
+
+// EffectiveUntilIn applies the In predicate on the "effective_until" field.
+func EffectiveUntilIn(vs ...time.Time) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldIn(FieldEffectiveUntil, vs...))
+}
+
+// EffectiveUntilNotIn applies the NotIn predicate on the "effective_until" field.
+func EffectiveUntilNotIn(vs ...time.Time) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldNotIn(FieldEffectiveUntil, vs...))
+}
+
+// EffectiveUntilGT applies the GT predicate on the "effective_until" field.
+func EffectiveUntilGT(v time.Time) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldGT(FieldEffectiveUntil, v))
+}
+
+// EffectiveUntilGTE applies the GTE predicate on the "effective_until" field.
+func EffectiveUntilGTE(v time.Time) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldGTE(FieldEffectiveUntil, v))
+}
+
+// EffectiveUntilLT applies the LT predicate on the "effective_until" field.
+func EffectiveUntilLT(v time.Time) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldLT(FieldEffectiveUntil, v))
+}
+
+// EffectiveUntilLTE applies the LTE predicate on the "effective_until" field.
+func EffectiveUntilLTE(v time.Time) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldLTE(FieldEffectiveUntil, v))
+}
+
+// EffectiveUntilIsNil applies the IsNil predicate on the "effective_until" field.
+func EffectiveUntilIsNil() predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldIsNull(FieldEffectiveUntil))
+}
+
+// EffectiveUntilNotNil applies the NotNil predicate on the "effective_until" field.
+func EffectiveUntilNotNil() predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldNotNull(FieldEffectiveUntil))
+}
+
+// SignedAtEQ applies the EQ predicate on the "signed_at" field.
+func SignedAtEQ(v time.Time) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldEQ(FieldSignedAt, v))
+}
+
+// SignedAtNEQ applies the NEQ predicate on the "signed_at" field.
+func SignedAtNEQ(v time.Time) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldNEQ(FieldSignedAt, v))
+}
+
+// SignedAtIn applies the In predicate on the "signed_at" field.
+func SignedAtIn(vs ...time.Time) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldIn(FieldSignedAt, vs...))
+}
+
+// SignedAtNotIn applies the NotIn predicate on the "signed_at" field.
+func SignedAtNotIn(vs ...time.Time) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldNotIn(FieldSignedAt, vs...))
+}
+
+// SignedAtGT applies the GT predicate on the "signed_at" field.
+func SignedAtGT(v time.Time) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldGT(FieldSignedAt, v))
+}
+
+// SignedAtGTE applies the GTE predicate on the "signed_at" field.
+func SignedAtGTE(v time.Time) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldGTE(FieldSignedAt, v))
+}
+
+// SignedAtLT applies the LT predicate on the "signed_at" field.
+func SignedAtLT(v time.Time) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldLT(FieldSignedAt, v))
+}
+
+// SignedAtLTE applies the LTE predicate on the "signed_at" field.
+func SignedAtLTE(v time.Time) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldLTE(FieldSignedAt, v))
+}
+
+// SignedAtIsNil applies the IsNil predicate on the "signed_at" field.
+func SignedAtIsNil() predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldIsNull(FieldSignedAt))
+}
+
+// SignedAtNotNil applies the NotNil predicate on the "signed_at" field.
+func SignedAtNotNil() predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldNotNull(FieldSignedAt))
+}
+
+// AmountEQ applies the EQ predicate on the "amount" field.
+func AmountEQ(v float64) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldEQ(FieldAmount, v))
+}
+
+// AmountNEQ applies the NEQ predicate on the "amount" field.
+func AmountNEQ(v float64) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldNEQ(FieldAmount, v))
+}
+
+// AmountIn applies the In predicate on the "amount" field.
+func AmountIn(vs ...float64) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldIn(FieldAmount, vs...))
+}
+
+// AmountNotIn applies the NotIn predicate on the "amount" field.
+func AmountNotIn(vs ...float64) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldNotIn(FieldAmount, vs...))
+}
+
+// AmountGT applies the GT predicate on the "amount" field.
+func AmountGT(v float64) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldGT(FieldAmount, v))
+}
+
+// AmountGTE applies the GTE predicate on the "amount" field.
+func AmountGTE(v float64) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldGTE(FieldAmount, v))
+}
+
+// AmountLT applies the LT predicate on the "amount" field.
+func AmountLT(v float64) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldLT(FieldAmount, v))
+}
+
+// AmountLTE applies the LTE predicate on the "amount" field.
+func AmountLTE(v float64) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldLTE(FieldAmount, v))
+}
+
+// AmountIsNil applies the IsNil predicate on the "amount" field.
+func AmountIsNil() predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldIsNull(FieldAmount))
+}
+
+// AmountNotNil applies the NotNil predicate on the "amount" field.
+func AmountNotNil() predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldNotNull(FieldAmount))
+}
+
+// CurrencyEQ applies the EQ predicate on the "currency" field.
+func CurrencyEQ(v string) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldEQ(FieldCurrency, v))
+}
+
+// CurrencyNEQ applies the NEQ predicate on the "currency" field.
+func CurrencyNEQ(v string) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldNEQ(FieldCurrency, v))
+}
+
+// CurrencyIn applies the In predicate on the "currency" field.
+func CurrencyIn(vs ...string) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldIn(FieldCurrency, vs...))
+}
+
+// CurrencyNotIn applies the NotIn predicate on the "currency" field.
+func CurrencyNotIn(vs ...string) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldNotIn(FieldCurrency, vs...))
+}
+
+// CurrencyGT applies the GT predicate on the "currency" field.
+func CurrencyGT(v string) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldGT(FieldCurrency, v))
+}
+
+// CurrencyGTE applies the GTE predicate on the "currency" field.
+func CurrencyGTE(v string) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldGTE(FieldCurrency, v))
+}
+
+// CurrencyLT applies the LT predicate on the "currency" field.
+func CurrencyLT(v string) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldLT(FieldCurrency, v))
+}
+
+// CurrencyLTE applies the LTE predicate on the "currency" field.
+func CurrencyLTE(v string) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldLTE(FieldCurrency, v))
+}
+
+// CurrencyContains applies the Contains predicate on the "currency" field.
+func CurrencyContains(v string) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldContains(FieldCurrency, v))
+}
+
+// CurrencyHasPrefix applies the HasPrefix predicate on the "currency" field.
+func CurrencyHasPrefix(v string) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldHasPrefix(FieldCurrency, v))
+}
+
+// CurrencyHasSuffix applies the HasSuffix predicate on the "currency" field.
+func CurrencyHasSuffix(v string) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldHasSuffix(FieldCurrency, v))
+}
+
+// CurrencyIsNil applies the IsNil predicate on the "currency" field.
+func CurrencyIsNil() predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldIsNull(FieldCurrency))
+}
+
+// CurrencyNotNil applies the NotNil predicate on the "currency" field.
+func CurrencyNotNil() predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldNotNull(FieldCurrency))
+}
+
+// CurrencyEqualFold applies the EqualFold predicate on the "currency" field.
+func CurrencyEqualFold(v string) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldEqualFold(FieldCurrency, v))
+}
+
+// CurrencyContainsFold applies the ContainsFold predicate on the "currency" field.
+func CurrencyContainsFold(v string) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldContainsFold(FieldCurrency, v))
+}
+
+// ContractTypeEQ applies the EQ predicate on the "contract_type" field.
+func ContractTypeEQ(v string) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldEQ(FieldContractType, v))
+}
+
+// ContractTypeNEQ applies the NEQ predicate on the "contract_type" field.
+func ContractTypeNEQ(v string) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldNEQ(FieldContractType, v))
+}
+
+// ContractTypeIn applies the In predicate on the "contract_type" field.
+func ContractTypeIn(vs ...string) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldIn(FieldContractType, vs...))
+}
+
+// ContractTypeNotIn applies the NotIn predicate on the "contract_type" field.
+func ContractTypeNotIn(vs ...string) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldNotIn(FieldContractType, vs...))
+}
+
+// ContractTypeGT applies the GT predicate on the "contract_type" field.
+func ContractTypeGT(v string) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldGT(FieldContractType, v))
+}
+
+// ContractTypeGTE applies the GTE predicate on the "contract_type" field.
+func ContractTypeGTE(v string) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldGTE(FieldContractType, v))
+}
+
+// ContractTypeLT applies the LT predicate on the "contract_type" field.
+func ContractTypeLT(v string) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldLT(FieldContractType, v))
+}
+
+// ContractTypeLTE applies the LTE predicate on the "contract_type" field.
+func ContractTypeLTE(v string) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldLTE(FieldContractType, v))
+}
+
+// ContractTypeContains applies the Contains predicate on the "contract_type" field.
+func ContractTypeContains(v string) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldContains(FieldContractType, v))
+}
+
+// ContractTypeHasPrefix applies the HasPrefix predicate on the "contract_type" field.
+func ContractTypeHasPrefix(v string) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldHasPrefix(FieldContractType, v))
+}
+
+// ContractTypeHasSuffix applies the HasSuffix predicate on the "contract_type" field.
+func ContractTypeHasSuffix(v string) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldHasSuffix(FieldContractType, v))
+}
+
+// ContractTypeEqualFold applies the EqualFold predicate on the "contract_type" field.
+func ContractTypeEqualFold(v string) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldEqualFold(FieldContractType, v))
+}
+
+// ContractTypeContainsFold applies the ContainsFold predicate on the "contract_type" field.
+func ContractTypeContainsFold(v string) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldContainsFold(FieldContractType, v))
+}
+
+// ContractNameEQ applies the EQ predicate on the "contract_name" field.
+func ContractNameEQ(v string) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldEQ(FieldContractName, v))
+}
+
+// ContractNameNEQ applies the NEQ predicate on the "contract_name" field.
+func ContractNameNEQ(v string) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldNEQ(FieldContractName, v))
+}
+
+// ContractNameIn applies the In predicate on the "contract_name" field.
+func ContractNameIn(vs ...string) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldIn(FieldContractName, vs...))
+}
+
+// ContractNameNotIn applies the NotIn predicate on the "contract_name" field.
+func ContractNameNotIn(vs ...string) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldNotIn(FieldContractName, vs...))
+}
+
+// ContractNameGT applies the GT predicate on the "contract_name" field.
+func ContractNameGT(v string) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldGT(FieldContractName, v))
+}
+
+// ContractNameGTE applies the GTE predicate on the "contract_name" field.
+func ContractNameGTE(v string) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldGTE(FieldContractName, v))
+}
+
+// ContractNameLT applies the LT predicate on the "contract_name" field.
+func ContractNameLT(v string) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldLT(FieldContractName, v))
+}
+
+// ContractNameLTE applies the LTE predicate on the "contract_name" field.
+func ContractNameLTE(v string) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldLTE(FieldContractName, v))
+}
+
+// ContractNameContains applies the Contains predicate on the "contract_name" field.
+func ContractNameContains(v string) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldContains(FieldContractName, v))
+}
+
+// ContractNameHasPrefix applies the HasPrefix predicate on the "contract_name" field.
+func ContractNameHasPrefix(v string) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldHasPrefix(FieldContractName, v))
+}
+
+// ContractNameHasSuffix applies the HasSuffix predicate on the "contract_name" field.
+func ContractNameHasSuffix(v string) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldHasSuffix(FieldContractName, v))
+}
+
+// ContractNameIsNil applies the IsNil predicate on the "contract_name" field.
+func ContractNameIsNil() predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldIsNull(FieldContractName))
+}
+
+// ContractNameNotNil applies the NotNil predicate on the "contract_name" field.
+func ContractNameNotNil() predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldNotNull(FieldContractName))
+}
+
+// ContractNameEqualFold applies the EqualFold predicate on the "contract_name" field.
+func ContractNameEqualFold(v string) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldEqualFold(FieldContractName, v))
+}
+
+// ContractNameContainsFold applies the ContainsFold predicate on the "contract_name" field.
+func ContractNameContainsFold(v string) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldContainsFold(FieldContractName, v))
+}
+
+// ParentContractIDEQ applies the EQ predicate on the "parent_contract_id" field.
+func ParentContractIDEQ(v int) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldEQ(FieldParentContractID, v))
+}
+
+// ParentContractIDNEQ applies the NEQ predicate on the "parent_contract_id" field.
+func ParentContractIDNEQ(v int) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldNEQ(FieldParentContractID, v))
+}
+
+// ParentContractIDIn applies the In predicate on the "parent_contract_id" field.
+func ParentContractIDIn(vs ...int) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldIn(FieldParentContractID, vs...))
+}
+
+// ParentContractIDNotIn applies the NotIn predicate on the "parent_contract_id" field.
+func ParentContractIDNotIn(vs ...int) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldNotIn(FieldParentContractID, vs...))
+}
+
+// ParentContractIDGT applies the GT predicate on the "parent_contract_id" field.
+func ParentContractIDGT(v int) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldGT(FieldParentContractID, v))
+}
+
+// ParentContractIDGTE applies the GTE predicate on the "parent_contract_id" field.
+func ParentContractIDGTE(v int) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldGTE(FieldParentContractID, v))
+}
+
+// ParentContractIDLT applies the LT predicate on the "parent_contract_id" field.
+func ParentContractIDLT(v int) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldLT(FieldParentContractID, v))
+}
+
+// ParentContractIDLTE applies the LTE predicate on the "parent_contract_id" field.
+func ParentContractIDLTE(v int) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldLTE(FieldParentContractID, v))
+}
+
+// ParentContractIDIsNil applies the IsNil predicate on the "parent_contract_id" field.
+func ParentContractIDIsNil() predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldIsNull(FieldParentContractID))
+}
+
+// ParentContractIDNotNil applies the NotNil predicate on the "parent_contract_id" field.
+func ParentContractIDNotNil() predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldNotNull(FieldParentContractID))
+}
+
+// RenewalOfContractIDEQ applies the EQ predicate on the "renewal_of_contract_id" field.
+func RenewalOfContractIDEQ(v int) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldEQ(FieldRenewalOfContractID, v))
+}
+
+// RenewalOfContractIDNEQ applies the NEQ predicate on the "renewal_of_contract_id" field.
+func RenewalOfContractIDNEQ(v int) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldNEQ(FieldRenewalOfContractID, v))
+}
+
+// RenewalOfContractIDIn applies the In predicate on the "renewal_of_contract_id" field.
+func RenewalOfContractIDIn(vs ...int) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldIn(FieldRenewalOfContractID, vs...))
+}
+
+// RenewalOfContractIDNotIn applies the NotIn predicate on the "renewal_of_contract_id" field.
+func RenewalOfContractIDNotIn(vs ...int) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldNotIn(FieldRenewalOfContractID, vs...))
+}
+
+// RenewalOfContractIDGT applies the GT predicate on the "renewal_of_contract_id" field.
+func RenewalOfContractIDGT(v int) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldGT(FieldRenewalOfContractID, v))
+}
+
+// RenewalOfContractIDGTE applies the GTE predicate on the "renewal_of_contract_id" field.
+func RenewalOfContractIDGTE(v int) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldGTE(FieldRenewalOfContractID, v))
+}
+
+// RenewalOfContractIDLT applies the LT predicate on the "renewal_of_contract_id" field.
+func RenewalOfContractIDLT(v int) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldLT(FieldRenewalOfContractID, v))
+}
+
+// RenewalOfContractIDLTE applies the LTE predicate on the "renewal_of_contract_id" field.
+func RenewalOfContractIDLTE(v int) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldLTE(FieldRenewalOfContractID, v))
+}
+
+// RenewalOfContractIDIsNil applies the IsNil predicate on the "renewal_of_contract_id" field.
+func RenewalOfContractIDIsNil() predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldIsNull(FieldRenewalOfContractID))
+}
+
+// RenewalOfContractIDNotNil applies the NotNil predicate on the "renewal_of_contract_id" field.
+func RenewalOfContractIDNotNil() predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldNotNull(FieldRenewalOfContractID))
+}
+
+// AmendmentCountEQ applies the EQ predicate on the "amendment_count" field.
+func AmendmentCountEQ(v int) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldEQ(FieldAmendmentCount, v))
+}
+
+// AmendmentCountNEQ applies the NEQ predicate on the "amendment_count" field.
+func AmendmentCountNEQ(v int) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldNEQ(FieldAmendmentCount, v))
+}
+
+// AmendmentCountIn applies the In predicate on the "amendment_count" field.
+func AmendmentCountIn(vs ...int) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldIn(FieldAmendmentCount, vs...))
+}
+
+// AmendmentCountNotIn applies the NotIn predicate on the "amendment_count" field.
+func AmendmentCountNotIn(vs ...int) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldNotIn(FieldAmendmentCount, vs...))
+}
+
+// AmendmentCountGT applies the GT predicate on the "amendment_count" field.
+func AmendmentCountGT(v int) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldGT(FieldAmendmentCount, v))
+}
+
+// AmendmentCountGTE applies the GTE predicate on the "amendment_count" field.
+func AmendmentCountGTE(v int) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldGTE(FieldAmendmentCount, v))
+}
+
+// AmendmentCountLT applies the LT predicate on the "amendment_count" field.
+func AmendmentCountLT(v int) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldLT(FieldAmendmentCount, v))
+}
+
+// AmendmentCountLTE applies the LTE predicate on the "amendment_count" field.
+func AmendmentCountLTE(v int) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldLTE(FieldAmendmentCount, v))
+}
+
+// SLADefinitionIDEQ applies the EQ predicate on the "sla_definition_id" field.
+func SLADefinitionIDEQ(v int) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldEQ(FieldSLADefinitionID, v))
+}
+
+// SLADefinitionIDNEQ applies the NEQ predicate on the "sla_definition_id" field.
+func SLADefinitionIDNEQ(v int) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldNEQ(FieldSLADefinitionID, v))
+}
+
+// SLADefinitionIDIn applies the In predicate on the "sla_definition_id" field.
+func SLADefinitionIDIn(vs ...int) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldIn(FieldSLADefinitionID, vs...))
+}
+
+// SLADefinitionIDNotIn applies the NotIn predicate on the "sla_definition_id" field.
+func SLADefinitionIDNotIn(vs ...int) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldNotIn(FieldSLADefinitionID, vs...))
+}
+
+// SLADefinitionIDGT applies the GT predicate on the "sla_definition_id" field.
+func SLADefinitionIDGT(v int) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldGT(FieldSLADefinitionID, v))
+}
+
+// SLADefinitionIDGTE applies the GTE predicate on the "sla_definition_id" field.
+func SLADefinitionIDGTE(v int) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldGTE(FieldSLADefinitionID, v))
+}
+
+// SLADefinitionIDLT applies the LT predicate on the "sla_definition_id" field.
+func SLADefinitionIDLT(v int) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldLT(FieldSLADefinitionID, v))
+}
+
+// SLADefinitionIDLTE applies the LTE predicate on the "sla_definition_id" field.
+func SLADefinitionIDLTE(v int) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldLTE(FieldSLADefinitionID, v))
+}
+
+// SLADefinitionIDIsNil applies the IsNil predicate on the "sla_definition_id" field.
+func SLADefinitionIDIsNil() predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldIsNull(FieldSLADefinitionID))
+}
+
+// SLADefinitionIDNotNil applies the NotNil predicate on the "sla_definition_id" field.
+func SLADefinitionIDNotNil() predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldNotNull(FieldSLADefinitionID))
+}
+
+// AutoRenewEQ applies the EQ predicate on the "auto_renew" field.
+func AutoRenewEQ(v bool) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldEQ(FieldAutoRenew, v))
+}
+
+// AutoRenewNEQ applies the NEQ predicate on the "auto_renew" field.
+func AutoRenewNEQ(v bool) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldNEQ(FieldAutoRenew, v))
+}
+
+// TerminatedAtEQ applies the EQ predicate on the "terminated_at" field.
+func TerminatedAtEQ(v time.Time) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldEQ(FieldTerminatedAt, v))
+}
+
+// TerminatedAtNEQ applies the NEQ predicate on the "terminated_at" field.
+func TerminatedAtNEQ(v time.Time) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldNEQ(FieldTerminatedAt, v))
+}
+
+// TerminatedAtIn applies the In predicate on the "terminated_at" field.
+func TerminatedAtIn(vs ...time.Time) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldIn(FieldTerminatedAt, vs...))
+}
+
+// TerminatedAtNotIn applies the NotIn predicate on the "terminated_at" field.
+func TerminatedAtNotIn(vs ...time.Time) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldNotIn(FieldTerminatedAt, vs...))
+}
+
+// TerminatedAtGT applies the GT predicate on the "terminated_at" field.
+func TerminatedAtGT(v time.Time) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldGT(FieldTerminatedAt, v))
+}
+
+// TerminatedAtGTE applies the GTE predicate on the "terminated_at" field.
+func TerminatedAtGTE(v time.Time) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldGTE(FieldTerminatedAt, v))
+}
+
+// TerminatedAtLT applies the LT predicate on the "terminated_at" field.
+func TerminatedAtLT(v time.Time) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldLT(FieldTerminatedAt, v))
+}
+
+// TerminatedAtLTE applies the LTE predicate on the "terminated_at" field.
+func TerminatedAtLTE(v time.Time) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldLTE(FieldTerminatedAt, v))
+}
+
+// TerminatedAtIsNil applies the IsNil predicate on the "terminated_at" field.
+func TerminatedAtIsNil() predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldIsNull(FieldTerminatedAt))
+}
+
+// TerminatedAtNotNil applies the NotNil predicate on the "terminated_at" field.
+func TerminatedAtNotNil() predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldNotNull(FieldTerminatedAt))
+}
+
+// TerminationReasonEQ applies the EQ predicate on the "termination_reason" field.
+func TerminationReasonEQ(v string) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldEQ(FieldTerminationReason, v))
+}
+
+// TerminationReasonNEQ applies the NEQ predicate on the "termination_reason" field.
+func TerminationReasonNEQ(v string) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldNEQ(FieldTerminationReason, v))
+}
+
+// TerminationReasonIn applies the In predicate on the "termination_reason" field.
+func TerminationReasonIn(vs ...string) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldIn(FieldTerminationReason, vs...))
+}
+
+// TerminationReasonNotIn applies the NotIn predicate on the "termination_reason" field.
+func TerminationReasonNotIn(vs ...string) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldNotIn(FieldTerminationReason, vs...))
+}
+
+// TerminationReasonGT applies the GT predicate on the "termination_reason" field.
+func TerminationReasonGT(v string) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldGT(FieldTerminationReason, v))
+}
+
+// TerminationReasonGTE applies the GTE predicate on the "termination_reason" field.
+func TerminationReasonGTE(v string) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldGTE(FieldTerminationReason, v))
+}
+
+// TerminationReasonLT applies the LT predicate on the "termination_reason" field.
+func TerminationReasonLT(v string) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldLT(FieldTerminationReason, v))
+}
+
+// TerminationReasonLTE applies the LTE predicate on the "termination_reason" field.
+func TerminationReasonLTE(v string) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldLTE(FieldTerminationReason, v))
+}
+
+// TerminationReasonContains applies the Contains predicate on the "termination_reason" field.
+func TerminationReasonContains(v string) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldContains(FieldTerminationReason, v))
+}
+
+// TerminationReasonHasPrefix applies the HasPrefix predicate on the "termination_reason" field.
+func TerminationReasonHasPrefix(v string) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldHasPrefix(FieldTerminationReason, v))
+}
+
+// TerminationReasonHasSuffix applies the HasSuffix predicate on the "termination_reason" field.
+func TerminationReasonHasSuffix(v string) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldHasSuffix(FieldTerminationReason, v))
+}
+
+// TerminationReasonIsNil applies the IsNil predicate on the "termination_reason" field.
+func TerminationReasonIsNil() predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldIsNull(FieldTerminationReason))
+}
+
+// TerminationReasonNotNil applies the NotNil predicate on the "termination_reason" field.
+func TerminationReasonNotNil() predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldNotNull(FieldTerminationReason))
+}
+
+// TerminationReasonEqualFold applies the EqualFold predicate on the "termination_reason" field.
+func TerminationReasonEqualFold(v string) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldEqualFold(FieldTerminationReason, v))
+}
+
+// TerminationReasonContainsFold applies the ContainsFold predicate on the "termination_reason" field.
+func TerminationReasonContainsFold(v string) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldContainsFold(FieldTerminationReason, v))
+}
+
+// DeletedAtEQ applies the EQ predicate on the "deleted_at" field.
+func DeletedAtEQ(v time.Time) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldEQ(FieldDeletedAt, v))
+}
+
+// DeletedAtNEQ applies the NEQ predicate on the "deleted_at" field.
+func DeletedAtNEQ(v time.Time) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldNEQ(FieldDeletedAt, v))
+}
+
+// DeletedAtIn applies the In predicate on the "deleted_at" field.
+func DeletedAtIn(vs ...time.Time) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldIn(FieldDeletedAt, vs...))
+}
+
+// DeletedAtNotIn applies the NotIn predicate on the "deleted_at" field.
+func DeletedAtNotIn(vs ...time.Time) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldNotIn(FieldDeletedAt, vs...))
+}
+
+// DeletedAtGT applies the GT predicate on the "deleted_at" field.
+func DeletedAtGT(v time.Time) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldGT(FieldDeletedAt, v))
+}
+
+// DeletedAtGTE applies the GTE predicate on the "deleted_at" field.
+func DeletedAtGTE(v time.Time) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldGTE(FieldDeletedAt, v))
+}
+
+// DeletedAtLT applies the LT predicate on the "deleted_at" field.
+func DeletedAtLT(v time.Time) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldLT(FieldDeletedAt, v))
+}
+
+// DeletedAtLTE applies the LTE predicate on the "deleted_at" field.
+func DeletedAtLTE(v time.Time) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldLTE(FieldDeletedAt, v))
+}
+
+// DeletedAtIsNil applies the IsNil predicate on the "deleted_at" field.
+func DeletedAtIsNil() predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldIsNull(FieldDeletedAt))
+}
+
+// DeletedAtNotNil applies the NotNil predicate on the "deleted_at" field.
+func DeletedAtNotNil() predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldNotNull(FieldDeletedAt))
+}
+
+// VersionEQ applies the EQ predicate on the "version" field.
+func VersionEQ(v int64) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldEQ(FieldVersion, v))
+}
+
+// VersionNEQ applies the NEQ predicate on the "version" field.
+func VersionNEQ(v int64) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldNEQ(FieldVersion, v))
+}
+
+// VersionIn applies the In predicate on the "version" field.
+func VersionIn(vs ...int64) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldIn(FieldVersion, vs...))
+}
+
+// VersionNotIn applies the NotIn predicate on the "version" field.
+func VersionNotIn(vs ...int64) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldNotIn(FieldVersion, vs...))
+}
+
+// VersionGT applies the GT predicate on the "version" field.
+func VersionGT(v int64) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldGT(FieldVersion, v))
+}
+
+// VersionGTE applies the GTE predicate on the "version" field.
+func VersionGTE(v int64) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldGTE(FieldVersion, v))
+}
+
+// VersionLT applies the LT predicate on the "version" field.
+func VersionLT(v int64) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldLT(FieldVersion, v))
+}
+
+// VersionLTE applies the LTE predicate on the "version" field.
+func VersionLTE(v int64) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldLTE(FieldVersion, v))
+}
+
+// CreatedByEQ applies the EQ predicate on the "created_by" field.
+func CreatedByEQ(v int) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldEQ(FieldCreatedBy, v))
+}
+
+// CreatedByNEQ applies the NEQ predicate on the "created_by" field.
+func CreatedByNEQ(v int) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldNEQ(FieldCreatedBy, v))
+}
+
+// CreatedByIn applies the In predicate on the "created_by" field.
+func CreatedByIn(vs ...int) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldIn(FieldCreatedBy, vs...))
+}
+
+// CreatedByNotIn applies the NotIn predicate on the "created_by" field.
+func CreatedByNotIn(vs ...int) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldNotIn(FieldCreatedBy, vs...))
+}
+
+// CreatedByGT applies the GT predicate on the "created_by" field.
+func CreatedByGT(v int) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldGT(FieldCreatedBy, v))
+}
+
+// CreatedByGTE applies the GTE predicate on the "created_by" field.
+func CreatedByGTE(v int) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldGTE(FieldCreatedBy, v))
+}
+
+// CreatedByLT applies the LT predicate on the "created_by" field.
+func CreatedByLT(v int) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldLT(FieldCreatedBy, v))
+}
+
+// CreatedByLTE applies the LTE predicate on the "created_by" field.
+func CreatedByLTE(v int) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldLTE(FieldCreatedBy, v))
+}
+
+// CreatedByIsNil applies the IsNil predicate on the "created_by" field.
+func CreatedByIsNil() predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldIsNull(FieldCreatedBy))
+}
+
+// CreatedByNotNil applies the NotNil predicate on the "created_by" field.
+func CreatedByNotNil() predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldNotNull(FieldCreatedBy))
+}
+
+// UpdatedByEQ applies the EQ predicate on the "updated_by" field.
+func UpdatedByEQ(v int) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldEQ(FieldUpdatedBy, v))
+}
+
+// UpdatedByNEQ applies the NEQ predicate on the "updated_by" field.
+func UpdatedByNEQ(v int) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldNEQ(FieldUpdatedBy, v))
+}
+
+// UpdatedByIn applies the In predicate on the "updated_by" field.
+func UpdatedByIn(vs ...int) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldIn(FieldUpdatedBy, vs...))
+}
+
+// UpdatedByNotIn applies the NotIn predicate on the "updated_by" field.
+func UpdatedByNotIn(vs ...int) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldNotIn(FieldUpdatedBy, vs...))
+}
+
+// UpdatedByGT applies the GT predicate on the "updated_by" field.
+func UpdatedByGT(v int) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldGT(FieldUpdatedBy, v))
+}
+
+// UpdatedByGTE applies the GTE predicate on the "updated_by" field.
+func UpdatedByGTE(v int) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldGTE(FieldUpdatedBy, v))
+}
+
+// UpdatedByLT applies the LT predicate on the "updated_by" field.
+func UpdatedByLT(v int) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldLT(FieldUpdatedBy, v))
+}
+
+// UpdatedByLTE applies the LTE predicate on the "updated_by" field.
+func UpdatedByLTE(v int) predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldLTE(FieldUpdatedBy, v))
+}
+
+// UpdatedByIsNil applies the IsNil predicate on the "updated_by" field.
+func UpdatedByIsNil() predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldIsNull(FieldUpdatedBy))
+}
+
+// UpdatedByNotNil applies the NotNil predicate on the "updated_by" field.
+func UpdatedByNotNil() predicate.SupportContract {
+	return predicate.SupportContract(sql.FieldNotNull(FieldUpdatedBy))
 }
 
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.

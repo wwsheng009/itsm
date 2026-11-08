@@ -440,6 +440,54 @@ func (f ContractFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, er
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ContractMutation", m)
 }
 
+// The ContractAmendmentFunc type is an adapter to allow the use of ordinary
+// function as ContractAmendment mutator.
+type ContractAmendmentFunc func(context.Context, *ent.ContractAmendmentMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f ContractAmendmentFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.ContractAmendmentMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ContractAmendmentMutation", m)
+}
+
+// The ContractProjectLinkFunc type is an adapter to allow the use of ordinary
+// function as ContractProjectLink mutator.
+type ContractProjectLinkFunc func(context.Context, *ent.ContractProjectLinkMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f ContractProjectLinkFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.ContractProjectLinkMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ContractProjectLinkMutation", m)
+}
+
+// The ContractServiceItemFunc type is an adapter to allow the use of ordinary
+// function as ContractServiceItem mutator.
+type ContractServiceItemFunc func(context.Context, *ent.ContractServiceItemMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f ContractServiceItemFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.ContractServiceItemMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ContractServiceItemMutation", m)
+}
+
+// The ContractUsageLedgerFunc type is an adapter to allow the use of ordinary
+// function as ContractUsageLedger mutator.
+type ContractUsageLedgerFunc func(context.Context, *ent.ContractUsageLedgerMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f ContractUsageLedgerFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.ContractUsageLedgerMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ContractUsageLedgerMutation", m)
+}
+
 // The ConversationFunc type is an adapter to allow the use of ordinary
 // function as Conversation mutator.
 type ConversationFunc func(context.Context, *ent.ConversationMutation) (ent.Value, error)
@@ -462,6 +510,54 @@ func (f CustomerBranchFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Val
 		return f(ctx, mv)
 	}
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.CustomerBranchMutation", m)
+}
+
+// The CustomerContactFunc type is an adapter to allow the use of ordinary
+// function as CustomerContact mutator.
+type CustomerContactFunc func(context.Context, *ent.CustomerContactMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f CustomerContactFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.CustomerContactMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.CustomerContactMutation", m)
+}
+
+// The CustomerExternalIDFunc type is an adapter to allow the use of ordinary
+// function as CustomerExternalID mutator.
+type CustomerExternalIDFunc func(context.Context, *ent.CustomerExternalIDMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f CustomerExternalIDFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.CustomerExternalIDMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.CustomerExternalIDMutation", m)
+}
+
+// The CustomerRelationshipFunc type is an adapter to allow the use of ordinary
+// function as CustomerRelationship mutator.
+type CustomerRelationshipFunc func(context.Context, *ent.CustomerRelationshipMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f CustomerRelationshipFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.CustomerRelationshipMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.CustomerRelationshipMutation", m)
+}
+
+// The CustomerTenantLinkFunc type is an adapter to allow the use of ordinary
+// function as CustomerTenantLink mutator.
+type CustomerTenantLinkFunc func(context.Context, *ent.CustomerTenantLinkMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f CustomerTenantLinkFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.CustomerTenantLinkMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.CustomerTenantLinkMutation", m)
 }
 
 // The DepartmentFunc type is an adapter to allow the use of ordinary
@@ -1254,6 +1350,18 @@ func (f ProjectClosureFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Val
 		return f(ctx, mv)
 	}
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ProjectClosureMutation", m)
+}
+
+// The ProjectCustomerLinkFunc type is an adapter to allow the use of ordinary
+// function as ProjectCustomerLink mutator.
+type ProjectCustomerLinkFunc func(context.Context, *ent.ProjectCustomerLinkMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f ProjectCustomerLinkFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.ProjectCustomerLinkMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ProjectCustomerLinkMutation", m)
 }
 
 // The ProjectGateFunc type is an adapter to allow the use of ordinary

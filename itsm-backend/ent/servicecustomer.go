@@ -20,16 +20,112 @@ type ServiceCustomer struct {
 	ID int `json:"id,omitempty"`
 	// TenantID holds the value of the "tenant_id" field.
 	TenantID int `json:"tenant_id,omitempty"`
+	// Code holds the value of the "code" field.
+	Code string `json:"code,omitempty"`
 	// Name holds the value of the "name" field.
 	Name string `json:"name,omitempty"`
 	// NormalizedName holds the value of the "normalized_name" field.
 	NormalizedName string `json:"normalized_name,omitempty"`
 	// ShortName holds the value of the "short_name" field.
 	ShortName string `json:"short_name,omitempty"`
+	// LegalName holds the value of the "legal_name" field.
+	LegalName string `json:"legal_name,omitempty"`
+	// EnName holds the value of the "en_name" field.
+	EnName string `json:"en_name,omitempty"`
 	// Aliases holds the value of the "aliases" field.
 	Aliases []string `json:"aliases,omitempty"`
 	// HistoricalNames holds the value of the "historical_names" field.
 	HistoricalNames []string `json:"historical_names,omitempty"`
+	// TaxID holds the value of the "tax_id" field.
+	TaxID string `json:"tax_id,omitempty"`
+	// NormalizedTaxID holds the value of the "normalized_tax_id" field.
+	NormalizedTaxID string `json:"normalized_tax_id,omitempty"`
+	// DunsNumber holds the value of the "duns_number" field.
+	DunsNumber string `json:"duns_number,omitempty"`
+	// RegistrationNo holds the value of the "registration_no" field.
+	RegistrationNo string `json:"registration_no,omitempty"`
+	// EmailDomains holds the value of the "email_domains" field.
+	EmailDomains []string `json:"email_domains,omitempty"`
+	// CustomerType holds the value of the "customer_type" field.
+	CustomerType string `json:"customer_type,omitempty"`
+	// Industry holds the value of the "industry" field.
+	Industry string `json:"industry,omitempty"`
+	// SubIndustry holds the value of the "sub_industry" field.
+	SubIndustry string `json:"sub_industry,omitempty"`
+	// SizeClass holds the value of the "size_class" field.
+	SizeClass string `json:"size_class,omitempty"`
+	// OwnershipType holds the value of the "ownership_type" field.
+	OwnershipType string `json:"ownership_type,omitempty"`
+	// Tier holds the value of the "tier" field.
+	Tier string `json:"tier,omitempty"`
+	// VipLevel holds the value of the "vip_level" field.
+	VipLevel int16 `json:"vip_level,omitempty"`
+	// CreditRating holds the value of the "credit_rating" field.
+	CreditRating string `json:"credit_rating,omitempty"`
+	// Website holds the value of the "website" field.
+	Website string `json:"website,omitempty"`
+	// MainPhone holds the value of the "main_phone" field.
+	MainPhone string `json:"main_phone,omitempty"`
+	// ServiceEmail holds the value of the "service_email" field.
+	ServiceEmail string `json:"service_email,omitempty"`
+	// Address holds the value of the "address" field.
+	Address map[string]interface{} `json:"address,omitempty"`
+	// Timezone holds the value of the "timezone" field.
+	Timezone string `json:"timezone,omitempty"`
+	// Language holds the value of the "language" field.
+	Language string `json:"language,omitempty"`
+	// ServiceTier holds the value of the "service_tier" field.
+	ServiceTier string `json:"service_tier,omitempty"`
+	// SLADefinitionID holds the value of the "sla_definition_id" field.
+	SLADefinitionID *int `json:"sla_definition_id,omitempty"`
+	// SupportHours holds the value of the "support_hours" field.
+	SupportHours string `json:"support_hours,omitempty"`
+	// CoverageScope holds the value of the "coverage_scope" field.
+	CoverageScope map[string]interface{} `json:"coverage_scope,omitempty"`
+	// AccountManagerID holds the value of the "account_manager_id" field.
+	AccountManagerID *int `json:"account_manager_id,omitempty"`
+	// ServiceOwnerID holds the value of the "service_owner_id" field.
+	ServiceOwnerID *int `json:"service_owner_id,omitempty"`
+	// CsManagerID holds the value of the "cs_manager_id" field.
+	CsManagerID *int `json:"cs_manager_id,omitempty"`
+	// OncallGroupID holds the value of the "oncall_group_id" field.
+	OncallGroupID *int `json:"oncall_group_id,omitempty"`
+	// BillingCurrency holds the value of the "billing_currency" field.
+	BillingCurrency string `json:"billing_currency,omitempty"`
+	// PaymentTerms holds the value of the "payment_terms" field.
+	PaymentTerms string `json:"payment_terms,omitempty"`
+	// CreditLimit holds the value of the "credit_limit" field.
+	CreditLimit *float64 `json:"credit_limit,omitempty"`
+	// InvoiceTitle holds the value of the "invoice_title" field.
+	InvoiceTitle string `json:"invoice_title,omitempty"`
+	// BillingAddress holds the value of the "billing_address" field.
+	BillingAddress map[string]interface{} `json:"billing_address,omitempty"`
+	// LifecycleStage holds the value of the "lifecycle_stage" field.
+	LifecycleStage string `json:"lifecycle_stage,omitempty"`
+	// OnboardedAt holds the value of the "onboarded_at" field.
+	OnboardedAt *time.Time `json:"onboarded_at,omitempty"`
+	// ContractStartAt holds the value of the "contract_start_at" field.
+	ContractStartAt *time.Time `json:"contract_start_at,omitempty"`
+	// ContractEndAt holds the value of the "contract_end_at" field.
+	ContractEndAt *time.Time `json:"contract_end_at,omitempty"`
+	// ChurnAt holds the value of the "churn_at" field.
+	ChurnAt *time.Time `json:"churn_at,omitempty"`
+	// ChurnReason holds the value of the "churn_reason" field.
+	ChurnReason string `json:"churn_reason,omitempty"`
+	// DataSource holds the value of the "data_source" field.
+	DataSource string `json:"data_source,omitempty"`
+	// DataQualityScore holds the value of the "data_quality_score" field.
+	DataQualityScore int16 `json:"data_quality_score,omitempty"`
+	// MergedIntoID holds the value of the "merged_into_id" field.
+	MergedIntoID *int `json:"merged_into_id,omitempty"`
+	// Version holds the value of the "version" field.
+	Version int64 `json:"version,omitempty"`
+	// DeletedAt holds the value of the "deleted_at" field.
+	DeletedAt *time.Time `json:"deleted_at,omitempty"`
+	// CreatedBy holds the value of the "created_by" field.
+	CreatedBy *int `json:"created_by,omitempty"`
+	// UpdatedBy holds the value of the "updated_by" field.
+	UpdatedBy *int `json:"updated_by,omitempty"`
 	// Status holds the value of the "status" field.
 	Status string `json:"status,omitempty"`
 	// LinkedCustomerTenantID holds the value of the "linked_customer_tenant_id" field.
@@ -89,13 +185,15 @@ func (*ServiceCustomer) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case servicecustomer.FieldAliases, servicecustomer.FieldHistoricalNames:
+		case servicecustomer.FieldAliases, servicecustomer.FieldHistoricalNames, servicecustomer.FieldEmailDomains, servicecustomer.FieldAddress, servicecustomer.FieldCoverageScope, servicecustomer.FieldBillingAddress:
 			values[i] = new([]byte)
-		case servicecustomer.FieldID, servicecustomer.FieldTenantID, servicecustomer.FieldLinkedCustomerTenantID:
+		case servicecustomer.FieldCreditLimit:
+			values[i] = new(sql.NullFloat64)
+		case servicecustomer.FieldID, servicecustomer.FieldTenantID, servicecustomer.FieldVipLevel, servicecustomer.FieldSLADefinitionID, servicecustomer.FieldAccountManagerID, servicecustomer.FieldServiceOwnerID, servicecustomer.FieldCsManagerID, servicecustomer.FieldOncallGroupID, servicecustomer.FieldDataQualityScore, servicecustomer.FieldMergedIntoID, servicecustomer.FieldVersion, servicecustomer.FieldCreatedBy, servicecustomer.FieldUpdatedBy, servicecustomer.FieldLinkedCustomerTenantID:
 			values[i] = new(sql.NullInt64)
-		case servicecustomer.FieldName, servicecustomer.FieldNormalizedName, servicecustomer.FieldShortName, servicecustomer.FieldStatus:
+		case servicecustomer.FieldCode, servicecustomer.FieldName, servicecustomer.FieldNormalizedName, servicecustomer.FieldShortName, servicecustomer.FieldLegalName, servicecustomer.FieldEnName, servicecustomer.FieldTaxID, servicecustomer.FieldNormalizedTaxID, servicecustomer.FieldDunsNumber, servicecustomer.FieldRegistrationNo, servicecustomer.FieldCustomerType, servicecustomer.FieldIndustry, servicecustomer.FieldSubIndustry, servicecustomer.FieldSizeClass, servicecustomer.FieldOwnershipType, servicecustomer.FieldTier, servicecustomer.FieldCreditRating, servicecustomer.FieldWebsite, servicecustomer.FieldMainPhone, servicecustomer.FieldServiceEmail, servicecustomer.FieldTimezone, servicecustomer.FieldLanguage, servicecustomer.FieldServiceTier, servicecustomer.FieldSupportHours, servicecustomer.FieldBillingCurrency, servicecustomer.FieldPaymentTerms, servicecustomer.FieldInvoiceTitle, servicecustomer.FieldLifecycleStage, servicecustomer.FieldChurnReason, servicecustomer.FieldDataSource, servicecustomer.FieldStatus:
 			values[i] = new(sql.NullString)
-		case servicecustomer.FieldCreatedAt, servicecustomer.FieldUpdatedAt:
+		case servicecustomer.FieldOnboardedAt, servicecustomer.FieldContractStartAt, servicecustomer.FieldContractEndAt, servicecustomer.FieldChurnAt, servicecustomer.FieldDeletedAt, servicecustomer.FieldCreatedAt, servicecustomer.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
 		default:
 			values[i] = new(sql.UnknownType)
@@ -124,6 +222,12 @@ func (_m *ServiceCustomer) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.TenantID = int(value.Int64)
 			}
+		case servicecustomer.FieldCode:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field code", values[i])
+			} else if value.Valid {
+				_m.Code = value.String
+			}
 		case servicecustomer.FieldName:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field name", values[i])
@@ -142,6 +246,18 @@ func (_m *ServiceCustomer) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.ShortName = value.String
 			}
+		case servicecustomer.FieldLegalName:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field legal_name", values[i])
+			} else if value.Valid {
+				_m.LegalName = value.String
+			}
+		case servicecustomer.FieldEnName:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field en_name", values[i])
+			} else if value.Valid {
+				_m.EnName = value.String
+			}
 		case servicecustomer.FieldAliases:
 			if value, ok := values[i].(*[]byte); !ok {
 				return fmt.Errorf("unexpected type %T for field aliases", values[i])
@@ -157,6 +273,298 @@ func (_m *ServiceCustomer) assignValues(columns []string, values []any) error {
 				if err := json.Unmarshal(*value, &_m.HistoricalNames); err != nil {
 					return fmt.Errorf("unmarshal field historical_names: %w", err)
 				}
+			}
+		case servicecustomer.FieldTaxID:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field tax_id", values[i])
+			} else if value.Valid {
+				_m.TaxID = value.String
+			}
+		case servicecustomer.FieldNormalizedTaxID:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field normalized_tax_id", values[i])
+			} else if value.Valid {
+				_m.NormalizedTaxID = value.String
+			}
+		case servicecustomer.FieldDunsNumber:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field duns_number", values[i])
+			} else if value.Valid {
+				_m.DunsNumber = value.String
+			}
+		case servicecustomer.FieldRegistrationNo:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field registration_no", values[i])
+			} else if value.Valid {
+				_m.RegistrationNo = value.String
+			}
+		case servicecustomer.FieldEmailDomains:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field email_domains", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.EmailDomains); err != nil {
+					return fmt.Errorf("unmarshal field email_domains: %w", err)
+				}
+			}
+		case servicecustomer.FieldCustomerType:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field customer_type", values[i])
+			} else if value.Valid {
+				_m.CustomerType = value.String
+			}
+		case servicecustomer.FieldIndustry:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field industry", values[i])
+			} else if value.Valid {
+				_m.Industry = value.String
+			}
+		case servicecustomer.FieldSubIndustry:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field sub_industry", values[i])
+			} else if value.Valid {
+				_m.SubIndustry = value.String
+			}
+		case servicecustomer.FieldSizeClass:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field size_class", values[i])
+			} else if value.Valid {
+				_m.SizeClass = value.String
+			}
+		case servicecustomer.FieldOwnershipType:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field ownership_type", values[i])
+			} else if value.Valid {
+				_m.OwnershipType = value.String
+			}
+		case servicecustomer.FieldTier:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field tier", values[i])
+			} else if value.Valid {
+				_m.Tier = value.String
+			}
+		case servicecustomer.FieldVipLevel:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field vip_level", values[i])
+			} else if value.Valid {
+				_m.VipLevel = int16(value.Int64)
+			}
+		case servicecustomer.FieldCreditRating:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field credit_rating", values[i])
+			} else if value.Valid {
+				_m.CreditRating = value.String
+			}
+		case servicecustomer.FieldWebsite:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field website", values[i])
+			} else if value.Valid {
+				_m.Website = value.String
+			}
+		case servicecustomer.FieldMainPhone:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field main_phone", values[i])
+			} else if value.Valid {
+				_m.MainPhone = value.String
+			}
+		case servicecustomer.FieldServiceEmail:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field service_email", values[i])
+			} else if value.Valid {
+				_m.ServiceEmail = value.String
+			}
+		case servicecustomer.FieldAddress:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field address", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.Address); err != nil {
+					return fmt.Errorf("unmarshal field address: %w", err)
+				}
+			}
+		case servicecustomer.FieldTimezone:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field timezone", values[i])
+			} else if value.Valid {
+				_m.Timezone = value.String
+			}
+		case servicecustomer.FieldLanguage:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field language", values[i])
+			} else if value.Valid {
+				_m.Language = value.String
+			}
+		case servicecustomer.FieldServiceTier:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field service_tier", values[i])
+			} else if value.Valid {
+				_m.ServiceTier = value.String
+			}
+		case servicecustomer.FieldSLADefinitionID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field sla_definition_id", values[i])
+			} else if value.Valid {
+				_m.SLADefinitionID = new(int)
+				*_m.SLADefinitionID = int(value.Int64)
+			}
+		case servicecustomer.FieldSupportHours:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field support_hours", values[i])
+			} else if value.Valid {
+				_m.SupportHours = value.String
+			}
+		case servicecustomer.FieldCoverageScope:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field coverage_scope", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.CoverageScope); err != nil {
+					return fmt.Errorf("unmarshal field coverage_scope: %w", err)
+				}
+			}
+		case servicecustomer.FieldAccountManagerID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field account_manager_id", values[i])
+			} else if value.Valid {
+				_m.AccountManagerID = new(int)
+				*_m.AccountManagerID = int(value.Int64)
+			}
+		case servicecustomer.FieldServiceOwnerID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field service_owner_id", values[i])
+			} else if value.Valid {
+				_m.ServiceOwnerID = new(int)
+				*_m.ServiceOwnerID = int(value.Int64)
+			}
+		case servicecustomer.FieldCsManagerID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field cs_manager_id", values[i])
+			} else if value.Valid {
+				_m.CsManagerID = new(int)
+				*_m.CsManagerID = int(value.Int64)
+			}
+		case servicecustomer.FieldOncallGroupID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field oncall_group_id", values[i])
+			} else if value.Valid {
+				_m.OncallGroupID = new(int)
+				*_m.OncallGroupID = int(value.Int64)
+			}
+		case servicecustomer.FieldBillingCurrency:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field billing_currency", values[i])
+			} else if value.Valid {
+				_m.BillingCurrency = value.String
+			}
+		case servicecustomer.FieldPaymentTerms:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field payment_terms", values[i])
+			} else if value.Valid {
+				_m.PaymentTerms = value.String
+			}
+		case servicecustomer.FieldCreditLimit:
+			if value, ok := values[i].(*sql.NullFloat64); !ok {
+				return fmt.Errorf("unexpected type %T for field credit_limit", values[i])
+			} else if value.Valid {
+				_m.CreditLimit = new(float64)
+				*_m.CreditLimit = value.Float64
+			}
+		case servicecustomer.FieldInvoiceTitle:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field invoice_title", values[i])
+			} else if value.Valid {
+				_m.InvoiceTitle = value.String
+			}
+		case servicecustomer.FieldBillingAddress:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field billing_address", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.BillingAddress); err != nil {
+					return fmt.Errorf("unmarshal field billing_address: %w", err)
+				}
+			}
+		case servicecustomer.FieldLifecycleStage:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field lifecycle_stage", values[i])
+			} else if value.Valid {
+				_m.LifecycleStage = value.String
+			}
+		case servicecustomer.FieldOnboardedAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field onboarded_at", values[i])
+			} else if value.Valid {
+				_m.OnboardedAt = new(time.Time)
+				*_m.OnboardedAt = value.Time
+			}
+		case servicecustomer.FieldContractStartAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field contract_start_at", values[i])
+			} else if value.Valid {
+				_m.ContractStartAt = new(time.Time)
+				*_m.ContractStartAt = value.Time
+			}
+		case servicecustomer.FieldContractEndAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field contract_end_at", values[i])
+			} else if value.Valid {
+				_m.ContractEndAt = new(time.Time)
+				*_m.ContractEndAt = value.Time
+			}
+		case servicecustomer.FieldChurnAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field churn_at", values[i])
+			} else if value.Valid {
+				_m.ChurnAt = new(time.Time)
+				*_m.ChurnAt = value.Time
+			}
+		case servicecustomer.FieldChurnReason:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field churn_reason", values[i])
+			} else if value.Valid {
+				_m.ChurnReason = value.String
+			}
+		case servicecustomer.FieldDataSource:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field data_source", values[i])
+			} else if value.Valid {
+				_m.DataSource = value.String
+			}
+		case servicecustomer.FieldDataQualityScore:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field data_quality_score", values[i])
+			} else if value.Valid {
+				_m.DataQualityScore = int16(value.Int64)
+			}
+		case servicecustomer.FieldMergedIntoID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field merged_into_id", values[i])
+			} else if value.Valid {
+				_m.MergedIntoID = new(int)
+				*_m.MergedIntoID = int(value.Int64)
+			}
+		case servicecustomer.FieldVersion:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field version", values[i])
+			} else if value.Valid {
+				_m.Version = value.Int64
+			}
+		case servicecustomer.FieldDeletedAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field deleted_at", values[i])
+			} else if value.Valid {
+				_m.DeletedAt = new(time.Time)
+				*_m.DeletedAt = value.Time
+			}
+		case servicecustomer.FieldCreatedBy:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field created_by", values[i])
+			} else if value.Valid {
+				_m.CreatedBy = new(int)
+				*_m.CreatedBy = int(value.Int64)
+			}
+		case servicecustomer.FieldUpdatedBy:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field updated_by", values[i])
+			} else if value.Valid {
+				_m.UpdatedBy = new(int)
+				*_m.UpdatedBy = int(value.Int64)
 			}
 		case servicecustomer.FieldStatus:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -237,6 +645,9 @@ func (_m *ServiceCustomer) String() string {
 	builder.WriteString("tenant_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.TenantID))
 	builder.WriteString(", ")
+	builder.WriteString("code=")
+	builder.WriteString(_m.Code)
+	builder.WriteString(", ")
 	builder.WriteString("name=")
 	builder.WriteString(_m.Name)
 	builder.WriteString(", ")
@@ -246,11 +657,180 @@ func (_m *ServiceCustomer) String() string {
 	builder.WriteString("short_name=")
 	builder.WriteString(_m.ShortName)
 	builder.WriteString(", ")
+	builder.WriteString("legal_name=")
+	builder.WriteString(_m.LegalName)
+	builder.WriteString(", ")
+	builder.WriteString("en_name=")
+	builder.WriteString(_m.EnName)
+	builder.WriteString(", ")
 	builder.WriteString("aliases=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Aliases))
 	builder.WriteString(", ")
 	builder.WriteString("historical_names=")
 	builder.WriteString(fmt.Sprintf("%v", _m.HistoricalNames))
+	builder.WriteString(", ")
+	builder.WriteString("tax_id=")
+	builder.WriteString(_m.TaxID)
+	builder.WriteString(", ")
+	builder.WriteString("normalized_tax_id=")
+	builder.WriteString(_m.NormalizedTaxID)
+	builder.WriteString(", ")
+	builder.WriteString("duns_number=")
+	builder.WriteString(_m.DunsNumber)
+	builder.WriteString(", ")
+	builder.WriteString("registration_no=")
+	builder.WriteString(_m.RegistrationNo)
+	builder.WriteString(", ")
+	builder.WriteString("email_domains=")
+	builder.WriteString(fmt.Sprintf("%v", _m.EmailDomains))
+	builder.WriteString(", ")
+	builder.WriteString("customer_type=")
+	builder.WriteString(_m.CustomerType)
+	builder.WriteString(", ")
+	builder.WriteString("industry=")
+	builder.WriteString(_m.Industry)
+	builder.WriteString(", ")
+	builder.WriteString("sub_industry=")
+	builder.WriteString(_m.SubIndustry)
+	builder.WriteString(", ")
+	builder.WriteString("size_class=")
+	builder.WriteString(_m.SizeClass)
+	builder.WriteString(", ")
+	builder.WriteString("ownership_type=")
+	builder.WriteString(_m.OwnershipType)
+	builder.WriteString(", ")
+	builder.WriteString("tier=")
+	builder.WriteString(_m.Tier)
+	builder.WriteString(", ")
+	builder.WriteString("vip_level=")
+	builder.WriteString(fmt.Sprintf("%v", _m.VipLevel))
+	builder.WriteString(", ")
+	builder.WriteString("credit_rating=")
+	builder.WriteString(_m.CreditRating)
+	builder.WriteString(", ")
+	builder.WriteString("website=")
+	builder.WriteString(_m.Website)
+	builder.WriteString(", ")
+	builder.WriteString("main_phone=")
+	builder.WriteString(_m.MainPhone)
+	builder.WriteString(", ")
+	builder.WriteString("service_email=")
+	builder.WriteString(_m.ServiceEmail)
+	builder.WriteString(", ")
+	builder.WriteString("address=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Address))
+	builder.WriteString(", ")
+	builder.WriteString("timezone=")
+	builder.WriteString(_m.Timezone)
+	builder.WriteString(", ")
+	builder.WriteString("language=")
+	builder.WriteString(_m.Language)
+	builder.WriteString(", ")
+	builder.WriteString("service_tier=")
+	builder.WriteString(_m.ServiceTier)
+	builder.WriteString(", ")
+	if v := _m.SLADefinitionID; v != nil {
+		builder.WriteString("sla_definition_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	builder.WriteString("support_hours=")
+	builder.WriteString(_m.SupportHours)
+	builder.WriteString(", ")
+	builder.WriteString("coverage_scope=")
+	builder.WriteString(fmt.Sprintf("%v", _m.CoverageScope))
+	builder.WriteString(", ")
+	if v := _m.AccountManagerID; v != nil {
+		builder.WriteString("account_manager_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.ServiceOwnerID; v != nil {
+		builder.WriteString("service_owner_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.CsManagerID; v != nil {
+		builder.WriteString("cs_manager_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.OncallGroupID; v != nil {
+		builder.WriteString("oncall_group_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	builder.WriteString("billing_currency=")
+	builder.WriteString(_m.BillingCurrency)
+	builder.WriteString(", ")
+	builder.WriteString("payment_terms=")
+	builder.WriteString(_m.PaymentTerms)
+	builder.WriteString(", ")
+	if v := _m.CreditLimit; v != nil {
+		builder.WriteString("credit_limit=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	builder.WriteString("invoice_title=")
+	builder.WriteString(_m.InvoiceTitle)
+	builder.WriteString(", ")
+	builder.WriteString("billing_address=")
+	builder.WriteString(fmt.Sprintf("%v", _m.BillingAddress))
+	builder.WriteString(", ")
+	builder.WriteString("lifecycle_stage=")
+	builder.WriteString(_m.LifecycleStage)
+	builder.WriteString(", ")
+	if v := _m.OnboardedAt; v != nil {
+		builder.WriteString("onboarded_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
+	builder.WriteString(", ")
+	if v := _m.ContractStartAt; v != nil {
+		builder.WriteString("contract_start_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
+	builder.WriteString(", ")
+	if v := _m.ContractEndAt; v != nil {
+		builder.WriteString("contract_end_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
+	builder.WriteString(", ")
+	if v := _m.ChurnAt; v != nil {
+		builder.WriteString("churn_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
+	builder.WriteString(", ")
+	builder.WriteString("churn_reason=")
+	builder.WriteString(_m.ChurnReason)
+	builder.WriteString(", ")
+	builder.WriteString("data_source=")
+	builder.WriteString(_m.DataSource)
+	builder.WriteString(", ")
+	builder.WriteString("data_quality_score=")
+	builder.WriteString(fmt.Sprintf("%v", _m.DataQualityScore))
+	builder.WriteString(", ")
+	if v := _m.MergedIntoID; v != nil {
+		builder.WriteString("merged_into_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	builder.WriteString("version=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Version))
+	builder.WriteString(", ")
+	if v := _m.DeletedAt; v != nil {
+		builder.WriteString("deleted_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
+	builder.WriteString(", ")
+	if v := _m.CreatedBy; v != nil {
+		builder.WriteString("created_by=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.UpdatedBy; v != nil {
+		builder.WriteString("updated_by=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
 	builder.WriteString(", ")
 	builder.WriteString("status=")
 	builder.WriteString(_m.Status)

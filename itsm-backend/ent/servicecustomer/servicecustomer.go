@@ -16,16 +16,112 @@ const (
 	FieldID = "id"
 	// FieldTenantID holds the string denoting the tenant_id field in the database.
 	FieldTenantID = "tenant_id"
+	// FieldCode holds the string denoting the code field in the database.
+	FieldCode = "code"
 	// FieldName holds the string denoting the name field in the database.
 	FieldName = "name"
 	// FieldNormalizedName holds the string denoting the normalized_name field in the database.
 	FieldNormalizedName = "normalized_name"
 	// FieldShortName holds the string denoting the short_name field in the database.
 	FieldShortName = "short_name"
+	// FieldLegalName holds the string denoting the legal_name field in the database.
+	FieldLegalName = "legal_name"
+	// FieldEnName holds the string denoting the en_name field in the database.
+	FieldEnName = "en_name"
 	// FieldAliases holds the string denoting the aliases field in the database.
 	FieldAliases = "aliases"
 	// FieldHistoricalNames holds the string denoting the historical_names field in the database.
 	FieldHistoricalNames = "historical_names"
+	// FieldTaxID holds the string denoting the tax_id field in the database.
+	FieldTaxID = "tax_id"
+	// FieldNormalizedTaxID holds the string denoting the normalized_tax_id field in the database.
+	FieldNormalizedTaxID = "normalized_tax_id"
+	// FieldDunsNumber holds the string denoting the duns_number field in the database.
+	FieldDunsNumber = "duns_number"
+	// FieldRegistrationNo holds the string denoting the registration_no field in the database.
+	FieldRegistrationNo = "registration_no"
+	// FieldEmailDomains holds the string denoting the email_domains field in the database.
+	FieldEmailDomains = "email_domains"
+	// FieldCustomerType holds the string denoting the customer_type field in the database.
+	FieldCustomerType = "customer_type"
+	// FieldIndustry holds the string denoting the industry field in the database.
+	FieldIndustry = "industry"
+	// FieldSubIndustry holds the string denoting the sub_industry field in the database.
+	FieldSubIndustry = "sub_industry"
+	// FieldSizeClass holds the string denoting the size_class field in the database.
+	FieldSizeClass = "size_class"
+	// FieldOwnershipType holds the string denoting the ownership_type field in the database.
+	FieldOwnershipType = "ownership_type"
+	// FieldTier holds the string denoting the tier field in the database.
+	FieldTier = "tier"
+	// FieldVipLevel holds the string denoting the vip_level field in the database.
+	FieldVipLevel = "vip_level"
+	// FieldCreditRating holds the string denoting the credit_rating field in the database.
+	FieldCreditRating = "credit_rating"
+	// FieldWebsite holds the string denoting the website field in the database.
+	FieldWebsite = "website"
+	// FieldMainPhone holds the string denoting the main_phone field in the database.
+	FieldMainPhone = "main_phone"
+	// FieldServiceEmail holds the string denoting the service_email field in the database.
+	FieldServiceEmail = "service_email"
+	// FieldAddress holds the string denoting the address field in the database.
+	FieldAddress = "address"
+	// FieldTimezone holds the string denoting the timezone field in the database.
+	FieldTimezone = "timezone"
+	// FieldLanguage holds the string denoting the language field in the database.
+	FieldLanguage = "language"
+	// FieldServiceTier holds the string denoting the service_tier field in the database.
+	FieldServiceTier = "service_tier"
+	// FieldSLADefinitionID holds the string denoting the sla_definition_id field in the database.
+	FieldSLADefinitionID = "sla_definition_id"
+	// FieldSupportHours holds the string denoting the support_hours field in the database.
+	FieldSupportHours = "support_hours"
+	// FieldCoverageScope holds the string denoting the coverage_scope field in the database.
+	FieldCoverageScope = "coverage_scope"
+	// FieldAccountManagerID holds the string denoting the account_manager_id field in the database.
+	FieldAccountManagerID = "account_manager_id"
+	// FieldServiceOwnerID holds the string denoting the service_owner_id field in the database.
+	FieldServiceOwnerID = "service_owner_id"
+	// FieldCsManagerID holds the string denoting the cs_manager_id field in the database.
+	FieldCsManagerID = "cs_manager_id"
+	// FieldOncallGroupID holds the string denoting the oncall_group_id field in the database.
+	FieldOncallGroupID = "oncall_group_id"
+	// FieldBillingCurrency holds the string denoting the billing_currency field in the database.
+	FieldBillingCurrency = "billing_currency"
+	// FieldPaymentTerms holds the string denoting the payment_terms field in the database.
+	FieldPaymentTerms = "payment_terms"
+	// FieldCreditLimit holds the string denoting the credit_limit field in the database.
+	FieldCreditLimit = "credit_limit"
+	// FieldInvoiceTitle holds the string denoting the invoice_title field in the database.
+	FieldInvoiceTitle = "invoice_title"
+	// FieldBillingAddress holds the string denoting the billing_address field in the database.
+	FieldBillingAddress = "billing_address"
+	// FieldLifecycleStage holds the string denoting the lifecycle_stage field in the database.
+	FieldLifecycleStage = "lifecycle_stage"
+	// FieldOnboardedAt holds the string denoting the onboarded_at field in the database.
+	FieldOnboardedAt = "onboarded_at"
+	// FieldContractStartAt holds the string denoting the contract_start_at field in the database.
+	FieldContractStartAt = "contract_start_at"
+	// FieldContractEndAt holds the string denoting the contract_end_at field in the database.
+	FieldContractEndAt = "contract_end_at"
+	// FieldChurnAt holds the string denoting the churn_at field in the database.
+	FieldChurnAt = "churn_at"
+	// FieldChurnReason holds the string denoting the churn_reason field in the database.
+	FieldChurnReason = "churn_reason"
+	// FieldDataSource holds the string denoting the data_source field in the database.
+	FieldDataSource = "data_source"
+	// FieldDataQualityScore holds the string denoting the data_quality_score field in the database.
+	FieldDataQualityScore = "data_quality_score"
+	// FieldMergedIntoID holds the string denoting the merged_into_id field in the database.
+	FieldMergedIntoID = "merged_into_id"
+	// FieldVersion holds the string denoting the version field in the database.
+	FieldVersion = "version"
+	// FieldDeletedAt holds the string denoting the deleted_at field in the database.
+	FieldDeletedAt = "deleted_at"
+	// FieldCreatedBy holds the string denoting the created_by field in the database.
+	FieldCreatedBy = "created_by"
+	// FieldUpdatedBy holds the string denoting the updated_by field in the database.
+	FieldUpdatedBy = "updated_by"
 	// FieldStatus holds the string denoting the status field in the database.
 	FieldStatus = "status"
 	// FieldLinkedCustomerTenantID holds the string denoting the linked_customer_tenant_id field in the database.
@@ -69,11 +165,59 @@ const (
 var Columns = []string{
 	FieldID,
 	FieldTenantID,
+	FieldCode,
 	FieldName,
 	FieldNormalizedName,
 	FieldShortName,
+	FieldLegalName,
+	FieldEnName,
 	FieldAliases,
 	FieldHistoricalNames,
+	FieldTaxID,
+	FieldNormalizedTaxID,
+	FieldDunsNumber,
+	FieldRegistrationNo,
+	FieldEmailDomains,
+	FieldCustomerType,
+	FieldIndustry,
+	FieldSubIndustry,
+	FieldSizeClass,
+	FieldOwnershipType,
+	FieldTier,
+	FieldVipLevel,
+	FieldCreditRating,
+	FieldWebsite,
+	FieldMainPhone,
+	FieldServiceEmail,
+	FieldAddress,
+	FieldTimezone,
+	FieldLanguage,
+	FieldServiceTier,
+	FieldSLADefinitionID,
+	FieldSupportHours,
+	FieldCoverageScope,
+	FieldAccountManagerID,
+	FieldServiceOwnerID,
+	FieldCsManagerID,
+	FieldOncallGroupID,
+	FieldBillingCurrency,
+	FieldPaymentTerms,
+	FieldCreditLimit,
+	FieldInvoiceTitle,
+	FieldBillingAddress,
+	FieldLifecycleStage,
+	FieldOnboardedAt,
+	FieldContractStartAt,
+	FieldContractEndAt,
+	FieldChurnAt,
+	FieldChurnReason,
+	FieldDataSource,
+	FieldDataQualityScore,
+	FieldMergedIntoID,
+	FieldVersion,
+	FieldDeletedAt,
+	FieldCreatedBy,
+	FieldUpdatedBy,
 	FieldStatus,
 	FieldLinkedCustomerTenantID,
 	FieldCreatedAt,
@@ -93,12 +237,82 @@ func ValidColumn(column string) bool {
 var (
 	// TenantIDValidator is a validator for the "tenant_id" field. It is called by the builders before save.
 	TenantIDValidator func(int) error
+	// CodeValidator is a validator for the "code" field. It is called by the builders before save.
+	CodeValidator func(string) error
 	// NameValidator is a validator for the "name" field. It is called by the builders before save.
 	NameValidator func(string) error
 	// NormalizedNameValidator is a validator for the "normalized_name" field. It is called by the builders before save.
 	NormalizedNameValidator func(string) error
 	// ShortNameValidator is a validator for the "short_name" field. It is called by the builders before save.
 	ShortNameValidator func(string) error
+	// LegalNameValidator is a validator for the "legal_name" field. It is called by the builders before save.
+	LegalNameValidator func(string) error
+	// EnNameValidator is a validator for the "en_name" field. It is called by the builders before save.
+	EnNameValidator func(string) error
+	// TaxIDValidator is a validator for the "tax_id" field. It is called by the builders before save.
+	TaxIDValidator func(string) error
+	// NormalizedTaxIDValidator is a validator for the "normalized_tax_id" field. It is called by the builders before save.
+	NormalizedTaxIDValidator func(string) error
+	// DunsNumberValidator is a validator for the "duns_number" field. It is called by the builders before save.
+	DunsNumberValidator func(string) error
+	// RegistrationNoValidator is a validator for the "registration_no" field. It is called by the builders before save.
+	RegistrationNoValidator func(string) error
+	// DefaultCustomerType holds the default value on creation for the "customer_type" field.
+	DefaultCustomerType string
+	// CustomerTypeValidator is a validator for the "customer_type" field. It is called by the builders before save.
+	CustomerTypeValidator func(string) error
+	// IndustryValidator is a validator for the "industry" field. It is called by the builders before save.
+	IndustryValidator func(string) error
+	// SubIndustryValidator is a validator for the "sub_industry" field. It is called by the builders before save.
+	SubIndustryValidator func(string) error
+	// SizeClassValidator is a validator for the "size_class" field. It is called by the builders before save.
+	SizeClassValidator func(string) error
+	// OwnershipTypeValidator is a validator for the "ownership_type" field. It is called by the builders before save.
+	OwnershipTypeValidator func(string) error
+	// DefaultTier holds the default value on creation for the "tier" field.
+	DefaultTier string
+	// TierValidator is a validator for the "tier" field. It is called by the builders before save.
+	TierValidator func(string) error
+	// DefaultVipLevel holds the default value on creation for the "vip_level" field.
+	DefaultVipLevel int16
+	// CreditRatingValidator is a validator for the "credit_rating" field. It is called by the builders before save.
+	CreditRatingValidator func(string) error
+	// WebsiteValidator is a validator for the "website" field. It is called by the builders before save.
+	WebsiteValidator func(string) error
+	// MainPhoneValidator is a validator for the "main_phone" field. It is called by the builders before save.
+	MainPhoneValidator func(string) error
+	// ServiceEmailValidator is a validator for the "service_email" field. It is called by the builders before save.
+	ServiceEmailValidator func(string) error
+	// TimezoneValidator is a validator for the "timezone" field. It is called by the builders before save.
+	TimezoneValidator func(string) error
+	// DefaultLanguage holds the default value on creation for the "language" field.
+	DefaultLanguage string
+	// LanguageValidator is a validator for the "language" field. It is called by the builders before save.
+	LanguageValidator func(string) error
+	// ServiceTierValidator is a validator for the "service_tier" field. It is called by the builders before save.
+	ServiceTierValidator func(string) error
+	// SupportHoursValidator is a validator for the "support_hours" field. It is called by the builders before save.
+	SupportHoursValidator func(string) error
+	// BillingCurrencyValidator is a validator for the "billing_currency" field. It is called by the builders before save.
+	BillingCurrencyValidator func(string) error
+	// PaymentTermsValidator is a validator for the "payment_terms" field. It is called by the builders before save.
+	PaymentTermsValidator func(string) error
+	// InvoiceTitleValidator is a validator for the "invoice_title" field. It is called by the builders before save.
+	InvoiceTitleValidator func(string) error
+	// DefaultLifecycleStage holds the default value on creation for the "lifecycle_stage" field.
+	DefaultLifecycleStage string
+	// LifecycleStageValidator is a validator for the "lifecycle_stage" field. It is called by the builders before save.
+	LifecycleStageValidator func(string) error
+	// ChurnReasonValidator is a validator for the "churn_reason" field. It is called by the builders before save.
+	ChurnReasonValidator func(string) error
+	// DefaultDataSource holds the default value on creation for the "data_source" field.
+	DefaultDataSource string
+	// DataSourceValidator is a validator for the "data_source" field. It is called by the builders before save.
+	DataSourceValidator func(string) error
+	// DefaultDataQualityScore holds the default value on creation for the "data_quality_score" field.
+	DefaultDataQualityScore int16
+	// DefaultVersion holds the default value on creation for the "version" field.
+	DefaultVersion int64
 	// DefaultStatus holds the default value on creation for the "status" field.
 	DefaultStatus string
 	// StatusValidator is a validator for the "status" field. It is called by the builders before save.
@@ -124,6 +338,11 @@ func ByTenantID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldTenantID, opts...).ToFunc()
 }
 
+// ByCode orders the results by the code field.
+func ByCode(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCode, opts...).ToFunc()
+}
+
 // ByName orders the results by the name field.
 func ByName(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldName, opts...).ToFunc()
@@ -137,6 +356,221 @@ func ByNormalizedName(opts ...sql.OrderTermOption) OrderOption {
 // ByShortName orders the results by the short_name field.
 func ByShortName(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldShortName, opts...).ToFunc()
+}
+
+// ByLegalName orders the results by the legal_name field.
+func ByLegalName(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldLegalName, opts...).ToFunc()
+}
+
+// ByEnName orders the results by the en_name field.
+func ByEnName(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldEnName, opts...).ToFunc()
+}
+
+// ByTaxID orders the results by the tax_id field.
+func ByTaxID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldTaxID, opts...).ToFunc()
+}
+
+// ByNormalizedTaxID orders the results by the normalized_tax_id field.
+func ByNormalizedTaxID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldNormalizedTaxID, opts...).ToFunc()
+}
+
+// ByDunsNumber orders the results by the duns_number field.
+func ByDunsNumber(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldDunsNumber, opts...).ToFunc()
+}
+
+// ByRegistrationNo orders the results by the registration_no field.
+func ByRegistrationNo(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldRegistrationNo, opts...).ToFunc()
+}
+
+// ByCustomerType orders the results by the customer_type field.
+func ByCustomerType(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCustomerType, opts...).ToFunc()
+}
+
+// ByIndustry orders the results by the industry field.
+func ByIndustry(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldIndustry, opts...).ToFunc()
+}
+
+// BySubIndustry orders the results by the sub_industry field.
+func BySubIndustry(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSubIndustry, opts...).ToFunc()
+}
+
+// BySizeClass orders the results by the size_class field.
+func BySizeClass(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSizeClass, opts...).ToFunc()
+}
+
+// ByOwnershipType orders the results by the ownership_type field.
+func ByOwnershipType(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldOwnershipType, opts...).ToFunc()
+}
+
+// ByTier orders the results by the tier field.
+func ByTier(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldTier, opts...).ToFunc()
+}
+
+// ByVipLevel orders the results by the vip_level field.
+func ByVipLevel(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldVipLevel, opts...).ToFunc()
+}
+
+// ByCreditRating orders the results by the credit_rating field.
+func ByCreditRating(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCreditRating, opts...).ToFunc()
+}
+
+// ByWebsite orders the results by the website field.
+func ByWebsite(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldWebsite, opts...).ToFunc()
+}
+
+// ByMainPhone orders the results by the main_phone field.
+func ByMainPhone(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldMainPhone, opts...).ToFunc()
+}
+
+// ByServiceEmail orders the results by the service_email field.
+func ByServiceEmail(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldServiceEmail, opts...).ToFunc()
+}
+
+// ByTimezone orders the results by the timezone field.
+func ByTimezone(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldTimezone, opts...).ToFunc()
+}
+
+// ByLanguage orders the results by the language field.
+func ByLanguage(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldLanguage, opts...).ToFunc()
+}
+
+// ByServiceTier orders the results by the service_tier field.
+func ByServiceTier(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldServiceTier, opts...).ToFunc()
+}
+
+// BySLADefinitionID orders the results by the sla_definition_id field.
+func BySLADefinitionID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSLADefinitionID, opts...).ToFunc()
+}
+
+// BySupportHours orders the results by the support_hours field.
+func BySupportHours(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSupportHours, opts...).ToFunc()
+}
+
+// ByAccountManagerID orders the results by the account_manager_id field.
+func ByAccountManagerID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldAccountManagerID, opts...).ToFunc()
+}
+
+// ByServiceOwnerID orders the results by the service_owner_id field.
+func ByServiceOwnerID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldServiceOwnerID, opts...).ToFunc()
+}
+
+// ByCsManagerID orders the results by the cs_manager_id field.
+func ByCsManagerID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCsManagerID, opts...).ToFunc()
+}
+
+// ByOncallGroupID orders the results by the oncall_group_id field.
+func ByOncallGroupID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldOncallGroupID, opts...).ToFunc()
+}
+
+// ByBillingCurrency orders the results by the billing_currency field.
+func ByBillingCurrency(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldBillingCurrency, opts...).ToFunc()
+}
+
+// ByPaymentTerms orders the results by the payment_terms field.
+func ByPaymentTerms(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldPaymentTerms, opts...).ToFunc()
+}
+
+// ByCreditLimit orders the results by the credit_limit field.
+func ByCreditLimit(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCreditLimit, opts...).ToFunc()
+}
+
+// ByInvoiceTitle orders the results by the invoice_title field.
+func ByInvoiceTitle(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldInvoiceTitle, opts...).ToFunc()
+}
+
+// ByLifecycleStage orders the results by the lifecycle_stage field.
+func ByLifecycleStage(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldLifecycleStage, opts...).ToFunc()
+}
+
+// ByOnboardedAt orders the results by the onboarded_at field.
+func ByOnboardedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldOnboardedAt, opts...).ToFunc()
+}
+
+// ByContractStartAt orders the results by the contract_start_at field.
+func ByContractStartAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldContractStartAt, opts...).ToFunc()
+}
+
+// ByContractEndAt orders the results by the contract_end_at field.
+func ByContractEndAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldContractEndAt, opts...).ToFunc()
+}
+
+// ByChurnAt orders the results by the churn_at field.
+func ByChurnAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldChurnAt, opts...).ToFunc()
+}
+
+// ByChurnReason orders the results by the churn_reason field.
+func ByChurnReason(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldChurnReason, opts...).ToFunc()
+}
+
+// ByDataSource orders the results by the data_source field.
+func ByDataSource(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldDataSource, opts...).ToFunc()
+}
+
+// ByDataQualityScore orders the results by the data_quality_score field.
+func ByDataQualityScore(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldDataQualityScore, opts...).ToFunc()
+}
+
+// ByMergedIntoID orders the results by the merged_into_id field.
+func ByMergedIntoID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldMergedIntoID, opts...).ToFunc()
+}
+
+// ByVersion orders the results by the version field.
+func ByVersion(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldVersion, opts...).ToFunc()
+}
+
+// ByDeletedAt orders the results by the deleted_at field.
+func ByDeletedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldDeletedAt, opts...).ToFunc()
+}
+
+// ByCreatedBy orders the results by the created_by field.
+func ByCreatedBy(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCreatedBy, opts...).ToFunc()
+}
+
+// ByUpdatedBy orders the results by the updated_by field.
+func ByUpdatedBy(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldUpdatedBy, opts...).ToFunc()
 }
 
 // ByStatus orders the results by the status field.

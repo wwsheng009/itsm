@@ -76,3 +76,15 @@
 | **C3（与 C2 并行）** | `020` SLA 定义快照 + `021` 删除 `sla_definition_customer_read` | Q-09 关闭，customer 不再读 provider 的 SLA 定义原行 |
 
 详见 [03-open-questions.md](./03-open-questions.md)。
+
+## 6. 当前实施状态（2026-11-08）
+
+| 阶段 | 状态 | 已落地内容 |
+|---|---|---|
+| **P0** | **已实现** | `service_customers` 八组字段、`customer_branches` 服务点字段、`customer_contacts`、`customer_tenant_links`、编码/税号唯一键、客户详情/分组表单、联系人/租户映射/服务点 CRUD、服务端分页筛选、RLS 022、迁移与回滚、服务层/HTTP 回归测试 |
+| **P1** | **已实现** | `customer_relationships`、`project_customer_links`、合并通道与 7 天撤销、数据质量分/排序/筛选、关系树 API/UI、客户详情关系网与关联项目 Tab、项目详情关联客户 Tab、RLS 023、迁移与回滚、服务层/HTTP 回归测试 |
+| **P2** | **已实现** | `customer_external_ids`、AI 五级匹配（L1-L5）、客户 360 视图、外部标识对账、邮件候选客户回显 |
+| **C1** | **已实现** | `support_contracts` 聚合根字段、服务项、变更单、用量台账、`contract_project_links`、签订/终止/续签、额度视图、合同侧与项目侧闭环 |
+| **C2/C3** | 未开始 | 合同/SLA 定义快照与 RLS 收回 |
+
+> P0/P1/P2/C1 实现入口：`/master-data/customers` 与 `/master-data/contracts`；API 前缀仍为 `/api/v1/master-data/*`，旧 `/api/v1/email-intake/*` 保持兼容。客户详情已展示关系树、关联项目、合并记录、外部标识和客户 360；合同详情已展示服务项、变更历史、用量台账、合同项目分配与额度视图。

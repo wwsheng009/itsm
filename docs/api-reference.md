@@ -1518,6 +1518,185 @@ Query Parameters:
 }
 ```
 
+## 客户主数据接口（P0/P1/P2）
+
+客户主数据按租户隔离，权限码沿用 `customer_master:read` / `customer_master:write`。旧 `/api/v1/email-intake/customers`、`/branches`、`/support-contracts`、`/source-organizations` 仍保留兼容；新入口统一使用 `/api/v1/master-data/*`。
+
+### 客户列表与详情
+
+```http
+GET /api/v1/master-data/customers
+GET /api/v1/master-data/customers/:id
+POST /api/v1/master-data/customers
+PUT /api/v1/master-data/customers/:id
+DELETE /api/v1/master-data/customers/:id
+```
+
+列表查询参数：`keyword`、`tier`、`status`、`lifecycleStage`、`accountManagerId`、`industry`、`hasTenantLink`、`qualityBelow`、`sortBy`（`updatedAt` / `qualityScore` / `name`）、`sortOrder`（`asc` / `desc`）、`page`、`pageSize`。响应为 `{items,total,page,pageSize,totalPages}`。
+
+客户 DTO 支持八组字段：标识（`code`/`legalName`/`taxId`/`emailDomains`）、分类（`customerType`/`industry` 等）、分级（`tier`/`vipLevel`）、联系（`website`/`mainPhone`/`serviceEmail`/`address`）、服务（`serviceTier`/`slaDefinitionId`/`accountManagerId` 等）、财务（`billingCurrency`/`paymentTerms`/`creditLimit` 等）、生命周期（`lifecycleStage`/`onboardedAt`/`contractStartAt`/`contractEndAt`/`churnAt`）和治理（`dataSource`/`dataQualityScore`/`version`）。更新请求携带 `version` 做乐观锁；冲突返回 HTTP 409 / `code=4090`。
+
+### 联系人
+
+```http
+GET    /api/v1/master-data/customers/:id/contacts
+POST   /api/v1/master-data/customers/:id/contacts
+PUT    /api/v1/master-data/customers/:id/contacts/:contactId
+DELETE /api/v1/master-data/customers/:id/contacts/:contactId
+```
+
+联系人不是系统用户，不占租户用户配额。支持 `contactRole`（business/technical/billing/escalation/noc/executive）、`isPrimary`、`optIn`、`branchId`、`linkedUserId` 等字段；同一客户同一角色最多一个主联系人，邮箱在客户内唯一。
+
+### 客户-租户映射
+
+```http
+GET    /api/v1/master-data/customers/:id/tenant-links
+POST   /api/v1/master-data/customers/:id/tenant-links
+PUT    /api/v1/master-data/customers/:id/tenant-links/:linkId
+DELETE /api/v1/master-data/customers/:id/tenant-links/:linkId
+```
+
+`linkedTenantId` 是弱引用；若当前租户是 `msp_provider`，目标必须是 `msp_customer` 且 `mspProviderId` 指向当前服务商。每客户最多一个 `primary` 和一个结算锚点。
+
+### 服务点
+
+```http
+GET    /api/v1/master-data/branches?customerId=:id
+POST   /api/v1/master-data/branches
+PUT    /api/v1/master-data/branches/:id
+DELETE /api/v1/master-data/branches/:id
+```
+
+服务点支持 `code`、`branchType`、`address`、`timezone`、`contactPhone`、`emailDomains`、`serviceTier`、`supportHours`、`isPrimary`、`linkedTenantId`；同一客户最多一个主服务点。
+
+### 客户关系
+
+```http
+GET    /api/v1/master-data/customers/:id/relationships
+POST   /api/v1/master-data/customers/:id/relationships
+PUT    /api/v1/master-data/customers/:id/relationships/:relationId
+DELETE /api/v1/master-data/customers/:id/relationships/:relationId
+GET    /api/v1/master-data/customers/:id/relations-tree?depth=1..5
+```
+
+关系类型：`parent`、`subsidiary`、`partner`、`reseller`、`vendor`、`competitor`、`successor`、`former_name_of`。父/子公司、伙伴和竞争对手会自动写反向关系；父/子公司创建和关系树展开均带环检测。
+
+### 项目关联
+
+```http
+GET    /api/v1/master-data/customers/:id/projects
+POST   /api/v1/master-data/customers/:id/projects
+DELETE /api/v1/master-data/customers/:id/projects/:linkId
+GET    /api/v1/projects/:id/customer-links
+POST   /api/v1/projects/:id/customer-links
+DELETE /api/v1/projects/:id/customer-links/:linkId
+```
+
+关联类型：`presales`、`delivery`、`implementation`、`support`、`renewal`、`escalation`。每个项目最多一个主客户；`internal` 项目禁止关联客户；项目表不新增客户列，关联全部落在 `project_customer_links`。
+
+### 合并与撤销
+
+```http
+POST /api/v1/master-data/customers/:id/merge
+POST /api/v1/master-data/customers/:id/merge/undo
+GET  /api/v1/master-data/customers/:id/merge-history
+```
+
+合并请求体为 `{"targetCustomerId":2}`，事务内迁移分支、联系人、租户映射、关系、合同、外部编号、会话和项目关联，并写 `customer.merge` 审计快照。源客户软删除并写入 `mergedIntoId`。7 天内可通过源客户 ID 调用撤销；目标客户的 `merge-history` 返回近 7 天合并来源及 `canUndo`。
+
+### 数据质量分
+
+`dataQualityScore` 按标识 25、分类 15、分级 10、服务配置 20、联系可达 20、关系完整 10 计算，取值 0–100。客户、联系人、租户映射、项目关联和合并写入后自动重算。
+
+### 客户外部标识（P2）
+
+```http
+GET    /api/v1/master-data/customers/:id/external-ids
+POST   /api/v1/master-data/customers/:id/external-ids
+PUT    /api/v1/master-data/customers/:id/external-ids/:externalId
+DELETE /api/v1/master-data/customers/:id/external-ids/:externalId
+```
+
+请求体：`{"systemCode":"erp","externalId":"E-100","externalUrl":"https://erp.example/1"}`。`systemCode` 统一转小写；`(tenantId, systemCode, externalId)` 唯一，冲突返回 HTTP 409。客户详情响应同时返回 `externalIds`。
+
+### 客户 360（P2）
+
+```http
+GET /api/v1/master-data/customers/:id/360
+```
+
+返回 `overview`、`serviceHealth`、`tickets`、`contracts`、`projects`、`assets`、`contacts`、`relationships`、`tenants`、`externalIds`。全部查询按当前 `tenant_id` 收窄；工单/事件通过客户关联项目的 `project_id` 以及客户邮件会话关联的事件聚合，合同/项目/资产/关系/租户均返回摘要与关键计数。`serviceHealth.complianceRate` 优先取客户 SLA 定义近 30 天 `compliance/achievement` 指标，否则按工单/事件 SLA 违约计算。
+
+### AI 五级匹配（P2）
+
+邮件报障的客户识别链路为：
+
+| 级别 | 依据 | 置信度 | 自动绑定 |
+|---|---|---|---|
+| L1 | 发件域名命中 `email_domains` | 0.95 | 是 |
+| L2 | 发件邮箱命中 `customer_contacts.normalized_email` | 0.95 | 是 |
+| L3 | 正文/签名提取税号命中 `normalized_tax_id` | 0.90 | 是 |
+| L4 | 客户名称/别名/历史名称精确 | 0.85 | 是 |
+| L5 | 别名/历史名包含或编辑距离 ≤2 | 0.60–0.80 | 否，返回候选 |
+
+匹配结果写入 `email_conversations.canonical_data.candidates`（候选）、`canonical_data.matchLevel` / `matchConfidence`，并写入 `field_sources.customerId` / `customerMatch`；低于 0.85 不自动写入 `customer_id`，进入人工确认队列。
+
+### 合同聚合根（C1）
+
+在既有 `/api/v1/master-data/support-contracts` 兼容面上扩展：
+
+```http
+GET    /api/v1/master-data/support-contracts/:id
+POST   /api/v1/master-data/support-contracts/:id/sign
+POST   /api/v1/master-data/support-contracts/:id/terminate
+POST   /api/v1/master-data/support-contracts/:id/renew
+GET    /api/v1/master-data/support-contracts/:id/balance
+GET    /api/v1/master-data/support-contracts/:id/projects
+GET    /api/v1/projects/:id/contract-links
+```
+
+合同详情响应包含 `effectiveFrom/effectiveUntil`、`signedAt`、`amount/currency`、`contractType`、`parentContractId`、`renewalOfContractId`、`amendmentCount`、`slaDefinitionId`、`autoRenew`、`displayStatus`、`remainingDays`、`effectiveAmount`、`allocatedAmount`、`usedAmount`、`remainingAmount`、`availableAmount`。`displayStatus` 按客户等级/到期时间派生 `expiring`/`expired`，不依赖定时任务写入。
+
+**服务项**
+
+```http
+GET    /api/v1/master-data/support-contracts/:id/items
+POST   /api/v1/master-data/support-contracts/:id/items
+PUT    /api/v1/master-data/support-contracts/:id/items/:itemId
+DELETE /api/v1/master-data/support-contracts/:id/items/:itemId
+```
+
+服务项字段：`itemName`、`itemCode`、`billingUnit`（month/quarter/year/hour/ticket/device/project）、`quantity`、`periodCount`、`unitPrice`、`amount`、`quotaTotal`、`quotaUsed`、`quotaReserved`、`availableToAllocate`、`slaDefinitionId`。`amount` 默认按数量 × 单价 × 周期计算；议价覆盖时必须填写 `note`。已生效合同仅允许新增服务项，不允许修改历史服务项。
+
+**变更单**
+
+```http
+GET    /api/v1/master-data/support-contracts/:id/amendments
+POST   /api/v1/master-data/support-contracts/:id/amendments
+POST   /api/v1/master-data/support-contracts/:id/amendments/:amendmentId/effect
+```
+
+变更类型：`amount`、`term`、`scope`、`id_only`。`amount` 变更生效后累计到 `effectiveAmount`；`term` 变更生效后按 `termDeltaDays` 调整 `effectiveUntil`。
+
+**用量台账**
+
+```http
+GET    /api/v1/master-data/support-contracts/:id/usage
+POST   /api/v1/master-data/support-contracts/:id/usage
+```
+
+请求体包含 `serviceItemId`、`sourceType`、`sourceRef`、`quantityDelta`、`amountDelta`、`occurredAt`。`(tenantId, serviceItemId, sourceType, sourceRef)` 唯一；相同来源重复提交且载荷一致时幂等返回，载荷不一致返回 409。数量扣减在同一事务内回写 `quota_used`，超 `quotaTotal` 返回 `CONTRACT_QUOTA_EXCEEDED`。
+
+**合同项目链接**
+
+```http
+GET    /api/v1/master-data/support-contracts/:id/projects
+POST   /api/v1/master-data/support-contracts/:id/projects
+DELETE /api/v1/master-data/support-contracts/:id/projects/:linkId
+```
+
+关系类型：`basis`、`coverage`、`billing`、`change`。只有 `billing` 行可携带 `allocatedAmount`、`allocatedHours`、`allocationPct`，且必须指定同一合同的服务项；项目客户必须与合同客户一致，`internal` 项目禁止关联。项目侧反查使用 `GET /api/v1/projects/:id/contract-links`。
+
 ## 排序
 
 部分列表接口支持排序：
