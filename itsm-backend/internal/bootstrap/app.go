@@ -1830,6 +1830,11 @@ func InitializeStorage(cfg *config.Config, client *ent.Client, sugar *zap.Sugare
 		if err := runPostSchemaMigrations(ctx, migrator, sugar); err != nil {
 			return fmt.Errorf("apply versioned post-schema migrations: %w", err)
 		}
+		// ent.Schema.Create 会重建受管表并丢弃其不认识的复合外键/CHECK/默认值；
+		// 账本存在后迁移不会重放，因此这些约束必须在每次 Schema.Create 后补齐。
+		if err := applyPostSchemaConstraints(ctx, database.GetRawDB()); err != nil {
+			return fmt.Errorf("apply post-schema constraints: %w", err)
+		}
 		sugar.Infow("database schema ensured", "deployment_mode", cfg.Deployment.Mode)
 	}
 
