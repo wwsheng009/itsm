@@ -121,6 +121,11 @@ const inferTicketType = (selectedType: RuntimeTicketType | null): TicketCreateTy
   if (/problem|问题/i.test(value)) {
     return 'problem';
   }
+  // 与 TicketTypePickerModal.classifyTicketTypeGroup 保持同一语义：
+  // 通用事件/故障必须落 incident，否则列表与统计会被错误归为服务请求。
+  if (/incident|故障|事件/i.test(value)) {
+    return 'incident';
+  }
   return 'service_request';
 };
 
