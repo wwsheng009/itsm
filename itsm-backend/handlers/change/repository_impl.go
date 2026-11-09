@@ -76,6 +76,10 @@ func toDomain(ec *ent.Change) *Change {
 		projectID := ec.ProjectID
 		result.ProjectID = &projectID
 	}
+	if ec.DepartmentID > 0 {
+		departmentID := ec.DepartmentID
+		result.DepartmentID = &departmentID
+	}
 	return result
 }
 
@@ -152,6 +156,7 @@ func (r *EntRepository) Create(ctx context.Context, c *Change) (*Change, error) 
 		SetCreatedBy(c.CreatedBy).
 		SetTenantID(c.TenantID).
 		SetNillableProjectID(c.ProjectID).
+		SetNillableDepartmentID(c.DepartmentID).
 		SetImplementationPlan(c.ImplementationPlan).
 		SetRollbackPlan(c.RollbackPlan).
 		SetNillablePlannedStartDate(c.PlannedStartDate).
@@ -187,6 +192,7 @@ func (r *EntRepository) CreateWithWorkflowCommand(ctx context.Context, c *Change
 		SetType(c.Type).SetStatus(c.Status).SetPriority(c.Priority).SetImpactScope(c.ImpactScope).
 		SetRiskLevel(c.RiskLevel).SetCreatedBy(c.CreatedBy).SetTenantID(c.TenantID).
 		SetNillableProjectID(c.ProjectID).
+		SetNillableDepartmentID(c.DepartmentID).
 		SetImplementationPlan(c.ImplementationPlan).SetRollbackPlan(c.RollbackPlan).
 		SetNillablePlannedStartDate(c.PlannedStartDate).SetNillablePlannedEndDate(c.PlannedEndDate).
 		SetAffectedCis(c.AffectedCIs).SetRelatedTickets(c.RelatedTickets).Save(ctx)
@@ -315,6 +321,9 @@ func (r *EntRepository) Update(ctx context.Context, c *Change) (*Change, error) 
 
 	if c.AssigneeID != nil {
 		update.SetAssigneeID(*c.AssigneeID)
+	}
+	if c.DepartmentID != nil {
+		update.SetNillableDepartmentID(c.DepartmentID)
 	}
 	if c.PlannedStartDate != nil {
 		update.SetPlannedStartDate(*c.PlannedStartDate)

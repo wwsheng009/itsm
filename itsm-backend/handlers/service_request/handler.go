@@ -67,6 +67,7 @@ func (h *Handler) toDTO(req *ServiceRequest, approvals []*ServiceRequestApproval
 		CatalogID:          req.CatalogID,
 		RequesterID:        req.RequesterID,
 		CIID:               req.CiID,
+		DepartmentID:       req.DepartmentID,
 		Status:             req.Status,
 		Title:              req.Title,
 		Reason:             req.Reason,
@@ -164,6 +165,7 @@ func (h *Handler) Create(c *gin.Context) {
 		SourceIPWhitelist:  req.SourceIPWhitelist,
 		ExpireAt:           expireAt,
 		ProjectID:          req.ProjectID,
+		DepartmentID:       req.DepartmentID,
 	}
 
 	created, err := h.service.Create(c.Request.Context(), tenantID, userID, req.CatalogID, domainReq)
@@ -397,6 +399,7 @@ func (h *Handler) Update(c *gin.Context) {
 		SourceIPWhitelist:  req.SourceIPWhitelist,
 		ComplianceAckSet:   req.ComplianceAck != nil,
 		ExpireAt:           req.ExpireAt,
+		DepartmentID:       req.DepartmentID,
 	}
 	if req.NeedsPublicIP != nil {
 		domainReq.NeedsPublicIP = *req.NeedsPublicIP

@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { Card, Form, Input, Select, Button, App, Space } from 'antd';
 import { ArrowLeft, Save } from 'lucide-react';
 import { TicketApi } from '@/lib/api/ticket-api';
+import DepartmentSelect from '@/components/business/DepartmentSelect';
 import { useI18n } from '@/lib/i18n';
 
 const NewImprovementPage = () => {
@@ -13,7 +14,12 @@ const NewImprovementPage = () => {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
 
-  const onFinish = async (values: { title: string; description?: string; priority?: string }) => {
+  const onFinish = async (values: {
+    title: string;
+    description?: string;
+    priority?: string;
+    departmentId?: number;
+  }) => {
     try {
       setLoading(true);
       await TicketApi.createTicket({
@@ -21,6 +27,7 @@ const NewImprovementPage = () => {
         title: values.title,
         description: values.description || '',
         priority: values.priority || 'medium',
+        departmentId: values.departmentId ?? undefined,
       } as unknown as Parameters<typeof TicketApi.createTicket>[0]);
       message.success('改进计划创建成功');
       navigate('/improvements');
@@ -60,6 +67,10 @@ const NewImprovementPage = () => {
                 ]}
                 placeholder="请选择优先级"
               />
+            </Form.Item>
+
+            <Form.Item label="所属部门" name="departmentId">
+              <DepartmentSelect />
             </Form.Item>
 
             <Form.Item label="目标描述" name="description">

@@ -29,6 +29,7 @@ import { ArrowUp, Plus, Save, Pencil, FileText, Clock, AlertCircle, CheckCircle,
 import dayjs from 'dayjs';
 
 import { PermissionGate, useCan } from '@/components/auth/PermissionGate';
+import { DepartmentName } from '@/components/business/DepartmentSelect';
 import { useRegisterAssistantPageData } from '@/lib/ai/page-context/use-register-assistant-page-data';
 import { IncidentAPI } from '@/lib/api/';
 import type { CreateIncidentClassificationRequest } from '@/lib/api/incident-api';
@@ -638,6 +639,9 @@ const IncidentDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
               {data.detectedAt ? dayjs(data.detectedAt).format('YYYY-MM-DD HH:mm:ss') : '-'}
             </Descriptions.Item>
             <Descriptions.Item label="来源">{data.source}</Descriptions.Item>
+            <Descriptions.Item label="所属部门">
+              <DepartmentName departmentId={data.departmentId} />
+            </Descriptions.Item>
             {/* PE-5 增补：所属项目展示 + 加入/移出（权限与写操作由后端动态复核） */}
             <Descriptions.Item label="所属项目" span={2}>
               <RecordProjectLink domain="incident" recordId={data.id} showLabel={false} />

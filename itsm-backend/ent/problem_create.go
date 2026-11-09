@@ -183,6 +183,20 @@ func (_c *ProblemCreate) SetNillableProjectID(v *int) *ProblemCreate {
 	return _c
 }
 
+// SetDepartmentID sets the "department_id" field.
+func (_c *ProblemCreate) SetDepartmentID(v int) *ProblemCreate {
+	_c.mutation.SetDepartmentID(v)
+	return _c
+}
+
+// SetNillableDepartmentID sets the "department_id" field if the given value is not nil.
+func (_c *ProblemCreate) SetNillableDepartmentID(v *int) *ProblemCreate {
+	if v != nil {
+		_c.SetDepartmentID(*v)
+	}
+	return _c
+}
+
 // SetCreatedBy sets the "created_by" field.
 func (_c *ProblemCreate) SetCreatedBy(v int) *ProblemCreate {
 	_c.mutation.SetCreatedBy(v)
@@ -479,6 +493,10 @@ func (_c *ProblemCreate) createSpec() (*Problem, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.ProjectID(); ok {
 		_spec.SetField(problem.FieldProjectID, field.TypeInt, value)
 		_node.ProjectID = value
+	}
+	if value, ok := _c.mutation.DepartmentID(); ok {
+		_spec.SetField(problem.FieldDepartmentID, field.TypeInt, value)
+		_node.DepartmentID = value
 	}
 	if value, ok := _c.mutation.CreatedBy(); ok {
 		_spec.SetField(problem.FieldCreatedBy, field.TypeInt, value)

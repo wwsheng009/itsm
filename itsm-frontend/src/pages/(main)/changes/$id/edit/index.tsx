@@ -18,6 +18,7 @@ import { ArrowLeft, Lock, Save } from 'lucide-react';
 import dayjs, { type Dayjs } from 'dayjs';
 import { AppDateRangePicker } from '@/components/ui/AppDatePicker';
 import { ChangeApi, type ChangeRequest } from '@/lib/api/change-api';
+import DepartmentSelect from '@/components/business/DepartmentSelect';
 import { AttachmentApi, changeAttachmentPreviewUrl } from '@/lib/api/attachment-api';
 import { htmlToPlainText, isRichTextEmpty, isRichTextEnabled } from '@/lib/rich-text/sanitize';
 import { useInlineImageUnbind } from '@/lib/rich-text/useInlineImageUnbind';
@@ -69,6 +70,7 @@ interface ChangeFormValues {
   affectedCisText?: string;
   implementationPlan: string;
   rollbackPlan: string;
+  departmentId?: number;
 }
 
 const TYPE_OPTIONS: Array<{ value: ChangeRequest['type']; label: string; hint?: string }> = [
@@ -176,6 +178,7 @@ const EditChangePage: React.FC = () => {
           affectedCisText: cisText,
           implementationPlan: data.implementationPlan,
           rollbackPlan: data.rollbackPlan,
+          departmentId: data.departmentId,
         });
         captureInlineImageBaseline(data.description);
       } catch (error) {
@@ -215,6 +218,7 @@ const EditChangePage: React.FC = () => {
         rollbackPlan: values.rollbackPlan.trim(),
         affectedCis,
         relatedTickets: changeData?.relatedTickets || [],
+        departmentId: values.departmentId,
       };
 
       await ChangeApi.updateChange(Number(id), payload);
@@ -420,6 +424,14 @@ const EditChangePage: React.FC = () => {
             tooltip="多个 CI 用逗号或空格分隔"
           >
             <Input placeholder="例如：CI-ECS-001, CI-APP-CRM" allowClear />
+          </Form.Item>
+
+          <Form.Item
+            name="departmentId"
+            label="所属部门"
+            tooltip="用于部门归属、统计与部门审批人路由"
+          >
+            <DepartmentSelect />
           </Form.Item>
 
           <Form.Item

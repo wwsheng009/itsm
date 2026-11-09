@@ -84,6 +84,7 @@ export interface Ticket {
   ticketTypeId?: number;
   ticketTypeCode?: string;
   ticketTypeName?: string;
+  departmentId?: number;
   /** 动态表单字段（与后端 DTO FormFields 对齐，键为 snake_case schema field.name） */
   formFields?: Record<string, unknown>;
   createdAt: string;
@@ -103,6 +104,7 @@ export interface TicketCreateRequest {
   priority: TicketPriority;
   type?: TicketType;
   categoryId?: number;
+  departmentId?: number;
   tags?: string[];
   assigneeId?: number;
   formFields?: Record<string, unknown>;
@@ -115,6 +117,7 @@ export interface TicketUpdateRequest {
   priority?: TicketPriority;
   status?: TicketStatus;
   categoryId?: number;
+  departmentId?: number;
   tags?: string[];
   assigneeId?: number;
   resolution?: string;

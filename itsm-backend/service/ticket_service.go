@@ -354,6 +354,7 @@ func (s *TicketService) CreateTicket(ctx context.Context, req *dto.CreateTicketR
 		TemplateID:     req.TemplateID,
 		ParentTicketID: req.ParentTicketID,
 		ProjectID:      req.ProjectID,
+		DepartmentID:   req.DepartmentID,
 		TagIDs:         uniqueIDs(req.TagIDs),
 	}
 	// P2 富文本：仅当请求携带且服务端清洗后非空时写入 HTML 列与格式标记；

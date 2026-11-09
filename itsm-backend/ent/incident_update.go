@@ -141,6 +141,33 @@ func (_u *IncidentUpdate) ClearProjectID() *IncidentUpdate {
 	return _u
 }
 
+// SetDepartmentID sets the "department_id" field.
+func (_u *IncidentUpdate) SetDepartmentID(v int) *IncidentUpdate {
+	_u.mutation.ResetDepartmentID()
+	_u.mutation.SetDepartmentID(v)
+	return _u
+}
+
+// SetNillableDepartmentID sets the "department_id" field if the given value is not nil.
+func (_u *IncidentUpdate) SetNillableDepartmentID(v *int) *IncidentUpdate {
+	if v != nil {
+		_u.SetDepartmentID(*v)
+	}
+	return _u
+}
+
+// AddDepartmentID adds value to the "department_id" field.
+func (_u *IncidentUpdate) AddDepartmentID(v int) *IncidentUpdate {
+	_u.mutation.AddDepartmentID(v)
+	return _u
+}
+
+// ClearDepartmentID clears the value of the "department_id" field.
+func (_u *IncidentUpdate) ClearDepartmentID() *IncidentUpdate {
+	_u.mutation.ClearDepartmentID()
+	return _u
+}
+
 // SetSLADefinitionID sets the "sla_definition_id" field.
 func (_u *IncidentUpdate) SetSLADefinitionID(v int) *IncidentUpdate {
 	_u.mutation.ResetSLADefinitionID()
@@ -1297,6 +1324,15 @@ func (_u *IncidentUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if _u.mutation.ProjectIDCleared() {
 		_spec.ClearField(incident.FieldProjectID, field.TypeInt)
 	}
+	if value, ok := _u.mutation.DepartmentID(); ok {
+		_spec.SetField(incident.FieldDepartmentID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedDepartmentID(); ok {
+		_spec.AddField(incident.FieldDepartmentID, field.TypeInt, value)
+	}
+	if _u.mutation.DepartmentIDCleared() {
+		_spec.ClearField(incident.FieldDepartmentID, field.TypeInt)
+	}
 	if value, ok := _u.mutation.SLADefinitionID(); ok {
 		_spec.SetField(incident.FieldSLADefinitionID, field.TypeInt, value)
 	}
@@ -2077,6 +2113,33 @@ func (_u *IncidentUpdateOne) AddProjectID(v int) *IncidentUpdateOne {
 // ClearProjectID clears the value of the "project_id" field.
 func (_u *IncidentUpdateOne) ClearProjectID() *IncidentUpdateOne {
 	_u.mutation.ClearProjectID()
+	return _u
+}
+
+// SetDepartmentID sets the "department_id" field.
+func (_u *IncidentUpdateOne) SetDepartmentID(v int) *IncidentUpdateOne {
+	_u.mutation.ResetDepartmentID()
+	_u.mutation.SetDepartmentID(v)
+	return _u
+}
+
+// SetNillableDepartmentID sets the "department_id" field if the given value is not nil.
+func (_u *IncidentUpdateOne) SetNillableDepartmentID(v *int) *IncidentUpdateOne {
+	if v != nil {
+		_u.SetDepartmentID(*v)
+	}
+	return _u
+}
+
+// AddDepartmentID adds value to the "department_id" field.
+func (_u *IncidentUpdateOne) AddDepartmentID(v int) *IncidentUpdateOne {
+	_u.mutation.AddDepartmentID(v)
+	return _u
+}
+
+// ClearDepartmentID clears the value of the "department_id" field.
+func (_u *IncidentUpdateOne) ClearDepartmentID() *IncidentUpdateOne {
+	_u.mutation.ClearDepartmentID()
 	return _u
 }
 
@@ -3265,6 +3328,15 @@ func (_u *IncidentUpdateOne) sqlSave(ctx context.Context) (_node *Incident, err 
 	}
 	if _u.mutation.ProjectIDCleared() {
 		_spec.ClearField(incident.FieldProjectID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.DepartmentID(); ok {
+		_spec.SetField(incident.FieldDepartmentID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedDepartmentID(); ok {
+		_spec.AddField(incident.FieldDepartmentID, field.TypeInt, value)
+	}
+	if _u.mutation.DepartmentIDCleared() {
+		_spec.ClearField(incident.FieldDepartmentID, field.TypeInt)
 	}
 	if value, ok := _u.mutation.SLADefinitionID(); ok {
 		_spec.SetField(incident.FieldSLADefinitionID, field.TypeInt, value)

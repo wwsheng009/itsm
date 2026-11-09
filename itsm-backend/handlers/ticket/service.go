@@ -63,6 +63,7 @@ func (s *Service) Create(ctx context.Context, tenantID int, params *CreateParams
 		FormFields:            params.FormFields,
 		TagIDs:                params.TagIDs,
 		ProjectID:             params.ProjectID,
+		DepartmentID:          params.DepartmentID,
 		WorkflowDefinitionKey: params.WorkflowDefinitionKey,
 	}
 	if params.AssigneeID != nil {
@@ -93,7 +94,7 @@ func (s *Service) Create(ctx context.Context, tenantID int, params *CreateParams
 	}
 
 	// Convert domain ticket back to handler-layer ticket for response mapping.
-	return &Ticket{
+	ticket := &Ticket{
 		ID:                created.ID,
 		TicketNumber:      created.TicketNumber,
 		Title:             created.Title,
@@ -112,7 +113,12 @@ func (s *Service) Create(ctx context.Context, tenantID int, params *CreateParams
 		Version:           created.Version,
 		CreatedAt:         created.CreatedAt,
 		UpdatedAt:         created.UpdatedAt,
-	}, nil
+	}
+	if created.DepartmentID != nil && *created.DepartmentID > 0 {
+		departmentID := *created.DepartmentID
+		ticket.DepartmentID = &departmentID
+	}
+	return ticket, nil
 }
 
 // Get retrieves a ticket by ID.

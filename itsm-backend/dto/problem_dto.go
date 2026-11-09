@@ -14,19 +14,21 @@ type CreateProblemRequest struct {
 	Impact      string `json:"impact"`
 	ImpactScope string `json:"impactScope"` // 影响范围
 	// ProjectID 创建时挂接的项目（可选；handler 前置校验 project:write + 项目非终态，随 INSERT 一次写入）。
-	ProjectID *int `json:"projectId,omitempty"`
+	ProjectID    *int `json:"projectId,omitempty"`
+	DepartmentID *int `json:"departmentId,omitempty"`
 }
 
 // UpdateProblemRequest 更新问题请求
 type UpdateProblemRequest struct {
 	Title *string `json:"title" binding:"omitempty,min=2,max=200"`
 	// description 富文本 HTML 长度口径同 CreateProblemRequest。
-	Description *string `json:"description" binding:"omitempty,min=10,max=20000"`
-	Priority    *string `json:"priority" binding:"omitempty"`
-	Status      *string `json:"status" binding:"omitempty"`
-	Category    *string `json:"category" binding:"omitempty"`
-	RootCause   *string `json:"rootCause" binding:"omitempty"`
-	Impact      *string `json:"impact" binding:"omitempty"`
+	Description  *string `json:"description" binding:"omitempty,min=10,max=20000"`
+	Priority     *string `json:"priority" binding:"omitempty"`
+	Status       *string `json:"status" binding:"omitempty"`
+	Category     *string `json:"category" binding:"omitempty"`
+	RootCause    *string `json:"rootCause" binding:"omitempty"`
+	Impact       *string `json:"impact" binding:"omitempty"`
+	DepartmentID *int    `json:"departmentId,omitempty"`
 }
 
 // UpdateProblemRootCauseRequest 记录问题根因。
@@ -75,6 +77,7 @@ type ProblemResponse struct {
 	Impact        string  `json:"impact"`
 	AssigneeID    *int    `json:"assigneeId,omitempty"`
 	AssigneeName  *string `json:"assigneeName,omitempty"`
+	DepartmentID  *int    `json:"departmentId,omitempty"`
 	// 创建人/报告人字段（ID + 名字。名字由 service 层 join user 表填充，避免前端再调一次 user API）
 	CreatedBy     int       `json:"createdBy"`
 	CreatedByName *string   `json:"createdByName,omitempty"`

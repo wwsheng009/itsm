@@ -5,6 +5,7 @@ import { Button, Card, Form, Input, Select, Upload, Space, Row, Col, message, Ta
 import { ArrowLeft, Search, X, Sparkles } from 'lucide-react';
 import { IncidentAPI } from '@/lib/api/incident-api';
 import ProjectSelect, { useProjectLinkPermission } from '@/components/business/ProjectSelect';
+import DepartmentSelect from '@/components/business/DepartmentSelect';
 import { IncidentCategoryOptions } from '@/constants/taxonomy';
 import type { ConfigurationItem } from '@/types/biz/cmdb';
 import { CMDBApi } from '@/lib/api/cmdb-api';
@@ -64,6 +65,7 @@ interface IncidentFormValues {
   affectedSystems?: string[];
   rootCause?: string;
   projectId?: number;
+  departmentId?: number;
 }
 
 export default function CreateIncidentPage() {
@@ -279,6 +281,7 @@ export default function CreateIncidentPage() {
         assigneeId: values.assignedTo,
         configurationItemIds: selectedCIs.map(ci => ci.id),
         projectId: values.projectId ?? undefined,
+        departmentId: values.departmentId ?? undefined,
       });
 
       // 正文图片两段式：上传 → 用正式地址替换暂存占位 → 回写 description。
@@ -629,6 +632,14 @@ export default function CreateIncidentPage() {
                             </Form.Item>
                           </Col>
                         </Row>
+
+                        <Form.Item
+                          name="departmentId"
+                          label="所属部门"
+                          tooltip="用于部门归属、统计与部门审批人路由"
+                        >
+                          <DepartmentSelect />
+                        </Form.Item>
 
                         {/* PE-5 增补：创建时挂接项目（canAttach 门控；后端创建前动态复核 project:write + 项目非终态） */}
                         {projectLinkPermission.canAttach && (

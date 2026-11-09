@@ -32805,6 +32805,8 @@ type ChangeMutation struct {
 	addtenant_id          *int
 	project_id            *int
 	addproject_id         *int
+	department_id         *int
+	adddepartment_id      *int
 	planned_start_date    *time.Time
 	planned_end_date      *time.Time
 	actual_start_date     *time.Time
@@ -33542,6 +33544,76 @@ func (m *ChangeMutation) ResetProjectID() {
 	delete(m.clearedFields, change.FieldProjectID)
 }
 
+// SetDepartmentID sets the "department_id" field.
+func (m *ChangeMutation) SetDepartmentID(i int) {
+	m.department_id = &i
+	m.adddepartment_id = nil
+}
+
+// DepartmentID returns the value of the "department_id" field in the mutation.
+func (m *ChangeMutation) DepartmentID() (r int, exists bool) {
+	v := m.department_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDepartmentID returns the old "department_id" field's value of the Change entity.
+// If the Change object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ChangeMutation) OldDepartmentID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDepartmentID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDepartmentID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDepartmentID: %w", err)
+	}
+	return oldValue.DepartmentID, nil
+}
+
+// AddDepartmentID adds i to the "department_id" field.
+func (m *ChangeMutation) AddDepartmentID(i int) {
+	if m.adddepartment_id != nil {
+		*m.adddepartment_id += i
+	} else {
+		m.adddepartment_id = &i
+	}
+}
+
+// AddedDepartmentID returns the value that was added to the "department_id" field in this mutation.
+func (m *ChangeMutation) AddedDepartmentID() (r int, exists bool) {
+	v := m.adddepartment_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearDepartmentID clears the value of the "department_id" field.
+func (m *ChangeMutation) ClearDepartmentID() {
+	m.department_id = nil
+	m.adddepartment_id = nil
+	m.clearedFields[change.FieldDepartmentID] = struct{}{}
+}
+
+// DepartmentIDCleared returns if the "department_id" field was cleared in this mutation.
+func (m *ChangeMutation) DepartmentIDCleared() bool {
+	_, ok := m.clearedFields[change.FieldDepartmentID]
+	return ok
+}
+
+// ResetDepartmentID resets all changes to the "department_id" field.
+func (m *ChangeMutation) ResetDepartmentID() {
+	m.department_id = nil
+	m.adddepartment_id = nil
+	delete(m.clearedFields, change.FieldDepartmentID)
+}
+
 // SetPlannedStartDate sets the "planned_start_date" field.
 func (m *ChangeMutation) SetPlannedStartDate(t time.Time) {
 	m.planned_start_date = &t
@@ -34180,7 +34252,7 @@ func (m *ChangeMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *ChangeMutation) Fields() []string {
-	fields := make([]string, 0, 23)
+	fields := make([]string, 0, 24)
 	if m.change_number != nil {
 		fields = append(fields, change.FieldChangeNumber)
 	}
@@ -34219,6 +34291,9 @@ func (m *ChangeMutation) Fields() []string {
 	}
 	if m.project_id != nil {
 		fields = append(fields, change.FieldProjectID)
+	}
+	if m.department_id != nil {
+		fields = append(fields, change.FieldDepartmentID)
 	}
 	if m.planned_start_date != nil {
 		fields = append(fields, change.FieldPlannedStartDate)
@@ -34284,6 +34359,8 @@ func (m *ChangeMutation) Field(name string) (ent.Value, bool) {
 		return m.TenantID()
 	case change.FieldProjectID:
 		return m.ProjectID()
+	case change.FieldDepartmentID:
+		return m.DepartmentID()
 	case change.FieldPlannedStartDate:
 		return m.PlannedStartDate()
 	case change.FieldPlannedEndDate:
@@ -34339,6 +34416,8 @@ func (m *ChangeMutation) OldField(ctx context.Context, name string) (ent.Value, 
 		return m.OldTenantID(ctx)
 	case change.FieldProjectID:
 		return m.OldProjectID(ctx)
+	case change.FieldDepartmentID:
+		return m.OldDepartmentID(ctx)
 	case change.FieldPlannedStartDate:
 		return m.OldPlannedStartDate(ctx)
 	case change.FieldPlannedEndDate:
@@ -34459,6 +34538,13 @@ func (m *ChangeMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetProjectID(v)
 		return nil
+	case change.FieldDepartmentID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDepartmentID(v)
+		return nil
 	case change.FieldPlannedStartDate:
 		v, ok := value.(time.Time)
 		if !ok {
@@ -34549,6 +34635,9 @@ func (m *ChangeMutation) AddedFields() []string {
 	if m.addproject_id != nil {
 		fields = append(fields, change.FieldProjectID)
 	}
+	if m.adddepartment_id != nil {
+		fields = append(fields, change.FieldDepartmentID)
+	}
 	return fields
 }
 
@@ -34565,6 +34654,8 @@ func (m *ChangeMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedTenantID()
 	case change.FieldProjectID:
 		return m.AddedProjectID()
+	case change.FieldDepartmentID:
+		return m.AddedDepartmentID()
 	}
 	return nil, false
 }
@@ -34602,6 +34693,13 @@ func (m *ChangeMutation) AddField(name string, value ent.Value) error {
 		}
 		m.AddProjectID(v)
 		return nil
+	case change.FieldDepartmentID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddDepartmentID(v)
+		return nil
 	}
 	return fmt.Errorf("unknown Change numeric field %s", name)
 }
@@ -34624,6 +34722,9 @@ func (m *ChangeMutation) ClearedFields() []string {
 	}
 	if m.FieldCleared(change.FieldProjectID) {
 		fields = append(fields, change.FieldProjectID)
+	}
+	if m.FieldCleared(change.FieldDepartmentID) {
+		fields = append(fields, change.FieldDepartmentID)
 	}
 	if m.FieldCleared(change.FieldPlannedStartDate) {
 		fields = append(fields, change.FieldPlannedStartDate)
@@ -34677,6 +34778,9 @@ func (m *ChangeMutation) ClearField(name string) error {
 		return nil
 	case change.FieldProjectID:
 		m.ClearProjectID()
+		return nil
+	case change.FieldDepartmentID:
+		m.ClearDepartmentID()
 		return nil
 	case change.FieldPlannedStartDate:
 		m.ClearPlannedStartDate()
@@ -34748,6 +34852,9 @@ func (m *ChangeMutation) ResetField(name string) error {
 		return nil
 	case change.FieldProjectID:
 		m.ResetProjectID()
+		return nil
+	case change.FieldDepartmentID:
+		m.ResetDepartmentID()
 		return nil
 	case change.FieldPlannedStartDate:
 		m.ResetPlannedStartDate()
@@ -83428,6 +83535,8 @@ type IncidentMutation struct {
 	priority                   *string
 	project_id                 *int
 	addproject_id              *int
+	department_id              *int
+	adddepartment_id           *int
 	sla_definition_id          *int
 	addsla_definition_id       *int
 	sla_response_deadline      *time.Time
@@ -83868,6 +83977,76 @@ func (m *IncidentMutation) ResetProjectID() {
 	m.project_id = nil
 	m.addproject_id = nil
 	delete(m.clearedFields, incident.FieldProjectID)
+}
+
+// SetDepartmentID sets the "department_id" field.
+func (m *IncidentMutation) SetDepartmentID(i int) {
+	m.department_id = &i
+	m.adddepartment_id = nil
+}
+
+// DepartmentID returns the value of the "department_id" field in the mutation.
+func (m *IncidentMutation) DepartmentID() (r int, exists bool) {
+	v := m.department_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDepartmentID returns the old "department_id" field's value of the Incident entity.
+// If the Incident object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *IncidentMutation) OldDepartmentID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDepartmentID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDepartmentID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDepartmentID: %w", err)
+	}
+	return oldValue.DepartmentID, nil
+}
+
+// AddDepartmentID adds i to the "department_id" field.
+func (m *IncidentMutation) AddDepartmentID(i int) {
+	if m.adddepartment_id != nil {
+		*m.adddepartment_id += i
+	} else {
+		m.adddepartment_id = &i
+	}
+}
+
+// AddedDepartmentID returns the value that was added to the "department_id" field in this mutation.
+func (m *IncidentMutation) AddedDepartmentID() (r int, exists bool) {
+	v := m.adddepartment_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearDepartmentID clears the value of the "department_id" field.
+func (m *IncidentMutation) ClearDepartmentID() {
+	m.department_id = nil
+	m.adddepartment_id = nil
+	m.clearedFields[incident.FieldDepartmentID] = struct{}{}
+}
+
+// DepartmentIDCleared returns if the "department_id" field was cleared in this mutation.
+func (m *IncidentMutation) DepartmentIDCleared() bool {
+	_, ok := m.clearedFields[incident.FieldDepartmentID]
+	return ok
+}
+
+// ResetDepartmentID resets all changes to the "department_id" field.
+func (m *IncidentMutation) ResetDepartmentID() {
+	m.department_id = nil
+	m.adddepartment_id = nil
+	delete(m.clearedFields, incident.FieldDepartmentID)
 }
 
 // SetSLADefinitionID sets the "sla_definition_id" field.
@@ -86270,7 +86449,7 @@ func (m *IncidentMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *IncidentMutation) Fields() []string {
-	fields := make([]string, 0, 44)
+	fields := make([]string, 0, 45)
 	if m.title != nil {
 		fields = append(fields, incident.FieldTitle)
 	}
@@ -86288,6 +86467,9 @@ func (m *IncidentMutation) Fields() []string {
 	}
 	if m.project_id != nil {
 		fields = append(fields, incident.FieldProjectID)
+	}
+	if m.department_id != nil {
+		fields = append(fields, incident.FieldDepartmentID)
 	}
 	if m.sla_definition_id != nil {
 		fields = append(fields, incident.FieldSLADefinitionID)
@@ -86423,6 +86605,8 @@ func (m *IncidentMutation) Field(name string) (ent.Value, bool) {
 		return m.Priority()
 	case incident.FieldProjectID:
 		return m.ProjectID()
+	case incident.FieldDepartmentID:
+		return m.DepartmentID()
 	case incident.FieldSLADefinitionID:
 		return m.SLADefinitionID()
 	case incident.FieldSLAResponseDeadline:
@@ -86520,6 +86704,8 @@ func (m *IncidentMutation) OldField(ctx context.Context, name string) (ent.Value
 		return m.OldPriority(ctx)
 	case incident.FieldProjectID:
 		return m.OldProjectID(ctx)
+	case incident.FieldDepartmentID:
+		return m.OldDepartmentID(ctx)
 	case incident.FieldSLADefinitionID:
 		return m.OldSLADefinitionID(ctx)
 	case incident.FieldSLAResponseDeadline:
@@ -86646,6 +86832,13 @@ func (m *IncidentMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetProjectID(v)
+		return nil
+	case incident.FieldDepartmentID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDepartmentID(v)
 		return nil
 	case incident.FieldSLADefinitionID:
 		v, ok := value.(int)
@@ -86924,6 +87117,9 @@ func (m *IncidentMutation) AddedFields() []string {
 	if m.addproject_id != nil {
 		fields = append(fields, incident.FieldProjectID)
 	}
+	if m.adddepartment_id != nil {
+		fields = append(fields, incident.FieldDepartmentID)
+	}
 	if m.addsla_definition_id != nil {
 		fields = append(fields, incident.FieldSLADefinitionID)
 	}
@@ -86955,6 +87151,8 @@ func (m *IncidentMutation) AddedField(name string) (ent.Value, bool) {
 	switch name {
 	case incident.FieldProjectID:
 		return m.AddedProjectID()
+	case incident.FieldDepartmentID:
+		return m.AddedDepartmentID()
 	case incident.FieldSLADefinitionID:
 		return m.AddedSLADefinitionID()
 	case incident.FieldReporterID:
@@ -86984,6 +87182,13 @@ func (m *IncidentMutation) AddField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddProjectID(v)
+		return nil
+	case incident.FieldDepartmentID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddDepartmentID(v)
 		return nil
 	case incident.FieldSLADefinitionID:
 		v, ok := value.(int)
@@ -87047,6 +87252,9 @@ func (m *IncidentMutation) ClearedFields() []string {
 	}
 	if m.FieldCleared(incident.FieldProjectID) {
 		fields = append(fields, incident.FieldProjectID)
+	}
+	if m.FieldCleared(incident.FieldDepartmentID) {
+		fields = append(fields, incident.FieldDepartmentID)
 	}
 	if m.FieldCleared(incident.FieldSLADefinitionID) {
 		fields = append(fields, incident.FieldSLADefinitionID)
@@ -87136,6 +87344,9 @@ func (m *IncidentMutation) ClearField(name string) error {
 		return nil
 	case incident.FieldProjectID:
 		m.ClearProjectID()
+		return nil
+	case incident.FieldDepartmentID:
+		m.ClearDepartmentID()
 		return nil
 	case incident.FieldSLADefinitionID:
 		m.ClearSLADefinitionID()
@@ -87231,6 +87442,9 @@ func (m *IncidentMutation) ResetField(name string) error {
 		return nil
 	case incident.FieldProjectID:
 		m.ResetProjectID()
+		return nil
+	case incident.FieldDepartmentID:
+		m.ResetDepartmentID()
 		return nil
 	case incident.FieldSLADefinitionID:
 		m.ResetSLADefinitionID()
@@ -128868,6 +129082,8 @@ type ProblemMutation struct {
 	addassignee_id   *int
 	project_id       *int
 	addproject_id    *int
+	department_id    *int
+	adddepartment_id *int
 	created_by       *int
 	addcreated_by    *int
 	tenant_id        *int
@@ -129581,6 +129797,76 @@ func (m *ProblemMutation) ResetProjectID() {
 	delete(m.clearedFields, problem.FieldProjectID)
 }
 
+// SetDepartmentID sets the "department_id" field.
+func (m *ProblemMutation) SetDepartmentID(i int) {
+	m.department_id = &i
+	m.adddepartment_id = nil
+}
+
+// DepartmentID returns the value of the "department_id" field in the mutation.
+func (m *ProblemMutation) DepartmentID() (r int, exists bool) {
+	v := m.department_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDepartmentID returns the old "department_id" field's value of the Problem entity.
+// If the Problem object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ProblemMutation) OldDepartmentID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDepartmentID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDepartmentID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDepartmentID: %w", err)
+	}
+	return oldValue.DepartmentID, nil
+}
+
+// AddDepartmentID adds i to the "department_id" field.
+func (m *ProblemMutation) AddDepartmentID(i int) {
+	if m.adddepartment_id != nil {
+		*m.adddepartment_id += i
+	} else {
+		m.adddepartment_id = &i
+	}
+}
+
+// AddedDepartmentID returns the value that was added to the "department_id" field in this mutation.
+func (m *ProblemMutation) AddedDepartmentID() (r int, exists bool) {
+	v := m.adddepartment_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearDepartmentID clears the value of the "department_id" field.
+func (m *ProblemMutation) ClearDepartmentID() {
+	m.department_id = nil
+	m.adddepartment_id = nil
+	m.clearedFields[problem.FieldDepartmentID] = struct{}{}
+}
+
+// DepartmentIDCleared returns if the "department_id" field was cleared in this mutation.
+func (m *ProblemMutation) DepartmentIDCleared() bool {
+	_, ok := m.clearedFields[problem.FieldDepartmentID]
+	return ok
+}
+
+// ResetDepartmentID resets all changes to the "department_id" field.
+func (m *ProblemMutation) ResetDepartmentID() {
+	m.department_id = nil
+	m.adddepartment_id = nil
+	delete(m.clearedFields, problem.FieldDepartmentID)
+}
+
 // SetCreatedBy sets the "created_by" field.
 func (m *ProblemMutation) SetCreatedBy(i int) {
 	m.created_by = &i
@@ -130108,7 +130394,7 @@ func (m *ProblemMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *ProblemMutation) Fields() []string {
-	fields := make([]string, 0, 19)
+	fields := make([]string, 0, 20)
 	if m.problem_number != nil {
 		fields = append(fields, problem.FieldProblemNumber)
 	}
@@ -130144,6 +130430,9 @@ func (m *ProblemMutation) Fields() []string {
 	}
 	if m.project_id != nil {
 		fields = append(fields, problem.FieldProjectID)
+	}
+	if m.department_id != nil {
+		fields = append(fields, problem.FieldDepartmentID)
 	}
 	if m.created_by != nil {
 		fields = append(fields, problem.FieldCreatedBy)
@@ -130198,6 +130487,8 @@ func (m *ProblemMutation) Field(name string) (ent.Value, bool) {
 		return m.AssigneeID()
 	case problem.FieldProjectID:
 		return m.ProjectID()
+	case problem.FieldDepartmentID:
+		return m.DepartmentID()
 	case problem.FieldCreatedBy:
 		return m.CreatedBy()
 	case problem.FieldTenantID:
@@ -130245,6 +130536,8 @@ func (m *ProblemMutation) OldField(ctx context.Context, name string) (ent.Value,
 		return m.OldAssigneeID(ctx)
 	case problem.FieldProjectID:
 		return m.OldProjectID(ctx)
+	case problem.FieldDepartmentID:
+		return m.OldDepartmentID(ctx)
 	case problem.FieldCreatedBy:
 		return m.OldCreatedBy(ctx)
 	case problem.FieldTenantID:
@@ -130352,6 +130645,13 @@ func (m *ProblemMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetProjectID(v)
 		return nil
+	case problem.FieldDepartmentID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDepartmentID(v)
+		return nil
 	case problem.FieldCreatedBy:
 		v, ok := value.(int)
 		if !ok {
@@ -130415,6 +130715,9 @@ func (m *ProblemMutation) AddedFields() []string {
 	if m.addproject_id != nil {
 		fields = append(fields, problem.FieldProjectID)
 	}
+	if m.adddepartment_id != nil {
+		fields = append(fields, problem.FieldDepartmentID)
+	}
 	if m.addcreated_by != nil {
 		fields = append(fields, problem.FieldCreatedBy)
 	}
@@ -130433,6 +130736,8 @@ func (m *ProblemMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedAssigneeID()
 	case problem.FieldProjectID:
 		return m.AddedProjectID()
+	case problem.FieldDepartmentID:
+		return m.AddedDepartmentID()
 	case problem.FieldCreatedBy:
 		return m.AddedCreatedBy()
 	case problem.FieldTenantID:
@@ -130459,6 +130764,13 @@ func (m *ProblemMutation) AddField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddProjectID(v)
+		return nil
+	case problem.FieldDepartmentID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddDepartmentID(v)
 		return nil
 	case problem.FieldCreatedBy:
 		v, ok := value.(int)
@@ -130509,6 +130821,9 @@ func (m *ProblemMutation) ClearedFields() []string {
 	if m.FieldCleared(problem.FieldProjectID) {
 		fields = append(fields, problem.FieldProjectID)
 	}
+	if m.FieldCleared(problem.FieldDepartmentID) {
+		fields = append(fields, problem.FieldDepartmentID)
+	}
 	if m.FieldCleared(problem.FieldResolvedAt) {
 		fields = append(fields, problem.FieldResolvedAt)
 	}
@@ -130558,6 +130873,9 @@ func (m *ProblemMutation) ClearField(name string) error {
 		return nil
 	case problem.FieldProjectID:
 		m.ClearProjectID()
+		return nil
+	case problem.FieldDepartmentID:
+		m.ClearDepartmentID()
 		return nil
 	case problem.FieldResolvedAt:
 		m.ClearResolvedAt()
@@ -130611,6 +130929,9 @@ func (m *ProblemMutation) ResetField(name string) error {
 		return nil
 	case problem.FieldProjectID:
 		m.ResetProjectID()
+		return nil
+	case problem.FieldDepartmentID:
+		m.ResetDepartmentID()
 		return nil
 	case problem.FieldCreatedBy:
 		m.ResetCreatedBy()
@@ -168220,6 +168541,8 @@ type ReleaseMutation struct {
 	status                    *string
 	severity                  *string
 	environment               *string
+	department_id             *int
+	adddepartment_id          *int
 	change_id                 *int
 	addchange_id              *int
 	owner_id                  *int
@@ -168614,6 +168937,76 @@ func (m *ReleaseMutation) OldEnvironment(ctx context.Context) (v string, err err
 // ResetEnvironment resets all changes to the "environment" field.
 func (m *ReleaseMutation) ResetEnvironment() {
 	m.environment = nil
+}
+
+// SetDepartmentID sets the "department_id" field.
+func (m *ReleaseMutation) SetDepartmentID(i int) {
+	m.department_id = &i
+	m.adddepartment_id = nil
+}
+
+// DepartmentID returns the value of the "department_id" field in the mutation.
+func (m *ReleaseMutation) DepartmentID() (r int, exists bool) {
+	v := m.department_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDepartmentID returns the old "department_id" field's value of the Release entity.
+// If the Release object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ReleaseMutation) OldDepartmentID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDepartmentID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDepartmentID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDepartmentID: %w", err)
+	}
+	return oldValue.DepartmentID, nil
+}
+
+// AddDepartmentID adds i to the "department_id" field.
+func (m *ReleaseMutation) AddDepartmentID(i int) {
+	if m.adddepartment_id != nil {
+		*m.adddepartment_id += i
+	} else {
+		m.adddepartment_id = &i
+	}
+}
+
+// AddedDepartmentID returns the value that was added to the "department_id" field in this mutation.
+func (m *ReleaseMutation) AddedDepartmentID() (r int, exists bool) {
+	v := m.adddepartment_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearDepartmentID clears the value of the "department_id" field.
+func (m *ReleaseMutation) ClearDepartmentID() {
+	m.department_id = nil
+	m.adddepartment_id = nil
+	m.clearedFields[release.FieldDepartmentID] = struct{}{}
+}
+
+// DepartmentIDCleared returns if the "department_id" field was cleared in this mutation.
+func (m *ReleaseMutation) DepartmentIDCleared() bool {
+	_, ok := m.clearedFields[release.FieldDepartmentID]
+	return ok
+}
+
+// ResetDepartmentID resets all changes to the "department_id" field.
+func (m *ReleaseMutation) ResetDepartmentID() {
+	m.department_id = nil
+	m.adddepartment_id = nil
+	delete(m.clearedFields, release.FieldDepartmentID)
 }
 
 // SetChangeID sets the "change_id" field.
@@ -169649,7 +170042,7 @@ func (m *ReleaseMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *ReleaseMutation) Fields() []string {
-	fields := make([]string, 0, 26)
+	fields := make([]string, 0, 27)
 	if m.release_number != nil {
 		fields = append(fields, release.FieldReleaseNumber)
 	}
@@ -169670,6 +170063,9 @@ func (m *ReleaseMutation) Fields() []string {
 	}
 	if m.environment != nil {
 		fields = append(fields, release.FieldEnvironment)
+	}
+	if m.department_id != nil {
+		fields = append(fields, release.FieldDepartmentID)
 	}
 	if m.change_id != nil {
 		fields = append(fields, release.FieldChangeID)
@@ -169750,6 +170146,8 @@ func (m *ReleaseMutation) Field(name string) (ent.Value, bool) {
 		return m.Severity()
 	case release.FieldEnvironment:
 		return m.Environment()
+	case release.FieldDepartmentID:
+		return m.DepartmentID()
 	case release.FieldChangeID:
 		return m.ChangeID()
 	case release.FieldOwnerID:
@@ -169811,6 +170209,8 @@ func (m *ReleaseMutation) OldField(ctx context.Context, name string) (ent.Value,
 		return m.OldSeverity(ctx)
 	case release.FieldEnvironment:
 		return m.OldEnvironment(ctx)
+	case release.FieldDepartmentID:
+		return m.OldDepartmentID(ctx)
 	case release.FieldChangeID:
 		return m.OldChangeID(ctx)
 	case release.FieldOwnerID:
@@ -169906,6 +170306,13 @@ func (m *ReleaseMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetEnvironment(v)
+		return nil
+	case release.FieldDepartmentID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDepartmentID(v)
 		return nil
 	case release.FieldChangeID:
 		v, ok := value.(int)
@@ -170048,6 +170455,9 @@ func (m *ReleaseMutation) SetField(name string, value ent.Value) error {
 // this mutation.
 func (m *ReleaseMutation) AddedFields() []string {
 	var fields []string
+	if m.adddepartment_id != nil {
+		fields = append(fields, release.FieldDepartmentID)
+	}
 	if m.addchange_id != nil {
 		fields = append(fields, release.FieldChangeID)
 	}
@@ -170068,6 +170478,8 @@ func (m *ReleaseMutation) AddedFields() []string {
 // was not set, or was not defined in the schema.
 func (m *ReleaseMutation) AddedField(name string) (ent.Value, bool) {
 	switch name {
+	case release.FieldDepartmentID:
+		return m.AddedDepartmentID()
 	case release.FieldChangeID:
 		return m.AddedChangeID()
 	case release.FieldOwnerID:
@@ -170085,6 +170497,13 @@ func (m *ReleaseMutation) AddedField(name string) (ent.Value, bool) {
 // type.
 func (m *ReleaseMutation) AddField(name string, value ent.Value) error {
 	switch name {
+	case release.FieldDepartmentID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddDepartmentID(v)
+		return nil
 	case release.FieldChangeID:
 		v, ok := value.(int)
 		if !ok {
@@ -170123,6 +170542,9 @@ func (m *ReleaseMutation) ClearedFields() []string {
 	var fields []string
 	if m.FieldCleared(release.FieldDescription) {
 		fields = append(fields, release.FieldDescription)
+	}
+	if m.FieldCleared(release.FieldDepartmentID) {
+		fields = append(fields, release.FieldDepartmentID)
 	}
 	if m.FieldCleared(release.FieldChangeID) {
 		fields = append(fields, release.FieldChangeID)
@@ -170179,6 +170601,9 @@ func (m *ReleaseMutation) ClearField(name string) error {
 	switch name {
 	case release.FieldDescription:
 		m.ClearDescription()
+		return nil
+	case release.FieldDepartmentID:
+		m.ClearDepartmentID()
 		return nil
 	case release.FieldChangeID:
 		m.ClearChangeID()
@@ -170247,6 +170672,9 @@ func (m *ReleaseMutation) ResetField(name string) error {
 		return nil
 	case release.FieldEnvironment:
 		m.ResetEnvironment()
+		return nil
+	case release.FieldDepartmentID:
+		m.ResetDepartmentID()
 		return nil
 	case release.FieldChangeID:
 		m.ResetChangeID()
@@ -193585,6 +194013,8 @@ type ServiceRequestMutation struct {
 	addci_id                  *int
 	project_id                *int
 	addproject_id             *int
+	department_id             *int
+	adddepartment_id          *int
 	requester_id              *int
 	addrequester_id           *int
 	status                    *string
@@ -193972,6 +194402,76 @@ func (m *ServiceRequestMutation) ResetProjectID() {
 	m.project_id = nil
 	m.addproject_id = nil
 	delete(m.clearedFields, servicerequest.FieldProjectID)
+}
+
+// SetDepartmentID sets the "department_id" field.
+func (m *ServiceRequestMutation) SetDepartmentID(i int) {
+	m.department_id = &i
+	m.adddepartment_id = nil
+}
+
+// DepartmentID returns the value of the "department_id" field in the mutation.
+func (m *ServiceRequestMutation) DepartmentID() (r int, exists bool) {
+	v := m.department_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDepartmentID returns the old "department_id" field's value of the ServiceRequest entity.
+// If the ServiceRequest object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ServiceRequestMutation) OldDepartmentID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDepartmentID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDepartmentID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDepartmentID: %w", err)
+	}
+	return oldValue.DepartmentID, nil
+}
+
+// AddDepartmentID adds i to the "department_id" field.
+func (m *ServiceRequestMutation) AddDepartmentID(i int) {
+	if m.adddepartment_id != nil {
+		*m.adddepartment_id += i
+	} else {
+		m.adddepartment_id = &i
+	}
+}
+
+// AddedDepartmentID returns the value that was added to the "department_id" field in this mutation.
+func (m *ServiceRequestMutation) AddedDepartmentID() (r int, exists bool) {
+	v := m.adddepartment_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearDepartmentID clears the value of the "department_id" field.
+func (m *ServiceRequestMutation) ClearDepartmentID() {
+	m.department_id = nil
+	m.adddepartment_id = nil
+	m.clearedFields[servicerequest.FieldDepartmentID] = struct{}{}
+}
+
+// DepartmentIDCleared returns if the "department_id" field was cleared in this mutation.
+func (m *ServiceRequestMutation) DepartmentIDCleared() bool {
+	_, ok := m.clearedFields[servicerequest.FieldDepartmentID]
+	return ok
+}
+
+// ResetDepartmentID resets all changes to the "department_id" field.
+func (m *ServiceRequestMutation) ResetDepartmentID() {
+	m.department_id = nil
+	m.adddepartment_id = nil
+	delete(m.clearedFields, servicerequest.FieldDepartmentID)
 }
 
 // SetRequesterID sets the "requester_id" field.
@@ -195285,7 +195785,7 @@ func (m *ServiceRequestMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *ServiceRequestMutation) Fields() []string {
-	fields := make([]string, 0, 30)
+	fields := make([]string, 0, 31)
 	if m.tenant_id != nil {
 		fields = append(fields, servicerequest.FieldTenantID)
 	}
@@ -195297,6 +195797,9 @@ func (m *ServiceRequestMutation) Fields() []string {
 	}
 	if m.project_id != nil {
 		fields = append(fields, servicerequest.FieldProjectID)
+	}
+	if m.department_id != nil {
+		fields = append(fields, servicerequest.FieldDepartmentID)
 	}
 	if m.requester_id != nil {
 		fields = append(fields, servicerequest.FieldRequesterID)
@@ -195392,6 +195895,8 @@ func (m *ServiceRequestMutation) Field(name string) (ent.Value, bool) {
 		return m.CiID()
 	case servicerequest.FieldProjectID:
 		return m.ProjectID()
+	case servicerequest.FieldDepartmentID:
+		return m.DepartmentID()
 	case servicerequest.FieldRequesterID:
 		return m.RequesterID()
 	case servicerequest.FieldStatus:
@@ -195461,6 +195966,8 @@ func (m *ServiceRequestMutation) OldField(ctx context.Context, name string) (ent
 		return m.OldCiID(ctx)
 	case servicerequest.FieldProjectID:
 		return m.OldProjectID(ctx)
+	case servicerequest.FieldDepartmentID:
+		return m.OldDepartmentID(ctx)
 	case servicerequest.FieldRequesterID:
 		return m.OldRequesterID(ctx)
 	case servicerequest.FieldStatus:
@@ -195549,6 +196056,13 @@ func (m *ServiceRequestMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetProjectID(v)
+		return nil
+	case servicerequest.FieldDepartmentID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDepartmentID(v)
 		return nil
 	case servicerequest.FieldRequesterID:
 		v, ok := value.(int)
@@ -195752,6 +196266,9 @@ func (m *ServiceRequestMutation) AddedFields() []string {
 	if m.addproject_id != nil {
 		fields = append(fields, servicerequest.FieldProjectID)
 	}
+	if m.adddepartment_id != nil {
+		fields = append(fields, servicerequest.FieldDepartmentID)
+	}
 	if m.addrequester_id != nil {
 		fields = append(fields, servicerequest.FieldRequesterID)
 	}
@@ -195783,6 +196300,8 @@ func (m *ServiceRequestMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedCiID()
 	case servicerequest.FieldProjectID:
 		return m.AddedProjectID()
+	case servicerequest.FieldDepartmentID:
+		return m.AddedDepartmentID()
 	case servicerequest.FieldRequesterID:
 		return m.AddedRequesterID()
 	case servicerequest.FieldCurrentLevel:
@@ -195829,6 +196348,13 @@ func (m *ServiceRequestMutation) AddField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddProjectID(v)
+		return nil
+	case servicerequest.FieldDepartmentID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddDepartmentID(v)
 		return nil
 	case servicerequest.FieldRequesterID:
 		v, ok := value.(int)
@@ -195878,6 +196404,9 @@ func (m *ServiceRequestMutation) ClearedFields() []string {
 	}
 	if m.FieldCleared(servicerequest.FieldProjectID) {
 		fields = append(fields, servicerequest.FieldProjectID)
+	}
+	if m.FieldCleared(servicerequest.FieldDepartmentID) {
+		fields = append(fields, servicerequest.FieldDepartmentID)
 	}
 	if m.FieldCleared(servicerequest.FieldTitle) {
 		fields = append(fields, servicerequest.FieldTitle)
@@ -195947,6 +196476,9 @@ func (m *ServiceRequestMutation) ClearField(name string) error {
 	case servicerequest.FieldProjectID:
 		m.ClearProjectID()
 		return nil
+	case servicerequest.FieldDepartmentID:
+		m.ClearDepartmentID()
+		return nil
 	case servicerequest.FieldTitle:
 		m.ClearTitle()
 		return nil
@@ -196014,6 +196546,9 @@ func (m *ServiceRequestMutation) ResetField(name string) error {
 		return nil
 	case servicerequest.FieldProjectID:
 		m.ResetProjectID()
+		return nil
+	case servicerequest.FieldDepartmentID:
+		m.ResetDepartmentID()
 		return nil
 	case servicerequest.FieldRequesterID:
 		m.ResetRequesterID()

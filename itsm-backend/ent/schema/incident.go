@@ -43,6 +43,9 @@ func (Incident) Fields() []ent.Field {
 		field.Int("project_id").
 			Comment("所属项目ID（P0；同租户）").
 			Optional(),
+		field.Int("department_id").
+			Comment("所属部门ID（同租户）").
+			Optional(),
 		field.Int("sla_definition_id").
 			Comment("SLA定义ID").
 			Optional(),
@@ -219,5 +222,6 @@ func (Incident) Indexes() []ent.Index {
 	return []ent.Index{
 		index.Fields("tenant_id", "email_conversation_id").Unique(),
 		index.Fields("tenant_id", "assignment_group_id"),
+		index.Fields("tenant_id", "department_id"),
 	}
 }

@@ -267,6 +267,33 @@ func (_u *ProblemUpdate) ClearProjectID() *ProblemUpdate {
 	return _u
 }
 
+// SetDepartmentID sets the "department_id" field.
+func (_u *ProblemUpdate) SetDepartmentID(v int) *ProblemUpdate {
+	_u.mutation.ResetDepartmentID()
+	_u.mutation.SetDepartmentID(v)
+	return _u
+}
+
+// SetNillableDepartmentID sets the "department_id" field if the given value is not nil.
+func (_u *ProblemUpdate) SetNillableDepartmentID(v *int) *ProblemUpdate {
+	if v != nil {
+		_u.SetDepartmentID(*v)
+	}
+	return _u
+}
+
+// AddDepartmentID adds value to the "department_id" field.
+func (_u *ProblemUpdate) AddDepartmentID(v int) *ProblemUpdate {
+	_u.mutation.AddDepartmentID(v)
+	return _u
+}
+
+// ClearDepartmentID clears the value of the "department_id" field.
+func (_u *ProblemUpdate) ClearDepartmentID() *ProblemUpdate {
+	_u.mutation.ClearDepartmentID()
+	return _u
+}
+
 // SetCreatedBy sets the "created_by" field.
 func (_u *ProblemUpdate) SetCreatedBy(v int) *ProblemUpdate {
 	_u.mutation.ResetCreatedBy()
@@ -643,6 +670,15 @@ func (_u *ProblemUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if _u.mutation.ProjectIDCleared() {
 		_spec.ClearField(problem.FieldProjectID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.DepartmentID(); ok {
+		_spec.SetField(problem.FieldDepartmentID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedDepartmentID(); ok {
+		_spec.AddField(problem.FieldDepartmentID, field.TypeInt, value)
+	}
+	if _u.mutation.DepartmentIDCleared() {
+		_spec.ClearField(problem.FieldDepartmentID, field.TypeInt)
 	}
 	if value, ok := _u.mutation.CreatedBy(); ok {
 		_spec.SetField(problem.FieldCreatedBy, field.TypeInt, value)
@@ -1071,6 +1107,33 @@ func (_u *ProblemUpdateOne) ClearProjectID() *ProblemUpdateOne {
 	return _u
 }
 
+// SetDepartmentID sets the "department_id" field.
+func (_u *ProblemUpdateOne) SetDepartmentID(v int) *ProblemUpdateOne {
+	_u.mutation.ResetDepartmentID()
+	_u.mutation.SetDepartmentID(v)
+	return _u
+}
+
+// SetNillableDepartmentID sets the "department_id" field if the given value is not nil.
+func (_u *ProblemUpdateOne) SetNillableDepartmentID(v *int) *ProblemUpdateOne {
+	if v != nil {
+		_u.SetDepartmentID(*v)
+	}
+	return _u
+}
+
+// AddDepartmentID adds value to the "department_id" field.
+func (_u *ProblemUpdateOne) AddDepartmentID(v int) *ProblemUpdateOne {
+	_u.mutation.AddDepartmentID(v)
+	return _u
+}
+
+// ClearDepartmentID clears the value of the "department_id" field.
+func (_u *ProblemUpdateOne) ClearDepartmentID() *ProblemUpdateOne {
+	_u.mutation.ClearDepartmentID()
+	return _u
+}
+
 // SetCreatedBy sets the "created_by" field.
 func (_u *ProblemUpdateOne) SetCreatedBy(v int) *ProblemUpdateOne {
 	_u.mutation.ResetCreatedBy()
@@ -1477,6 +1540,15 @@ func (_u *ProblemUpdateOne) sqlSave(ctx context.Context) (_node *Problem, err er
 	}
 	if _u.mutation.ProjectIDCleared() {
 		_spec.ClearField(problem.FieldProjectID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.DepartmentID(); ok {
+		_spec.SetField(problem.FieldDepartmentID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedDepartmentID(); ok {
+		_spec.AddField(problem.FieldDepartmentID, field.TypeInt, value)
+	}
+	if _u.mutation.DepartmentIDCleared() {
+		_spec.ClearField(problem.FieldDepartmentID, field.TypeInt)
 	}
 	if value, ok := _u.mutation.CreatedBy(); ok {
 		_spec.SetField(problem.FieldCreatedBy, field.TypeInt, value)

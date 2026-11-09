@@ -64,6 +64,7 @@ func toDTO(c *Change) *dto.ChangeResponse {
 		ImpactScope:        dto.ChangeImpact(c.ImpactScope),
 		RiskLevel:          dto.ChangeRisk(c.RiskLevel),
 		AssigneeID:         c.AssigneeID,
+		DepartmentID:       c.DepartmentID,
 		CreatedBy:          c.CreatedBy,
 		TenantID:           c.TenantID,
 		PlannedStartDate:   c.PlannedStartDate,
@@ -133,6 +134,7 @@ func (h *Handler) CreateChange(c *gin.Context) {
 		CreatedBy:          userID,
 		TenantID:           tenantID,
 		ProjectID:          req.ProjectID,
+		DepartmentID:       req.DepartmentID,
 		PlannedStartDate:   req.PlannedStartDate,
 		PlannedEndDate:     req.PlannedEndDate,
 		ImplementationPlan: req.ImplementationPlan,
@@ -484,6 +486,9 @@ func (h *Handler) UpdateChange(c *gin.Context) {
 	}
 	if req.RelatedTickets != nil {
 		existing.RelatedTickets = req.RelatedTickets
+	}
+	if req.DepartmentID != nil {
+		existing.DepartmentID = req.DepartmentID
 	}
 
 	res, err := h.svc.UpdateChange(c.Request.Context(), existing, actorID, actorRole)

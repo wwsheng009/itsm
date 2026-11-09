@@ -40,6 +40,8 @@ const (
 	FieldTenantID = "tenant_id"
 	// FieldProjectID holds the string denoting the project_id field in the database.
 	FieldProjectID = "project_id"
+	// FieldDepartmentID holds the string denoting the department_id field in the database.
+	FieldDepartmentID = "department_id"
 	// FieldPlannedStartDate holds the string denoting the planned_start_date field in the database.
 	FieldPlannedStartDate = "planned_start_date"
 	// FieldPlannedEndDate holds the string denoting the planned_end_date field in the database.
@@ -96,6 +98,7 @@ var Columns = []string{
 	FieldCreatedBy,
 	FieldTenantID,
 	FieldProjectID,
+	FieldDepartmentID,
 	FieldPlannedStartDate,
 	FieldPlannedEndDate,
 	FieldActualStartDate,
@@ -233,6 +236,11 @@ func ByTenantID(opts ...sql.OrderTermOption) OrderOption {
 // ByProjectID orders the results by the project_id field.
 func ByProjectID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldProjectID, opts...).ToFunc()
+}
+
+// ByDepartmentID orders the results by the department_id field.
+func ByDepartmentID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldDepartmentID, opts...).ToFunc()
 }
 
 // ByPlannedStartDate orders the results by the planned_start_date field.

@@ -33,6 +33,7 @@ export interface ReleaseRequest {
   severity?: ReleaseSeverity;
   changeId?: number;
   ownerId?: number;
+  departmentId?: number;
   plannedReleaseDate?: string;
   plannedStartDate?: string;
   plannedEndDate?: string;
@@ -60,6 +61,7 @@ export interface Release {
   changeId?: number;
   ownerId?: number;
   ownerName?: string;
+  departmentId?: number;
   createdBy: number;
   createdByName: string;
   tenantId: number;

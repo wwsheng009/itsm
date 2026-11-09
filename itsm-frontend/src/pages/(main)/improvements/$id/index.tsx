@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, Descriptions, Tag, Button, Skeleton, Result, Space, App } from 'antd';
 import { ArrowLeft } from 'lucide-react';
 import { TicketApi } from '@/lib/api/ticket-api';
+import { DepartmentName } from '@/components/business/DepartmentSelect';
 import { useI18n } from '@/lib/i18n/useI18n';
 
 const ImprovementDetailPage = () => {
@@ -20,6 +21,7 @@ const ImprovementDetailPage = () => {
     description?: string;
     status?: string;
     priority?: string;
+    departmentId?: number;
     assignee?: { name?: string };
     createdAt?: string;
     updatedAt?: string;
@@ -113,6 +115,9 @@ const ImprovementDetailPage = () => {
             </Descriptions.Item>
             <Descriptions.Item label={t('improvements.fieldPriority')}>
               {improvement.priority || t('improvements.defaultPriority')}
+            </Descriptions.Item>
+            <Descriptions.Item label="所属部门">
+              <DepartmentName departmentId={improvement.departmentId} />
             </Descriptions.Item>
             <Descriptions.Item label={t('improvements.fieldOwner')}>
               {improvement.assignee?.name || t('improvements.unassigned')}

@@ -17,6 +17,7 @@ func (ServiceRequest) Fields() []ent.Field {
 		field.Int("catalog_id").Comment("服务目录ID").Positive(),
 		field.Int("ci_id").Comment("关联CI ID").Optional(),
 		field.Int("project_id").Comment("所属项目ID（P0；同租户）").Optional(),
+		field.Int("department_id").Comment("所属部门ID（同租户）").Optional(),
 		field.Int("requester_id").Comment("申请人ID").Positive(),
 		field.String("status").Comment("状态: submitted|approved|rejected|in_progress|completed|cancelled").Default("submitted"),
 		field.String("title").Comment("请求标题").Optional(),
@@ -66,5 +67,6 @@ func (ServiceRequest) Indexes() []ent.Index {
 		index.Fields("tenant_id", "status", "created_at"),
 		index.Fields("tenant_id", "ci_id"),
 		index.Fields("tenant_id", "current_level"),
+		index.Fields("tenant_id", "department_id"),
 	}
 }

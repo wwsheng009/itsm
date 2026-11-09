@@ -89,6 +89,11 @@ func Environment(v string) predicate.Release {
 	return predicate.Release(sql.FieldEQ(FieldEnvironment, v))
 }
 
+// DepartmentID applies equality check predicate on the "department_id" field. It's identical to DepartmentIDEQ.
+func DepartmentID(v int) predicate.Release {
+	return predicate.Release(sql.FieldEQ(FieldDepartmentID, v))
+}
+
 // ChangeID applies equality check predicate on the "change_id" field. It's identical to ChangeIDEQ.
 func ChangeID(v int) predicate.Release {
 	return predicate.Release(sql.FieldEQ(FieldChangeID, v))
@@ -627,6 +632,56 @@ func EnvironmentEqualFold(v string) predicate.Release {
 // EnvironmentContainsFold applies the ContainsFold predicate on the "environment" field.
 func EnvironmentContainsFold(v string) predicate.Release {
 	return predicate.Release(sql.FieldContainsFold(FieldEnvironment, v))
+}
+
+// DepartmentIDEQ applies the EQ predicate on the "department_id" field.
+func DepartmentIDEQ(v int) predicate.Release {
+	return predicate.Release(sql.FieldEQ(FieldDepartmentID, v))
+}
+
+// DepartmentIDNEQ applies the NEQ predicate on the "department_id" field.
+func DepartmentIDNEQ(v int) predicate.Release {
+	return predicate.Release(sql.FieldNEQ(FieldDepartmentID, v))
+}
+
+// DepartmentIDIn applies the In predicate on the "department_id" field.
+func DepartmentIDIn(vs ...int) predicate.Release {
+	return predicate.Release(sql.FieldIn(FieldDepartmentID, vs...))
+}
+
+// DepartmentIDNotIn applies the NotIn predicate on the "department_id" field.
+func DepartmentIDNotIn(vs ...int) predicate.Release {
+	return predicate.Release(sql.FieldNotIn(FieldDepartmentID, vs...))
+}
+
+// DepartmentIDGT applies the GT predicate on the "department_id" field.
+func DepartmentIDGT(v int) predicate.Release {
+	return predicate.Release(sql.FieldGT(FieldDepartmentID, v))
+}
+
+// DepartmentIDGTE applies the GTE predicate on the "department_id" field.
+func DepartmentIDGTE(v int) predicate.Release {
+	return predicate.Release(sql.FieldGTE(FieldDepartmentID, v))
+}
+
+// DepartmentIDLT applies the LT predicate on the "department_id" field.
+func DepartmentIDLT(v int) predicate.Release {
+	return predicate.Release(sql.FieldLT(FieldDepartmentID, v))
+}
+
+// DepartmentIDLTE applies the LTE predicate on the "department_id" field.
+func DepartmentIDLTE(v int) predicate.Release {
+	return predicate.Release(sql.FieldLTE(FieldDepartmentID, v))
+}
+
+// DepartmentIDIsNil applies the IsNil predicate on the "department_id" field.
+func DepartmentIDIsNil() predicate.Release {
+	return predicate.Release(sql.FieldIsNull(FieldDepartmentID))
+}
+
+// DepartmentIDNotNil applies the NotNil predicate on the "department_id" field.
+func DepartmentIDNotNil() predicate.Release {
+	return predicate.Release(sql.FieldNotNull(FieldDepartmentID))
 }
 
 // ChangeIDEQ applies the EQ predicate on the "change_id" field.

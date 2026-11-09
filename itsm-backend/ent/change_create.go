@@ -180,6 +180,20 @@ func (_c *ChangeCreate) SetNillableProjectID(v *int) *ChangeCreate {
 	return _c
 }
 
+// SetDepartmentID sets the "department_id" field.
+func (_c *ChangeCreate) SetDepartmentID(v int) *ChangeCreate {
+	_c.mutation.SetDepartmentID(v)
+	return _c
+}
+
+// SetNillableDepartmentID sets the "department_id" field if the given value is not nil.
+func (_c *ChangeCreate) SetNillableDepartmentID(v *int) *ChangeCreate {
+	if v != nil {
+		_c.SetDepartmentID(*v)
+	}
+	return _c
+}
+
 // SetPlannedStartDate sets the "planned_start_date" field.
 func (_c *ChangeCreate) SetPlannedStartDate(v time.Time) *ChangeCreate {
 	_c.mutation.SetPlannedStartDate(v)
@@ -528,6 +542,10 @@ func (_c *ChangeCreate) createSpec() (*Change, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.ProjectID(); ok {
 		_spec.SetField(change.FieldProjectID, field.TypeInt, value)
 		_node.ProjectID = value
+	}
+	if value, ok := _c.mutation.DepartmentID(); ok {
+		_spec.SetField(change.FieldDepartmentID, field.TypeInt, value)
+		_node.DepartmentID = value
 	}
 	if value, ok := _c.mutation.PlannedStartDate(); ok {
 		_spec.SetField(change.FieldPlannedStartDate, field.TypeTime, value)

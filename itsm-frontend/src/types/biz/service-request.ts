@@ -53,6 +53,7 @@ export interface ServiceRequest {
   id: number;
   catalogId: number;
   requesterId: number;
+  departmentId?: number;
   status: ServiceRequestStatus | string;
   title?: string;
   reason?: string;

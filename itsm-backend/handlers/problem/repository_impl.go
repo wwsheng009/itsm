@@ -57,6 +57,10 @@ func (r *EntRepository) toDomain(e *ent.Problem) *Problem {
 		id := e.AssigneeID
 		p.AssigneeID = &id
 	}
+	if e.DepartmentID != 0 {
+		id := e.DepartmentID
+		p.DepartmentID = &id
+	}
 	return p
 }
 
@@ -201,6 +205,7 @@ func (r *EntRepository) Create(ctx context.Context, p *Problem) (*Problem, error
 		SetCreatedBy(p.CreatedBy).
 		SetTenantID(p.TenantID).
 		SetNillableProjectID(p.ProjectID).
+		SetNillableDepartmentID(p.DepartmentID).
 		SetCreatedAt(time.Now()).
 		SetUpdatedAt(time.Now())
 
@@ -331,6 +336,10 @@ func (r *EntRepository) Update(ctx context.Context, p *Problem) (*Problem, error
 		SetResolution(p.Resolution).
 		SetImpact(p.Impact).
 		SetUpdatedAt(time.Now())
+
+	if p.DepartmentID != nil {
+		update.SetNillableDepartmentID(p.DepartmentID)
+	}
 
 	if p.AssigneeID != nil {
 		update.SetAssigneeID(*p.AssigneeID)

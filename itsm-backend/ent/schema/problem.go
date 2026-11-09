@@ -6,6 +6,7 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/schema/edge"
 	"entgo.io/ent/schema/field"
+	"entgo.io/ent/schema/index"
 )
 
 // Problem holds the schema definition for the Problem entity.
@@ -53,6 +54,9 @@ func (Problem) Fields() []ent.Field {
 		field.Int("project_id").
 			Comment("所属项目ID（P0；同租户）").
 			Optional(),
+		field.Int("department_id").
+			Comment("所属部门ID（同租户）").
+			Optional(),
 		field.Int("created_by").
 			Comment("创建人ID").
 			Positive(),
@@ -93,5 +97,11 @@ func (Problem) Edges() []ent.Edge {
 		// 与变更的关联
 		edge.To("changes", Change.Type).
 			Comment("关联的变更"),
+	}
+}
+
+func (Problem) Indexes() []ent.Index {
+	return []ent.Index{
+		index.Fields("tenant_id", "department_id"),
 	}
 }

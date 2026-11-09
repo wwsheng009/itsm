@@ -50,67 +50,70 @@ const (
 // validationCriteria 落库 HTML，标签与内嵌图片属性会额外占用长度，故显式放宽到
 // 20000（对齐 service_request.reason / incident.description 口径），纯文本长度由前端校验把关。
 type CreateReleaseRequest struct {
-	ReleaseNumber      string     `json:"releaseNumber" binding:"required"`                  // 发布编号
-	Title              string     `json:"title" binding:"required"`                          // 发布标题
-	Description        string     `json:"description" binding:"omitempty,max=20000"`         // 发布描述（富文本 HTML）
-	Type               string     `json:"type"`                                              // 发布类型
-	Environment        string     `json:"environment"`                                       // 目标环境
-	Severity           string     `json:"severity"`                                          // 严重程度
-	ChangeID           *int       `json:"changeId"`                                          // 关联变更ID
-	OwnerID            *int       `json:"ownerId"`                                           // 负责人ID
-	PlannedReleaseDate *time.Time `json:"plannedReleaseDate"`                                // 计划发布日期
-	PlannedStartDate   *time.Time `json:"plannedStartDate"`                                  // 计划开始时间
-	PlannedEndDate     *time.Time `json:"plannedEndDate"`                                    // 计划结束时间
-	ReleaseNotes       string     `json:"releaseNotes" binding:"omitempty,max=20000"`         // 发布说明（富文本 HTML）
-	RollbackProcedure  string     `json:"rollbackProcedure" binding:"omitempty,max=20000"`    // 回滚程序（富文本 HTML）
-	ValidationCriteria string     `json:"validationCriteria" binding:"omitempty,max=20000"`   // 验证标准（富文本 HTML）
-	AffectedSystems    []string   `json:"affectedSystems"`                                   // 受影响的系统
-	AffectedComponents []string   `json:"affectedComponents"`                                // 受影响的组件
-	DeploymentSteps    []string   `json:"deploymentSteps"`                                   // 部署步骤
-	Tags               []string   `json:"tags"`                                              // 标签
-	IsEmergency        bool       `json:"isEmergency"`                                       // 是否紧急发布
-	RequiresApproval   bool       `json:"requiresApproval"`                                  // 是否需要审批
+	ReleaseNumber      string     `json:"releaseNumber" binding:"required"`                 // 发布编号
+	Title              string     `json:"title" binding:"required"`                         // 发布标题
+	Description        string     `json:"description" binding:"omitempty,max=20000"`        // 发布描述（富文本 HTML）
+	Type               string     `json:"type"`                                             // 发布类型
+	Environment        string     `json:"environment"`                                      // 目标环境
+	Severity           string     `json:"severity"`                                         // 严重程度
+	ChangeID           *int       `json:"changeId"`                                         // 关联变更ID
+	OwnerID            *int       `json:"ownerId"`                                          // 负责人ID
+	PlannedReleaseDate *time.Time `json:"plannedReleaseDate"`                               // 计划发布日期
+	PlannedStartDate   *time.Time `json:"plannedStartDate"`                                 // 计划开始时间
+	PlannedEndDate     *time.Time `json:"plannedEndDate"`                                   // 计划结束时间
+	ReleaseNotes       string     `json:"releaseNotes" binding:"omitempty,max=20000"`       // 发布说明（富文本 HTML）
+	RollbackProcedure  string     `json:"rollbackProcedure" binding:"omitempty,max=20000"`  // 回滚程序（富文本 HTML）
+	ValidationCriteria string     `json:"validationCriteria" binding:"omitempty,max=20000"` // 验证标准（富文本 HTML）
+	AffectedSystems    []string   `json:"affectedSystems"`                                  // 受影响的系统
+	AffectedComponents []string   `json:"affectedComponents"`                               // 受影响的组件
+	DeploymentSteps    []string   `json:"deploymentSteps"`                                  // 部署步骤
+	Tags               []string   `json:"tags"`                                             // 标签
+	IsEmergency        bool       `json:"isEmergency"`                                      // 是否紧急发布
+	RequiresApproval   bool       `json:"requiresApproval"`                                 // 是否需要审批
+	DepartmentID       *int       `json:"departmentId,omitempty"`                           // 所属部门ID
 }
 
 // UpdateReleaseRequest 更新发布请求
 //
 // 富文本第三波：HTML 字段长度口径与 CreateReleaseRequest 相同（20000）。
 type UpdateReleaseRequest struct {
-	Title              *string    `json:"title"`                                       // 发布标题
-	Description        *string    `json:"description" binding:"omitempty,max=20000"`   // 发布描述（富文本 HTML）
-	Type               *string    `json:"type"`                                        // 发布类型
-	Environment        *string    `json:"environment"`                                 // 目标环境
-	Severity           *string    `json:"severity"`                                    // 严重程度
-	ChangeID           *int       `json:"changeId"`                                    // 关联变更ID
-	OwnerID            *int       `json:"ownerId"`                                     // 负责人ID
-	PlannedReleaseDate *time.Time `json:"plannedReleaseDate"`                          // 计划发布日期
-	PlannedStartDate   *time.Time `json:"plannedStartDate"`                            // 计划开始时间
-	PlannedEndDate     *time.Time `json:"plannedEndDate"`                              // 计划结束时间
-	ActualReleaseDate  *time.Time `json:"actualReleaseDate"`                           // 实际发布日期
-	ReleaseNotes       *string    `json:"releaseNotes" binding:"omitempty,max=20000"`  // 发布说明（富文本 HTML）
-	RollbackProcedure  *string    `json:"rollbackProcedure" binding:"omitempty,max=20000"` // 回滚程序（富文本 HTML）
+	Title              *string    `json:"title"`                                            // 发布标题
+	Description        *string    `json:"description" binding:"omitempty,max=20000"`        // 发布描述（富文本 HTML）
+	Type               *string    `json:"type"`                                             // 发布类型
+	Environment        *string    `json:"environment"`                                      // 目标环境
+	Severity           *string    `json:"severity"`                                         // 严重程度
+	ChangeID           *int       `json:"changeId"`                                         // 关联变更ID
+	OwnerID            *int       `json:"ownerId"`                                          // 负责人ID
+	PlannedReleaseDate *time.Time `json:"plannedReleaseDate"`                               // 计划发布日期
+	PlannedStartDate   *time.Time `json:"plannedStartDate"`                                 // 计划开始时间
+	PlannedEndDate     *time.Time `json:"plannedEndDate"`                                   // 计划结束时间
+	ActualReleaseDate  *time.Time `json:"actualReleaseDate"`                                // 实际发布日期
+	ReleaseNotes       *string    `json:"releaseNotes" binding:"omitempty,max=20000"`       // 发布说明（富文本 HTML）
+	RollbackProcedure  *string    `json:"rollbackProcedure" binding:"omitempty,max=20000"`  // 回滚程序（富文本 HTML）
 	ValidationCriteria *string    `json:"validationCriteria" binding:"omitempty,max=20000"` // 验证标准（富文本 HTML）
-	AffectedSystems    []string   `json:"affectedSystems"`                             // 受影响的系统
-	AffectedComponents []string   `json:"affectedComponents"`                          // 受影响的组件
-	DeploymentSteps    []string   `json:"deploymentSteps"`                             // 部署步骤
-	Tags               []string   `json:"tags"`                                        // 标签
-	IsEmergency        *bool      `json:"isEmergency"`                                 // 是否紧急发布
-	RequiresApproval   *bool      `json:"requiresApproval"`                            // 是否需要审批
+	AffectedSystems    []string   `json:"affectedSystems"`                                  // 受影响的系统
+	AffectedComponents []string   `json:"affectedComponents"`                               // 受影响的组件
+	DeploymentSteps    []string   `json:"deploymentSteps"`                                  // 部署步骤
+	Tags               []string   `json:"tags"`                                             // 标签
+	IsEmergency        *bool      `json:"isEmergency"`                                      // 是否紧急发布
+	RequiresApproval   *bool      `json:"requiresApproval"`                                 // 是否需要审批
+	DepartmentID       *int       `json:"departmentId,omitempty"`                           // 所属部门ID
 }
 
 // ReleaseResponse 发布响应
 type ReleaseResponse struct {
-	ID                 int        `json:"id"`                 // 发布ID
-	ReleaseNumber      string     `json:"releaseNumber"`      // 发布编号
-	Title              string     `json:"title"`              // 发布标题
-	Description        string     `json:"description"`        // 发布描述
-	Type               string     `json:"type"`               // 发布类型
-	Status             string     `json:"status"`             // 状态
-	Severity           string     `json:"severity"`           // 严重程度
-	Environment        string     `json:"environment"`        // 目标环境
-	ChangeID           *int       `json:"changeId"`           // 关联变更ID
-	OwnerID            *int       `json:"ownerId"`            // 负责人ID
-	OwnerName          *string    `json:"ownerName"`          // 负责人姓名
+	ID                 int        `json:"id"`            // 发布ID
+	ReleaseNumber      string     `json:"releaseNumber"` // 发布编号
+	Title              string     `json:"title"`         // 发布标题
+	Description        string     `json:"description"`   // 发布描述
+	Type               string     `json:"type"`          // 发布类型
+	Status             string     `json:"status"`        // 状态
+	Severity           string     `json:"severity"`      // 严重程度
+	Environment        string     `json:"environment"`   // 目标环境
+	ChangeID           *int       `json:"changeId"`      // 关联变更ID
+	OwnerID            *int       `json:"ownerId"`       // 负责人ID
+	OwnerName          *string    `json:"ownerName"`     // 负责人姓名
+	DepartmentID       *int       `json:"departmentId,omitempty"`
 	CreatedBy          int        `json:"createdBy"`          // 创建人ID
 	CreatedByName      string     `json:"createdByName"`      // 创建人姓名
 	TenantID           int        `json:"tenantId"`           // 租户ID

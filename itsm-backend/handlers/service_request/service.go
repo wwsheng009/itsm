@@ -140,6 +140,7 @@ func (s *Service) Create(ctx context.Context, tenantID, requesterID int, catalog
 		CatalogID:          catalogID,
 		RequesterID:        requesterID,
 		ProjectID:          reqData.ProjectID,
+		DepartmentID:       reqData.DepartmentID,
 		Status:             SRStatusSubmitted,
 		CurrentLevel:       1,
 		TotalLevels:        3,
@@ -732,6 +733,9 @@ func (s *Service) Update(ctx context.Context, id, tenantID, actorID int, actorRo
 	}
 	if reqData.ComplianceAckSet {
 		req.ComplianceAck = reqData.ComplianceAck
+	}
+	if reqData.DepartmentID != nil {
+		req.DepartmentID = reqData.DepartmentID
 	}
 
 	// 3. Save

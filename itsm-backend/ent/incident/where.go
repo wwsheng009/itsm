@@ -85,6 +85,11 @@ func ProjectID(v int) predicate.Incident {
 	return predicate.Incident(sql.FieldEQ(FieldProjectID, v))
 }
 
+// DepartmentID applies equality check predicate on the "department_id" field. It's identical to DepartmentIDEQ.
+func DepartmentID(v int) predicate.Incident {
+	return predicate.Incident(sql.FieldEQ(FieldDepartmentID, v))
+}
+
 // SLADefinitionID applies equality check predicate on the "sla_definition_id" field. It's identical to SLADefinitionIDEQ.
 func SLADefinitionID(v int) predicate.Incident {
 	return predicate.Incident(sql.FieldEQ(FieldSLADefinitionID, v))
@@ -638,6 +643,56 @@ func ProjectIDIsNil() predicate.Incident {
 // ProjectIDNotNil applies the NotNil predicate on the "project_id" field.
 func ProjectIDNotNil() predicate.Incident {
 	return predicate.Incident(sql.FieldNotNull(FieldProjectID))
+}
+
+// DepartmentIDEQ applies the EQ predicate on the "department_id" field.
+func DepartmentIDEQ(v int) predicate.Incident {
+	return predicate.Incident(sql.FieldEQ(FieldDepartmentID, v))
+}
+
+// DepartmentIDNEQ applies the NEQ predicate on the "department_id" field.
+func DepartmentIDNEQ(v int) predicate.Incident {
+	return predicate.Incident(sql.FieldNEQ(FieldDepartmentID, v))
+}
+
+// DepartmentIDIn applies the In predicate on the "department_id" field.
+func DepartmentIDIn(vs ...int) predicate.Incident {
+	return predicate.Incident(sql.FieldIn(FieldDepartmentID, vs...))
+}
+
+// DepartmentIDNotIn applies the NotIn predicate on the "department_id" field.
+func DepartmentIDNotIn(vs ...int) predicate.Incident {
+	return predicate.Incident(sql.FieldNotIn(FieldDepartmentID, vs...))
+}
+
+// DepartmentIDGT applies the GT predicate on the "department_id" field.
+func DepartmentIDGT(v int) predicate.Incident {
+	return predicate.Incident(sql.FieldGT(FieldDepartmentID, v))
+}
+
+// DepartmentIDGTE applies the GTE predicate on the "department_id" field.
+func DepartmentIDGTE(v int) predicate.Incident {
+	return predicate.Incident(sql.FieldGTE(FieldDepartmentID, v))
+}
+
+// DepartmentIDLT applies the LT predicate on the "department_id" field.
+func DepartmentIDLT(v int) predicate.Incident {
+	return predicate.Incident(sql.FieldLT(FieldDepartmentID, v))
+}
+
+// DepartmentIDLTE applies the LTE predicate on the "department_id" field.
+func DepartmentIDLTE(v int) predicate.Incident {
+	return predicate.Incident(sql.FieldLTE(FieldDepartmentID, v))
+}
+
+// DepartmentIDIsNil applies the IsNil predicate on the "department_id" field.
+func DepartmentIDIsNil() predicate.Incident {
+	return predicate.Incident(sql.FieldIsNull(FieldDepartmentID))
+}
+
+// DepartmentIDNotNil applies the NotNil predicate on the "department_id" field.
+func DepartmentIDNotNil() predicate.Incident {
+	return predicate.Incident(sql.FieldNotNull(FieldDepartmentID))
 }
 
 // SLADefinitionIDEQ applies the EQ predicate on the "sla_definition_id" field.

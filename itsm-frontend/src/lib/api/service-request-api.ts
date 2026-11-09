@@ -6,6 +6,7 @@ export interface ServiceRequest {
   id: number;
   catalogId: number;
   requesterId: number;
+  departmentId?: number;
   status:
     | 'submitted'
     | 'manager_approved'

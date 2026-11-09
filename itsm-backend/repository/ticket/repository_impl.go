@@ -164,6 +164,9 @@ func (r *EntRepository) Create(ctx context.Context, params *CreateParams, tenant
 		if params.CategoryID != nil {
 			builder.SetCategoryID(*params.CategoryID)
 		}
+		if params.DepartmentID != nil {
+			builder.SetNillableDepartmentID(params.DepartmentID)
+		}
 		if params.TemplateID != nil {
 			builder.SetTemplateID(*params.TemplateID)
 		}
@@ -244,6 +247,9 @@ func (r *EntRepository) CreateWithTx(ctx context.Context, tx *ent.Tx, params *Cr
 	}
 	if params.CategoryID != nil {
 		builder.SetCategoryID(*params.CategoryID)
+	}
+	if params.DepartmentID != nil {
+		builder.SetNillableDepartmentID(params.DepartmentID)
 	}
 	if params.TemplateID != nil {
 		builder.SetTemplateID(*params.TemplateID)
@@ -369,6 +375,13 @@ func (r *EntRepository) Update(ctx context.Context, id int, params *UpdateParams
 			builder.SetCategoryID(*params.CategoryID)
 		}
 	}
+	if params.DepartmentID != nil {
+		if *params.DepartmentID == 0 {
+			builder.ClearDepartmentID()
+		} else {
+			builder.SetDepartmentID(*params.DepartmentID)
+		}
+	}
 	if params.ReplaceTags {
 		builder.ClearTags()
 		if len(params.TagIDs) > 0 {
@@ -455,6 +468,13 @@ func (r *EntRepository) UpdateWithTxHook(ctx context.Context, id int, params *Up
 			builder.ClearCategoryID()
 		} else {
 			builder.SetCategoryID(*params.CategoryID)
+		}
+	}
+	if params.DepartmentID != nil {
+		if *params.DepartmentID == 0 {
+			builder.ClearDepartmentID()
+		} else {
+			builder.SetDepartmentID(*params.DepartmentID)
 		}
 	}
 	if params.FormFields != nil {

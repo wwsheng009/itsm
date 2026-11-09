@@ -70,6 +70,7 @@ import type { TriageResult } from '@/lib/api/ai-api';
 import { useRegisterAssistantPageData } from '@/lib/ai/page-context/use-register-assistant-page-data';
 import { WorkflowProgressCard } from '@/components/business/WorkflowProgressCard';
 import RecordProjectLink from '@/components/business/RecordProjectLink';
+import DepartmentSelect, { DepartmentName } from '@/components/business/DepartmentSelect';
 import {
   isValidTransition,
   getAllowedTransitions,
@@ -599,12 +600,14 @@ const TicketDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
     description?: string;
     priority?: string;
     status?: string;
+    departmentId?: number | null;
   }): string =>
     JSON.stringify({
       title: values.title ?? '',
       description: typeof values.description === 'string' ? values.description : '',
       priority: values.priority ?? '',
       status: values.status ?? '',
+      departmentId: values.departmentId ?? null,
     });
 
   // Handle edit
@@ -619,6 +622,7 @@ const TicketDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
         description: initialDescription,
         priority: ticket.priority,
         status: ticket.status,
+        departmentId: ticket.departmentId,
       };
       editForm.setFieldsValue(initialValues);
       editBaselineRef.current = buildEditComparable(initialValues);
@@ -704,6 +708,9 @@ const TicketDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
       if (values.title !== ticket?.title) changed.title = values.title;
       if (values.priority !== ticket?.priority) changed.priority = values.priority;
       if (values.status !== ticket?.status) changed.status = values.status;
+      if ((values.departmentId ?? null) !== (ticket?.departmentId ?? null)) {
+        changed.departmentId = values.departmentId ?? undefined;
+      }
 
       const currentHtml = ticket?.descriptionHtml || '';
       if (richTextEnabled) {
@@ -854,6 +861,7 @@ const TicketDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
           description: ticket.description,
           priority: ticket.priority,
           status: ticket.status,
+          departmentId: ticket.departmentId,
         });
         setEditModalVisible(true);
       }
@@ -1150,6 +1158,9 @@ const TicketDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
             <Descriptions.Item label={t('ticketDetail.labelPriority')}>{getPriorityText(ticket.priority)}</Descriptions.Item>
             <Descriptions.Item label={t('ticketDetail.labelCreatedAt')}>{formatDateTime(ticket.createdAt)}</Descriptions.Item>
             <Descriptions.Item label={t('ticketDetail.labelUpdatedAt')}>{formatDateTime(ticket.updatedAt)}</Descriptions.Item>
+            <Descriptions.Item label="所属部门">
+              <DepartmentName departmentId={ticket.departmentId} />
+            </Descriptions.Item>
             <Descriptions.Item label="所属项目" span={2}>
               <RecordProjectLink domain="ticket" recordId={ticket.id} showLabel={false} />
             </Descriptions.Item>
@@ -1597,6 +1608,13 @@ const TicketDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
                 />
               </Form.Item>
             </div>
+            <Form.Item
+              label="所属部门"
+              name="departmentId"
+              tooltip="用于部门归属、统计与部门审批人路由"
+            >
+              <DepartmentSelect />
+            </Form.Item>
             <Form.Item className="mb-0">
               <Space className="w-full justify-end">
                 <Button

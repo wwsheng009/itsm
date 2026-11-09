@@ -65,12 +65,13 @@ type CreateParams struct {
 	TicketTypeCode    string
 	TicketTypeName    string
 	CategoryID        *int
+	DepartmentID      *int
 	TemplateID        *int
 	ParentTicketID    *int
 	// ProjectID 创建时挂接的项目（随 INSERT 一次写入；前置校验由 handler 调 projectlink.GuardCreate）。
-	ProjectID         *int
-	FormFields        map[string]interface{}
-	TagIDs            []int
+	ProjectID  *int
+	FormFields map[string]interface{}
+	TagIDs     []int
 	// WorkflowDefinitionKey 调用方显式指定的 BPMN 流程 Key（可选）。
 	// 2026-09-07 修复：此前 handler→service 链路双层丢参，导致该参数
 	// 永远无法到达 workflow_start 命令（payload 恒空串）。
@@ -88,6 +89,7 @@ type UpdateParams struct {
 	Type              *string
 	AssigneeID        *int
 	CategoryID        *int
+	DepartmentID      *int
 	Resolution        *string
 	FormFields        *map[string]interface{}
 	Version           int

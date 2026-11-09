@@ -32,6 +32,8 @@ type Release struct {
 	Severity string `json:"severity,omitempty"`
 	// 目标环境: dev/staging/production
 	Environment string `json:"environment,omitempty"`
+	// 所属部门ID（同租户）
+	DepartmentID int `json:"department_id,omitempty"`
 	// 关联的变更ID
 	ChangeID *int `json:"change_id,omitempty"`
 	// 负责人ID
@@ -82,7 +84,7 @@ func (*Release) scanValues(columns []string) ([]any, error) {
 			values[i] = new([]byte)
 		case release.FieldIsEmergency, release.FieldRequiresApproval:
 			values[i] = new(sql.NullBool)
-		case release.FieldID, release.FieldChangeID, release.FieldOwnerID, release.FieldCreatedBy, release.FieldTenantID:
+		case release.FieldID, release.FieldDepartmentID, release.FieldChangeID, release.FieldOwnerID, release.FieldCreatedBy, release.FieldTenantID:
 			values[i] = new(sql.NullInt64)
 		case release.FieldReleaseNumber, release.FieldTitle, release.FieldDescription, release.FieldType, release.FieldStatus, release.FieldSeverity, release.FieldEnvironment, release.FieldReleaseNotes, release.FieldRollbackProcedure, release.FieldValidationCriteria:
 			values[i] = new(sql.NullString)
@@ -150,6 +152,12 @@ func (_m *Release) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field environment", values[i])
 			} else if value.Valid {
 				_m.Environment = value.String
+			}
+		case release.FieldDepartmentID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field department_id", values[i])
+			} else if value.Valid {
+				_m.DepartmentID = int(value.Int64)
 			}
 		case release.FieldChangeID:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -331,6 +339,9 @@ func (_m *Release) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("environment=")
 	builder.WriteString(_m.Environment)
+	builder.WriteString(", ")
+	builder.WriteString("department_id=")
+	builder.WriteString(fmt.Sprintf("%v", _m.DepartmentID))
 	builder.WriteString(", ")
 	if v := _m.ChangeID; v != nil {
 		builder.WriteString("change_id=")

@@ -44,6 +44,7 @@ export interface ChangeRequest {
   rollbackPlan: string;
   affectedCis: string[];
   relatedTickets: string[];
+  departmentId?: number;
   /** 创建时挂接的项目（可选；后端前置校验 project:write + 项目非终态，随 INSERT 一次写入）。 */
   projectId?: number;
 }
@@ -60,6 +61,7 @@ export interface Change {
   impactScope: ChangeImpact;
   riskLevel: ChangeRisk;
   assigneeId?: number;
+  departmentId?: number;
   assigneeName?: string;
   createdBy: number;
   createdByName: string;

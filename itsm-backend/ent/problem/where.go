@@ -115,6 +115,11 @@ func ProjectID(v int) predicate.Problem {
 	return predicate.Problem(sql.FieldEQ(FieldProjectID, v))
 }
 
+// DepartmentID applies equality check predicate on the "department_id" field. It's identical to DepartmentIDEQ.
+func DepartmentID(v int) predicate.Problem {
+	return predicate.Problem(sql.FieldEQ(FieldDepartmentID, v))
+}
+
 // CreatedBy applies equality check predicate on the "created_by" field. It's identical to CreatedByEQ.
 func CreatedBy(v int) predicate.Problem {
 	return predicate.Problem(sql.FieldEQ(FieldCreatedBy, v))
@@ -968,6 +973,56 @@ func ProjectIDIsNil() predicate.Problem {
 // ProjectIDNotNil applies the NotNil predicate on the "project_id" field.
 func ProjectIDNotNil() predicate.Problem {
 	return predicate.Problem(sql.FieldNotNull(FieldProjectID))
+}
+
+// DepartmentIDEQ applies the EQ predicate on the "department_id" field.
+func DepartmentIDEQ(v int) predicate.Problem {
+	return predicate.Problem(sql.FieldEQ(FieldDepartmentID, v))
+}
+
+// DepartmentIDNEQ applies the NEQ predicate on the "department_id" field.
+func DepartmentIDNEQ(v int) predicate.Problem {
+	return predicate.Problem(sql.FieldNEQ(FieldDepartmentID, v))
+}
+
+// DepartmentIDIn applies the In predicate on the "department_id" field.
+func DepartmentIDIn(vs ...int) predicate.Problem {
+	return predicate.Problem(sql.FieldIn(FieldDepartmentID, vs...))
+}
+
+// DepartmentIDNotIn applies the NotIn predicate on the "department_id" field.
+func DepartmentIDNotIn(vs ...int) predicate.Problem {
+	return predicate.Problem(sql.FieldNotIn(FieldDepartmentID, vs...))
+}
+
+// DepartmentIDGT applies the GT predicate on the "department_id" field.
+func DepartmentIDGT(v int) predicate.Problem {
+	return predicate.Problem(sql.FieldGT(FieldDepartmentID, v))
+}
+
+// DepartmentIDGTE applies the GTE predicate on the "department_id" field.
+func DepartmentIDGTE(v int) predicate.Problem {
+	return predicate.Problem(sql.FieldGTE(FieldDepartmentID, v))
+}
+
+// DepartmentIDLT applies the LT predicate on the "department_id" field.
+func DepartmentIDLT(v int) predicate.Problem {
+	return predicate.Problem(sql.FieldLT(FieldDepartmentID, v))
+}
+
+// DepartmentIDLTE applies the LTE predicate on the "department_id" field.
+func DepartmentIDLTE(v int) predicate.Problem {
+	return predicate.Problem(sql.FieldLTE(FieldDepartmentID, v))
+}
+
+// DepartmentIDIsNil applies the IsNil predicate on the "department_id" field.
+func DepartmentIDIsNil() predicate.Problem {
+	return predicate.Problem(sql.FieldIsNull(FieldDepartmentID))
+}
+
+// DepartmentIDNotNil applies the NotNil predicate on the "department_id" field.
+func DepartmentIDNotNil() predicate.Problem {
+	return predicate.Problem(sql.FieldNotNull(FieldDepartmentID))
 }
 
 // CreatedByEQ applies the EQ predicate on the "created_by" field.

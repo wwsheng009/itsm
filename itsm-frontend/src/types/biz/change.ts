@@ -22,6 +22,7 @@ export interface Change {
   impactScope: ChangeImpact;
   riskLevel: ChangeRisk;
   assigneeId?: number;
+  departmentId?: number;
   assigneeName?: string;
   createdBy: number;
   createdByName: string;
@@ -92,6 +93,7 @@ export interface CreateChangeRequest {
   rollbackPlan: string;
   affectedCis?: string[];
   relatedTickets?: string[];
+  departmentId?: number;
 }
 
 // 列表查询参数

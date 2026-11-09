@@ -20,6 +20,7 @@ export interface Incident {
   /** 处理人姓名（列表接口回填，可能缺失，回退显示 assigneeId） */
   assigneeName?: string;
   configurationItemId?: number;
+  departmentId?: number;
   category: string;
   subcategory: string;
   impactAnalysis?: Record<string, any>;
@@ -68,6 +69,7 @@ export interface CreateIncidentRequest {
   subcategory?: string;
   assigneeId?: number;
   configurationItemId?: number;
+  departmentId?: number;
   impactAnalysis?: Record<string, any>;
   source?: string;
   detectedAt?: string;
@@ -84,6 +86,7 @@ export interface UpdateIncidentRequest {
   category?: string;
   subcategory?: string;
   assigneeId?: number;
+  departmentId?: number;
   impactAnalysis?: Record<string, any>;
   rootCause?: Record<string, any>;
   resolutionSteps?: Record<string, any>[];

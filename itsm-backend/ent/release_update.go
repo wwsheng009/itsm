@@ -133,6 +133,33 @@ func (_u *ReleaseUpdate) SetNillableEnvironment(v *string) *ReleaseUpdate {
 	return _u
 }
 
+// SetDepartmentID sets the "department_id" field.
+func (_u *ReleaseUpdate) SetDepartmentID(v int) *ReleaseUpdate {
+	_u.mutation.ResetDepartmentID()
+	_u.mutation.SetDepartmentID(v)
+	return _u
+}
+
+// SetNillableDepartmentID sets the "department_id" field if the given value is not nil.
+func (_u *ReleaseUpdate) SetNillableDepartmentID(v *int) *ReleaseUpdate {
+	if v != nil {
+		_u.SetDepartmentID(*v)
+	}
+	return _u
+}
+
+// AddDepartmentID adds value to the "department_id" field.
+func (_u *ReleaseUpdate) AddDepartmentID(v int) *ReleaseUpdate {
+	_u.mutation.AddDepartmentID(v)
+	return _u
+}
+
+// ClearDepartmentID clears the value of the "department_id" field.
+func (_u *ReleaseUpdate) ClearDepartmentID() *ReleaseUpdate {
+	_u.mutation.ClearDepartmentID()
+	return _u
+}
+
 // SetChangeID sets the "change_id" field.
 func (_u *ReleaseUpdate) SetChangeID(v int) *ReleaseUpdate {
 	_u.mutation.ResetChangeID()
@@ -591,6 +618,15 @@ func (_u *ReleaseUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if value, ok := _u.mutation.Environment(); ok {
 		_spec.SetField(release.FieldEnvironment, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.DepartmentID(); ok {
+		_spec.SetField(release.FieldDepartmentID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedDepartmentID(); ok {
+		_spec.AddField(release.FieldDepartmentID, field.TypeInt, value)
+	}
+	if _u.mutation.DepartmentIDCleared() {
+		_spec.ClearField(release.FieldDepartmentID, field.TypeInt)
+	}
 	if value, ok := _u.mutation.ChangeID(); ok {
 		_spec.SetField(release.FieldChangeID, field.TypeInt, value)
 	}
@@ -840,6 +876,33 @@ func (_u *ReleaseUpdateOne) SetNillableEnvironment(v *string) *ReleaseUpdateOne 
 	if v != nil {
 		_u.SetEnvironment(*v)
 	}
+	return _u
+}
+
+// SetDepartmentID sets the "department_id" field.
+func (_u *ReleaseUpdateOne) SetDepartmentID(v int) *ReleaseUpdateOne {
+	_u.mutation.ResetDepartmentID()
+	_u.mutation.SetDepartmentID(v)
+	return _u
+}
+
+// SetNillableDepartmentID sets the "department_id" field if the given value is not nil.
+func (_u *ReleaseUpdateOne) SetNillableDepartmentID(v *int) *ReleaseUpdateOne {
+	if v != nil {
+		_u.SetDepartmentID(*v)
+	}
+	return _u
+}
+
+// AddDepartmentID adds value to the "department_id" field.
+func (_u *ReleaseUpdateOne) AddDepartmentID(v int) *ReleaseUpdateOne {
+	_u.mutation.AddDepartmentID(v)
+	return _u
+}
+
+// ClearDepartmentID clears the value of the "department_id" field.
+func (_u *ReleaseUpdateOne) ClearDepartmentID() *ReleaseUpdateOne {
+	_u.mutation.ClearDepartmentID()
 	return _u
 }
 
@@ -1330,6 +1393,15 @@ func (_u *ReleaseUpdateOne) sqlSave(ctx context.Context) (_node *Release, err er
 	}
 	if value, ok := _u.mutation.Environment(); ok {
 		_spec.SetField(release.FieldEnvironment, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.DepartmentID(); ok {
+		_spec.SetField(release.FieldDepartmentID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedDepartmentID(); ok {
+		_spec.AddField(release.FieldDepartmentID, field.TypeInt, value)
+	}
+	if _u.mutation.DepartmentIDCleared() {
+		_spec.ClearField(release.FieldDepartmentID, field.TypeInt)
 	}
 	if value, ok := _u.mutation.ChangeID(); ok {
 		_spec.SetField(release.FieldChangeID, field.TypeInt, value)

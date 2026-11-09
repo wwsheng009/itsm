@@ -47,6 +47,7 @@ func (h *Handler) toDTOWithUsers(p *Problem, userMap map[int]string) *dto.Proble
 		Resolution:    p.Resolution,
 		Impact:        p.Impact,
 		CreatedBy:     p.CreatedBy,
+		DepartmentID:  p.DepartmentID,
 		TenantID:      p.TenantID,
 		CreatedAt:     p.CreatedAt,
 		UpdatedAt:     p.UpdatedAt,
@@ -168,15 +169,16 @@ func (h *Handler) Create(c *gin.Context) {
 	}
 
 	problem := &Problem{
-		Title:       req.Title,
-		Description: req.Description,
-		Priority:    req.Priority,
-		Status:      "open",
-		Category:    req.Category,
-		RootCause:   req.RootCause,
-		Impact:      req.Impact,
-		CreatedBy:   createdBy,
-		ProjectID:   req.ProjectID,
+		Title:        req.Title,
+		Description:  req.Description,
+		Priority:     req.Priority,
+		Status:       "open",
+		Category:     req.Category,
+		RootCause:    req.RootCause,
+		Impact:       req.Impact,
+		CreatedBy:    createdBy,
+		ProjectID:    req.ProjectID,
+		DepartmentID: req.DepartmentID,
 	}
 
 	created, err := h.service.Create(c.Request.Context(), tenantID, problem)
@@ -524,6 +526,9 @@ func (h *Handler) Update(c *gin.Context) {
 	}
 	if req.Impact != nil {
 		updates.Impact = *req.Impact
+	}
+	if req.DepartmentID != nil {
+		updates.DepartmentID = req.DepartmentID
 	}
 
 	updated, err := h.service.Update(c.Request.Context(), tenantID, id, updates, actorID, actorRole)

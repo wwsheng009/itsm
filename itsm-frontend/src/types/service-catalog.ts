@@ -426,6 +426,8 @@ export interface CreateServiceRequestRequest {
   requestedFor?: number;
   /** 所属项目（创建时挂接；PE-5 增补，需 project:write，后端动态复核）。 */
   projectId?: number;
+  /** 所属部门（可选；用于组织归属与统计）。 */
+  departmentId?: number;
 }
 
 /**

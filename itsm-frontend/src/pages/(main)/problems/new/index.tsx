@@ -6,6 +6,7 @@ import { Form, Input, Select, Button, Card, message, Alert, Spin } from 'antd';
 import { ProblemApi } from '@/lib/api/problem-api';
 import { ProblemPriority, ProblemCategoryOptions } from '@/constants/problem';
 import ProjectSelect, { useProjectLinkPermission } from '@/components/business/ProjectSelect';
+import DepartmentSelect from '@/components/business/DepartmentSelect';
 import { useI18n } from '@/lib/i18n';
 import { htmlToPlainText, isRichTextEmpty, isRichTextEnabled } from '@/lib/rich-text/sanitize';
 import {
@@ -114,6 +115,7 @@ const CreateProblemPageContent = () => {
         impact: values.impact,
         assigneeId: values.assigneeId,
         projectId: values.projectId ?? undefined,
+        departmentId: values.departmentId ?? undefined,
       });
 
       // 正文图片两段式：上传 → 用正式地址替换暂存占位 → 回写 description。
@@ -319,6 +321,14 @@ const CreateProblemPageContent = () => {
               <ProjectSelect />
             </Form.Item>
           )}
+
+          <Form.Item
+            name="departmentId"
+            label="所属部门"
+            tooltip="用于部门归属、统计与部门审批人路由"
+          >
+            <DepartmentSelect />
+          </Form.Item>
 
           <Form.Item className="mb-0">
             <div className="flex justify-end space-x-4">

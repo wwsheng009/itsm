@@ -41,6 +41,7 @@ import CabStepBadge from '@/components/cab/CabStepBadge';
 import { useRegisterAssistantPageData } from '@/lib/ai/page-context/use-register-assistant-page-data';
 import { useRegisterAssistantAction } from '@/lib/ai/page-context/use-register-assistant-action';
 import RecordProjectLink from '@/components/business/RecordProjectLink';
+import { DepartmentName } from '@/components/business/DepartmentSelect';
 import ChangeRiskAssessment from './ChangeRiskAssessment';
 import ChangeCMDBImpactPanel from './ChangeCMDBImpactPanel';
 import ChangeAIInlinePlanCard from './ChangeAIInlinePlanCard';
@@ -500,6 +501,9 @@ const ChangeDetail: React.FC = () => {
           </Descriptions.Item>
           <Descriptions.Item label={t('changeDetail.labelPlannedEnd')}>
             {formatDateTime(change.plannedEndDate) || '-'}
+          </Descriptions.Item>
+          <Descriptions.Item label="所属部门">
+            <DepartmentName departmentId={change.departmentId} />
           </Descriptions.Item>
           <Descriptions.Item label="所属项目" span={2}>
             <RecordProjectLink domain="change" recordId={change.id} showLabel={false} />

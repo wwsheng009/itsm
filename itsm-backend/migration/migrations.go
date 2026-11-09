@@ -134,6 +134,11 @@ var RegisteredMigrations = []Migration{
 		Description: "Grant customer/contract master-data and approval-read permissions to the tenant admin role (E2E 2026-11-08: menu visible but pages/approval records 403)",
 		RollbackSQL: "",
 	},
+	{
+		Version:     "026_add_department_to_business_records",
+		Description: "Add tenant-scoped department_id to tickets, incidents, problems, changes, service_requests and releases",
+		RollbackSQL: "",
+	},
 }
 
 // PostSchemaMigrations returns a defensive copy of the canonical active stream.
@@ -970,6 +975,24 @@ WHERE role.code = 'admin'
       AND existing.permission_id = permission.id
       AND existing.tenant_id = role.tenant_id
   );
+`
+	case "026_add_department_to_business_records":
+		return `
+-- 业务单据统一部门归属（可选；0/NULL 表示未指定）。
+-- tickets 既有 department_id 保持不动；其余单据新增列。
+ALTER TABLE tickets ADD COLUMN IF NOT EXISTS department_id BIGINT;
+ALTER TABLE incidents ADD COLUMN IF NOT EXISTS department_id BIGINT;
+ALTER TABLE problems ADD COLUMN IF NOT EXISTS department_id BIGINT;
+ALTER TABLE changes ADD COLUMN IF NOT EXISTS department_id BIGINT;
+ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS department_id BIGINT;
+ALTER TABLE releases ADD COLUMN IF NOT EXISTS department_id BIGINT;
+
+CREATE INDEX IF NOT EXISTS idx_tickets_tenant_department ON tickets (tenant_id, department_id);
+CREATE INDEX IF NOT EXISTS idx_incidents_tenant_department ON incidents (tenant_id, department_id);
+CREATE INDEX IF NOT EXISTS idx_problems_tenant_department ON problems (tenant_id, department_id);
+CREATE INDEX IF NOT EXISTS idx_changes_tenant_department ON changes (tenant_id, department_id);
+CREATE INDEX IF NOT EXISTS idx_service_requests_tenant_department ON service_requests (tenant_id, department_id);
+CREATE INDEX IF NOT EXISTS idx_releases_tenant_department ON releases (tenant_id, department_id);
 `
 	default:
 		return ""

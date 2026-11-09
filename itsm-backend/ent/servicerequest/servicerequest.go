@@ -21,6 +21,8 @@ const (
 	FieldCiID = "ci_id"
 	// FieldProjectID holds the string denoting the project_id field in the database.
 	FieldProjectID = "project_id"
+	// FieldDepartmentID holds the string denoting the department_id field in the database.
+	FieldDepartmentID = "department_id"
 	// FieldRequesterID holds the string denoting the requester_id field in the database.
 	FieldRequesterID = "requester_id"
 	// FieldStatus holds the string denoting the status field in the database.
@@ -84,6 +86,7 @@ var Columns = []string{
 	FieldCatalogID,
 	FieldCiID,
 	FieldProjectID,
+	FieldDepartmentID,
 	FieldRequesterID,
 	FieldStatus,
 	FieldTitle,
@@ -179,6 +182,11 @@ func ByCiID(opts ...sql.OrderTermOption) OrderOption {
 // ByProjectID orders the results by the project_id field.
 func ByProjectID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldProjectID, opts...).ToFunc()
+}
+
+// ByDepartmentID orders the results by the department_id field.
+func ByDepartmentID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldDepartmentID, opts...).ToFunc()
 }
 
 // ByRequesterID orders the results by the requester_id field.

@@ -60,6 +60,20 @@ func (_c *ServiceRequestCreate) SetNillableProjectID(v *int) *ServiceRequestCrea
 	return _c
 }
 
+// SetDepartmentID sets the "department_id" field.
+func (_c *ServiceRequestCreate) SetDepartmentID(v int) *ServiceRequestCreate {
+	_c.mutation.SetDepartmentID(v)
+	return _c
+}
+
+// SetNillableDepartmentID sets the "department_id" field if the given value is not nil.
+func (_c *ServiceRequestCreate) SetNillableDepartmentID(v *int) *ServiceRequestCreate {
+	if v != nil {
+		_c.SetDepartmentID(*v)
+	}
+	return _c
+}
+
 // SetRequesterID sets the "requester_id" field.
 func (_c *ServiceRequestCreate) SetRequesterID(v int) *ServiceRequestCreate {
 	_c.mutation.SetRequesterID(v)
@@ -564,6 +578,10 @@ func (_c *ServiceRequestCreate) createSpec() (*ServiceRequest, *sqlgraph.CreateS
 	if value, ok := _c.mutation.ProjectID(); ok {
 		_spec.SetField(servicerequest.FieldProjectID, field.TypeInt, value)
 		_node.ProjectID = value
+	}
+	if value, ok := _c.mutation.DepartmentID(); ok {
+		_spec.SetField(servicerequest.FieldDepartmentID, field.TypeInt, value)
+		_node.DepartmentID = value
 	}
 	if value, ok := _c.mutation.RequesterID(); ok {
 		_spec.SetField(servicerequest.FieldRequesterID, field.TypeInt, value)

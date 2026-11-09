@@ -125,6 +125,33 @@ func (_u *ServiceRequestUpdate) ClearProjectID() *ServiceRequestUpdate {
 	return _u
 }
 
+// SetDepartmentID sets the "department_id" field.
+func (_u *ServiceRequestUpdate) SetDepartmentID(v int) *ServiceRequestUpdate {
+	_u.mutation.ResetDepartmentID()
+	_u.mutation.SetDepartmentID(v)
+	return _u
+}
+
+// SetNillableDepartmentID sets the "department_id" field if the given value is not nil.
+func (_u *ServiceRequestUpdate) SetNillableDepartmentID(v *int) *ServiceRequestUpdate {
+	if v != nil {
+		_u.SetDepartmentID(*v)
+	}
+	return _u
+}
+
+// AddDepartmentID adds value to the "department_id" field.
+func (_u *ServiceRequestUpdate) AddDepartmentID(v int) *ServiceRequestUpdate {
+	_u.mutation.AddDepartmentID(v)
+	return _u
+}
+
+// ClearDepartmentID clears the value of the "department_id" field.
+func (_u *ServiceRequestUpdate) ClearDepartmentID() *ServiceRequestUpdate {
+	_u.mutation.ClearDepartmentID()
+	return _u
+}
+
 // SetRequesterID sets the "requester_id" field.
 func (_u *ServiceRequestUpdate) SetRequesterID(v int) *ServiceRequestUpdate {
 	_u.mutation.ResetRequesterID()
@@ -708,6 +735,15 @@ func (_u *ServiceRequestUpdate) sqlSave(ctx context.Context) (_node int, err err
 	if _u.mutation.ProjectIDCleared() {
 		_spec.ClearField(servicerequest.FieldProjectID, field.TypeInt)
 	}
+	if value, ok := _u.mutation.DepartmentID(); ok {
+		_spec.SetField(servicerequest.FieldDepartmentID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedDepartmentID(); ok {
+		_spec.AddField(servicerequest.FieldDepartmentID, field.TypeInt, value)
+	}
+	if _u.mutation.DepartmentIDCleared() {
+		_spec.ClearField(servicerequest.FieldDepartmentID, field.TypeInt)
+	}
 	if value, ok := _u.mutation.RequesterID(); ok {
 		_spec.SetField(servicerequest.FieldRequesterID, field.TypeInt, value)
 	}
@@ -972,6 +1008,33 @@ func (_u *ServiceRequestUpdateOne) AddProjectID(v int) *ServiceRequestUpdateOne 
 // ClearProjectID clears the value of the "project_id" field.
 func (_u *ServiceRequestUpdateOne) ClearProjectID() *ServiceRequestUpdateOne {
 	_u.mutation.ClearProjectID()
+	return _u
+}
+
+// SetDepartmentID sets the "department_id" field.
+func (_u *ServiceRequestUpdateOne) SetDepartmentID(v int) *ServiceRequestUpdateOne {
+	_u.mutation.ResetDepartmentID()
+	_u.mutation.SetDepartmentID(v)
+	return _u
+}
+
+// SetNillableDepartmentID sets the "department_id" field if the given value is not nil.
+func (_u *ServiceRequestUpdateOne) SetNillableDepartmentID(v *int) *ServiceRequestUpdateOne {
+	if v != nil {
+		_u.SetDepartmentID(*v)
+	}
+	return _u
+}
+
+// AddDepartmentID adds value to the "department_id" field.
+func (_u *ServiceRequestUpdateOne) AddDepartmentID(v int) *ServiceRequestUpdateOne {
+	_u.mutation.AddDepartmentID(v)
+	return _u
+}
+
+// ClearDepartmentID clears the value of the "department_id" field.
+func (_u *ServiceRequestUpdateOne) ClearDepartmentID() *ServiceRequestUpdateOne {
+	_u.mutation.ClearDepartmentID()
 	return _u
 }
 
@@ -1587,6 +1650,15 @@ func (_u *ServiceRequestUpdateOne) sqlSave(ctx context.Context) (_node *ServiceR
 	}
 	if _u.mutation.ProjectIDCleared() {
 		_spec.ClearField(servicerequest.FieldProjectID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.DepartmentID(); ok {
+		_spec.SetField(servicerequest.FieldDepartmentID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedDepartmentID(); ok {
+		_spec.AddField(servicerequest.FieldDepartmentID, field.TypeInt, value)
+	}
+	if _u.mutation.DepartmentIDCleared() {
+		_spec.ClearField(servicerequest.FieldDepartmentID, field.TypeInt)
 	}
 	if value, ok := _u.mutation.RequesterID(); ok {
 		_spec.SetField(servicerequest.FieldRequesterID, field.TypeInt, value)

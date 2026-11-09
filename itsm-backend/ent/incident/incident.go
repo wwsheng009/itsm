@@ -26,6 +26,8 @@ const (
 	FieldPriority = "priority"
 	// FieldProjectID holds the string denoting the project_id field in the database.
 	FieldProjectID = "project_id"
+	// FieldDepartmentID holds the string denoting the department_id field in the database.
+	FieldDepartmentID = "department_id"
 	// FieldSLADefinitionID holds the string denoting the sla_definition_id field in the database.
 	FieldSLADefinitionID = "sla_definition_id"
 	// FieldSLAResponseDeadline holds the string denoting the sla_response_deadline field in the database.
@@ -200,6 +202,7 @@ var Columns = []string{
 	FieldType,
 	FieldPriority,
 	FieldProjectID,
+	FieldDepartmentID,
 	FieldSLADefinitionID,
 	FieldSLAResponseDeadline,
 	FieldSLAResolutionDeadline,
@@ -352,6 +355,11 @@ func ByPriority(opts ...sql.OrderTermOption) OrderOption {
 // ByProjectID orders the results by the project_id field.
 func ByProjectID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldProjectID, opts...).ToFunc()
+}
+
+// ByDepartmentID orders the results by the department_id field.
+func ByDepartmentID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldDepartmentID, opts...).ToFunc()
 }
 
 // BySLADefinitionID orders the results by the sla_definition_id field.

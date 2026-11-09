@@ -36,6 +36,7 @@ import {
 } from '@/lib/rich-text/staged-images';
 import { AttachmentApi, releaseAttachmentPreviewUrl } from '@/lib/api/attachment-api';
 import type { UploadedImage } from '@/components/common/rich-text/RichTextEditor';
+import DepartmentSelect from '@/components/business/DepartmentSelect';
 
 const { TextArea } = Input;
 
@@ -57,6 +58,7 @@ interface ReleaseFormValues {
   severity?: Release['severity'];
   changeId?: number;
   ownerId?: number;
+  departmentId?: number;
   plannedReleaseDate?: Dayjs;
   plannedStartDate?: Dayjs;
   plannedEndDate?: Dayjs;
@@ -192,6 +194,7 @@ const ReleaseForm: React.FC = () => {
         severity: values.severity,
         changeId: values.changeId,
         ownerId: values.ownerId,
+        departmentId: values.departmentId,
         plannedReleaseDate: values.plannedReleaseDate?.toISOString(),
         plannedStartDate: values.plannedStartDate?.toISOString(),
         plannedEndDate: values.plannedEndDate?.toISOString(),
@@ -403,6 +406,14 @@ const ReleaseForm: React.FC = () => {
             { value: 'high', label: '高' },
             { value: 'critical', label: '严重' },
           ]} />
+        </Form.Item>
+
+        <Form.Item
+          name="departmentId"
+          label="所属部门"
+          tooltip="用于部门归属、统计与部门审批人路由"
+        >
+          <DepartmentSelect />
         </Form.Item>
 
         <Divider>计划信息</Divider>

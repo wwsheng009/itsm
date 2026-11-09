@@ -271,6 +271,33 @@ func (_u *ChangeUpdate) ClearProjectID() *ChangeUpdate {
 	return _u
 }
 
+// SetDepartmentID sets the "department_id" field.
+func (_u *ChangeUpdate) SetDepartmentID(v int) *ChangeUpdate {
+	_u.mutation.ResetDepartmentID()
+	_u.mutation.SetDepartmentID(v)
+	return _u
+}
+
+// SetNillableDepartmentID sets the "department_id" field if the given value is not nil.
+func (_u *ChangeUpdate) SetNillableDepartmentID(v *int) *ChangeUpdate {
+	if v != nil {
+		_u.SetDepartmentID(*v)
+	}
+	return _u
+}
+
+// AddDepartmentID adds value to the "department_id" field.
+func (_u *ChangeUpdate) AddDepartmentID(v int) *ChangeUpdate {
+	_u.mutation.AddDepartmentID(v)
+	return _u
+}
+
+// ClearDepartmentID clears the value of the "department_id" field.
+func (_u *ChangeUpdate) ClearDepartmentID() *ChangeUpdate {
+	_u.mutation.ClearDepartmentID()
+	return _u
+}
+
 // SetPlannedStartDate sets the "planned_start_date" field.
 func (_u *ChangeUpdate) SetPlannedStartDate(v time.Time) *ChangeUpdate {
 	_u.mutation.SetPlannedStartDate(v)
@@ -662,6 +689,15 @@ func (_u *ChangeUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if _u.mutation.ProjectIDCleared() {
 		_spec.ClearField(change.FieldProjectID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.DepartmentID(); ok {
+		_spec.SetField(change.FieldDepartmentID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedDepartmentID(); ok {
+		_spec.AddField(change.FieldDepartmentID, field.TypeInt, value)
+	}
+	if _u.mutation.DepartmentIDCleared() {
+		_spec.ClearField(change.FieldDepartmentID, field.TypeInt)
 	}
 	if value, ok := _u.mutation.PlannedStartDate(); ok {
 		_spec.SetField(change.FieldPlannedStartDate, field.TypeTime, value)
@@ -1074,6 +1110,33 @@ func (_u *ChangeUpdateOne) AddProjectID(v int) *ChangeUpdateOne {
 // ClearProjectID clears the value of the "project_id" field.
 func (_u *ChangeUpdateOne) ClearProjectID() *ChangeUpdateOne {
 	_u.mutation.ClearProjectID()
+	return _u
+}
+
+// SetDepartmentID sets the "department_id" field.
+func (_u *ChangeUpdateOne) SetDepartmentID(v int) *ChangeUpdateOne {
+	_u.mutation.ResetDepartmentID()
+	_u.mutation.SetDepartmentID(v)
+	return _u
+}
+
+// SetNillableDepartmentID sets the "department_id" field if the given value is not nil.
+func (_u *ChangeUpdateOne) SetNillableDepartmentID(v *int) *ChangeUpdateOne {
+	if v != nil {
+		_u.SetDepartmentID(*v)
+	}
+	return _u
+}
+
+// AddDepartmentID adds value to the "department_id" field.
+func (_u *ChangeUpdateOne) AddDepartmentID(v int) *ChangeUpdateOne {
+	_u.mutation.AddDepartmentID(v)
+	return _u
+}
+
+// ClearDepartmentID clears the value of the "department_id" field.
+func (_u *ChangeUpdateOne) ClearDepartmentID() *ChangeUpdateOne {
+	_u.mutation.ClearDepartmentID()
 	return _u
 }
 
@@ -1498,6 +1561,15 @@ func (_u *ChangeUpdateOne) sqlSave(ctx context.Context) (_node *Change, err erro
 	}
 	if _u.mutation.ProjectIDCleared() {
 		_spec.ClearField(change.FieldProjectID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.DepartmentID(); ok {
+		_spec.SetField(change.FieldDepartmentID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedDepartmentID(); ok {
+		_spec.AddField(change.FieldDepartmentID, field.TypeInt, value)
+	}
+	if _u.mutation.DepartmentIDCleared() {
+		_spec.ClearField(change.FieldDepartmentID, field.TypeInt)
 	}
 	if value, ok := _u.mutation.PlannedStartDate(); ok {
 		_spec.SetField(change.FieldPlannedStartDate, field.TypeTime, value)

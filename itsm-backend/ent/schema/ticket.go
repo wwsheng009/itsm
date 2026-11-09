@@ -204,6 +204,7 @@ func (Ticket) Indexes() []ent.Index {
 		index.Fields("tenant_id", "status"),
 		index.Fields("tenant_id", "requester_id"),
 		index.Fields("tenant_id", "ticket_type_id"),
+		index.Fields("tenant_id", "department_id"),
 		index.Fields("status", "priority"),
 		index.Fields("requester_id", "status"),
 	}

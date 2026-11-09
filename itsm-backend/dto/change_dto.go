@@ -75,7 +75,8 @@ type CreateChangeRequest struct {
 	AffectedCIs        []string   `json:"affectedCis"`              // 受影响的配置项
 	RelatedTickets     []string   `json:"relatedTickets"`           // 相关工单编号
 	// ProjectID 创建时挂接的项目（可选；handler 前置校验 project:write + 项目非终态，随 INSERT 一次写入）。
-	ProjectID *int `json:"projectId,omitempty"`
+	ProjectID    *int `json:"projectId,omitempty"`
+	DepartmentID *int `json:"departmentId,omitempty"`
 }
 
 // UpdateChangeRequest 更新变更请求
@@ -94,6 +95,7 @@ type UpdateChangeRequest struct {
 	RollbackPlan       *string         `json:"rollbackPlan"`       // 回滚计划
 	AffectedCIs        []string        `json:"affectedCis"`        // 受影响的配置项
 	RelatedTickets     []string        `json:"relatedTickets"`     // 相关工单
+	DepartmentID       *int            `json:"departmentId,omitempty"`
 }
 
 // ChangeResponse 变更响应
@@ -110,19 +112,20 @@ type ChangeResponse struct {
 	RiskLevel          ChangeRisk     `json:"riskLevel"`              // 风险等级
 	AssigneeID         *int           `json:"assigneeId"`             // 处理人ID
 	AssigneeName       *string        `json:"assigneeName"`           // 处理人姓名
-	CreatedBy          int            `json:"createdBy"`              // 创建人ID
-	CreatedByName      string         `json:"createdByName"`          // 创建人姓名
-	TenantID           int            `json:"tenantId"`               // 租户ID
-	PlannedStartDate   *time.Time     `json:"plannedStartDate"`       // 计划开始时间
-	PlannedEndDate     *time.Time     `json:"plannedEndDate"`         // 计划结束时间
-	ActualStartDate    *time.Time     `json:"actualStartDate"`        // 实际开始时间
-	ActualEndDate      *time.Time     `json:"actualEndDate"`          // 实际结束时间
-	ImplementationPlan string         `json:"implementationPlan"`     // 实施计划
-	RollbackPlan       string         `json:"rollbackPlan"`           // 回滚计划
-	AffectedCIs        []string       `json:"affectedCis"`            // 受影响的配置项
-	RelatedTickets     []string       `json:"relatedTickets"`         // 相关工单
-	CreatedAt          time.Time      `json:"createdAt"`              // 创建时间
-	UpdatedAt          time.Time      `json:"updatedAt"`              // 更新时间
+	DepartmentID       *int           `json:"departmentId,omitempty"`
+	CreatedBy          int            `json:"createdBy"`          // 创建人ID
+	CreatedByName      string         `json:"createdByName"`      // 创建人姓名
+	TenantID           int            `json:"tenantId"`           // 租户ID
+	PlannedStartDate   *time.Time     `json:"plannedStartDate"`   // 计划开始时间
+	PlannedEndDate     *time.Time     `json:"plannedEndDate"`     // 计划结束时间
+	ActualStartDate    *time.Time     `json:"actualStartDate"`    // 实际开始时间
+	ActualEndDate      *time.Time     `json:"actualEndDate"`      // 实际结束时间
+	ImplementationPlan string         `json:"implementationPlan"` // 实施计划
+	RollbackPlan       string         `json:"rollbackPlan"`       // 回滚计划
+	AffectedCIs        []string       `json:"affectedCis"`        // 受影响的配置项
+	RelatedTickets     []string       `json:"relatedTickets"`     // 相关工单
+	CreatedAt          time.Time      `json:"createdAt"`          // 创建时间
+	UpdatedAt          time.Time      `json:"updatedAt"`          // 更新时间
 }
 
 // ChangeListResponse 变更列表响应

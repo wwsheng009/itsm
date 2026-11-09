@@ -41,6 +41,7 @@ import {
 import { AttachmentApi, serviceRequestAttachmentPreviewUrl } from '@/lib/api/attachment-api';
 import type { UploadedImage } from '@/components/common/rich-text/RichTextEditor';
 import ProjectSelect, { useProjectLinkPermission } from '@/components/business/ProjectSelect';
+import DepartmentSelect from '@/components/business/DepartmentSelect';
 
 const { Title, Text, Paragraph } = Typography;
 const { TextArea } = Input;
@@ -152,6 +153,7 @@ export default function ServiceCatalogRequestPage() {
         serviceId: id,
         // PE-5 增补：创建时挂接项目（可选；映射层透传至后端 projectId）。
         projectId: values.projectId ?? undefined,
+        departmentId: values.departmentId ?? undefined,
         formData: {
           requesterName: values.requesterName,
           requesterEmail: values.requesterEmail,
@@ -313,6 +315,13 @@ export default function ServiceCatalogRequestPage() {
               <ProjectSelect />
             </Form.Item>
           )}
+          <Form.Item
+            name="departmentId"
+            label="所属部门"
+            tooltip="用于部门归属、统计与部门审批人路由"
+          >
+            <DepartmentSelect />
+          </Form.Item>
           <Form.Item
             name="title"
             label="申请标题"

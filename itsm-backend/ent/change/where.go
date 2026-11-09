@@ -120,6 +120,11 @@ func ProjectID(v int) predicate.Change {
 	return predicate.Change(sql.FieldEQ(FieldProjectID, v))
 }
 
+// DepartmentID applies equality check predicate on the "department_id" field. It's identical to DepartmentIDEQ.
+func DepartmentID(v int) predicate.Change {
+	return predicate.Change(sql.FieldEQ(FieldDepartmentID, v))
+}
+
 // PlannedStartDate applies equality check predicate on the "planned_start_date" field. It's identical to PlannedStartDateEQ.
 func PlannedStartDate(v time.Time) predicate.Change {
 	return predicate.Change(sql.FieldEQ(FieldPlannedStartDate, v))
@@ -953,6 +958,56 @@ func ProjectIDIsNil() predicate.Change {
 // ProjectIDNotNil applies the NotNil predicate on the "project_id" field.
 func ProjectIDNotNil() predicate.Change {
 	return predicate.Change(sql.FieldNotNull(FieldProjectID))
+}
+
+// DepartmentIDEQ applies the EQ predicate on the "department_id" field.
+func DepartmentIDEQ(v int) predicate.Change {
+	return predicate.Change(sql.FieldEQ(FieldDepartmentID, v))
+}
+
+// DepartmentIDNEQ applies the NEQ predicate on the "department_id" field.
+func DepartmentIDNEQ(v int) predicate.Change {
+	return predicate.Change(sql.FieldNEQ(FieldDepartmentID, v))
+}
+
+// DepartmentIDIn applies the In predicate on the "department_id" field.
+func DepartmentIDIn(vs ...int) predicate.Change {
+	return predicate.Change(sql.FieldIn(FieldDepartmentID, vs...))
+}
+
+// DepartmentIDNotIn applies the NotIn predicate on the "department_id" field.
+func DepartmentIDNotIn(vs ...int) predicate.Change {
+	return predicate.Change(sql.FieldNotIn(FieldDepartmentID, vs...))
+}
+
+// DepartmentIDGT applies the GT predicate on the "department_id" field.
+func DepartmentIDGT(v int) predicate.Change {
+	return predicate.Change(sql.FieldGT(FieldDepartmentID, v))
+}
+
+// DepartmentIDGTE applies the GTE predicate on the "department_id" field.
+func DepartmentIDGTE(v int) predicate.Change {
+	return predicate.Change(sql.FieldGTE(FieldDepartmentID, v))
+}
+
+// DepartmentIDLT applies the LT predicate on the "department_id" field.
+func DepartmentIDLT(v int) predicate.Change {
+	return predicate.Change(sql.FieldLT(FieldDepartmentID, v))
+}
+
+// DepartmentIDLTE applies the LTE predicate on the "department_id" field.
+func DepartmentIDLTE(v int) predicate.Change {
+	return predicate.Change(sql.FieldLTE(FieldDepartmentID, v))
+}
+
+// DepartmentIDIsNil applies the IsNil predicate on the "department_id" field.
+func DepartmentIDIsNil() predicate.Change {
+	return predicate.Change(sql.FieldIsNull(FieldDepartmentID))
+}
+
+// DepartmentIDNotNil applies the NotNil predicate on the "department_id" field.
+func DepartmentIDNotNil() predicate.Change {
+	return predicate.Change(sql.FieldNotNull(FieldDepartmentID))
 }
 
 // PlannedStartDateEQ applies the EQ predicate on the "planned_start_date" field.

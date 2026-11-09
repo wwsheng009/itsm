@@ -19,12 +19,12 @@ type UserResponse struct {
 
 // CreateServiceRequestRequest 创建服务请求请求
 type CreateServiceRequestRequest struct {
-	CatalogID int            `json:"catalogId" binding:"omitempty,min=1"`
-	Title     string         `json:"title" binding:"omitempty,max=255"`
+	CatalogID int    `json:"catalogId" binding:"omitempty,min=1"`
+	Title     string `json:"title" binding:"omitempty,max=255"`
 	// reason 自富文本改造起落库 HTML（单字段范式），标签与内嵌图片属性会额外占用长度，
 	// 故上限按「纯文本 4000 字 + 标记开销」放宽；纯文本口径由前端校验把关。
-	Reason    string         `json:"reason" binding:"omitempty,max=20000"`
-	FormData  map[string]any `json:"formData" binding:"omitempty"`
+	Reason   string         `json:"reason" binding:"omitempty,max=20000"`
+	FormData map[string]any `json:"formData" binding:"omitempty"`
 
 	CostCenter         string     `json:"costCenter" binding:"omitempty,max=100"`
 	DataClassification string     `json:"dataClassification" binding:"omitempty,oneof=public internal confidential restricted"`
@@ -35,7 +35,8 @@ type CreateServiceRequestRequest struct {
 
 	// ProjectID 创建时挂接的项目（PE-5 增补，可选；handler 前置校验 project:write + 项目非终态，
 	// 随 INSERT 一次写入；未装配校验端口时 fail-closed）。
-	ProjectID *int `json:"projectId,omitempty"`
+	ProjectID    *int `json:"projectId,omitempty"`
+	DepartmentID *int `json:"departmentId,omitempty"`
 }
 
 // UpdateServiceRequestStatusRequest 更新服务请求状态请求
@@ -55,6 +56,7 @@ type UpdateServiceRequestRequest struct {
 	SourceIPWhitelist  []string   `json:"sourceIpWhitelist" binding:"omitempty"`
 	ExpireAt           *time.Time `json:"expireAt" binding:"omitempty"`
 	ComplianceAck      *bool      `json:"complianceAck"`
+	DepartmentID       *int       `json:"departmentId,omitempty"`
 }
 
 // GetServiceCatalogsRequest 获取服务目录请求
@@ -117,6 +119,7 @@ type ServiceRequestResponse struct {
 	CatalogID     int            `json:"catalogId"`
 	RequesterID   int            `json:"requesterId"`
 	CIID          int            `json:"ciId,omitempty"`
+	DepartmentID  *int           `json:"departmentId,omitempty"`
 	Status        string         `json:"status"`
 	Title         string         `json:"title,omitempty"`
 	Reason        string         `json:"reason,omitempty"`

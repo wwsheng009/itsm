@@ -212,6 +212,7 @@ type CreateParams struct {
 	RequesterID       int
 	AssigneeID        *int
 	CategoryID        *int
+	DepartmentID      *int
 	TemplateID        *int
 	ParentTicketID    *int
 	// ProjectID 创建时挂接的项目（nil=不挂接；随 INSERT 一次写入）。
@@ -239,6 +240,7 @@ type UpdateParams struct {
 	Priority          *Priority
 	AssigneeID        *int
 	CategoryID        *int
+	DepartmentID      *int
 	ReplaceTags       bool
 	TagIDs            []int
 	Resolution        *string

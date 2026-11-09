@@ -26,6 +26,7 @@ export interface Incident {
   assigneeId?: number;
   // 配置项关联
   configurationItemId?: number;
+  departmentId?: number;
   configurationItem?: {
     id: number;
     name: string;
@@ -101,6 +102,7 @@ export interface CreateIncidentRequest {
   configurationItemIds?: number[];
   /** ProjectID 创建时挂接的项目（可选；后端前置校验 project:write + 项目非终态，随 INSERT 一次写入）。 */
   projectId?: number;
+  departmentId?: number;
   category?: string;
   subcategory?: string;
   impact?: string; // Added for UI

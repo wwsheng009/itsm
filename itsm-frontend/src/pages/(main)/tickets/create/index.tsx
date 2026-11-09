@@ -50,6 +50,7 @@ import TicketTypePickerModal, { type TicketTypePickerItem } from '@/components/b
 import TicketTypeIcon from '@/components/business/TicketTypeIcon';
 import DynamicFieldRenderer, { type ReferenceSelectOptions } from '@/components/business/DynamicFieldRenderer';
 import ProjectSelect, { useProjectLinkPermission } from '@/components/business/ProjectSelect';
+import DepartmentSelect from '@/components/business/DepartmentSelect';
 import { InlineApplyDiff } from '@/components/ai/InlineApplyDiff';
 import { useInlineApplyFlow, type InlineChangeSet } from '@/components/ai/use-inline-apply';
 import { pickBlankHandoffPrefill, readHandoffPrefill } from '@/lib/ai/handoff/prefill';
@@ -468,6 +469,7 @@ export default function CreateTicketPage() {
         category: values.category || undefined,
         formFields,
         projectId: values.projectId ?? undefined,
+        departmentId: values.departmentId ?? undefined,
       });
 
       const createdId = created.id;
@@ -819,9 +821,18 @@ export default function CreateTicketPage() {
                   </Col>
                 </Row>
 
-                {projectLinkPermission.canAttach && (
-                  <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
-                    <Col span={24}>
+                <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
+                  <Col xs={24} sm={12}>
+                    <Form.Item
+                      name="departmentId"
+                      label="所属部门"
+                      tooltip="用于部门归属、统计与部门审批人路由"
+                    >
+                      <DepartmentSelect />
+                    </Form.Item>
+                  </Col>
+                  {projectLinkPermission.canAttach && (
+                    <Col xs={24} sm={12}>
                       <Form.Item
                         name="projectId"
                         label="所属项目"
@@ -830,8 +841,8 @@ export default function CreateTicketPage() {
                         <ProjectSelect />
                       </Form.Item>
                     </Col>
-                  </Row>
-                )}
+                  )}
+                </Row>
               </Card>
             </Col>
 

@@ -33,6 +33,8 @@ func (r *EntRepository) toDomain(req *ent.ServiceRequest) *ServiceRequest {
 		CatalogID:          req.CatalogID,
 		RequesterID:        req.RequesterID,
 		CiID:               req.CiID,
+		ProjectID:          optionalInt(req.ProjectID),
+		DepartmentID:       optionalInt(req.DepartmentID),
 		Status:             req.Status,
 		Title:              req.Title,
 		Reason:             req.Reason,
@@ -140,6 +142,9 @@ func (r *EntRepository) Create(ctx context.Context, req *ServiceRequest, approva
 	if req.ProjectID != nil {
 		create.SetNillableProjectID(req.ProjectID)
 	}
+	if req.DepartmentID != nil {
+		create.SetNillableDepartmentID(req.DepartmentID)
+	}
 
 	savedReq, err := create.Save(ctx)
 	if err != nil {
@@ -225,6 +230,9 @@ func (r *EntRepository) CreateWithWorkflowCommand(ctx context.Context, req *Serv
 	}
 	if req.ProjectID != nil {
 		create.SetNillableProjectID(req.ProjectID)
+	}
+	if req.DepartmentID != nil {
+		create.SetNillableDepartmentID(req.DepartmentID)
 	}
 
 	saved, err := create.Save(ctx)
@@ -402,6 +410,9 @@ func (r *EntRepository) Update(ctx context.Context, req *ServiceRequest) error {
 
 	if req.ExpireAt != nil {
 		update.SetExpireAt(*req.ExpireAt)
+	}
+	if req.DepartmentID != nil {
+		update.SetNillableDepartmentID(req.DepartmentID)
 	}
 
 	return update.Exec(ctx)

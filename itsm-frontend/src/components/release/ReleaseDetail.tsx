@@ -28,6 +28,7 @@ import type { Release } from '@/lib/api/release-api';
 import { ReleaseApi } from '@/lib/api/release-api';
 import RichTextContent from '@/components/common/rich-text/RichTextContent';
 import { PermissionGate } from '@/components/auth/PermissionGate';
+import { DepartmentName } from '@/components/business/DepartmentSelect';
 
 const { Title, Text } = Typography;
 
@@ -219,6 +220,9 @@ const ReleaseDetail: React.FC = () => {
             {release.requiresApproval ? <Tag color="blue">是</Tag> : <Tag>否</Tag>}
           </Descriptions.Item>
           <Descriptions.Item label="负责人">{release.ownerName || '-'}</Descriptions.Item>
+          <Descriptions.Item label="所属部门">
+            <DepartmentName departmentId={release.departmentId} />
+          </Descriptions.Item>
           <Descriptions.Item label="计划发布日期">
             {release.plannedReleaseDate
               ? dayjs(release.plannedReleaseDate).format('YYYY-MM-DD HH:mm')

@@ -105,6 +105,20 @@ func (_c *IncidentCreate) SetNillableProjectID(v *int) *IncidentCreate {
 	return _c
 }
 
+// SetDepartmentID sets the "department_id" field.
+func (_c *IncidentCreate) SetDepartmentID(v int) *IncidentCreate {
+	_c.mutation.SetDepartmentID(v)
+	return _c
+}
+
+// SetNillableDepartmentID sets the "department_id" field if the given value is not nil.
+func (_c *IncidentCreate) SetNillableDepartmentID(v *int) *IncidentCreate {
+	if v != nil {
+		_c.SetDepartmentID(*v)
+	}
+	return _c
+}
+
 // SetSLADefinitionID sets the "sla_definition_id" field.
 func (_c *IncidentCreate) SetSLADefinitionID(v int) *IncidentCreate {
 	_c.mutation.SetSLADefinitionID(v)
@@ -971,6 +985,10 @@ func (_c *IncidentCreate) createSpec() (*Incident, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.ProjectID(); ok {
 		_spec.SetField(incident.FieldProjectID, field.TypeInt, value)
 		_node.ProjectID = value
+	}
+	if value, ok := _c.mutation.DepartmentID(); ok {
+		_spec.SetField(incident.FieldDepartmentID, field.TypeInt, value)
+		_node.DepartmentID = value
 	}
 	if value, ok := _c.mutation.SLADefinitionID(); ok {
 		_spec.SetField(incident.FieldSLADefinitionID, field.TypeInt, value)

@@ -36,6 +36,9 @@ func (Release) Fields() []ent.Field {
 		field.String("environment").
 			Comment("目标环境: dev/staging/production").
 			Default("staging"),
+		field.Int("department_id").
+			Comment("所属部门ID（同租户）").
+			Optional(),
 		field.Int("change_id").
 			Comment("关联的变更ID").
 			Optional().
@@ -109,5 +112,6 @@ func (Release) Indexes() []ent.Index {
 		index.Fields("change_id"),
 		index.Fields("status"),
 		index.Fields("tenant_id"),
+		index.Fields("tenant_id", "department_id"),
 	}
 }

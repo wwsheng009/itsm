@@ -27,6 +27,8 @@ const (
 	FieldSeverity = "severity"
 	// FieldEnvironment holds the string denoting the environment field in the database.
 	FieldEnvironment = "environment"
+	// FieldDepartmentID holds the string denoting the department_id field in the database.
+	FieldDepartmentID = "department_id"
 	// FieldChangeID holds the string denoting the change_id field in the database.
 	FieldChangeID = "change_id"
 	// FieldOwnerID holds the string denoting the owner_id field in the database.
@@ -79,6 +81,7 @@ var Columns = []string{
 	FieldStatus,
 	FieldSeverity,
 	FieldEnvironment,
+	FieldDepartmentID,
 	FieldChangeID,
 	FieldOwnerID,
 	FieldCreatedBy,
@@ -180,6 +183,11 @@ func BySeverity(opts ...sql.OrderTermOption) OrderOption {
 // ByEnvironment orders the results by the environment field.
 func ByEnvironment(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldEnvironment, opts...).ToFunc()
+}
+
+// ByDepartmentID orders the results by the department_id field.
+func ByDepartmentID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldDepartmentID, opts...).ToFunc()
 }
 
 // ByChangeID orders the results by the change_id field.
