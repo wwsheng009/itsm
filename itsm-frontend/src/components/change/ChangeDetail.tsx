@@ -42,6 +42,7 @@ import { useRegisterAssistantPageData } from '@/lib/ai/page-context/use-register
 import { useRegisterAssistantAction } from '@/lib/ai/page-context/use-register-assistant-action';
 import RecordProjectLink from '@/components/business/RecordProjectLink';
 import { DepartmentName } from '@/components/business/DepartmentSelect';
+import { CustomerName } from '@/components/business/CustomerSelect';
 import ChangeRiskAssessment from './ChangeRiskAssessment';
 import ChangeCMDBImpactPanel from './ChangeCMDBImpactPanel';
 import ChangeAIInlinePlanCard from './ChangeAIInlinePlanCard';
@@ -504,6 +505,9 @@ const ChangeDetail: React.FC = () => {
           </Descriptions.Item>
           <Descriptions.Item label="所属部门">
             <DepartmentName departmentId={change.departmentId} />
+          </Descriptions.Item>
+          <Descriptions.Item label="所属客户">
+            <CustomerName customerId={change.customerId} />
           </Descriptions.Item>
           <Descriptions.Item label="所属项目" span={2}>
             <RecordProjectLink domain="change" recordId={change.id} showLabel={false} />

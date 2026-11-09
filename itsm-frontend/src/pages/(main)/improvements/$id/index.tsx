@@ -5,6 +5,7 @@ import { Card, Descriptions, Tag, Button, Skeleton, Result, Space, App } from 'a
 import { ArrowLeft } from 'lucide-react';
 import { TicketApi } from '@/lib/api/ticket-api';
 import { DepartmentName } from '@/components/business/DepartmentSelect';
+import { CustomerName } from '@/components/business/CustomerSelect';
 import { useI18n } from '@/lib/i18n/useI18n';
 
 const ImprovementDetailPage = () => {
@@ -22,6 +23,7 @@ const ImprovementDetailPage = () => {
     status?: string;
     priority?: string;
     departmentId?: number;
+    customerId?: number;
     assignee?: { name?: string };
     createdAt?: string;
     updatedAt?: string;
@@ -118,6 +120,9 @@ const ImprovementDetailPage = () => {
             </Descriptions.Item>
             <Descriptions.Item label="所属部门">
               <DepartmentName departmentId={improvement.departmentId} />
+            </Descriptions.Item>
+            <Descriptions.Item label="所属客户">
+              <CustomerName customerId={improvement.customerId} />
             </Descriptions.Item>
             <Descriptions.Item label={t('improvements.fieldOwner')}>
               {improvement.assignee?.name || t('improvements.unassigned')}

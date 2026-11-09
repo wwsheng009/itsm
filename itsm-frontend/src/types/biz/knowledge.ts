@@ -25,6 +25,8 @@ export interface KnowledgeArticle {
   views?: number;
   helpfulCount?: number;
   tenantId: number;
+  /** 所属客户（租户内客户主数据 ID，可选）。 */
+  customerId?: number;
   createdAt: string;
   updatedAt: string;
   submittedAt?: string;

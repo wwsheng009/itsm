@@ -49,6 +49,7 @@ func ToReleaseResponse(release *ent.Release) *ReleaseResponse {
 		Severity:           release.Severity,
 		Environment:        release.Environment,
 		DepartmentID:       intToPtr(release.DepartmentID),
+		CustomerID:         intToPtr(release.CustomerID),
 		ChangeID:           release.ChangeID,
 		OwnerID:            release.OwnerID,
 		CreatedBy:          release.CreatedBy,

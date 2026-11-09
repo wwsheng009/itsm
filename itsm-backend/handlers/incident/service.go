@@ -327,6 +327,9 @@ func (s *Service) updateIncident(ctx context.Context, tenantID int, id int, upda
 	if updates.DepartmentID != nil {
 		current.DepartmentID = updates.DepartmentID
 	}
+	if updates.CustomerID != nil {
+		current.CustomerID = updates.CustomerID
+	}
 	// 修复：handler 已把 Category/Subcategory/Metadata/ImpactAnalysis/RootCause/
 	// ResolutionSteps 从请求映射到 updates，此处却只留了 "// ... other fields"
 	// 占位注释，导致 PUT 返回 code 0 但这六个字段被静默丢弃（IncidentDetail 的

@@ -298,6 +298,33 @@ func (_u *ChangeUpdate) ClearDepartmentID() *ChangeUpdate {
 	return _u
 }
 
+// SetCustomerID sets the "customer_id" field.
+func (_u *ChangeUpdate) SetCustomerID(v int) *ChangeUpdate {
+	_u.mutation.ResetCustomerID()
+	_u.mutation.SetCustomerID(v)
+	return _u
+}
+
+// SetNillableCustomerID sets the "customer_id" field if the given value is not nil.
+func (_u *ChangeUpdate) SetNillableCustomerID(v *int) *ChangeUpdate {
+	if v != nil {
+		_u.SetCustomerID(*v)
+	}
+	return _u
+}
+
+// AddCustomerID adds value to the "customer_id" field.
+func (_u *ChangeUpdate) AddCustomerID(v int) *ChangeUpdate {
+	_u.mutation.AddCustomerID(v)
+	return _u
+}
+
+// ClearCustomerID clears the value of the "customer_id" field.
+func (_u *ChangeUpdate) ClearCustomerID() *ChangeUpdate {
+	_u.mutation.ClearCustomerID()
+	return _u
+}
+
 // SetPlannedStartDate sets the "planned_start_date" field.
 func (_u *ChangeUpdate) SetPlannedStartDate(v time.Time) *ChangeUpdate {
 	_u.mutation.SetPlannedStartDate(v)
@@ -698,6 +725,15 @@ func (_u *ChangeUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if _u.mutation.DepartmentIDCleared() {
 		_spec.ClearField(change.FieldDepartmentID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.CustomerID(); ok {
+		_spec.SetField(change.FieldCustomerID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedCustomerID(); ok {
+		_spec.AddField(change.FieldCustomerID, field.TypeInt, value)
+	}
+	if _u.mutation.CustomerIDCleared() {
+		_spec.ClearField(change.FieldCustomerID, field.TypeInt)
 	}
 	if value, ok := _u.mutation.PlannedStartDate(); ok {
 		_spec.SetField(change.FieldPlannedStartDate, field.TypeTime, value)
@@ -1140,6 +1176,33 @@ func (_u *ChangeUpdateOne) ClearDepartmentID() *ChangeUpdateOne {
 	return _u
 }
 
+// SetCustomerID sets the "customer_id" field.
+func (_u *ChangeUpdateOne) SetCustomerID(v int) *ChangeUpdateOne {
+	_u.mutation.ResetCustomerID()
+	_u.mutation.SetCustomerID(v)
+	return _u
+}
+
+// SetNillableCustomerID sets the "customer_id" field if the given value is not nil.
+func (_u *ChangeUpdateOne) SetNillableCustomerID(v *int) *ChangeUpdateOne {
+	if v != nil {
+		_u.SetCustomerID(*v)
+	}
+	return _u
+}
+
+// AddCustomerID adds value to the "customer_id" field.
+func (_u *ChangeUpdateOne) AddCustomerID(v int) *ChangeUpdateOne {
+	_u.mutation.AddCustomerID(v)
+	return _u
+}
+
+// ClearCustomerID clears the value of the "customer_id" field.
+func (_u *ChangeUpdateOne) ClearCustomerID() *ChangeUpdateOne {
+	_u.mutation.ClearCustomerID()
+	return _u
+}
+
 // SetPlannedStartDate sets the "planned_start_date" field.
 func (_u *ChangeUpdateOne) SetPlannedStartDate(v time.Time) *ChangeUpdateOne {
 	_u.mutation.SetPlannedStartDate(v)
@@ -1570,6 +1633,15 @@ func (_u *ChangeUpdateOne) sqlSave(ctx context.Context) (_node *Change, err erro
 	}
 	if _u.mutation.DepartmentIDCleared() {
 		_spec.ClearField(change.FieldDepartmentID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.CustomerID(); ok {
+		_spec.SetField(change.FieldCustomerID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedCustomerID(); ok {
+		_spec.AddField(change.FieldCustomerID, field.TypeInt, value)
+	}
+	if _u.mutation.CustomerIDCleared() {
+		_spec.ClearField(change.FieldCustomerID, field.TypeInt)
 	}
 	if value, ok := _u.mutation.PlannedStartDate(); ok {
 		_spec.SetField(change.FieldPlannedStartDate, field.TypeTime, value)

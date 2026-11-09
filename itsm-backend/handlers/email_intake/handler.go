@@ -144,6 +144,13 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	masterReferences.PUT("/:id", middleware.RequirePermission("support_contract", "write"), h.UpdateExternalContractReference)
 	masterReferences.DELETE("/:id", middleware.RequirePermission("support_contract", "write"), h.DeleteExternalContractReference)
 
+	// Business-record lookup: authenticated tenant users need id/name/code to
+	// select a customer on tickets/problems/knowledge/etc. This is deliberately
+	// separate from /master-data/customers, whose broader read permission stays
+	// restricted to master-data maintainers.
+	lookups := rg.Group("/lookups")
+	lookups.GET("/customers", h.ListCustomerOptions)
+
 	projectLinks := rg.Group("/projects")
 	projectLinks.GET("/:id/customer-links", middleware.RequirePermission("project", "read"), h.ListProjectCustomerLinks)
 	projectLinks.POST("/:id/customer-links", middleware.RequirePermission("project", "write"), h.CreateProjectCustomerLink)
@@ -282,6 +289,19 @@ func (h *Handler) ListCustomers(c *gin.Context) {
 		"pageSize":   pageSize,
 		"totalPages": totalPages,
 	})
+}
+
+func (h *Handler) ListCustomerOptions(c *gin.Context) {
+	tenantID, ok := tenant(c)
+	if !ok {
+		return
+	}
+	options, err := h.svc.ListCustomerOptions(c, tenantID, c.Query("keyword"))
+	if err != nil {
+		common.FailWithErr(c, err, "加载客户列表失败")
+		return
+	}
+	common.Success(c, gin.H{"items": options})
 }
 
 func (h *Handler) GetCustomer(c *gin.Context) {

@@ -152,6 +152,33 @@ func (_u *ServiceRequestUpdate) ClearDepartmentID() *ServiceRequestUpdate {
 	return _u
 }
 
+// SetCustomerID sets the "customer_id" field.
+func (_u *ServiceRequestUpdate) SetCustomerID(v int) *ServiceRequestUpdate {
+	_u.mutation.ResetCustomerID()
+	_u.mutation.SetCustomerID(v)
+	return _u
+}
+
+// SetNillableCustomerID sets the "customer_id" field if the given value is not nil.
+func (_u *ServiceRequestUpdate) SetNillableCustomerID(v *int) *ServiceRequestUpdate {
+	if v != nil {
+		_u.SetCustomerID(*v)
+	}
+	return _u
+}
+
+// AddCustomerID adds value to the "customer_id" field.
+func (_u *ServiceRequestUpdate) AddCustomerID(v int) *ServiceRequestUpdate {
+	_u.mutation.AddCustomerID(v)
+	return _u
+}
+
+// ClearCustomerID clears the value of the "customer_id" field.
+func (_u *ServiceRequestUpdate) ClearCustomerID() *ServiceRequestUpdate {
+	_u.mutation.ClearCustomerID()
+	return _u
+}
+
 // SetRequesterID sets the "requester_id" field.
 func (_u *ServiceRequestUpdate) SetRequesterID(v int) *ServiceRequestUpdate {
 	_u.mutation.ResetRequesterID()
@@ -744,6 +771,15 @@ func (_u *ServiceRequestUpdate) sqlSave(ctx context.Context) (_node int, err err
 	if _u.mutation.DepartmentIDCleared() {
 		_spec.ClearField(servicerequest.FieldDepartmentID, field.TypeInt)
 	}
+	if value, ok := _u.mutation.CustomerID(); ok {
+		_spec.SetField(servicerequest.FieldCustomerID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedCustomerID(); ok {
+		_spec.AddField(servicerequest.FieldCustomerID, field.TypeInt, value)
+	}
+	if _u.mutation.CustomerIDCleared() {
+		_spec.ClearField(servicerequest.FieldCustomerID, field.TypeInt)
+	}
 	if value, ok := _u.mutation.RequesterID(); ok {
 		_spec.SetField(servicerequest.FieldRequesterID, field.TypeInt, value)
 	}
@@ -1035,6 +1071,33 @@ func (_u *ServiceRequestUpdateOne) AddDepartmentID(v int) *ServiceRequestUpdateO
 // ClearDepartmentID clears the value of the "department_id" field.
 func (_u *ServiceRequestUpdateOne) ClearDepartmentID() *ServiceRequestUpdateOne {
 	_u.mutation.ClearDepartmentID()
+	return _u
+}
+
+// SetCustomerID sets the "customer_id" field.
+func (_u *ServiceRequestUpdateOne) SetCustomerID(v int) *ServiceRequestUpdateOne {
+	_u.mutation.ResetCustomerID()
+	_u.mutation.SetCustomerID(v)
+	return _u
+}
+
+// SetNillableCustomerID sets the "customer_id" field if the given value is not nil.
+func (_u *ServiceRequestUpdateOne) SetNillableCustomerID(v *int) *ServiceRequestUpdateOne {
+	if v != nil {
+		_u.SetCustomerID(*v)
+	}
+	return _u
+}
+
+// AddCustomerID adds value to the "customer_id" field.
+func (_u *ServiceRequestUpdateOne) AddCustomerID(v int) *ServiceRequestUpdateOne {
+	_u.mutation.AddCustomerID(v)
+	return _u
+}
+
+// ClearCustomerID clears the value of the "customer_id" field.
+func (_u *ServiceRequestUpdateOne) ClearCustomerID() *ServiceRequestUpdateOne {
+	_u.mutation.ClearCustomerID()
 	return _u
 }
 
@@ -1659,6 +1722,15 @@ func (_u *ServiceRequestUpdateOne) sqlSave(ctx context.Context) (_node *ServiceR
 	}
 	if _u.mutation.DepartmentIDCleared() {
 		_spec.ClearField(servicerequest.FieldDepartmentID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.CustomerID(); ok {
+		_spec.SetField(servicerequest.FieldCustomerID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedCustomerID(); ok {
+		_spec.AddField(servicerequest.FieldCustomerID, field.TypeInt, value)
+	}
+	if _u.mutation.CustomerIDCleared() {
+		_spec.ClearField(servicerequest.FieldCustomerID, field.TypeInt)
 	}
 	if value, ok := _u.mutation.RequesterID(); ok {
 		_spec.SetField(servicerequest.FieldRequesterID, field.TypeInt, value)

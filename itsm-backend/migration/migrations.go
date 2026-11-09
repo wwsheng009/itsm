@@ -139,6 +139,11 @@ var RegisteredMigrations = []Migration{
 		Description: "Add tenant-scoped department_id to tickets, incidents, problems, changes, service_requests and releases",
 		RollbackSQL: "",
 	},
+	{
+		Version:     "027_add_customer_to_business_records",
+		Description: "Add tenant-scoped customer_id (service_customers) to tickets, incidents, problems, changes, service_requests, releases and knowledge_articles",
+		RollbackSQL: "",
+	},
 }
 
 // PostSchemaMigrations returns a defensive copy of the canonical active stream.
@@ -993,6 +998,63 @@ CREATE INDEX IF NOT EXISTS idx_problems_tenant_department ON problems (tenant_id
 CREATE INDEX IF NOT EXISTS idx_changes_tenant_department ON changes (tenant_id, department_id);
 CREATE INDEX IF NOT EXISTS idx_service_requests_tenant_department ON service_requests (tenant_id, department_id);
 CREATE INDEX IF NOT EXISTS idx_releases_tenant_department ON releases (tenant_id, department_id);
+`
+	case "027_add_customer_to_business_records":
+		return `
+-- 业务单据统一客户归属（可选；NULL 或 0 表示未指定）。
+-- customer_id 指向租户内客户主数据 service_customers.id；复合外键保证同租户。
+ALTER TABLE tickets ADD COLUMN IF NOT EXISTS customer_id BIGINT;
+ALTER TABLE incidents ADD COLUMN IF NOT EXISTS customer_id BIGINT;
+ALTER TABLE problems ADD COLUMN IF NOT EXISTS customer_id BIGINT;
+ALTER TABLE changes ADD COLUMN IF NOT EXISTS customer_id BIGINT;
+ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS customer_id BIGINT;
+ALTER TABLE releases ADD COLUMN IF NOT EXISTS customer_id BIGINT;
+ALTER TABLE knowledge_articles ADD COLUMN IF NOT EXISTS customer_id BIGINT;
+
+CREATE INDEX IF NOT EXISTS idx_tickets_tenant_customer ON tickets (tenant_id, customer_id);
+CREATE INDEX IF NOT EXISTS idx_incidents_tenant_customer ON incidents (tenant_id, customer_id);
+CREATE INDEX IF NOT EXISTS idx_problems_tenant_customer ON problems (tenant_id, customer_id);
+CREATE INDEX IF NOT EXISTS idx_changes_tenant_customer ON changes (tenant_id, customer_id);
+CREATE INDEX IF NOT EXISTS idx_service_requests_tenant_customer ON service_requests (tenant_id, customer_id);
+CREATE INDEX IF NOT EXISTS idx_releases_tenant_customer ON releases (tenant_id, customer_id);
+CREATE INDEX IF NOT EXISTS idx_knowledge_articles_tenant_customer ON knowledge_articles (tenant_id, customer_id);
+
+-- 同租户复合外键：仅在客户主数据表与 (tenant_id, id) 唯一索引已存在时追加，
+-- 避免早于客户主数据迁移执行时因引用目标缺失而失败。
+DO $$
+BEGIN
+  IF to_regclass('service_customers') IS NOT NULL
+     AND to_regclass('uq_customer_tenant_id') IS NOT NULL THEN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_tickets_customer_tenant') THEN
+      ALTER TABLE tickets ADD CONSTRAINT fk_tickets_customer_tenant
+        FOREIGN KEY (tenant_id, customer_id) REFERENCES service_customers (tenant_id, id);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_incidents_customer_tenant') THEN
+      ALTER TABLE incidents ADD CONSTRAINT fk_incidents_customer_tenant
+        FOREIGN KEY (tenant_id, customer_id) REFERENCES service_customers (tenant_id, id);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_problems_customer_tenant') THEN
+      ALTER TABLE problems ADD CONSTRAINT fk_problems_customer_tenant
+        FOREIGN KEY (tenant_id, customer_id) REFERENCES service_customers (tenant_id, id);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_changes_customer_tenant') THEN
+      ALTER TABLE changes ADD CONSTRAINT fk_changes_customer_tenant
+        FOREIGN KEY (tenant_id, customer_id) REFERENCES service_customers (tenant_id, id);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_service_requests_customer_tenant') THEN
+      ALTER TABLE service_requests ADD CONSTRAINT fk_service_requests_customer_tenant
+        FOREIGN KEY (tenant_id, customer_id) REFERENCES service_customers (tenant_id, id);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_releases_customer_tenant') THEN
+      ALTER TABLE releases ADD CONSTRAINT fk_releases_customer_tenant
+        FOREIGN KEY (tenant_id, customer_id) REFERENCES service_customers (tenant_id, id);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_knowledge_articles_customer_tenant') THEN
+      ALTER TABLE knowledge_articles ADD CONSTRAINT fk_knowledge_articles_customer_tenant
+        FOREIGN KEY (tenant_id, customer_id) REFERENCES service_customers (tenant_id, id);
+    END IF;
+  END IF;
+END $$;
 `
 	default:
 		return ""

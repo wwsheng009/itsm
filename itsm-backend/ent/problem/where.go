@@ -120,6 +120,11 @@ func DepartmentID(v int) predicate.Problem {
 	return predicate.Problem(sql.FieldEQ(FieldDepartmentID, v))
 }
 
+// CustomerID applies equality check predicate on the "customer_id" field. It's identical to CustomerIDEQ.
+func CustomerID(v int) predicate.Problem {
+	return predicate.Problem(sql.FieldEQ(FieldCustomerID, v))
+}
+
 // CreatedBy applies equality check predicate on the "created_by" field. It's identical to CreatedByEQ.
 func CreatedBy(v int) predicate.Problem {
 	return predicate.Problem(sql.FieldEQ(FieldCreatedBy, v))
@@ -1023,6 +1028,56 @@ func DepartmentIDIsNil() predicate.Problem {
 // DepartmentIDNotNil applies the NotNil predicate on the "department_id" field.
 func DepartmentIDNotNil() predicate.Problem {
 	return predicate.Problem(sql.FieldNotNull(FieldDepartmentID))
+}
+
+// CustomerIDEQ applies the EQ predicate on the "customer_id" field.
+func CustomerIDEQ(v int) predicate.Problem {
+	return predicate.Problem(sql.FieldEQ(FieldCustomerID, v))
+}
+
+// CustomerIDNEQ applies the NEQ predicate on the "customer_id" field.
+func CustomerIDNEQ(v int) predicate.Problem {
+	return predicate.Problem(sql.FieldNEQ(FieldCustomerID, v))
+}
+
+// CustomerIDIn applies the In predicate on the "customer_id" field.
+func CustomerIDIn(vs ...int) predicate.Problem {
+	return predicate.Problem(sql.FieldIn(FieldCustomerID, vs...))
+}
+
+// CustomerIDNotIn applies the NotIn predicate on the "customer_id" field.
+func CustomerIDNotIn(vs ...int) predicate.Problem {
+	return predicate.Problem(sql.FieldNotIn(FieldCustomerID, vs...))
+}
+
+// CustomerIDGT applies the GT predicate on the "customer_id" field.
+func CustomerIDGT(v int) predicate.Problem {
+	return predicate.Problem(sql.FieldGT(FieldCustomerID, v))
+}
+
+// CustomerIDGTE applies the GTE predicate on the "customer_id" field.
+func CustomerIDGTE(v int) predicate.Problem {
+	return predicate.Problem(sql.FieldGTE(FieldCustomerID, v))
+}
+
+// CustomerIDLT applies the LT predicate on the "customer_id" field.
+func CustomerIDLT(v int) predicate.Problem {
+	return predicate.Problem(sql.FieldLT(FieldCustomerID, v))
+}
+
+// CustomerIDLTE applies the LTE predicate on the "customer_id" field.
+func CustomerIDLTE(v int) predicate.Problem {
+	return predicate.Problem(sql.FieldLTE(FieldCustomerID, v))
+}
+
+// CustomerIDIsNil applies the IsNil predicate on the "customer_id" field.
+func CustomerIDIsNil() predicate.Problem {
+	return predicate.Problem(sql.FieldIsNull(FieldCustomerID))
+}
+
+// CustomerIDNotNil applies the NotNil predicate on the "customer_id" field.
+func CustomerIDNotNil() predicate.Problem {
+	return predicate.Problem(sql.FieldNotNull(FieldCustomerID))
 }
 
 // CreatedByEQ applies the EQ predicate on the "created_by" field.

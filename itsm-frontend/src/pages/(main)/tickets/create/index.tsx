@@ -51,6 +51,7 @@ import TicketTypeIcon from '@/components/business/TicketTypeIcon';
 import DynamicFieldRenderer, { type ReferenceSelectOptions } from '@/components/business/DynamicFieldRenderer';
 import ProjectSelect, { useProjectLinkPermission } from '@/components/business/ProjectSelect';
 import DepartmentSelect from '@/components/business/DepartmentSelect';
+import CustomerSelect from '@/components/business/CustomerSelect';
 import { InlineApplyDiff } from '@/components/ai/InlineApplyDiff';
 import { useInlineApplyFlow, type InlineChangeSet } from '@/components/ai/use-inline-apply';
 import { pickBlankHandoffPrefill, readHandoffPrefill } from '@/lib/ai/handoff/prefill';
@@ -470,6 +471,7 @@ export default function CreateTicketPage() {
         formFields,
         projectId: values.projectId ?? undefined,
         departmentId: values.departmentId ?? undefined,
+        customerId: values.customerId ?? undefined,
       });
 
       const createdId = created.id;
@@ -829,6 +831,15 @@ export default function CreateTicketPage() {
                       tooltip="用于部门归属、统计与部门审批人路由"
                     >
                       <DepartmentSelect />
+                    </Form.Item>
+                  </Col>
+                  <Col xs={24} sm={12}>
+                    <Form.Item
+                      name="customerId"
+                      label="所属客户"
+                      tooltip="用于客户归属、统计与客户维度分析"
+                    >
+                      <CustomerSelect />
                     </Form.Item>
                   </Col>
                   {projectLinkPermission.canAttach && (

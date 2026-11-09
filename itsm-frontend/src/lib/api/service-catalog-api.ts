@@ -345,6 +345,7 @@ export class ServiceCatalogApi {
       // PE-5 增补：创建时挂接项目（可选；后端 projectlink.GuardCreate 动态复核）。
       projectId: request.projectId != null ? Number(request.projectId) : undefined,
       departmentId: request.departmentId != null ? Number(request.departmentId) : undefined,
+      customerId: request.customerId != null ? Number(request.customerId) : undefined,
     };
 
     return httpClient.post('/api/v1/service-requests', payload);

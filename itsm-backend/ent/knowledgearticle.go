@@ -31,6 +31,8 @@ type KnowledgeArticle struct {
 	AuthorID int `json:"author_id,omitempty"`
 	// 租户ID
 	TenantID int `json:"tenant_id,omitempty"`
+	// 所属客户ID（同租户，关联 service_customers）
+	CustomerID int `json:"customer_id,omitempty"`
 	// 是否发布
 	IsPublished bool `json:"is_published,omitempty"`
 	// 浏览次数
@@ -107,7 +109,7 @@ func (*KnowledgeArticle) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case knowledgearticle.FieldIsPublished:
 			values[i] = new(sql.NullBool)
-		case knowledgearticle.FieldID, knowledgearticle.FieldAuthorID, knowledgearticle.FieldTenantID, knowledgearticle.FieldViewCount, knowledgearticle.FieldLikeCount, knowledgearticle.FieldReviewIntervalDays, knowledgearticle.FieldAuthorityLevel:
+		case knowledgearticle.FieldID, knowledgearticle.FieldAuthorID, knowledgearticle.FieldTenantID, knowledgearticle.FieldCustomerID, knowledgearticle.FieldViewCount, knowledgearticle.FieldLikeCount, knowledgearticle.FieldReviewIntervalDays, knowledgearticle.FieldAuthorityLevel:
 			values[i] = new(sql.NullInt64)
 		case knowledgearticle.FieldTitle, knowledgearticle.FieldContent, knowledgearticle.FieldContentType, knowledgearticle.FieldCategory, knowledgearticle.FieldTags:
 			values[i] = new(sql.NullString)
@@ -177,6 +179,12 @@ func (_m *KnowledgeArticle) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field tenant_id", values[i])
 			} else if value.Valid {
 				_m.TenantID = int(value.Int64)
+			}
+		case knowledgearticle.FieldCustomerID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field customer_id", values[i])
+			} else if value.Valid {
+				_m.CustomerID = int(value.Int64)
 			}
 		case knowledgearticle.FieldIsPublished:
 			if value, ok := values[i].(*sql.NullBool); !ok {
@@ -326,6 +334,9 @@ func (_m *KnowledgeArticle) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("tenant_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.TenantID))
+	builder.WriteString(", ")
+	builder.WriteString("customer_id=")
+	builder.WriteString(fmt.Sprintf("%v", _m.CustomerID))
 	builder.WriteString(", ")
 	builder.WriteString("is_published=")
 	builder.WriteString(fmt.Sprintf("%v", _m.IsPublished))

@@ -69,6 +69,7 @@ type CreateIncidentRequest struct {
 	// ProjectID 创建时挂接的项目（可选；handler 前置校验 project:write + 项目非终态，随 INSERT 一次写入）。
 	ProjectID    *int       `json:"projectId,omitempty"`
 	DepartmentID *int       `json:"departmentId,omitempty"`
+	CustomerID   *int       `json:"customerId,omitempty"`
 	DetectedAt   *time.Time `json:"detectedAt" example:"2024-01-01T00:00:00Z"`
 }
 
@@ -90,6 +91,7 @@ type UpdateIncidentRequest struct {
 	Metadata        map[string]interface{} `json:"metadata,omitempty"`
 	Version         int                    `json:"version"` // 版本号（乐观锁）
 	DepartmentID    *int                   `json:"departmentId,omitempty"`
+	CustomerID      *int                   `json:"customerId,omitempty"`
 	// Force 字段已删除（2026-09-11）：DTO 定义了 "force"（注释声称可忽略版本
 	// 检查+需 force-update 权限），但 handler/service 全链路从未消费，且该
 	// 权限从未在 RBAC 词表中定义——纯死字段。留着会误导前端以为可强制更新。
@@ -125,6 +127,7 @@ type IncidentResponse struct {
 	EmailConversationID   *int                   `json:"emailConversationId,omitempty"`
 	ConfigurationItemID   *int                   `json:"configurationItemId,omitempty" example:"3"`
 	DepartmentID          *int                   `json:"departmentId,omitempty"`
+	CustomerID            *int                   `json:"customerId,omitempty"`
 	RelatedCIs            []CIInfo               `json:"relatedCIs"`
 	Category              string                 `json:"category" example:"performance"`
 	Subcategory           string                 `json:"subcategory" example:"cpu"`

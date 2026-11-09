@@ -49,6 +49,7 @@ import {
   type ArticleContentType,
 } from '@/lib/knowledge/article-content-type';
 import type { UploadedImage } from '@/components/common/rich-text/RichTextEditor';
+import CustomerSelect from '@/components/business/CustomerSelect';
 
 const { Title } = Typography;
 const { TextArea } = Input;
@@ -139,6 +140,7 @@ export default function EditKnowledgeArticlePage() {
           content: article.content,
           categoryId: matched?.id ?? (ownCategory || categories[0]?.id),
           tags: article.tags || [],
+          customerId: article.customerId,
         });
         setContentType(resolvedType);
         setWasPublished(article.status === 'published');
@@ -185,6 +187,7 @@ export default function EditKnowledgeArticlePage() {
       category:
         categories.find(c => c.id === values.categoryId)?.name || String(values.categoryId),
       tags: values.tags || [],
+      customerId: values.customerId ?? undefined,
     });
 
     // 编辑器内被删除的图片：调用附件解绑（幂等，失败不阻断保存结果）（§5.2）
@@ -345,6 +348,14 @@ export default function EditKnowledgeArticlePage() {
                   </Tag>
                 )}
               />
+            </Form.Item>
+
+            <Form.Item
+              name="customerId"
+              label="所属客户"
+              tooltip="用于客户归属、统计与客户维度分析"
+            >
+              <CustomerSelect />
             </Form.Item>
 
             <Form.Item

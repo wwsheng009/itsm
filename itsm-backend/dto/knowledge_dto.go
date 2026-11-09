@@ -14,6 +14,8 @@ type CreateKnowledgeArticleRequest struct {
 	Content  string   `json:"content" binding:"required,min=1,max=200000"`
 	Category string   `json:"category" binding:"required,max=50"`
 	Tags     []string `json:"tags"`
+	// CustomerID 所属客户（可选；同租户 service_customers.id）。
+	CustomerID *int `json:"customerId,omitempty"`
 
 	// ContentType 正文类型：text / markdown / html / rich_text。
 	// 留空表示由服务端按内容形态自动判定（历史客户端兼容）。
@@ -38,6 +40,8 @@ type UpdateKnowledgeArticleRequest struct {
 	// 否则一次保存即可绕过版本记录把文章发布出去。
 	Status *string  `json:"status"`
 	Tags   []string `json:"tags"`
+	// CustomerID 所属客户（可选；传 0 表示清空）。
+	CustomerID *int `json:"customerId,omitempty"`
 
 	// ContentType 正文类型：text / markdown / html / rich_text。
 	// 传 nil 表示「不显式指定」——服务端会保留已存类型，缺失时按内容判定。
@@ -83,6 +87,7 @@ type KnowledgeArticleResponse struct {
 	Views       int       `json:"views"`
 	Tags        []string  `json:"tags"`
 	TenantID    int       `json:"tenantId"`
+	CustomerID  *int      `json:"customerId,omitempty"`
 	CreatedAt   time.Time `json:"createdAt"`
 	UpdatedAt   time.Time `json:"updatedAt"`
 

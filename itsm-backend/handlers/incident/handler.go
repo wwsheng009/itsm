@@ -371,6 +371,7 @@ func (h *IncidentHandler) Create(c *gin.Context) {
 		Metadata:       req.Metadata,
 		ProjectID:      req.ProjectID,
 		DepartmentID:   req.DepartmentID,
+		CustomerID:     req.CustomerID,
 		ReporterID:     userID,
 		IsAutomated:    false,
 	}
@@ -1139,6 +1140,9 @@ func (h *IncidentHandler) Update(c *gin.Context) {
 	if req.DepartmentID != nil {
 		updates.DepartmentID = req.DepartmentID
 	}
+	if req.CustomerID != nil {
+		updates.CustomerID = req.CustomerID
+	}
 	if req.Category != nil {
 		updates.Category = *req.Category
 	}
@@ -1244,6 +1248,7 @@ func (h *IncidentHandler) toDTO(i *Incident) *dto.IncidentResponse {
 		ReporterID:            i.ReporterID,
 		AssigneeID:            i.AssigneeID,
 		DepartmentID:          i.DepartmentID,
+		CustomerID:            i.CustomerID,
 		Category:              i.Category,
 		Subcategory:           i.Subcategory,
 		ServiceType:           i.ServiceType,

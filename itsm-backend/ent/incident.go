@@ -34,6 +34,8 @@ type Incident struct {
 	ProjectID int `json:"project_id,omitempty"`
 	// 所属部门ID（同租户）
 	DepartmentID int `json:"department_id,omitempty"`
+	// 所属客户ID（同租户，关联 service_customers）
+	CustomerID int `json:"customer_id,omitempty"`
 	// SLA定义ID
 	SLADefinitionID int `json:"sla_definition_id,omitempty"`
 	// SLA响应截止时间
@@ -257,7 +259,7 @@ func (*Incident) scanValues(columns []string) ([]any, error) {
 			values[i] = new([]byte)
 		case incident.FieldIsAutomated, incident.FieldIsMajorIncident:
 			values[i] = new(sql.NullBool)
-		case incident.FieldID, incident.FieldProjectID, incident.FieldDepartmentID, incident.FieldSLADefinitionID, incident.FieldReporterID, incident.FieldAssigneeID, incident.FieldAssignmentGroupID, incident.FieldEmailConversationID, incident.FieldConfigurationItemID, incident.FieldEscalationLevel, incident.FieldTenantID, incident.FieldVersion:
+		case incident.FieldID, incident.FieldProjectID, incident.FieldDepartmentID, incident.FieldCustomerID, incident.FieldSLADefinitionID, incident.FieldReporterID, incident.FieldAssigneeID, incident.FieldAssignmentGroupID, incident.FieldEmailConversationID, incident.FieldConfigurationItemID, incident.FieldEscalationLevel, incident.FieldTenantID, incident.FieldVersion:
 			values[i] = new(sql.NullInt64)
 		case incident.FieldTitle, incident.FieldDescription, incident.FieldStatus, incident.FieldType, incident.FieldPriority, incident.FieldSLAStatus, incident.FieldSLAPauseReason, incident.FieldSeverity, incident.FieldImpact, incident.FieldUrgency, incident.FieldIncidentNumber, incident.FieldCategory, incident.FieldSubcategory, incident.FieldServiceType, incident.FieldFailureType, incident.FieldSource:
 			values[i] = new(sql.NullString)
@@ -325,6 +327,12 @@ func (_m *Incident) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field department_id", values[i])
 			} else if value.Valid {
 				_m.DepartmentID = int(value.Int64)
+			}
+		case incident.FieldCustomerID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field customer_id", values[i])
+			} else if value.Valid {
+				_m.CustomerID = int(value.Int64)
 			}
 		case incident.FieldSLADefinitionID:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -676,6 +684,9 @@ func (_m *Incident) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("department_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.DepartmentID))
+	builder.WriteString(", ")
+	builder.WriteString("customer_id=")
+	builder.WriteString(fmt.Sprintf("%v", _m.CustomerID))
 	builder.WriteString(", ")
 	builder.WriteString("sla_definition_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.SLADefinitionID))

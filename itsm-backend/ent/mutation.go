@@ -32807,6 +32807,8 @@ type ChangeMutation struct {
 	addproject_id         *int
 	department_id         *int
 	adddepartment_id      *int
+	customer_id           *int
+	addcustomer_id        *int
 	planned_start_date    *time.Time
 	planned_end_date      *time.Time
 	actual_start_date     *time.Time
@@ -33614,6 +33616,76 @@ func (m *ChangeMutation) ResetDepartmentID() {
 	delete(m.clearedFields, change.FieldDepartmentID)
 }
 
+// SetCustomerID sets the "customer_id" field.
+func (m *ChangeMutation) SetCustomerID(i int) {
+	m.customer_id = &i
+	m.addcustomer_id = nil
+}
+
+// CustomerID returns the value of the "customer_id" field in the mutation.
+func (m *ChangeMutation) CustomerID() (r int, exists bool) {
+	v := m.customer_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCustomerID returns the old "customer_id" field's value of the Change entity.
+// If the Change object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ChangeMutation) OldCustomerID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCustomerID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCustomerID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCustomerID: %w", err)
+	}
+	return oldValue.CustomerID, nil
+}
+
+// AddCustomerID adds i to the "customer_id" field.
+func (m *ChangeMutation) AddCustomerID(i int) {
+	if m.addcustomer_id != nil {
+		*m.addcustomer_id += i
+	} else {
+		m.addcustomer_id = &i
+	}
+}
+
+// AddedCustomerID returns the value that was added to the "customer_id" field in this mutation.
+func (m *ChangeMutation) AddedCustomerID() (r int, exists bool) {
+	v := m.addcustomer_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearCustomerID clears the value of the "customer_id" field.
+func (m *ChangeMutation) ClearCustomerID() {
+	m.customer_id = nil
+	m.addcustomer_id = nil
+	m.clearedFields[change.FieldCustomerID] = struct{}{}
+}
+
+// CustomerIDCleared returns if the "customer_id" field was cleared in this mutation.
+func (m *ChangeMutation) CustomerIDCleared() bool {
+	_, ok := m.clearedFields[change.FieldCustomerID]
+	return ok
+}
+
+// ResetCustomerID resets all changes to the "customer_id" field.
+func (m *ChangeMutation) ResetCustomerID() {
+	m.customer_id = nil
+	m.addcustomer_id = nil
+	delete(m.clearedFields, change.FieldCustomerID)
+}
+
 // SetPlannedStartDate sets the "planned_start_date" field.
 func (m *ChangeMutation) SetPlannedStartDate(t time.Time) {
 	m.planned_start_date = &t
@@ -34252,7 +34324,7 @@ func (m *ChangeMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *ChangeMutation) Fields() []string {
-	fields := make([]string, 0, 24)
+	fields := make([]string, 0, 25)
 	if m.change_number != nil {
 		fields = append(fields, change.FieldChangeNumber)
 	}
@@ -34294,6 +34366,9 @@ func (m *ChangeMutation) Fields() []string {
 	}
 	if m.department_id != nil {
 		fields = append(fields, change.FieldDepartmentID)
+	}
+	if m.customer_id != nil {
+		fields = append(fields, change.FieldCustomerID)
 	}
 	if m.planned_start_date != nil {
 		fields = append(fields, change.FieldPlannedStartDate)
@@ -34361,6 +34436,8 @@ func (m *ChangeMutation) Field(name string) (ent.Value, bool) {
 		return m.ProjectID()
 	case change.FieldDepartmentID:
 		return m.DepartmentID()
+	case change.FieldCustomerID:
+		return m.CustomerID()
 	case change.FieldPlannedStartDate:
 		return m.PlannedStartDate()
 	case change.FieldPlannedEndDate:
@@ -34418,6 +34495,8 @@ func (m *ChangeMutation) OldField(ctx context.Context, name string) (ent.Value, 
 		return m.OldProjectID(ctx)
 	case change.FieldDepartmentID:
 		return m.OldDepartmentID(ctx)
+	case change.FieldCustomerID:
+		return m.OldCustomerID(ctx)
 	case change.FieldPlannedStartDate:
 		return m.OldPlannedStartDate(ctx)
 	case change.FieldPlannedEndDate:
@@ -34545,6 +34624,13 @@ func (m *ChangeMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetDepartmentID(v)
 		return nil
+	case change.FieldCustomerID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCustomerID(v)
+		return nil
 	case change.FieldPlannedStartDate:
 		v, ok := value.(time.Time)
 		if !ok {
@@ -34638,6 +34724,9 @@ func (m *ChangeMutation) AddedFields() []string {
 	if m.adddepartment_id != nil {
 		fields = append(fields, change.FieldDepartmentID)
 	}
+	if m.addcustomer_id != nil {
+		fields = append(fields, change.FieldCustomerID)
+	}
 	return fields
 }
 
@@ -34656,6 +34745,8 @@ func (m *ChangeMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedProjectID()
 	case change.FieldDepartmentID:
 		return m.AddedDepartmentID()
+	case change.FieldCustomerID:
+		return m.AddedCustomerID()
 	}
 	return nil, false
 }
@@ -34700,6 +34791,13 @@ func (m *ChangeMutation) AddField(name string, value ent.Value) error {
 		}
 		m.AddDepartmentID(v)
 		return nil
+	case change.FieldCustomerID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddCustomerID(v)
+		return nil
 	}
 	return fmt.Errorf("unknown Change numeric field %s", name)
 }
@@ -34725,6 +34823,9 @@ func (m *ChangeMutation) ClearedFields() []string {
 	}
 	if m.FieldCleared(change.FieldDepartmentID) {
 		fields = append(fields, change.FieldDepartmentID)
+	}
+	if m.FieldCleared(change.FieldCustomerID) {
+		fields = append(fields, change.FieldCustomerID)
 	}
 	if m.FieldCleared(change.FieldPlannedStartDate) {
 		fields = append(fields, change.FieldPlannedStartDate)
@@ -34781,6 +34882,9 @@ func (m *ChangeMutation) ClearField(name string) error {
 		return nil
 	case change.FieldDepartmentID:
 		m.ClearDepartmentID()
+		return nil
+	case change.FieldCustomerID:
+		m.ClearCustomerID()
 		return nil
 	case change.FieldPlannedStartDate:
 		m.ClearPlannedStartDate()
@@ -34855,6 +34959,9 @@ func (m *ChangeMutation) ResetField(name string) error {
 		return nil
 	case change.FieldDepartmentID:
 		m.ResetDepartmentID()
+		return nil
+	case change.FieldCustomerID:
+		m.ResetCustomerID()
 		return nil
 	case change.FieldPlannedStartDate:
 		m.ResetPlannedStartDate()
@@ -83537,6 +83644,8 @@ type IncidentMutation struct {
 	addproject_id              *int
 	department_id              *int
 	adddepartment_id           *int
+	customer_id                *int
+	addcustomer_id             *int
 	sla_definition_id          *int
 	addsla_definition_id       *int
 	sla_response_deadline      *time.Time
@@ -84047,6 +84156,76 @@ func (m *IncidentMutation) ResetDepartmentID() {
 	m.department_id = nil
 	m.adddepartment_id = nil
 	delete(m.clearedFields, incident.FieldDepartmentID)
+}
+
+// SetCustomerID sets the "customer_id" field.
+func (m *IncidentMutation) SetCustomerID(i int) {
+	m.customer_id = &i
+	m.addcustomer_id = nil
+}
+
+// CustomerID returns the value of the "customer_id" field in the mutation.
+func (m *IncidentMutation) CustomerID() (r int, exists bool) {
+	v := m.customer_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCustomerID returns the old "customer_id" field's value of the Incident entity.
+// If the Incident object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *IncidentMutation) OldCustomerID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCustomerID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCustomerID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCustomerID: %w", err)
+	}
+	return oldValue.CustomerID, nil
+}
+
+// AddCustomerID adds i to the "customer_id" field.
+func (m *IncidentMutation) AddCustomerID(i int) {
+	if m.addcustomer_id != nil {
+		*m.addcustomer_id += i
+	} else {
+		m.addcustomer_id = &i
+	}
+}
+
+// AddedCustomerID returns the value that was added to the "customer_id" field in this mutation.
+func (m *IncidentMutation) AddedCustomerID() (r int, exists bool) {
+	v := m.addcustomer_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearCustomerID clears the value of the "customer_id" field.
+func (m *IncidentMutation) ClearCustomerID() {
+	m.customer_id = nil
+	m.addcustomer_id = nil
+	m.clearedFields[incident.FieldCustomerID] = struct{}{}
+}
+
+// CustomerIDCleared returns if the "customer_id" field was cleared in this mutation.
+func (m *IncidentMutation) CustomerIDCleared() bool {
+	_, ok := m.clearedFields[incident.FieldCustomerID]
+	return ok
+}
+
+// ResetCustomerID resets all changes to the "customer_id" field.
+func (m *IncidentMutation) ResetCustomerID() {
+	m.customer_id = nil
+	m.addcustomer_id = nil
+	delete(m.clearedFields, incident.FieldCustomerID)
 }
 
 // SetSLADefinitionID sets the "sla_definition_id" field.
@@ -86449,7 +86628,7 @@ func (m *IncidentMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *IncidentMutation) Fields() []string {
-	fields := make([]string, 0, 45)
+	fields := make([]string, 0, 46)
 	if m.title != nil {
 		fields = append(fields, incident.FieldTitle)
 	}
@@ -86470,6 +86649,9 @@ func (m *IncidentMutation) Fields() []string {
 	}
 	if m.department_id != nil {
 		fields = append(fields, incident.FieldDepartmentID)
+	}
+	if m.customer_id != nil {
+		fields = append(fields, incident.FieldCustomerID)
 	}
 	if m.sla_definition_id != nil {
 		fields = append(fields, incident.FieldSLADefinitionID)
@@ -86607,6 +86789,8 @@ func (m *IncidentMutation) Field(name string) (ent.Value, bool) {
 		return m.ProjectID()
 	case incident.FieldDepartmentID:
 		return m.DepartmentID()
+	case incident.FieldCustomerID:
+		return m.CustomerID()
 	case incident.FieldSLADefinitionID:
 		return m.SLADefinitionID()
 	case incident.FieldSLAResponseDeadline:
@@ -86706,6 +86890,8 @@ func (m *IncidentMutation) OldField(ctx context.Context, name string) (ent.Value
 		return m.OldProjectID(ctx)
 	case incident.FieldDepartmentID:
 		return m.OldDepartmentID(ctx)
+	case incident.FieldCustomerID:
+		return m.OldCustomerID(ctx)
 	case incident.FieldSLADefinitionID:
 		return m.OldSLADefinitionID(ctx)
 	case incident.FieldSLAResponseDeadline:
@@ -86839,6 +87025,13 @@ func (m *IncidentMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetDepartmentID(v)
+		return nil
+	case incident.FieldCustomerID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCustomerID(v)
 		return nil
 	case incident.FieldSLADefinitionID:
 		v, ok := value.(int)
@@ -87120,6 +87313,9 @@ func (m *IncidentMutation) AddedFields() []string {
 	if m.adddepartment_id != nil {
 		fields = append(fields, incident.FieldDepartmentID)
 	}
+	if m.addcustomer_id != nil {
+		fields = append(fields, incident.FieldCustomerID)
+	}
 	if m.addsla_definition_id != nil {
 		fields = append(fields, incident.FieldSLADefinitionID)
 	}
@@ -87153,6 +87349,8 @@ func (m *IncidentMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedProjectID()
 	case incident.FieldDepartmentID:
 		return m.AddedDepartmentID()
+	case incident.FieldCustomerID:
+		return m.AddedCustomerID()
 	case incident.FieldSLADefinitionID:
 		return m.AddedSLADefinitionID()
 	case incident.FieldReporterID:
@@ -87189,6 +87387,13 @@ func (m *IncidentMutation) AddField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddDepartmentID(v)
+		return nil
+	case incident.FieldCustomerID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddCustomerID(v)
 		return nil
 	case incident.FieldSLADefinitionID:
 		v, ok := value.(int)
@@ -87255,6 +87460,9 @@ func (m *IncidentMutation) ClearedFields() []string {
 	}
 	if m.FieldCleared(incident.FieldDepartmentID) {
 		fields = append(fields, incident.FieldDepartmentID)
+	}
+	if m.FieldCleared(incident.FieldCustomerID) {
+		fields = append(fields, incident.FieldCustomerID)
 	}
 	if m.FieldCleared(incident.FieldSLADefinitionID) {
 		fields = append(fields, incident.FieldSLADefinitionID)
@@ -87347,6 +87555,9 @@ func (m *IncidentMutation) ClearField(name string) error {
 		return nil
 	case incident.FieldDepartmentID:
 		m.ClearDepartmentID()
+		return nil
+	case incident.FieldCustomerID:
+		m.ClearCustomerID()
 		return nil
 	case incident.FieldSLADefinitionID:
 		m.ClearSLADefinitionID()
@@ -87445,6 +87656,9 @@ func (m *IncidentMutation) ResetField(name string) error {
 		return nil
 	case incident.FieldDepartmentID:
 		m.ResetDepartmentID()
+		return nil
+	case incident.FieldCustomerID:
+		m.ResetCustomerID()
 		return nil
 	case incident.FieldSLADefinitionID:
 		m.ResetSLADefinitionID()
@@ -98022,6 +98236,8 @@ type KnowledgeArticleMutation struct {
 	addauthor_id            *int
 	tenant_id               *int
 	addtenant_id            *int
+	customer_id             *int
+	addcustomer_id          *int
 	is_published            *bool
 	view_count              *int
 	addview_count           *int
@@ -98479,6 +98695,76 @@ func (m *KnowledgeArticleMutation) AddedTenantID() (r int, exists bool) {
 func (m *KnowledgeArticleMutation) ResetTenantID() {
 	m.tenant_id = nil
 	m.addtenant_id = nil
+}
+
+// SetCustomerID sets the "customer_id" field.
+func (m *KnowledgeArticleMutation) SetCustomerID(i int) {
+	m.customer_id = &i
+	m.addcustomer_id = nil
+}
+
+// CustomerID returns the value of the "customer_id" field in the mutation.
+func (m *KnowledgeArticleMutation) CustomerID() (r int, exists bool) {
+	v := m.customer_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCustomerID returns the old "customer_id" field's value of the KnowledgeArticle entity.
+// If the KnowledgeArticle object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KnowledgeArticleMutation) OldCustomerID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCustomerID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCustomerID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCustomerID: %w", err)
+	}
+	return oldValue.CustomerID, nil
+}
+
+// AddCustomerID adds i to the "customer_id" field.
+func (m *KnowledgeArticleMutation) AddCustomerID(i int) {
+	if m.addcustomer_id != nil {
+		*m.addcustomer_id += i
+	} else {
+		m.addcustomer_id = &i
+	}
+}
+
+// AddedCustomerID returns the value that was added to the "customer_id" field in this mutation.
+func (m *KnowledgeArticleMutation) AddedCustomerID() (r int, exists bool) {
+	v := m.addcustomer_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearCustomerID clears the value of the "customer_id" field.
+func (m *KnowledgeArticleMutation) ClearCustomerID() {
+	m.customer_id = nil
+	m.addcustomer_id = nil
+	m.clearedFields[knowledgearticle.FieldCustomerID] = struct{}{}
+}
+
+// CustomerIDCleared returns if the "customer_id" field was cleared in this mutation.
+func (m *KnowledgeArticleMutation) CustomerIDCleared() bool {
+	_, ok := m.clearedFields[knowledgearticle.FieldCustomerID]
+	return ok
+}
+
+// ResetCustomerID resets all changes to the "customer_id" field.
+func (m *KnowledgeArticleMutation) ResetCustomerID() {
+	m.customer_id = nil
+	m.addcustomer_id = nil
+	delete(m.clearedFields, knowledgearticle.FieldCustomerID)
 }
 
 // SetIsPublished sets the "is_published" field.
@@ -99205,7 +99491,7 @@ func (m *KnowledgeArticleMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *KnowledgeArticleMutation) Fields() []string {
-	fields := make([]string, 0, 18)
+	fields := make([]string, 0, 19)
 	if m.title != nil {
 		fields = append(fields, knowledgearticle.FieldTitle)
 	}
@@ -99226,6 +99512,9 @@ func (m *KnowledgeArticleMutation) Fields() []string {
 	}
 	if m.tenant_id != nil {
 		fields = append(fields, knowledgearticle.FieldTenantID)
+	}
+	if m.customer_id != nil {
+		fields = append(fields, knowledgearticle.FieldCustomerID)
 	}
 	if m.is_published != nil {
 		fields = append(fields, knowledgearticle.FieldIsPublished)
@@ -99282,6 +99571,8 @@ func (m *KnowledgeArticleMutation) Field(name string) (ent.Value, bool) {
 		return m.AuthorID()
 	case knowledgearticle.FieldTenantID:
 		return m.TenantID()
+	case knowledgearticle.FieldCustomerID:
+		return m.CustomerID()
 	case knowledgearticle.FieldIsPublished:
 		return m.IsPublished()
 	case knowledgearticle.FieldViewCount:
@@ -99327,6 +99618,8 @@ func (m *KnowledgeArticleMutation) OldField(ctx context.Context, name string) (e
 		return m.OldAuthorID(ctx)
 	case knowledgearticle.FieldTenantID:
 		return m.OldTenantID(ctx)
+	case knowledgearticle.FieldCustomerID:
+		return m.OldCustomerID(ctx)
 	case knowledgearticle.FieldIsPublished:
 		return m.OldIsPublished(ctx)
 	case knowledgearticle.FieldViewCount:
@@ -99406,6 +99699,13 @@ func (m *KnowledgeArticleMutation) SetField(name string, value ent.Value) error 
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetTenantID(v)
+		return nil
+	case knowledgearticle.FieldCustomerID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCustomerID(v)
 		return nil
 	case knowledgearticle.FieldIsPublished:
 		v, ok := value.(bool)
@@ -99498,6 +99798,9 @@ func (m *KnowledgeArticleMutation) AddedFields() []string {
 	if m.addtenant_id != nil {
 		fields = append(fields, knowledgearticle.FieldTenantID)
 	}
+	if m.addcustomer_id != nil {
+		fields = append(fields, knowledgearticle.FieldCustomerID)
+	}
 	if m.addview_count != nil {
 		fields = append(fields, knowledgearticle.FieldViewCount)
 	}
@@ -99522,6 +99825,8 @@ func (m *KnowledgeArticleMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedAuthorID()
 	case knowledgearticle.FieldTenantID:
 		return m.AddedTenantID()
+	case knowledgearticle.FieldCustomerID:
+		return m.AddedCustomerID()
 	case knowledgearticle.FieldViewCount:
 		return m.AddedViewCount()
 	case knowledgearticle.FieldLikeCount:
@@ -99552,6 +99857,13 @@ func (m *KnowledgeArticleMutation) AddField(name string, value ent.Value) error 
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddTenantID(v)
+		return nil
+	case knowledgearticle.FieldCustomerID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddCustomerID(v)
 		return nil
 	case knowledgearticle.FieldViewCount:
 		v, ok := value.(int)
@@ -99598,6 +99910,9 @@ func (m *KnowledgeArticleMutation) ClearedFields() []string {
 	if m.FieldCleared(knowledgearticle.FieldTags) {
 		fields = append(fields, knowledgearticle.FieldTags)
 	}
+	if m.FieldCleared(knowledgearticle.FieldCustomerID) {
+		fields = append(fields, knowledgearticle.FieldCustomerID)
+	}
 	if m.FieldCleared(knowledgearticle.FieldValidFrom) {
 		fields = append(fields, knowledgearticle.FieldValidFrom)
 	}
@@ -99632,6 +99947,9 @@ func (m *KnowledgeArticleMutation) ClearField(name string) error {
 		return nil
 	case knowledgearticle.FieldTags:
 		m.ClearTags()
+		return nil
+	case knowledgearticle.FieldCustomerID:
+		m.ClearCustomerID()
 		return nil
 	case knowledgearticle.FieldValidFrom:
 		m.ClearValidFrom()
@@ -99673,6 +99991,9 @@ func (m *KnowledgeArticleMutation) ResetField(name string) error {
 		return nil
 	case knowledgearticle.FieldTenantID:
 		m.ResetTenantID()
+		return nil
+	case knowledgearticle.FieldCustomerID:
+		m.ResetCustomerID()
 		return nil
 	case knowledgearticle.FieldIsPublished:
 		m.ResetIsPublished()
@@ -129084,6 +129405,8 @@ type ProblemMutation struct {
 	addproject_id    *int
 	department_id    *int
 	adddepartment_id *int
+	customer_id      *int
+	addcustomer_id   *int
 	created_by       *int
 	addcreated_by    *int
 	tenant_id        *int
@@ -129867,6 +130190,76 @@ func (m *ProblemMutation) ResetDepartmentID() {
 	delete(m.clearedFields, problem.FieldDepartmentID)
 }
 
+// SetCustomerID sets the "customer_id" field.
+func (m *ProblemMutation) SetCustomerID(i int) {
+	m.customer_id = &i
+	m.addcustomer_id = nil
+}
+
+// CustomerID returns the value of the "customer_id" field in the mutation.
+func (m *ProblemMutation) CustomerID() (r int, exists bool) {
+	v := m.customer_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCustomerID returns the old "customer_id" field's value of the Problem entity.
+// If the Problem object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ProblemMutation) OldCustomerID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCustomerID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCustomerID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCustomerID: %w", err)
+	}
+	return oldValue.CustomerID, nil
+}
+
+// AddCustomerID adds i to the "customer_id" field.
+func (m *ProblemMutation) AddCustomerID(i int) {
+	if m.addcustomer_id != nil {
+		*m.addcustomer_id += i
+	} else {
+		m.addcustomer_id = &i
+	}
+}
+
+// AddedCustomerID returns the value that was added to the "customer_id" field in this mutation.
+func (m *ProblemMutation) AddedCustomerID() (r int, exists bool) {
+	v := m.addcustomer_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearCustomerID clears the value of the "customer_id" field.
+func (m *ProblemMutation) ClearCustomerID() {
+	m.customer_id = nil
+	m.addcustomer_id = nil
+	m.clearedFields[problem.FieldCustomerID] = struct{}{}
+}
+
+// CustomerIDCleared returns if the "customer_id" field was cleared in this mutation.
+func (m *ProblemMutation) CustomerIDCleared() bool {
+	_, ok := m.clearedFields[problem.FieldCustomerID]
+	return ok
+}
+
+// ResetCustomerID resets all changes to the "customer_id" field.
+func (m *ProblemMutation) ResetCustomerID() {
+	m.customer_id = nil
+	m.addcustomer_id = nil
+	delete(m.clearedFields, problem.FieldCustomerID)
+}
+
 // SetCreatedBy sets the "created_by" field.
 func (m *ProblemMutation) SetCreatedBy(i int) {
 	m.created_by = &i
@@ -130394,7 +130787,7 @@ func (m *ProblemMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *ProblemMutation) Fields() []string {
-	fields := make([]string, 0, 20)
+	fields := make([]string, 0, 21)
 	if m.problem_number != nil {
 		fields = append(fields, problem.FieldProblemNumber)
 	}
@@ -130433,6 +130826,9 @@ func (m *ProblemMutation) Fields() []string {
 	}
 	if m.department_id != nil {
 		fields = append(fields, problem.FieldDepartmentID)
+	}
+	if m.customer_id != nil {
+		fields = append(fields, problem.FieldCustomerID)
 	}
 	if m.created_by != nil {
 		fields = append(fields, problem.FieldCreatedBy)
@@ -130489,6 +130885,8 @@ func (m *ProblemMutation) Field(name string) (ent.Value, bool) {
 		return m.ProjectID()
 	case problem.FieldDepartmentID:
 		return m.DepartmentID()
+	case problem.FieldCustomerID:
+		return m.CustomerID()
 	case problem.FieldCreatedBy:
 		return m.CreatedBy()
 	case problem.FieldTenantID:
@@ -130538,6 +130936,8 @@ func (m *ProblemMutation) OldField(ctx context.Context, name string) (ent.Value,
 		return m.OldProjectID(ctx)
 	case problem.FieldDepartmentID:
 		return m.OldDepartmentID(ctx)
+	case problem.FieldCustomerID:
+		return m.OldCustomerID(ctx)
 	case problem.FieldCreatedBy:
 		return m.OldCreatedBy(ctx)
 	case problem.FieldTenantID:
@@ -130652,6 +131052,13 @@ func (m *ProblemMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetDepartmentID(v)
 		return nil
+	case problem.FieldCustomerID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCustomerID(v)
+		return nil
 	case problem.FieldCreatedBy:
 		v, ok := value.(int)
 		if !ok {
@@ -130718,6 +131125,9 @@ func (m *ProblemMutation) AddedFields() []string {
 	if m.adddepartment_id != nil {
 		fields = append(fields, problem.FieldDepartmentID)
 	}
+	if m.addcustomer_id != nil {
+		fields = append(fields, problem.FieldCustomerID)
+	}
 	if m.addcreated_by != nil {
 		fields = append(fields, problem.FieldCreatedBy)
 	}
@@ -130738,6 +131148,8 @@ func (m *ProblemMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedProjectID()
 	case problem.FieldDepartmentID:
 		return m.AddedDepartmentID()
+	case problem.FieldCustomerID:
+		return m.AddedCustomerID()
 	case problem.FieldCreatedBy:
 		return m.AddedCreatedBy()
 	case problem.FieldTenantID:
@@ -130771,6 +131183,13 @@ func (m *ProblemMutation) AddField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddDepartmentID(v)
+		return nil
+	case problem.FieldCustomerID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddCustomerID(v)
 		return nil
 	case problem.FieldCreatedBy:
 		v, ok := value.(int)
@@ -130824,6 +131243,9 @@ func (m *ProblemMutation) ClearedFields() []string {
 	if m.FieldCleared(problem.FieldDepartmentID) {
 		fields = append(fields, problem.FieldDepartmentID)
 	}
+	if m.FieldCleared(problem.FieldCustomerID) {
+		fields = append(fields, problem.FieldCustomerID)
+	}
 	if m.FieldCleared(problem.FieldResolvedAt) {
 		fields = append(fields, problem.FieldResolvedAt)
 	}
@@ -130876,6 +131298,9 @@ func (m *ProblemMutation) ClearField(name string) error {
 		return nil
 	case problem.FieldDepartmentID:
 		m.ClearDepartmentID()
+		return nil
+	case problem.FieldCustomerID:
+		m.ClearCustomerID()
 		return nil
 	case problem.FieldResolvedAt:
 		m.ClearResolvedAt()
@@ -130932,6 +131357,9 @@ func (m *ProblemMutation) ResetField(name string) error {
 		return nil
 	case problem.FieldDepartmentID:
 		m.ResetDepartmentID()
+		return nil
+	case problem.FieldCustomerID:
+		m.ResetCustomerID()
 		return nil
 	case problem.FieldCreatedBy:
 		m.ResetCreatedBy()
@@ -168543,6 +168971,8 @@ type ReleaseMutation struct {
 	environment               *string
 	department_id             *int
 	adddepartment_id          *int
+	customer_id               *int
+	addcustomer_id            *int
 	change_id                 *int
 	addchange_id              *int
 	owner_id                  *int
@@ -169007,6 +169437,76 @@ func (m *ReleaseMutation) ResetDepartmentID() {
 	m.department_id = nil
 	m.adddepartment_id = nil
 	delete(m.clearedFields, release.FieldDepartmentID)
+}
+
+// SetCustomerID sets the "customer_id" field.
+func (m *ReleaseMutation) SetCustomerID(i int) {
+	m.customer_id = &i
+	m.addcustomer_id = nil
+}
+
+// CustomerID returns the value of the "customer_id" field in the mutation.
+func (m *ReleaseMutation) CustomerID() (r int, exists bool) {
+	v := m.customer_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCustomerID returns the old "customer_id" field's value of the Release entity.
+// If the Release object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ReleaseMutation) OldCustomerID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCustomerID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCustomerID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCustomerID: %w", err)
+	}
+	return oldValue.CustomerID, nil
+}
+
+// AddCustomerID adds i to the "customer_id" field.
+func (m *ReleaseMutation) AddCustomerID(i int) {
+	if m.addcustomer_id != nil {
+		*m.addcustomer_id += i
+	} else {
+		m.addcustomer_id = &i
+	}
+}
+
+// AddedCustomerID returns the value that was added to the "customer_id" field in this mutation.
+func (m *ReleaseMutation) AddedCustomerID() (r int, exists bool) {
+	v := m.addcustomer_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearCustomerID clears the value of the "customer_id" field.
+func (m *ReleaseMutation) ClearCustomerID() {
+	m.customer_id = nil
+	m.addcustomer_id = nil
+	m.clearedFields[release.FieldCustomerID] = struct{}{}
+}
+
+// CustomerIDCleared returns if the "customer_id" field was cleared in this mutation.
+func (m *ReleaseMutation) CustomerIDCleared() bool {
+	_, ok := m.clearedFields[release.FieldCustomerID]
+	return ok
+}
+
+// ResetCustomerID resets all changes to the "customer_id" field.
+func (m *ReleaseMutation) ResetCustomerID() {
+	m.customer_id = nil
+	m.addcustomer_id = nil
+	delete(m.clearedFields, release.FieldCustomerID)
 }
 
 // SetChangeID sets the "change_id" field.
@@ -170042,7 +170542,7 @@ func (m *ReleaseMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *ReleaseMutation) Fields() []string {
-	fields := make([]string, 0, 27)
+	fields := make([]string, 0, 28)
 	if m.release_number != nil {
 		fields = append(fields, release.FieldReleaseNumber)
 	}
@@ -170066,6 +170566,9 @@ func (m *ReleaseMutation) Fields() []string {
 	}
 	if m.department_id != nil {
 		fields = append(fields, release.FieldDepartmentID)
+	}
+	if m.customer_id != nil {
+		fields = append(fields, release.FieldCustomerID)
 	}
 	if m.change_id != nil {
 		fields = append(fields, release.FieldChangeID)
@@ -170148,6 +170651,8 @@ func (m *ReleaseMutation) Field(name string) (ent.Value, bool) {
 		return m.Environment()
 	case release.FieldDepartmentID:
 		return m.DepartmentID()
+	case release.FieldCustomerID:
+		return m.CustomerID()
 	case release.FieldChangeID:
 		return m.ChangeID()
 	case release.FieldOwnerID:
@@ -170211,6 +170716,8 @@ func (m *ReleaseMutation) OldField(ctx context.Context, name string) (ent.Value,
 		return m.OldEnvironment(ctx)
 	case release.FieldDepartmentID:
 		return m.OldDepartmentID(ctx)
+	case release.FieldCustomerID:
+		return m.OldCustomerID(ctx)
 	case release.FieldChangeID:
 		return m.OldChangeID(ctx)
 	case release.FieldOwnerID:
@@ -170313,6 +170820,13 @@ func (m *ReleaseMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetDepartmentID(v)
+		return nil
+	case release.FieldCustomerID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCustomerID(v)
 		return nil
 	case release.FieldChangeID:
 		v, ok := value.(int)
@@ -170458,6 +170972,9 @@ func (m *ReleaseMutation) AddedFields() []string {
 	if m.adddepartment_id != nil {
 		fields = append(fields, release.FieldDepartmentID)
 	}
+	if m.addcustomer_id != nil {
+		fields = append(fields, release.FieldCustomerID)
+	}
 	if m.addchange_id != nil {
 		fields = append(fields, release.FieldChangeID)
 	}
@@ -170480,6 +170997,8 @@ func (m *ReleaseMutation) AddedField(name string) (ent.Value, bool) {
 	switch name {
 	case release.FieldDepartmentID:
 		return m.AddedDepartmentID()
+	case release.FieldCustomerID:
+		return m.AddedCustomerID()
 	case release.FieldChangeID:
 		return m.AddedChangeID()
 	case release.FieldOwnerID:
@@ -170503,6 +171022,13 @@ func (m *ReleaseMutation) AddField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddDepartmentID(v)
+		return nil
+	case release.FieldCustomerID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddCustomerID(v)
 		return nil
 	case release.FieldChangeID:
 		v, ok := value.(int)
@@ -170545,6 +171071,9 @@ func (m *ReleaseMutation) ClearedFields() []string {
 	}
 	if m.FieldCleared(release.FieldDepartmentID) {
 		fields = append(fields, release.FieldDepartmentID)
+	}
+	if m.FieldCleared(release.FieldCustomerID) {
+		fields = append(fields, release.FieldCustomerID)
 	}
 	if m.FieldCleared(release.FieldChangeID) {
 		fields = append(fields, release.FieldChangeID)
@@ -170604,6 +171133,9 @@ func (m *ReleaseMutation) ClearField(name string) error {
 		return nil
 	case release.FieldDepartmentID:
 		m.ClearDepartmentID()
+		return nil
+	case release.FieldCustomerID:
+		m.ClearCustomerID()
 		return nil
 	case release.FieldChangeID:
 		m.ClearChangeID()
@@ -170675,6 +171207,9 @@ func (m *ReleaseMutation) ResetField(name string) error {
 		return nil
 	case release.FieldDepartmentID:
 		m.ResetDepartmentID()
+		return nil
+	case release.FieldCustomerID:
+		m.ResetCustomerID()
 		return nil
 	case release.FieldChangeID:
 		m.ResetChangeID()
@@ -194015,6 +194550,8 @@ type ServiceRequestMutation struct {
 	addproject_id             *int
 	department_id             *int
 	adddepartment_id          *int
+	customer_id               *int
+	addcustomer_id            *int
 	requester_id              *int
 	addrequester_id           *int
 	status                    *string
@@ -194472,6 +195009,76 @@ func (m *ServiceRequestMutation) ResetDepartmentID() {
 	m.department_id = nil
 	m.adddepartment_id = nil
 	delete(m.clearedFields, servicerequest.FieldDepartmentID)
+}
+
+// SetCustomerID sets the "customer_id" field.
+func (m *ServiceRequestMutation) SetCustomerID(i int) {
+	m.customer_id = &i
+	m.addcustomer_id = nil
+}
+
+// CustomerID returns the value of the "customer_id" field in the mutation.
+func (m *ServiceRequestMutation) CustomerID() (r int, exists bool) {
+	v := m.customer_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCustomerID returns the old "customer_id" field's value of the ServiceRequest entity.
+// If the ServiceRequest object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ServiceRequestMutation) OldCustomerID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCustomerID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCustomerID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCustomerID: %w", err)
+	}
+	return oldValue.CustomerID, nil
+}
+
+// AddCustomerID adds i to the "customer_id" field.
+func (m *ServiceRequestMutation) AddCustomerID(i int) {
+	if m.addcustomer_id != nil {
+		*m.addcustomer_id += i
+	} else {
+		m.addcustomer_id = &i
+	}
+}
+
+// AddedCustomerID returns the value that was added to the "customer_id" field in this mutation.
+func (m *ServiceRequestMutation) AddedCustomerID() (r int, exists bool) {
+	v := m.addcustomer_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearCustomerID clears the value of the "customer_id" field.
+func (m *ServiceRequestMutation) ClearCustomerID() {
+	m.customer_id = nil
+	m.addcustomer_id = nil
+	m.clearedFields[servicerequest.FieldCustomerID] = struct{}{}
+}
+
+// CustomerIDCleared returns if the "customer_id" field was cleared in this mutation.
+func (m *ServiceRequestMutation) CustomerIDCleared() bool {
+	_, ok := m.clearedFields[servicerequest.FieldCustomerID]
+	return ok
+}
+
+// ResetCustomerID resets all changes to the "customer_id" field.
+func (m *ServiceRequestMutation) ResetCustomerID() {
+	m.customer_id = nil
+	m.addcustomer_id = nil
+	delete(m.clearedFields, servicerequest.FieldCustomerID)
 }
 
 // SetRequesterID sets the "requester_id" field.
@@ -195785,7 +196392,7 @@ func (m *ServiceRequestMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *ServiceRequestMutation) Fields() []string {
-	fields := make([]string, 0, 31)
+	fields := make([]string, 0, 32)
 	if m.tenant_id != nil {
 		fields = append(fields, servicerequest.FieldTenantID)
 	}
@@ -195800,6 +196407,9 @@ func (m *ServiceRequestMutation) Fields() []string {
 	}
 	if m.department_id != nil {
 		fields = append(fields, servicerequest.FieldDepartmentID)
+	}
+	if m.customer_id != nil {
+		fields = append(fields, servicerequest.FieldCustomerID)
 	}
 	if m.requester_id != nil {
 		fields = append(fields, servicerequest.FieldRequesterID)
@@ -195897,6 +196507,8 @@ func (m *ServiceRequestMutation) Field(name string) (ent.Value, bool) {
 		return m.ProjectID()
 	case servicerequest.FieldDepartmentID:
 		return m.DepartmentID()
+	case servicerequest.FieldCustomerID:
+		return m.CustomerID()
 	case servicerequest.FieldRequesterID:
 		return m.RequesterID()
 	case servicerequest.FieldStatus:
@@ -195968,6 +196580,8 @@ func (m *ServiceRequestMutation) OldField(ctx context.Context, name string) (ent
 		return m.OldProjectID(ctx)
 	case servicerequest.FieldDepartmentID:
 		return m.OldDepartmentID(ctx)
+	case servicerequest.FieldCustomerID:
+		return m.OldCustomerID(ctx)
 	case servicerequest.FieldRequesterID:
 		return m.OldRequesterID(ctx)
 	case servicerequest.FieldStatus:
@@ -196063,6 +196677,13 @@ func (m *ServiceRequestMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetDepartmentID(v)
+		return nil
+	case servicerequest.FieldCustomerID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCustomerID(v)
 		return nil
 	case servicerequest.FieldRequesterID:
 		v, ok := value.(int)
@@ -196269,6 +196890,9 @@ func (m *ServiceRequestMutation) AddedFields() []string {
 	if m.adddepartment_id != nil {
 		fields = append(fields, servicerequest.FieldDepartmentID)
 	}
+	if m.addcustomer_id != nil {
+		fields = append(fields, servicerequest.FieldCustomerID)
+	}
 	if m.addrequester_id != nil {
 		fields = append(fields, servicerequest.FieldRequesterID)
 	}
@@ -196302,6 +196926,8 @@ func (m *ServiceRequestMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedProjectID()
 	case servicerequest.FieldDepartmentID:
 		return m.AddedDepartmentID()
+	case servicerequest.FieldCustomerID:
+		return m.AddedCustomerID()
 	case servicerequest.FieldRequesterID:
 		return m.AddedRequesterID()
 	case servicerequest.FieldCurrentLevel:
@@ -196356,6 +196982,13 @@ func (m *ServiceRequestMutation) AddField(name string, value ent.Value) error {
 		}
 		m.AddDepartmentID(v)
 		return nil
+	case servicerequest.FieldCustomerID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddCustomerID(v)
+		return nil
 	case servicerequest.FieldRequesterID:
 		v, ok := value.(int)
 		if !ok {
@@ -196407,6 +197040,9 @@ func (m *ServiceRequestMutation) ClearedFields() []string {
 	}
 	if m.FieldCleared(servicerequest.FieldDepartmentID) {
 		fields = append(fields, servicerequest.FieldDepartmentID)
+	}
+	if m.FieldCleared(servicerequest.FieldCustomerID) {
+		fields = append(fields, servicerequest.FieldCustomerID)
 	}
 	if m.FieldCleared(servicerequest.FieldTitle) {
 		fields = append(fields, servicerequest.FieldTitle)
@@ -196479,6 +197115,9 @@ func (m *ServiceRequestMutation) ClearField(name string) error {
 	case servicerequest.FieldDepartmentID:
 		m.ClearDepartmentID()
 		return nil
+	case servicerequest.FieldCustomerID:
+		m.ClearCustomerID()
+		return nil
 	case servicerequest.FieldTitle:
 		m.ClearTitle()
 		return nil
@@ -196549,6 +197188,9 @@ func (m *ServiceRequestMutation) ResetField(name string) error {
 		return nil
 	case servicerequest.FieldDepartmentID:
 		m.ResetDepartmentID()
+		return nil
+	case servicerequest.FieldCustomerID:
+		m.ResetCustomerID()
 		return nil
 	case servicerequest.FieldRequesterID:
 		m.ResetRequesterID()
@@ -212134,6 +212776,8 @@ type TicketMutation struct {
 	addcategory_id             *int
 	department_id              *int
 	adddepartment_id           *int
+	customer_id                *int
+	addcustomer_id             *int
 	project_id                 *int
 	addproject_id              *int
 	parent_ticket_id           *int
@@ -213167,6 +213811,76 @@ func (m *TicketMutation) ResetDepartmentID() {
 	m.department_id = nil
 	m.adddepartment_id = nil
 	delete(m.clearedFields, ticket.FieldDepartmentID)
+}
+
+// SetCustomerID sets the "customer_id" field.
+func (m *TicketMutation) SetCustomerID(i int) {
+	m.customer_id = &i
+	m.addcustomer_id = nil
+}
+
+// CustomerID returns the value of the "customer_id" field in the mutation.
+func (m *TicketMutation) CustomerID() (r int, exists bool) {
+	v := m.customer_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCustomerID returns the old "customer_id" field's value of the Ticket entity.
+// If the Ticket object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TicketMutation) OldCustomerID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCustomerID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCustomerID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCustomerID: %w", err)
+	}
+	return oldValue.CustomerID, nil
+}
+
+// AddCustomerID adds i to the "customer_id" field.
+func (m *TicketMutation) AddCustomerID(i int) {
+	if m.addcustomer_id != nil {
+		*m.addcustomer_id += i
+	} else {
+		m.addcustomer_id = &i
+	}
+}
+
+// AddedCustomerID returns the value that was added to the "customer_id" field in this mutation.
+func (m *TicketMutation) AddedCustomerID() (r int, exists bool) {
+	v := m.addcustomer_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearCustomerID clears the value of the "customer_id" field.
+func (m *TicketMutation) ClearCustomerID() {
+	m.customer_id = nil
+	m.addcustomer_id = nil
+	m.clearedFields[ticket.FieldCustomerID] = struct{}{}
+}
+
+// CustomerIDCleared returns if the "customer_id" field was cleared in this mutation.
+func (m *TicketMutation) CustomerIDCleared() bool {
+	_, ok := m.clearedFields[ticket.FieldCustomerID]
+	return ok
+}
+
+// ResetCustomerID resets all changes to the "customer_id" field.
+func (m *TicketMutation) ResetCustomerID() {
+	m.customer_id = nil
+	m.addcustomer_id = nil
+	delete(m.clearedFields, ticket.FieldCustomerID)
 }
 
 // SetProjectID sets the "project_id" field.
@@ -215478,7 +216192,7 @@ func (m *TicketMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *TicketMutation) Fields() []string {
-	fields := make([]string, 0, 45)
+	fields := make([]string, 0, 46)
 	if m.title != nil {
 		fields = append(fields, ticket.FieldTitle)
 	}
@@ -215532,6 +216246,9 @@ func (m *TicketMutation) Fields() []string {
 	}
 	if m.department_id != nil {
 		fields = append(fields, ticket.FieldDepartmentID)
+	}
+	if m.customer_id != nil {
+		fields = append(fields, ticket.FieldCustomerID)
 	}
 	if m.project_id != nil {
 		fields = append(fields, ticket.FieldProjectID)
@@ -215658,6 +216375,8 @@ func (m *TicketMutation) Field(name string) (ent.Value, bool) {
 		return m.CategoryID()
 	case ticket.FieldDepartmentID:
 		return m.DepartmentID()
+	case ticket.FieldCustomerID:
+		return m.CustomerID()
 	case ticket.FieldProjectID:
 		return m.ProjectID()
 	case ticket.FieldParentTicketID:
@@ -215757,6 +216476,8 @@ func (m *TicketMutation) OldField(ctx context.Context, name string) (ent.Value, 
 		return m.OldCategoryID(ctx)
 	case ticket.FieldDepartmentID:
 		return m.OldDepartmentID(ctx)
+	case ticket.FieldCustomerID:
+		return m.OldCustomerID(ctx)
 	case ticket.FieldProjectID:
 		return m.OldProjectID(ctx)
 	case ticket.FieldParentTicketID:
@@ -215945,6 +216666,13 @@ func (m *TicketMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetDepartmentID(v)
+		return nil
+	case ticket.FieldCustomerID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCustomerID(v)
 		return nil
 	case ticket.FieldProjectID:
 		v, ok := value.(int)
@@ -216155,6 +216883,9 @@ func (m *TicketMutation) AddedFields() []string {
 	if m.adddepartment_id != nil {
 		fields = append(fields, ticket.FieldDepartmentID)
 	}
+	if m.addcustomer_id != nil {
+		fields = append(fields, ticket.FieldCustomerID)
+	}
 	if m.addproject_id != nil {
 		fields = append(fields, ticket.FieldProjectID)
 	}
@@ -216195,6 +216926,8 @@ func (m *TicketMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedCategoryID()
 	case ticket.FieldDepartmentID:
 		return m.AddedDepartmentID()
+	case ticket.FieldCustomerID:
+		return m.AddedCustomerID()
 	case ticket.FieldProjectID:
 		return m.AddedProjectID()
 	case ticket.FieldParentTicketID:
@@ -216247,6 +216980,13 @@ func (m *TicketMutation) AddField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddDepartmentID(v)
+		return nil
+	case ticket.FieldCustomerID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddCustomerID(v)
 		return nil
 	case ticket.FieldProjectID:
 		v, ok := value.(int)
@@ -216338,6 +217078,9 @@ func (m *TicketMutation) ClearedFields() []string {
 	}
 	if m.FieldCleared(ticket.FieldDepartmentID) {
 		fields = append(fields, ticket.FieldDepartmentID)
+	}
+	if m.FieldCleared(ticket.FieldCustomerID) {
+		fields = append(fields, ticket.FieldCustomerID)
 	}
 	if m.FieldCleared(ticket.FieldProjectID) {
 		fields = append(fields, ticket.FieldProjectID)
@@ -216445,6 +217188,9 @@ func (m *TicketMutation) ClearField(name string) error {
 		return nil
 	case ticket.FieldDepartmentID:
 		m.ClearDepartmentID()
+		return nil
+	case ticket.FieldCustomerID:
+		m.ClearCustomerID()
 		return nil
 	case ticket.FieldProjectID:
 		m.ClearProjectID()
@@ -216573,6 +217319,9 @@ func (m *TicketMutation) ResetField(name string) error {
 		return nil
 	case ticket.FieldDepartmentID:
 		m.ResetDepartmentID()
+		return nil
+	case ticket.FieldCustomerID:
+		m.ResetCustomerID()
 		return nil
 	case ticket.FieldProjectID:
 		m.ResetProjectID()

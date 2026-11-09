@@ -40,6 +40,8 @@ const (
 	FieldProjectID = "project_id"
 	// FieldDepartmentID holds the string denoting the department_id field in the database.
 	FieldDepartmentID = "department_id"
+	// FieldCustomerID holds the string denoting the customer_id field in the database.
+	FieldCustomerID = "customer_id"
 	// FieldCreatedBy holds the string denoting the created_by field in the database.
 	FieldCreatedBy = "created_by"
 	// FieldTenantID holds the string denoting the tenant_id field in the database.
@@ -97,6 +99,7 @@ var Columns = []string{
 	FieldAssigneeID,
 	FieldProjectID,
 	FieldDepartmentID,
+	FieldCustomerID,
 	FieldCreatedBy,
 	FieldTenantID,
 	FieldCreatedAt,
@@ -228,6 +231,11 @@ func ByProjectID(opts ...sql.OrderTermOption) OrderOption {
 // ByDepartmentID orders the results by the department_id field.
 func ByDepartmentID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldDepartmentID, opts...).ToFunc()
+}
+
+// ByCustomerID orders the results by the customer_id field.
+func ByCustomerID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCustomerID, opts...).ToFunc()
 }
 
 // ByCreatedBy orders the results by the created_by field.

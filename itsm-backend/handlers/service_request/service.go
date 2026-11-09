@@ -141,6 +141,7 @@ func (s *Service) Create(ctx context.Context, tenantID, requesterID int, catalog
 		RequesterID:        requesterID,
 		ProjectID:          reqData.ProjectID,
 		DepartmentID:       reqData.DepartmentID,
+		CustomerID:         reqData.CustomerID,
 		Status:             SRStatusSubmitted,
 		CurrentLevel:       1,
 		TotalLevels:        3,
@@ -736,6 +737,9 @@ func (s *Service) Update(ctx context.Context, id, tenantID, actorID int, actorRo
 	}
 	if reqData.DepartmentID != nil {
 		req.DepartmentID = reqData.DepartmentID
+	}
+	if reqData.CustomerID != nil {
+		req.CustomerID = reqData.CustomerID
 	}
 
 	// 3. Save

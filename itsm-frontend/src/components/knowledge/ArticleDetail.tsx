@@ -35,6 +35,7 @@ import type { KnowledgeArticle } from '@/types/biz/knowledge';
 import ArticleVersionControl from './ArticleVersionControl';
 import ArticleContentRenderer from './ArticleContentRenderer';
 import { PermissionGate } from '@/components/auth/PermissionGate';
+import { CustomerName } from '@/components/business/CustomerSelect';
 // 正文按「内容类型」分发渲染（text / markdown / html / rich_text），
 // 类型由后端解析后随响应返回；历史数据缺失时按内容形态兜底，口径见该模块注释。
 import {
@@ -266,6 +267,12 @@ const ArticleDetail: React.FC = () => {
               <Folder />
               <Text type="secondary">{article.category || '未分类'}</Text>
             </Space>
+            {article.customerId ? (
+              <Space>
+                <Text type="secondary">客户：</Text>
+                <CustomerName customerId={article.customerId} />
+              </Space>
+            ) : null}
             <Tag>{ARTICLE_CONTENT_TYPE_LABELS[contentType]}</Tag>
             <Tag color={KnowledgeStatusColors[status]}>{KnowledgeStatusLabels[status]}</Tag>
           </Space>

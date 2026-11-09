@@ -58,6 +58,7 @@ func (h *Handler) toArticleDTO(a *Article) *dto.KnowledgeArticleResponse {
 		Tags:        a.Tags,
 		Status:      status,
 		TenantID:    a.TenantID,
+		CustomerID:  a.CustomerID,
 		CreatedAt:   a.CreatedAt,
 		UpdatedAt:   a.UpdatedAt,
 
@@ -142,12 +143,13 @@ func (h *Handler) CreateArticle(c *gin.Context) {
 	}
 
 	article := &Article{
-		Title:    req.Title,
-		Content:  req.Content,
-		Category: req.Category,
-		Tags:     req.Tags,
-		AuthorID: userID,
-		TenantID: tenantID,
+		Title:      req.Title,
+		Content:    req.Content,
+		Category:   req.Category,
+		Tags:       req.Tags,
+		AuthorID:   userID,
+		TenantID:   tenantID,
+		CustomerID: req.CustomerID,
 
 		// 正文类型：留空表示由服务端按内容形态判定；显式传入必须合法。
 		ContentType: req.ContentType,
@@ -367,6 +369,9 @@ func (h *Handler) UpdateArticle(c *gin.Context) {
 	}
 	if req.Tags != nil {
 		existing.Tags = req.Tags
+	}
+	if req.CustomerID != nil {
+		existing.CustomerID = req.CustomerID
 	}
 	// 刻意忽略 req.Status：发布态不是「编辑字段」，只能由 publish / unpublish
 	// 两个动作改变。否则一次保存就能把文章偷偷发布出去，绕过版本记录与发布说明。

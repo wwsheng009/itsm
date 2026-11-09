@@ -54,6 +54,7 @@ export interface ServiceRequest {
   catalogId: number;
   requesterId: number;
   departmentId?: number;
+  customerId?: number;
   status: ServiceRequestStatus | string;
   title?: string;
   reason?: string;
@@ -89,6 +90,7 @@ export interface CreateServiceRequestRequest {
   sourceIpWhitelist?: string[];
   expireAt?: string;
   complianceAck: boolean;
+  customerId?: number;
 }
 
 // 审批动作请求参数

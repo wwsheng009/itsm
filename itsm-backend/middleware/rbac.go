@@ -1312,6 +1312,12 @@ func hasPermission(client *ent.Client, role, method, path string, userID, tenant
 	if method == "GET" && path == "/api/v1/capabilities" {
 		return true
 	}
+	// 业务单据客户选择器：所有已认证租户成员都需要解析/选择客户（工单、问题、
+	// 知识库等）。该接口只返回有效客户的 id/name/code，主数据维护面仍由
+	// customer_master 权限保护，因此这里按已认证身份放行。
+	if method == "GET" && path == "/api/v1/lookups/customers" {
+		return true
+	}
 	// 身份自省面（与 router/route_permission_guard_test.go 白名单同源）：
 	// POST /api/v1/ws/ticket 仅颁发「调用者本人会话」的一次性 WebSocket 票据，
 	// 授权依据是已认证身份（AuthMiddleware 先行校验）而非资源动作权限，因此

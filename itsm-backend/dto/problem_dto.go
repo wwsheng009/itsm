@@ -16,6 +16,7 @@ type CreateProblemRequest struct {
 	// ProjectID 创建时挂接的项目（可选；handler 前置校验 project:write + 项目非终态，随 INSERT 一次写入）。
 	ProjectID    *int `json:"projectId,omitempty"`
 	DepartmentID *int `json:"departmentId,omitempty"`
+	CustomerID   *int `json:"customerId,omitempty"`
 }
 
 // UpdateProblemRequest 更新问题请求
@@ -29,6 +30,7 @@ type UpdateProblemRequest struct {
 	RootCause    *string `json:"rootCause" binding:"omitempty"`
 	Impact       *string `json:"impact" binding:"omitempty"`
 	DepartmentID *int    `json:"departmentId,omitempty"`
+	CustomerID   *int    `json:"customerId,omitempty"`
 }
 
 // UpdateProblemRootCauseRequest 记录问题根因。
@@ -78,6 +80,7 @@ type ProblemResponse struct {
 	AssigneeID    *int    `json:"assigneeId,omitempty"`
 	AssigneeName  *string `json:"assigneeName,omitempty"`
 	DepartmentID  *int    `json:"departmentId,omitempty"`
+	CustomerID    *int    `json:"customerId,omitempty"`
 	// 创建人/报告人字段（ID + 名字。名字由 service 层 join user 表填充，避免前端再调一次 user API）
 	CreatedBy     int       `json:"createdBy"`
 	CreatedByName *string   `json:"createdByName,omitempty"`

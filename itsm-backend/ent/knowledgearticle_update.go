@@ -161,6 +161,33 @@ func (_u *KnowledgeArticleUpdate) AddTenantID(v int) *KnowledgeArticleUpdate {
 	return _u
 }
 
+// SetCustomerID sets the "customer_id" field.
+func (_u *KnowledgeArticleUpdate) SetCustomerID(v int) *KnowledgeArticleUpdate {
+	_u.mutation.ResetCustomerID()
+	_u.mutation.SetCustomerID(v)
+	return _u
+}
+
+// SetNillableCustomerID sets the "customer_id" field if the given value is not nil.
+func (_u *KnowledgeArticleUpdate) SetNillableCustomerID(v *int) *KnowledgeArticleUpdate {
+	if v != nil {
+		_u.SetCustomerID(*v)
+	}
+	return _u
+}
+
+// AddCustomerID adds value to the "customer_id" field.
+func (_u *KnowledgeArticleUpdate) AddCustomerID(v int) *KnowledgeArticleUpdate {
+	_u.mutation.AddCustomerID(v)
+	return _u
+}
+
+// ClearCustomerID clears the value of the "customer_id" field.
+func (_u *KnowledgeArticleUpdate) ClearCustomerID() *KnowledgeArticleUpdate {
+	_u.mutation.ClearCustomerID()
+	return _u
+}
+
 // SetIsPublished sets the "is_published" field.
 func (_u *KnowledgeArticleUpdate) SetIsPublished(v bool) *KnowledgeArticleUpdate {
 	_u.mutation.SetIsPublished(v)
@@ -576,6 +603,15 @@ func (_u *KnowledgeArticleUpdate) sqlSave(ctx context.Context) (_node int, err e
 	if value, ok := _u.mutation.AddedTenantID(); ok {
 		_spec.AddField(knowledgearticle.FieldTenantID, field.TypeInt, value)
 	}
+	if value, ok := _u.mutation.CustomerID(); ok {
+		_spec.SetField(knowledgearticle.FieldCustomerID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedCustomerID(); ok {
+		_spec.AddField(knowledgearticle.FieldCustomerID, field.TypeInt, value)
+	}
+	if _u.mutation.CustomerIDCleared() {
+		_spec.ClearField(knowledgearticle.FieldCustomerID, field.TypeInt)
+	}
 	if value, ok := _u.mutation.IsPublished(); ok {
 		_spec.SetField(knowledgearticle.FieldIsPublished, field.TypeBool, value)
 	}
@@ -915,6 +951,33 @@ func (_u *KnowledgeArticleUpdateOne) SetNillableTenantID(v *int) *KnowledgeArtic
 // AddTenantID adds value to the "tenant_id" field.
 func (_u *KnowledgeArticleUpdateOne) AddTenantID(v int) *KnowledgeArticleUpdateOne {
 	_u.mutation.AddTenantID(v)
+	return _u
+}
+
+// SetCustomerID sets the "customer_id" field.
+func (_u *KnowledgeArticleUpdateOne) SetCustomerID(v int) *KnowledgeArticleUpdateOne {
+	_u.mutation.ResetCustomerID()
+	_u.mutation.SetCustomerID(v)
+	return _u
+}
+
+// SetNillableCustomerID sets the "customer_id" field if the given value is not nil.
+func (_u *KnowledgeArticleUpdateOne) SetNillableCustomerID(v *int) *KnowledgeArticleUpdateOne {
+	if v != nil {
+		_u.SetCustomerID(*v)
+	}
+	return _u
+}
+
+// AddCustomerID adds value to the "customer_id" field.
+func (_u *KnowledgeArticleUpdateOne) AddCustomerID(v int) *KnowledgeArticleUpdateOne {
+	_u.mutation.AddCustomerID(v)
+	return _u
+}
+
+// ClearCustomerID clears the value of the "customer_id" field.
+func (_u *KnowledgeArticleUpdateOne) ClearCustomerID() *KnowledgeArticleUpdateOne {
+	_u.mutation.ClearCustomerID()
 	return _u
 }
 
@@ -1362,6 +1425,15 @@ func (_u *KnowledgeArticleUpdateOne) sqlSave(ctx context.Context) (_node *Knowle
 	}
 	if value, ok := _u.mutation.AddedTenantID(); ok {
 		_spec.AddField(knowledgearticle.FieldTenantID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.CustomerID(); ok {
+		_spec.SetField(knowledgearticle.FieldCustomerID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedCustomerID(); ok {
+		_spec.AddField(knowledgearticle.FieldCustomerID, field.TypeInt, value)
+	}
+	if _u.mutation.CustomerIDCleared() {
+		_spec.ClearField(knowledgearticle.FieldCustomerID, field.TypeInt)
 	}
 	if value, ok := _u.mutation.IsPublished(); ok {
 		_spec.SetField(knowledgearticle.FieldIsPublished, field.TypeBool, value)

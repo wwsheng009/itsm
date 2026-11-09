@@ -39,6 +39,9 @@ func (Release) Fields() []ent.Field {
 		field.Int("department_id").
 			Comment("所属部门ID（同租户）").
 			Optional(),
+		field.Int("customer_id").
+			Comment("所属客户ID（同租户，关联 service_customers）").
+			Optional(),
 		field.Int("change_id").
 			Comment("关联的变更ID").
 			Optional().
@@ -113,5 +116,6 @@ func (Release) Indexes() []ent.Index {
 		index.Fields("status"),
 		index.Fields("tenant_id"),
 		index.Fields("tenant_id", "department_id"),
+		index.Fields("tenant_id", "customer_id"),
 	}
 }

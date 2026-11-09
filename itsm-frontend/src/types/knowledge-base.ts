@@ -86,6 +86,8 @@ export interface KnowledgeArticle {
   // 协作
   authorId: number;
   authorName: string;
+  /** 所属客户（租户内客户主数据 ID，可选）。 */
+  customerId?: number;
   contributors?: Array<{
     userId: number;
     userName: string;
@@ -491,6 +493,8 @@ export interface CreateArticleRequest {
   summary?: string;
   category?: string;
   tags?: string[];
+  /** 所属客户（租户内客户主数据 ID，可选）。 */
+  customerId?: number;
   visibility?: ArticleVisibility;
   featuredImage?: string;
   metaDescription?: string;

@@ -125,6 +125,11 @@ func DepartmentID(v int) predicate.Change {
 	return predicate.Change(sql.FieldEQ(FieldDepartmentID, v))
 }
 
+// CustomerID applies equality check predicate on the "customer_id" field. It's identical to CustomerIDEQ.
+func CustomerID(v int) predicate.Change {
+	return predicate.Change(sql.FieldEQ(FieldCustomerID, v))
+}
+
 // PlannedStartDate applies equality check predicate on the "planned_start_date" field. It's identical to PlannedStartDateEQ.
 func PlannedStartDate(v time.Time) predicate.Change {
 	return predicate.Change(sql.FieldEQ(FieldPlannedStartDate, v))
@@ -1008,6 +1013,56 @@ func DepartmentIDIsNil() predicate.Change {
 // DepartmentIDNotNil applies the NotNil predicate on the "department_id" field.
 func DepartmentIDNotNil() predicate.Change {
 	return predicate.Change(sql.FieldNotNull(FieldDepartmentID))
+}
+
+// CustomerIDEQ applies the EQ predicate on the "customer_id" field.
+func CustomerIDEQ(v int) predicate.Change {
+	return predicate.Change(sql.FieldEQ(FieldCustomerID, v))
+}
+
+// CustomerIDNEQ applies the NEQ predicate on the "customer_id" field.
+func CustomerIDNEQ(v int) predicate.Change {
+	return predicate.Change(sql.FieldNEQ(FieldCustomerID, v))
+}
+
+// CustomerIDIn applies the In predicate on the "customer_id" field.
+func CustomerIDIn(vs ...int) predicate.Change {
+	return predicate.Change(sql.FieldIn(FieldCustomerID, vs...))
+}
+
+// CustomerIDNotIn applies the NotIn predicate on the "customer_id" field.
+func CustomerIDNotIn(vs ...int) predicate.Change {
+	return predicate.Change(sql.FieldNotIn(FieldCustomerID, vs...))
+}
+
+// CustomerIDGT applies the GT predicate on the "customer_id" field.
+func CustomerIDGT(v int) predicate.Change {
+	return predicate.Change(sql.FieldGT(FieldCustomerID, v))
+}
+
+// CustomerIDGTE applies the GTE predicate on the "customer_id" field.
+func CustomerIDGTE(v int) predicate.Change {
+	return predicate.Change(sql.FieldGTE(FieldCustomerID, v))
+}
+
+// CustomerIDLT applies the LT predicate on the "customer_id" field.
+func CustomerIDLT(v int) predicate.Change {
+	return predicate.Change(sql.FieldLT(FieldCustomerID, v))
+}
+
+// CustomerIDLTE applies the LTE predicate on the "customer_id" field.
+func CustomerIDLTE(v int) predicate.Change {
+	return predicate.Change(sql.FieldLTE(FieldCustomerID, v))
+}
+
+// CustomerIDIsNil applies the IsNil predicate on the "customer_id" field.
+func CustomerIDIsNil() predicate.Change {
+	return predicate.Change(sql.FieldIsNull(FieldCustomerID))
+}
+
+// CustomerIDNotNil applies the NotNil predicate on the "customer_id" field.
+func CustomerIDNotNil() predicate.Change {
+	return predicate.Change(sql.FieldNotNull(FieldCustomerID))
 }
 
 // PlannedStartDateEQ applies the EQ predicate on the "planned_start_date" field.

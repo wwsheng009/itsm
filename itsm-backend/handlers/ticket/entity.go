@@ -25,6 +25,7 @@ type Ticket struct {
 	TemplateID            *int
 	CategoryID            *int
 	DepartmentID          *int
+	CustomerID            *int
 	ParentTicketID        *int
 	SLADefinitionID       *int
 	SLAResponseDeadline   *time.Time

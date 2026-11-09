@@ -160,6 +160,33 @@ func (_u *ReleaseUpdate) ClearDepartmentID() *ReleaseUpdate {
 	return _u
 }
 
+// SetCustomerID sets the "customer_id" field.
+func (_u *ReleaseUpdate) SetCustomerID(v int) *ReleaseUpdate {
+	_u.mutation.ResetCustomerID()
+	_u.mutation.SetCustomerID(v)
+	return _u
+}
+
+// SetNillableCustomerID sets the "customer_id" field if the given value is not nil.
+func (_u *ReleaseUpdate) SetNillableCustomerID(v *int) *ReleaseUpdate {
+	if v != nil {
+		_u.SetCustomerID(*v)
+	}
+	return _u
+}
+
+// AddCustomerID adds value to the "customer_id" field.
+func (_u *ReleaseUpdate) AddCustomerID(v int) *ReleaseUpdate {
+	_u.mutation.AddCustomerID(v)
+	return _u
+}
+
+// ClearCustomerID clears the value of the "customer_id" field.
+func (_u *ReleaseUpdate) ClearCustomerID() *ReleaseUpdate {
+	_u.mutation.ClearCustomerID()
+	return _u
+}
+
 // SetChangeID sets the "change_id" field.
 func (_u *ReleaseUpdate) SetChangeID(v int) *ReleaseUpdate {
 	_u.mutation.ResetChangeID()
@@ -627,6 +654,15 @@ func (_u *ReleaseUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if _u.mutation.DepartmentIDCleared() {
 		_spec.ClearField(release.FieldDepartmentID, field.TypeInt)
 	}
+	if value, ok := _u.mutation.CustomerID(); ok {
+		_spec.SetField(release.FieldCustomerID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedCustomerID(); ok {
+		_spec.AddField(release.FieldCustomerID, field.TypeInt, value)
+	}
+	if _u.mutation.CustomerIDCleared() {
+		_spec.ClearField(release.FieldCustomerID, field.TypeInt)
+	}
 	if value, ok := _u.mutation.ChangeID(); ok {
 		_spec.SetField(release.FieldChangeID, field.TypeInt, value)
 	}
@@ -903,6 +939,33 @@ func (_u *ReleaseUpdateOne) AddDepartmentID(v int) *ReleaseUpdateOne {
 // ClearDepartmentID clears the value of the "department_id" field.
 func (_u *ReleaseUpdateOne) ClearDepartmentID() *ReleaseUpdateOne {
 	_u.mutation.ClearDepartmentID()
+	return _u
+}
+
+// SetCustomerID sets the "customer_id" field.
+func (_u *ReleaseUpdateOne) SetCustomerID(v int) *ReleaseUpdateOne {
+	_u.mutation.ResetCustomerID()
+	_u.mutation.SetCustomerID(v)
+	return _u
+}
+
+// SetNillableCustomerID sets the "customer_id" field if the given value is not nil.
+func (_u *ReleaseUpdateOne) SetNillableCustomerID(v *int) *ReleaseUpdateOne {
+	if v != nil {
+		_u.SetCustomerID(*v)
+	}
+	return _u
+}
+
+// AddCustomerID adds value to the "customer_id" field.
+func (_u *ReleaseUpdateOne) AddCustomerID(v int) *ReleaseUpdateOne {
+	_u.mutation.AddCustomerID(v)
+	return _u
+}
+
+// ClearCustomerID clears the value of the "customer_id" field.
+func (_u *ReleaseUpdateOne) ClearCustomerID() *ReleaseUpdateOne {
+	_u.mutation.ClearCustomerID()
 	return _u
 }
 
@@ -1402,6 +1465,15 @@ func (_u *ReleaseUpdateOne) sqlSave(ctx context.Context) (_node *Release, err er
 	}
 	if _u.mutation.DepartmentIDCleared() {
 		_spec.ClearField(release.FieldDepartmentID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.CustomerID(); ok {
+		_spec.SetField(release.FieldCustomerID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedCustomerID(); ok {
+		_spec.AddField(release.FieldCustomerID, field.TypeInt, value)
+	}
+	if _u.mutation.CustomerIDCleared() {
+		_spec.ClearField(release.FieldCustomerID, field.TypeInt)
 	}
 	if value, ok := _u.mutation.ChangeID(); ok {
 		_spec.SetField(release.FieldChangeID, field.TypeInt, value)

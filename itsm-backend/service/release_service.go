@@ -60,6 +60,7 @@ func (s *ReleaseService) CreateRelease(ctx context.Context, req *dto.CreateRelea
 		SetSeverity(req.Severity).
 		SetEnvironment(req.Environment).
 		SetNillableDepartmentID(req.DepartmentID).
+		SetNillableCustomerID(req.CustomerID).
 		SetCreatedBy(createdBy).
 		SetTenantID(tenantID).
 		SetNillableChangeID(req.ChangeID).
@@ -272,6 +273,9 @@ func (s *ReleaseService) UpdateRelease(ctx context.Context, id, tenantID int, re
 	}
 	if req.DepartmentID != nil {
 		update.SetNillableDepartmentID(req.DepartmentID)
+	}
+	if req.CustomerID != nil {
+		update.SetNillableCustomerID(req.CustomerID)
 	}
 	if req.PlannedReleaseDate != nil {
 		update.SetPlannedReleaseDate(*req.PlannedReleaseDate)

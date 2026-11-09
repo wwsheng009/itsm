@@ -64,6 +64,7 @@ func (s *Service) Create(ctx context.Context, tenantID int, params *CreateParams
 		TagIDs:                params.TagIDs,
 		ProjectID:             params.ProjectID,
 		DepartmentID:          params.DepartmentID,
+		CustomerID:            params.CustomerID,
 		WorkflowDefinitionKey: params.WorkflowDefinitionKey,
 	}
 	if params.AssigneeID != nil {
@@ -117,6 +118,10 @@ func (s *Service) Create(ctx context.Context, tenantID int, params *CreateParams
 	if created.DepartmentID != nil && *created.DepartmentID > 0 {
 		departmentID := *created.DepartmentID
 		ticket.DepartmentID = &departmentID
+	}
+	if created.CustomerID != nil && *created.CustomerID > 0 {
+		customerID := *created.CustomerID
+		ticket.CustomerID = &customerID
 	}
 	return ticket, nil
 }

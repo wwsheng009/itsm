@@ -97,6 +97,20 @@ func (_c *KnowledgeArticleCreate) SetTenantID(v int) *KnowledgeArticleCreate {
 	return _c
 }
 
+// SetCustomerID sets the "customer_id" field.
+func (_c *KnowledgeArticleCreate) SetCustomerID(v int) *KnowledgeArticleCreate {
+	_c.mutation.SetCustomerID(v)
+	return _c
+}
+
+// SetNillableCustomerID sets the "customer_id" field if the given value is not nil.
+func (_c *KnowledgeArticleCreate) SetNillableCustomerID(v *int) *KnowledgeArticleCreate {
+	if v != nil {
+		_c.SetCustomerID(*v)
+	}
+	return _c
+}
+
 // SetIsPublished sets the "is_published" field.
 func (_c *KnowledgeArticleCreate) SetIsPublished(v bool) *KnowledgeArticleCreate {
 	_c.mutation.SetIsPublished(v)
@@ -468,6 +482,10 @@ func (_c *KnowledgeArticleCreate) createSpec() (*KnowledgeArticle, *sqlgraph.Cre
 	if value, ok := _c.mutation.TenantID(); ok {
 		_spec.SetField(knowledgearticle.FieldTenantID, field.TypeInt, value)
 		_node.TenantID = value
+	}
+	if value, ok := _c.mutation.CustomerID(); ok {
+		_spec.SetField(knowledgearticle.FieldCustomerID, field.TypeInt, value)
+		_node.CustomerID = value
 	}
 	if value, ok := _c.mutation.IsPublished(); ok {
 		_spec.SetField(knowledgearticle.FieldIsPublished, field.TypeBool, value)

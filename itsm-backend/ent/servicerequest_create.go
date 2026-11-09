@@ -74,6 +74,20 @@ func (_c *ServiceRequestCreate) SetNillableDepartmentID(v *int) *ServiceRequestC
 	return _c
 }
 
+// SetCustomerID sets the "customer_id" field.
+func (_c *ServiceRequestCreate) SetCustomerID(v int) *ServiceRequestCreate {
+	_c.mutation.SetCustomerID(v)
+	return _c
+}
+
+// SetNillableCustomerID sets the "customer_id" field if the given value is not nil.
+func (_c *ServiceRequestCreate) SetNillableCustomerID(v *int) *ServiceRequestCreate {
+	if v != nil {
+		_c.SetCustomerID(*v)
+	}
+	return _c
+}
+
 // SetRequesterID sets the "requester_id" field.
 func (_c *ServiceRequestCreate) SetRequesterID(v int) *ServiceRequestCreate {
 	_c.mutation.SetRequesterID(v)
@@ -582,6 +596,10 @@ func (_c *ServiceRequestCreate) createSpec() (*ServiceRequest, *sqlgraph.CreateS
 	if value, ok := _c.mutation.DepartmentID(); ok {
 		_spec.SetField(servicerequest.FieldDepartmentID, field.TypeInt, value)
 		_node.DepartmentID = value
+	}
+	if value, ok := _c.mutation.CustomerID(); ok {
+		_spec.SetField(servicerequest.FieldCustomerID, field.TypeInt, value)
+		_node.CustomerID = value
 	}
 	if value, ok := _c.mutation.RequesterID(); ok {
 		_spec.SetField(servicerequest.FieldRequesterID, field.TypeInt, value)

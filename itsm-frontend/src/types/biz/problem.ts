@@ -16,6 +16,7 @@ export interface Problem {
   impact?: string;
   assigneeId?: number;
   departmentId?: number;
+  customerId?: number;
   createdBy: number;
   tenantId: number;
   createdAt: string;
@@ -31,6 +32,7 @@ export interface CreateProblemRequest {
   rootCause?: string;
   impact?: string;
   departmentId?: number;
+  customerId?: number;
 }
 
 // 更新问题请求
@@ -44,6 +46,7 @@ export interface UpdateProblemRequest {
   impact?: string;
   assigneeId?: number;
   departmentId?: number;
+  customerId?: number;
 }
 
 // 列表查询参数

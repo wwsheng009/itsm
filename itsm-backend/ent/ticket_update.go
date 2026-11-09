@@ -369,6 +369,33 @@ func (_u *TicketUpdate) ClearDepartmentID() *TicketUpdate {
 	return _u
 }
 
+// SetCustomerID sets the "customer_id" field.
+func (_u *TicketUpdate) SetCustomerID(v int) *TicketUpdate {
+	_u.mutation.ResetCustomerID()
+	_u.mutation.SetCustomerID(v)
+	return _u
+}
+
+// SetNillableCustomerID sets the "customer_id" field if the given value is not nil.
+func (_u *TicketUpdate) SetNillableCustomerID(v *int) *TicketUpdate {
+	if v != nil {
+		_u.SetCustomerID(*v)
+	}
+	return _u
+}
+
+// AddCustomerID adds value to the "customer_id" field.
+func (_u *TicketUpdate) AddCustomerID(v int) *TicketUpdate {
+	_u.mutation.AddCustomerID(v)
+	return _u
+}
+
+// ClearCustomerID clears the value of the "customer_id" field.
+func (_u *TicketUpdate) ClearCustomerID() *TicketUpdate {
+	_u.mutation.ClearCustomerID()
+	return _u
+}
+
 // SetProjectID sets the "project_id" field.
 func (_u *TicketUpdate) SetProjectID(v int) *TicketUpdate {
 	_u.mutation.ResetProjectID()
@@ -1667,6 +1694,15 @@ func (_u *TicketUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if _u.mutation.DepartmentIDCleared() {
 		_spec.ClearField(ticket.FieldDepartmentID, field.TypeInt)
 	}
+	if value, ok := _u.mutation.CustomerID(); ok {
+		_spec.SetField(ticket.FieldCustomerID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedCustomerID(); ok {
+		_spec.AddField(ticket.FieldCustomerID, field.TypeInt, value)
+	}
+	if _u.mutation.CustomerIDCleared() {
+		_spec.ClearField(ticket.FieldCustomerID, field.TypeInt)
+	}
 	if value, ok := _u.mutation.ProjectID(); ok {
 		_spec.SetField(ticket.FieldProjectID, field.TypeInt, value)
 	}
@@ -2898,6 +2934,33 @@ func (_u *TicketUpdateOne) AddDepartmentID(v int) *TicketUpdateOne {
 // ClearDepartmentID clears the value of the "department_id" field.
 func (_u *TicketUpdateOne) ClearDepartmentID() *TicketUpdateOne {
 	_u.mutation.ClearDepartmentID()
+	return _u
+}
+
+// SetCustomerID sets the "customer_id" field.
+func (_u *TicketUpdateOne) SetCustomerID(v int) *TicketUpdateOne {
+	_u.mutation.ResetCustomerID()
+	_u.mutation.SetCustomerID(v)
+	return _u
+}
+
+// SetNillableCustomerID sets the "customer_id" field if the given value is not nil.
+func (_u *TicketUpdateOne) SetNillableCustomerID(v *int) *TicketUpdateOne {
+	if v != nil {
+		_u.SetCustomerID(*v)
+	}
+	return _u
+}
+
+// AddCustomerID adds value to the "customer_id" field.
+func (_u *TicketUpdateOne) AddCustomerID(v int) *TicketUpdateOne {
+	_u.mutation.AddCustomerID(v)
+	return _u
+}
+
+// ClearCustomerID clears the value of the "customer_id" field.
+func (_u *TicketUpdateOne) ClearCustomerID() *TicketUpdateOne {
+	_u.mutation.ClearCustomerID()
 	return _u
 }
 
@@ -4228,6 +4291,15 @@ func (_u *TicketUpdateOne) sqlSave(ctx context.Context) (_node *Ticket, err erro
 	}
 	if _u.mutation.DepartmentIDCleared() {
 		_spec.ClearField(ticket.FieldDepartmentID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.CustomerID(); ok {
+		_spec.SetField(ticket.FieldCustomerID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedCustomerID(); ok {
+		_spec.AddField(ticket.FieldCustomerID, field.TypeInt, value)
+	}
+	if _u.mutation.CustomerIDCleared() {
+		_spec.ClearField(ticket.FieldCustomerID, field.TypeInt)
 	}
 	if value, ok := _u.mutation.ProjectID(); ok {
 		_spec.SetField(ticket.FieldProjectID, field.TypeInt, value)

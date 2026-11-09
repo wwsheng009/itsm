@@ -26,6 +26,7 @@ type CreateTicketRequest struct {
 	CategoryID      *int   `json:"categoryId,omitempty"`            // 分类ID（优先使用）
 	TemplateID      *int   `json:"templateId,omitempty"`            // 模板ID
 	DepartmentID    *int   `json:"departmentId,omitempty"`          // 所属部门ID（可选）
+	CustomerID      *int   `json:"customerId,omitempty"`            // 所属客户ID（可选）
 	RequesterID     int    `json:"requesterId" binding:"omitempty"` // 从认证上下文中获取，前端可不传
 	AssigneeID      int    `json:"assigneeId"`
 	ParentTicketID  *int   `json:"parentTicketId,omitempty"`
@@ -49,6 +50,7 @@ type UpdateTicketRequest struct {
 	Category        string                 `json:"category" binding:"omitempty"`
 	CategoryID      *int                   `json:"categoryId,omitempty"`
 	DepartmentID    *int                   `json:"departmentId,omitempty"`
+	CustomerID      *int                   `json:"customerId,omitempty"`
 	AssigneeID      int                    `json:"assigneeId"`
 	RequesterID     int                    `json:"requesterId"` // 创建人ID
 	Tags            []string               `json:"tags"`
@@ -100,6 +102,7 @@ type TicketResponse struct {
 	TenantID              int                    `json:"tenantId"`
 	CategoryID            int                    `json:"categoryId,omitempty"`
 	DepartmentID          int                    `json:"departmentId,omitempty"`
+	CustomerID            int                    `json:"customerId,omitempty"`
 	ParentTicketID        int                    `json:"parentTicketId,omitempty"`
 	TemplateID            *int                   `json:"templateId,omitempty"`
 	Version               int                    `json:"version"`

@@ -428,6 +428,8 @@ export interface CreateServiceRequestRequest {
   projectId?: number;
   /** 所属部门（可选；用于组织归属与统计）。 */
   departmentId?: number;
+  /** 所属客户（可选；关联租户内客户主数据）。 */
+  customerId?: number;
 }
 
 /**

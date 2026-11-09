@@ -140,6 +140,11 @@ func DepartmentID(v int) predicate.Ticket {
 	return predicate.Ticket(sql.FieldEQ(FieldDepartmentID, v))
 }
 
+// CustomerID applies equality check predicate on the "customer_id" field. It's identical to CustomerIDEQ.
+func CustomerID(v int) predicate.Ticket {
+	return predicate.Ticket(sql.FieldEQ(FieldCustomerID, v))
+}
+
 // ProjectID applies equality check predicate on the "project_id" field. It's identical to ProjectIDEQ.
 func ProjectID(v int) predicate.Ticket {
 	return predicate.Ticket(sql.FieldEQ(FieldProjectID, v))
@@ -1233,6 +1238,56 @@ func DepartmentIDIsNil() predicate.Ticket {
 // DepartmentIDNotNil applies the NotNil predicate on the "department_id" field.
 func DepartmentIDNotNil() predicate.Ticket {
 	return predicate.Ticket(sql.FieldNotNull(FieldDepartmentID))
+}
+
+// CustomerIDEQ applies the EQ predicate on the "customer_id" field.
+func CustomerIDEQ(v int) predicate.Ticket {
+	return predicate.Ticket(sql.FieldEQ(FieldCustomerID, v))
+}
+
+// CustomerIDNEQ applies the NEQ predicate on the "customer_id" field.
+func CustomerIDNEQ(v int) predicate.Ticket {
+	return predicate.Ticket(sql.FieldNEQ(FieldCustomerID, v))
+}
+
+// CustomerIDIn applies the In predicate on the "customer_id" field.
+func CustomerIDIn(vs ...int) predicate.Ticket {
+	return predicate.Ticket(sql.FieldIn(FieldCustomerID, vs...))
+}
+
+// CustomerIDNotIn applies the NotIn predicate on the "customer_id" field.
+func CustomerIDNotIn(vs ...int) predicate.Ticket {
+	return predicate.Ticket(sql.FieldNotIn(FieldCustomerID, vs...))
+}
+
+// CustomerIDGT applies the GT predicate on the "customer_id" field.
+func CustomerIDGT(v int) predicate.Ticket {
+	return predicate.Ticket(sql.FieldGT(FieldCustomerID, v))
+}
+
+// CustomerIDGTE applies the GTE predicate on the "customer_id" field.
+func CustomerIDGTE(v int) predicate.Ticket {
+	return predicate.Ticket(sql.FieldGTE(FieldCustomerID, v))
+}
+
+// CustomerIDLT applies the LT predicate on the "customer_id" field.
+func CustomerIDLT(v int) predicate.Ticket {
+	return predicate.Ticket(sql.FieldLT(FieldCustomerID, v))
+}
+
+// CustomerIDLTE applies the LTE predicate on the "customer_id" field.
+func CustomerIDLTE(v int) predicate.Ticket {
+	return predicate.Ticket(sql.FieldLTE(FieldCustomerID, v))
+}
+
+// CustomerIDIsNil applies the IsNil predicate on the "customer_id" field.
+func CustomerIDIsNil() predicate.Ticket {
+	return predicate.Ticket(sql.FieldIsNull(FieldCustomerID))
+}
+
+// CustomerIDNotNil applies the NotNil predicate on the "customer_id" field.
+func CustomerIDNotNil() predicate.Ticket {
+	return predicate.Ticket(sql.FieldNotNull(FieldCustomerID))
 }
 
 // ProjectIDEQ applies the EQ predicate on the "project_id" field.

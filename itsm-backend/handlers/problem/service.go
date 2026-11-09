@@ -170,6 +170,9 @@ func (s *Service) Update(ctx context.Context, tenantID int, id int, p *Problem, 
 	if p.DepartmentID != nil {
 		existing.DepartmentID = p.DepartmentID
 	}
+	if p.CustomerID != nil {
+		existing.CustomerID = p.CustomerID
+	}
 
 	return s.repo.Update(ctx, existing)
 }

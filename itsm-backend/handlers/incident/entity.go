@@ -21,6 +21,7 @@ type Incident struct {
 	// ProjectID 创建时挂接的项目（nil=不挂接；随 INSERT 一次写入）。
 	ProjectID             *int
 	DepartmentID          *int
+	CustomerID            *int
 	Version               int
 	IsMajorIncident       bool
 	Category              string `json:"category"`

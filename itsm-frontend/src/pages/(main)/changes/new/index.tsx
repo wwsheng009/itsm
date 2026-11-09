@@ -20,6 +20,7 @@ import { ChangeApi, type ChangeRequest } from '@/lib/api/change-api';
 import { AttachmentApi, changeAttachmentPreviewUrl } from '@/lib/api/attachment-api';
 import ProjectSelect, { useProjectLinkPermission } from '@/components/business/ProjectSelect';
 import DepartmentSelect from '@/components/business/DepartmentSelect';
+import CustomerSelect from '@/components/business/CustomerSelect';
 import { htmlToPlainText, isRichTextEmpty, isRichTextEnabled } from '@/lib/rich-text/sanitize';
 import {
   STAGED_ID_PREFIX,
@@ -84,6 +85,7 @@ interface ChangeFormValues {
   /** 所属项目（仅 project:read + project:write + change:write 时展示/可选）。 */
   projectId?: number;
   departmentId?: number;
+  customerId?: number;
 }
 
 const TYPE_OPTIONS: Array<{ value: ChangeRequest['type']; label: string; hint?: string }> = [
@@ -176,6 +178,7 @@ const CreateChangePage: React.FC = () => {
         relatedTickets: [],
         projectId: values.projectId ?? undefined,
         departmentId: values.departmentId ?? undefined,
+        customerId: values.customerId ?? undefined,
       };
 
       const created: any = await ChangeApi.createChange(payload);
@@ -436,6 +439,14 @@ const CreateChangePage: React.FC = () => {
             tooltip="用于部门归属、统计与部门审批人路由"
           >
             <DepartmentSelect />
+          </Form.Item>
+
+          <Form.Item
+            name="customerId"
+            label="所属客户"
+            tooltip="用于客户归属、统计与客户维度分析"
+          >
+            <CustomerSelect />
           </Form.Item>
 
           <Form.Item

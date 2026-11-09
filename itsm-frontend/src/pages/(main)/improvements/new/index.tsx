@@ -5,6 +5,7 @@ import { Card, Form, Input, Select, Button, App, Space } from 'antd';
 import { ArrowLeft, Save } from 'lucide-react';
 import { TicketApi } from '@/lib/api/ticket-api';
 import DepartmentSelect from '@/components/business/DepartmentSelect';
+import CustomerSelect from '@/components/business/CustomerSelect';
 import { useI18n } from '@/lib/i18n';
 
 const NewImprovementPage = () => {
@@ -19,6 +20,7 @@ const NewImprovementPage = () => {
     description?: string;
     priority?: string;
     departmentId?: number;
+    customerId?: number;
   }) => {
     try {
       setLoading(true);
@@ -28,6 +30,7 @@ const NewImprovementPage = () => {
         description: values.description || '',
         priority: values.priority || 'medium',
         departmentId: values.departmentId ?? undefined,
+        customerId: values.customerId ?? undefined,
       } as unknown as Parameters<typeof TicketApi.createTicket>[0]);
       message.success('改进计划创建成功');
       navigate('/improvements');
@@ -71,6 +74,10 @@ const NewImprovementPage = () => {
 
             <Form.Item label="所属部门" name="departmentId">
               <DepartmentSelect />
+            </Form.Item>
+
+            <Form.Item label="所属客户" name="customerId">
+              <CustomerSelect />
             </Form.Item>
 
             <Form.Item label="目标描述" name="description">

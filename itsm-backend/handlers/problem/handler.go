@@ -48,6 +48,7 @@ func (h *Handler) toDTOWithUsers(p *Problem, userMap map[int]string) *dto.Proble
 		Impact:        p.Impact,
 		CreatedBy:     p.CreatedBy,
 		DepartmentID:  p.DepartmentID,
+		CustomerID:    p.CustomerID,
 		TenantID:      p.TenantID,
 		CreatedAt:     p.CreatedAt,
 		UpdatedAt:     p.UpdatedAt,
@@ -179,6 +180,7 @@ func (h *Handler) Create(c *gin.Context) {
 		CreatedBy:    createdBy,
 		ProjectID:    req.ProjectID,
 		DepartmentID: req.DepartmentID,
+		CustomerID:   req.CustomerID,
 	}
 
 	created, err := h.service.Create(c.Request.Context(), tenantID, problem)
@@ -529,6 +531,9 @@ func (h *Handler) Update(c *gin.Context) {
 	}
 	if req.DepartmentID != nil {
 		updates.DepartmentID = req.DepartmentID
+	}
+	if req.CustomerID != nil {
+		updates.CustomerID = req.CustomerID
 	}
 
 	updated, err := h.service.Update(c.Request.Context(), tenantID, id, updates, actorID, actorRole)

@@ -66,6 +66,7 @@ type CreateParams struct {
 	TicketTypeName    string
 	CategoryID        *int
 	DepartmentID      *int
+	CustomerID        *int
 	TemplateID        *int
 	ParentTicketID    *int
 	// ProjectID 创建时挂接的项目（随 INSERT 一次写入；前置校验由 handler 调 projectlink.GuardCreate）。
@@ -90,6 +91,7 @@ type UpdateParams struct {
 	AssigneeID        *int
 	CategoryID        *int
 	DepartmentID      *int
+	CustomerID        *int
 	Resolution        *string
 	FormFields        *map[string]interface{}
 	Version           int

@@ -59,6 +59,7 @@ export interface Problem {
   impact?: string;
   assigneeId?: number;
   departmentId?: number;
+  customerId?: number;
   reporterId?: number;
   rootCause?: string;
   workaround?: string;

@@ -16,6 +16,7 @@ type Article struct {
 	Tags        []string  `json:"tags"`
 	AuthorID    int       `json:"authorId"`
 	TenantID    int       `json:"tenantId"`
+	CustomerID  *int      `json:"customerId,omitempty"`
 	IsPublished bool      `json:"isPublished"`
 	CreatedAt   time.Time `json:"createdAt"`
 	UpdatedAt   time.Time `json:"updatedAt"`

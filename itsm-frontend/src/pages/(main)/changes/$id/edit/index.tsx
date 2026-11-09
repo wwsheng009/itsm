@@ -19,6 +19,7 @@ import dayjs, { type Dayjs } from 'dayjs';
 import { AppDateRangePicker } from '@/components/ui/AppDatePicker';
 import { ChangeApi, type ChangeRequest } from '@/lib/api/change-api';
 import DepartmentSelect from '@/components/business/DepartmentSelect';
+import CustomerSelect from '@/components/business/CustomerSelect';
 import { AttachmentApi, changeAttachmentPreviewUrl } from '@/lib/api/attachment-api';
 import { htmlToPlainText, isRichTextEmpty, isRichTextEnabled } from '@/lib/rich-text/sanitize';
 import { useInlineImageUnbind } from '@/lib/rich-text/useInlineImageUnbind';
@@ -71,6 +72,7 @@ interface ChangeFormValues {
   implementationPlan: string;
   rollbackPlan: string;
   departmentId?: number;
+  customerId?: number;
 }
 
 const TYPE_OPTIONS: Array<{ value: ChangeRequest['type']; label: string; hint?: string }> = [
@@ -179,6 +181,7 @@ const EditChangePage: React.FC = () => {
           implementationPlan: data.implementationPlan,
           rollbackPlan: data.rollbackPlan,
           departmentId: data.departmentId,
+          customerId: data.customerId,
         });
         captureInlineImageBaseline(data.description);
       } catch (error) {
@@ -219,6 +222,7 @@ const EditChangePage: React.FC = () => {
         affectedCis,
         relatedTickets: changeData?.relatedTickets || [],
         departmentId: values.departmentId,
+        customerId: values.customerId,
       };
 
       await ChangeApi.updateChange(Number(id), payload);
@@ -432,6 +436,14 @@ const EditChangePage: React.FC = () => {
             tooltip="用于部门归属、统计与部门审批人路由"
           >
             <DepartmentSelect />
+          </Form.Item>
+
+          <Form.Item
+            name="customerId"
+            label="所属客户"
+            tooltip="用于客户归属、统计与客户维度分析"
+          >
+            <CustomerSelect />
           </Form.Item>
 
           <Form.Item

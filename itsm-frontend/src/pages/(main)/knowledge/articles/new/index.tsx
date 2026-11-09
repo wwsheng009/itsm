@@ -62,6 +62,7 @@ import {
   type StagedImageReplacement,
 } from '@/lib/rich-text/staged-images';
 import type { UploadedImage } from '@/components/common/rich-text/RichTextEditor';
+import CustomerSelect from '@/components/business/CustomerSelect';
 
 const { Title } = Typography;
 const { TextArea } = Input;
@@ -260,6 +261,7 @@ export default function NewKnowledgeArticlePage() {
         category:
           categories.find(c => c.id === values.categoryId)?.name ?? undefined,
         tags: values.tags || [],
+        customerId: values.customerId ?? undefined,
       });
 
       if (useRichEditor && hasStagedImages(rawContent)) {
@@ -377,6 +379,14 @@ export default function NewKnowledgeArticlePage() {
                 </Tag>
               )}
             />
+          </Form.Item>
+
+          <Form.Item
+            name="customerId"
+            label="所属客户"
+            tooltip="用于客户归属、统计与客户维度分析"
+          >
+            <CustomerSelect />
           </Form.Item>
 
           <Form.Item label="正文类型" extra={ARTICLE_CONTENT_TYPE_HINTS[contentType]}>

@@ -116,6 +116,20 @@ func (_c *ReleaseCreate) SetNillableDepartmentID(v *int) *ReleaseCreate {
 	return _c
 }
 
+// SetCustomerID sets the "customer_id" field.
+func (_c *ReleaseCreate) SetCustomerID(v int) *ReleaseCreate {
+	_c.mutation.SetCustomerID(v)
+	return _c
+}
+
+// SetNillableCustomerID sets the "customer_id" field if the given value is not nil.
+func (_c *ReleaseCreate) SetNillableCustomerID(v *int) *ReleaseCreate {
+	if v != nil {
+		_c.SetCustomerID(*v)
+	}
+	return _c
+}
+
 // SetChangeID sets the "change_id" field.
 func (_c *ReleaseCreate) SetChangeID(v int) *ReleaseCreate {
 	_c.mutation.SetChangeID(v)
@@ -518,6 +532,10 @@ func (_c *ReleaseCreate) createSpec() (*Release, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.DepartmentID(); ok {
 		_spec.SetField(release.FieldDepartmentID, field.TypeInt, value)
 		_node.DepartmentID = value
+	}
+	if value, ok := _c.mutation.CustomerID(); ok {
+		_spec.SetField(release.FieldCustomerID, field.TypeInt, value)
+		_node.CustomerID = value
 	}
 	if value, ok := _c.mutation.ChangeID(); ok {
 		_spec.SetField(release.FieldChangeID, field.TypeInt, value)

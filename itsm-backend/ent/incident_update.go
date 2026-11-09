@@ -168,6 +168,33 @@ func (_u *IncidentUpdate) ClearDepartmentID() *IncidentUpdate {
 	return _u
 }
 
+// SetCustomerID sets the "customer_id" field.
+func (_u *IncidentUpdate) SetCustomerID(v int) *IncidentUpdate {
+	_u.mutation.ResetCustomerID()
+	_u.mutation.SetCustomerID(v)
+	return _u
+}
+
+// SetNillableCustomerID sets the "customer_id" field if the given value is not nil.
+func (_u *IncidentUpdate) SetNillableCustomerID(v *int) *IncidentUpdate {
+	if v != nil {
+		_u.SetCustomerID(*v)
+	}
+	return _u
+}
+
+// AddCustomerID adds value to the "customer_id" field.
+func (_u *IncidentUpdate) AddCustomerID(v int) *IncidentUpdate {
+	_u.mutation.AddCustomerID(v)
+	return _u
+}
+
+// ClearCustomerID clears the value of the "customer_id" field.
+func (_u *IncidentUpdate) ClearCustomerID() *IncidentUpdate {
+	_u.mutation.ClearCustomerID()
+	return _u
+}
+
 // SetSLADefinitionID sets the "sla_definition_id" field.
 func (_u *IncidentUpdate) SetSLADefinitionID(v int) *IncidentUpdate {
 	_u.mutation.ResetSLADefinitionID()
@@ -1333,6 +1360,15 @@ func (_u *IncidentUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if _u.mutation.DepartmentIDCleared() {
 		_spec.ClearField(incident.FieldDepartmentID, field.TypeInt)
 	}
+	if value, ok := _u.mutation.CustomerID(); ok {
+		_spec.SetField(incident.FieldCustomerID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedCustomerID(); ok {
+		_spec.AddField(incident.FieldCustomerID, field.TypeInt, value)
+	}
+	if _u.mutation.CustomerIDCleared() {
+		_spec.ClearField(incident.FieldCustomerID, field.TypeInt)
+	}
 	if value, ok := _u.mutation.SLADefinitionID(); ok {
 		_spec.SetField(incident.FieldSLADefinitionID, field.TypeInt, value)
 	}
@@ -2140,6 +2176,33 @@ func (_u *IncidentUpdateOne) AddDepartmentID(v int) *IncidentUpdateOne {
 // ClearDepartmentID clears the value of the "department_id" field.
 func (_u *IncidentUpdateOne) ClearDepartmentID() *IncidentUpdateOne {
 	_u.mutation.ClearDepartmentID()
+	return _u
+}
+
+// SetCustomerID sets the "customer_id" field.
+func (_u *IncidentUpdateOne) SetCustomerID(v int) *IncidentUpdateOne {
+	_u.mutation.ResetCustomerID()
+	_u.mutation.SetCustomerID(v)
+	return _u
+}
+
+// SetNillableCustomerID sets the "customer_id" field if the given value is not nil.
+func (_u *IncidentUpdateOne) SetNillableCustomerID(v *int) *IncidentUpdateOne {
+	if v != nil {
+		_u.SetCustomerID(*v)
+	}
+	return _u
+}
+
+// AddCustomerID adds value to the "customer_id" field.
+func (_u *IncidentUpdateOne) AddCustomerID(v int) *IncidentUpdateOne {
+	_u.mutation.AddCustomerID(v)
+	return _u
+}
+
+// ClearCustomerID clears the value of the "customer_id" field.
+func (_u *IncidentUpdateOne) ClearCustomerID() *IncidentUpdateOne {
+	_u.mutation.ClearCustomerID()
 	return _u
 }
 
@@ -3337,6 +3400,15 @@ func (_u *IncidentUpdateOne) sqlSave(ctx context.Context) (_node *Incident, err 
 	}
 	if _u.mutation.DepartmentIDCleared() {
 		_spec.ClearField(incident.FieldDepartmentID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.CustomerID(); ok {
+		_spec.SetField(incident.FieldCustomerID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedCustomerID(); ok {
+		_spec.AddField(incident.FieldCustomerID, field.TypeInt, value)
+	}
+	if _u.mutation.CustomerIDCleared() {
+		_spec.ClearField(incident.FieldCustomerID, field.TypeInt)
 	}
 	if value, ok := _u.mutation.SLADefinitionID(); ok {
 		_spec.SetField(incident.FieldSLADefinitionID, field.TypeInt, value)

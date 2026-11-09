@@ -359,6 +359,7 @@ func ToKnowledgeArticleResponse(article *ent.KnowledgeArticle) *KnowledgeArticle
 		Views:       0,  // Default value, could be added to schema if needed
 		Tags:        tags,
 		TenantID:    article.TenantID,
+		CustomerID:  intToPtr(article.CustomerID),
 		CreatedAt:   article.CreatedAt,
 		UpdatedAt:   article.UpdatedAt,
 	}

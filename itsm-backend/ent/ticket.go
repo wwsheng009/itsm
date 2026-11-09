@@ -56,6 +56,8 @@ type Ticket struct {
 	CategoryID int `json:"category_id,omitempty"`
 	// 部门ID
 	DepartmentID int `json:"department_id,omitempty"`
+	// 所属客户ID（同租户，关联 service_customers）
+	CustomerID int `json:"customer_id,omitempty"`
 	// 所属项目ID（P0；同租户，见 docs/project-management/plan/p0-data-ddl.md §3）
 	ProjectID int `json:"project_id,omitempty"`
 	// 父工单ID
@@ -332,7 +334,7 @@ func (*Ticket) scanValues(columns []string) ([]any, error) {
 			values[i] = new([]byte)
 		case ticket.FieldIsManagedByMsp:
 			values[i] = new(sql.NullBool)
-		case ticket.FieldID, ticket.FieldTicketTypeID, ticket.FieldRequesterID, ticket.FieldAssigneeID, ticket.FieldTenantID, ticket.FieldTemplateID, ticket.FieldCategoryID, ticket.FieldDepartmentID, ticket.FieldProjectID, ticket.FieldParentTicketID, ticket.FieldSLADefinitionID, ticket.FieldRating, ticket.FieldRatedBy, ticket.FieldVersion, ticket.FieldMspProviderID, ticket.FieldManagedByUserID:
+		case ticket.FieldID, ticket.FieldTicketTypeID, ticket.FieldRequesterID, ticket.FieldAssigneeID, ticket.FieldTenantID, ticket.FieldTemplateID, ticket.FieldCategoryID, ticket.FieldDepartmentID, ticket.FieldCustomerID, ticket.FieldProjectID, ticket.FieldParentTicketID, ticket.FieldSLADefinitionID, ticket.FieldRating, ticket.FieldRatedBy, ticket.FieldVersion, ticket.FieldMspProviderID, ticket.FieldManagedByUserID:
 			values[i] = new(sql.NullInt64)
 		case ticket.FieldTitle, ticket.FieldDescription, ticket.FieldDescriptionHTML, ticket.FieldDescriptionFormat, ticket.FieldStatus, ticket.FieldType, ticket.FieldTicketTypeCodeSnapshot, ticket.FieldTicketTypeNameSnapshot, ticket.FieldPriority, ticket.FieldTicketNumber, ticket.FieldSLAStatus, ticket.FieldSLAPauseReason, ticket.FieldSLAMatchedLayer, ticket.FieldResolution, ticket.FieldResolutionCategory, ticket.FieldRatingComment, ticket.FieldMspTicketID:
 			values[i] = new(sql.NullString)
@@ -482,6 +484,12 @@ func (_m *Ticket) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field department_id", values[i])
 			} else if value.Valid {
 				_m.DepartmentID = int(value.Int64)
+			}
+		case ticket.FieldCustomerID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field customer_id", values[i])
+			} else if value.Valid {
+				_m.CustomerID = int(value.Int64)
 			}
 		case ticket.FieldProjectID:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -871,6 +879,9 @@ func (_m *Ticket) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("department_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.DepartmentID))
+	builder.WriteString(", ")
+	builder.WriteString("customer_id=")
+	builder.WriteString(fmt.Sprintf("%v", _m.CustomerID))
 	builder.WriteString(", ")
 	builder.WriteString("project_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.ProjectID))

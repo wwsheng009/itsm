@@ -57,6 +57,9 @@ func (Problem) Fields() []ent.Field {
 		field.Int("department_id").
 			Comment("所属部门ID（同租户）").
 			Optional(),
+		field.Int("customer_id").
+			Comment("所属客户ID（同租户，关联 service_customers）").
+			Optional(),
 		field.Int("created_by").
 			Comment("创建人ID").
 			Positive(),
@@ -103,5 +106,6 @@ func (Problem) Edges() []ent.Edge {
 func (Problem) Indexes() []ent.Index {
 	return []ent.Index{
 		index.Fields("tenant_id", "department_id"),
+		index.Fields("tenant_id", "customer_id"),
 	}
 }

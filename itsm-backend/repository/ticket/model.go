@@ -63,6 +63,7 @@ type Ticket struct {
 	TemplateID            *int
 	CategoryID            *int
 	DepartmentID          *int
+	CustomerID            *int
 	ParentTicketID        *int
 	SLADefinitionID       *int
 	SLAResponseDeadline   *time.Time
@@ -213,12 +214,13 @@ type CreateParams struct {
 	AssigneeID        *int
 	CategoryID        *int
 	DepartmentID      *int
+	CustomerID        *int
 	TemplateID        *int
 	ParentTicketID    *int
 	// ProjectID 创建时挂接的项目（nil=不挂接；随 INSERT 一次写入）。
-	ProjectID         *int
-	TagIDs            []int
-	Tags              []string
+	ProjectID *int
+	TagIDs    []int
+	Tags      []string
 	// MSP 快照（IP-P0-3 / R11）：由客户租户归属派生，建单时一次写入；
 	// ManagedByUserID/MSPTicketID 在指派/外部映射时写入。
 	IsManagedByMSP  bool
@@ -241,6 +243,7 @@ type UpdateParams struct {
 	AssigneeID        *int
 	CategoryID        *int
 	DepartmentID      *int
+	CustomerID        *int
 	ReplaceTags       bool
 	TagIDs            []int
 	Resolution        *string

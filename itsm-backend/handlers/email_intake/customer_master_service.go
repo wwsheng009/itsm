@@ -62,6 +62,18 @@ type CustomerListRow struct {
 	AccountManagerName string
 }
 
+// CustomerOption is the minimal customer projection used by business-record
+// forms (ticket/problem/knowledge/etc.). It intentionally exposes only lookup
+// fields, so any authenticated tenant user can resolve a customer name without
+// holding the broader customer_master:read permission.
+type CustomerOption struct {
+	ID        int    `json:"id"`
+	Name      string `json:"name"`
+	Code      string `json:"code,omitempty"`
+	ShortName string `json:"shortName,omitempty"`
+	Tier      string `json:"tier,omitempty"`
+}
+
 // CustomerDetail is the customer detail projection. Relationships/projects are
 // loaded by their own panels; P2 external IDs are included here because they
 // are part of the core master-data detail read.
@@ -213,6 +225,43 @@ func (s *Service) ListCustomers(ctx context.Context, tenantID int, filters Custo
 		return nil, 0, err
 	}
 	return rows, total, nil
+}
+
+// ListCustomerOptions returns the tenant-scoped active customer lookup list.
+// Business records use it to label customer_id without granting master-data
+// maintenance permissions to every operator.
+func (s *Service) ListCustomerOptions(ctx context.Context, tenantID int, keyword string) ([]CustomerOption, error) {
+	query := s.client.ServiceCustomer.Query().Where(
+		servicecustomer.TenantIDEQ(tenantID),
+		servicecustomer.DeletedAtIsNil(),
+		servicecustomer.MergedIntoIDIsNil(),
+		servicecustomer.StatusEQ("active"),
+	)
+	if value := strings.TrimSpace(keyword); value != "" {
+		query.Where(servicecustomer.Or(
+			servicecustomer.NameContainsFold(value),
+			servicecustomer.CodeContainsFold(value),
+			servicecustomer.ShortNameContainsFold(value),
+		))
+	}
+	customers, err := query.
+		Order(ent.Asc(servicecustomer.FieldName)).
+		Limit(500).
+		All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	options := make([]CustomerOption, 0, len(customers))
+	for _, customer := range customers {
+		options = append(options, CustomerOption{
+			ID:        customer.ID,
+			Name:      customer.Name,
+			Code:      customer.Code,
+			ShortName: customer.ShortName,
+			Tier:      customer.Tier,
+		})
+	}
+	return options, nil
 }
 
 func normalizePage(page, pageSize int) (int, int) {

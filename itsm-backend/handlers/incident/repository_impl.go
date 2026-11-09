@@ -71,6 +71,7 @@ func (r *EntRepository) toDomain(e *ent.Incident) *Incident {
 		ConfigurationItemID:   optionalID(e.ConfigurationItemID),
 		ProjectID:             optionalID(e.ProjectID),
 		DepartmentID:          optionalID(e.DepartmentID),
+		CustomerID:            optionalID(e.CustomerID),
 		Version:               e.Version,
 		IsMajorIncident:       e.IsMajorIncident,
 		Category:              e.Category,
@@ -179,6 +180,9 @@ func (r *EntRepository) Create(ctx context.Context, i *Incident) (*Incident, err
 	}
 	if i.DepartmentID != nil {
 		query.SetNillableDepartmentID(i.DepartmentID)
+	}
+	if i.CustomerID != nil {
+		query.SetNillableCustomerID(i.CustomerID)
 	}
 	// ent schema 对 impact/urgency 的 Validate 拒绝空串，留空时必须让 Default("medium")
 	// 生效，因此仅在调用方显式给出值时写入。
@@ -329,6 +333,9 @@ func (r *EntRepository) Update(ctx context.Context, i *Incident) (*Incident, err
 	}
 	if i.DepartmentID != nil {
 		u.SetNillableDepartmentID(i.DepartmentID)
+	}
+	if i.CustomerID != nil {
+		u.SetNillableCustomerID(i.CustomerID)
 	}
 	if i.ResolvedAt != nil {
 		u.SetResolvedAt(*i.ResolvedAt)

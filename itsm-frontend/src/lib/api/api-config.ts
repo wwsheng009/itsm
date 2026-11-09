@@ -339,6 +339,7 @@ export interface CreateTicketRequest {
   category?: string;
   categoryId?: number;
   departmentId?: number;
+  customerId?: number;
   formFields?: Record<string, unknown>;
   assigneeId?: number;
   workflowDefinitionKey?: string;

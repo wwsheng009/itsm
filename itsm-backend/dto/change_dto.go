@@ -77,6 +77,7 @@ type CreateChangeRequest struct {
 	// ProjectID 创建时挂接的项目（可选；handler 前置校验 project:write + 项目非终态，随 INSERT 一次写入）。
 	ProjectID    *int `json:"projectId,omitempty"`
 	DepartmentID *int `json:"departmentId,omitempty"`
+	CustomerID   *int `json:"customerId,omitempty"`
 }
 
 // UpdateChangeRequest 更新变更请求
@@ -96,6 +97,7 @@ type UpdateChangeRequest struct {
 	AffectedCIs        []string        `json:"affectedCis"`        // 受影响的配置项
 	RelatedTickets     []string        `json:"relatedTickets"`     // 相关工单
 	DepartmentID       *int            `json:"departmentId,omitempty"`
+	CustomerID         *int            `json:"customerId,omitempty"`
 }
 
 // ChangeResponse 变更响应
@@ -113,6 +115,7 @@ type ChangeResponse struct {
 	AssigneeID         *int           `json:"assigneeId"`             // 处理人ID
 	AssigneeName       *string        `json:"assigneeName"`           // 处理人姓名
 	DepartmentID       *int           `json:"departmentId,omitempty"`
+	CustomerID         *int           `json:"customerId,omitempty"`
 	CreatedBy          int            `json:"createdBy"`          // 创建人ID
 	CreatedByName      string         `json:"createdByName"`      // 创建人姓名
 	TenantID           int            `json:"tenantId"`           // 租户ID

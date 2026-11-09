@@ -61,6 +61,10 @@ func (r *EntRepository) toDomain(e *ent.Problem) *Problem {
 		id := e.DepartmentID
 		p.DepartmentID = &id
 	}
+	if e.CustomerID != 0 {
+		id := e.CustomerID
+		p.CustomerID = &id
+	}
 	return p
 }
 
@@ -206,6 +210,7 @@ func (r *EntRepository) Create(ctx context.Context, p *Problem) (*Problem, error
 		SetTenantID(p.TenantID).
 		SetNillableProjectID(p.ProjectID).
 		SetNillableDepartmentID(p.DepartmentID).
+		SetNillableCustomerID(p.CustomerID).
 		SetCreatedAt(time.Now()).
 		SetUpdatedAt(time.Now())
 
@@ -339,6 +344,9 @@ func (r *EntRepository) Update(ctx context.Context, p *Problem) (*Problem, error
 
 	if p.DepartmentID != nil {
 		update.SetNillableDepartmentID(p.DepartmentID)
+	}
+	if p.CustomerID != nil {
+		update.SetNillableCustomerID(p.CustomerID)
 	}
 
 	if p.AssigneeID != nil {

@@ -37,6 +37,7 @@ type CreateServiceRequestRequest struct {
 	// 随 INSERT 一次写入；未装配校验端口时 fail-closed）。
 	ProjectID    *int `json:"projectId,omitempty"`
 	DepartmentID *int `json:"departmentId,omitempty"`
+	CustomerID   *int `json:"customerId,omitempty"`
 }
 
 // UpdateServiceRequestStatusRequest 更新服务请求状态请求
@@ -57,6 +58,7 @@ type UpdateServiceRequestRequest struct {
 	ExpireAt           *time.Time `json:"expireAt" binding:"omitempty"`
 	ComplianceAck      *bool      `json:"complianceAck"`
 	DepartmentID       *int       `json:"departmentId,omitempty"`
+	CustomerID         *int       `json:"customerId,omitempty"`
 }
 
 // GetServiceCatalogsRequest 获取服务目录请求
@@ -120,6 +122,7 @@ type ServiceRequestResponse struct {
 	RequesterID   int            `json:"requesterId"`
 	CIID          int            `json:"ciId,omitempty"`
 	DepartmentID  *int           `json:"departmentId,omitempty"`
+	CustomerID    *int           `json:"customerId,omitempty"`
 	Status        string         `json:"status"`
 	Title         string         `json:"title,omitempty"`
 	Reason        string         `json:"reason,omitempty"`

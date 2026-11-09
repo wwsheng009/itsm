@@ -14,6 +14,7 @@ import { useInlineImageUnbind } from '@/lib/rich-text/useInlineImageUnbind';
 import { AttachmentApi, problemAttachmentPreviewUrl } from '@/lib/api/attachment-api';
 import type { UploadedImage } from '@/components/common/rich-text/RichTextEditor';
 import DepartmentSelect from '@/components/business/DepartmentSelect';
+import CustomerSelect from '@/components/business/CustomerSelect';
 
 const { TextArea } = Input;
 
@@ -86,6 +87,7 @@ export default function ProblemEditPage() {
           rootCause: data.rootCause,
           impact: data.impact,
           departmentId: data.departmentId,
+          customerId: data.customerId,
         });
         captureInlineImageBaseline(data.description);
         if (rawCategory && !safeCategory) {
@@ -235,13 +237,22 @@ export default function ProblemEditPage() {
           </Row>
 
           <Row gutter={24}>
-            <Col span={24}>
+            <Col span={12}>
               <Form.Item
                 name="departmentId"
                 label="所属部门"
                 tooltip="用于部门归属、统计与部门审批人路由"
               >
                 <DepartmentSelect />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item
+                name="customerId"
+                label="所属客户"
+                tooltip="用于客户归属、统计与客户维度分析"
+              >
+                <CustomerSelect />
               </Form.Item>
             </Col>
           </Row>

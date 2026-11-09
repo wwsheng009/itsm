@@ -21,6 +21,7 @@ export interface Incident {
   assigneeName?: string;
   configurationItemId?: number;
   departmentId?: number;
+  customerId?: number;
   category: string;
   subcategory: string;
   impactAnalysis?: Record<string, any>;
@@ -70,6 +71,7 @@ export interface CreateIncidentRequest {
   assigneeId?: number;
   configurationItemId?: number;
   departmentId?: number;
+  customerId?: number;
   impactAnalysis?: Record<string, any>;
   source?: string;
   detectedAt?: string;
@@ -87,6 +89,7 @@ export interface UpdateIncidentRequest {
   subcategory?: string;
   assigneeId?: number;
   departmentId?: number;
+  customerId?: number;
   impactAnalysis?: Record<string, any>;
   rootCause?: Record<string, any>;
   resolutionSteps?: Record<string, any>[];

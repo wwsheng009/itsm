@@ -71,6 +71,7 @@ type CreateReleaseRequest struct {
 	IsEmergency        bool       `json:"isEmergency"`                                      // 是否紧急发布
 	RequiresApproval   bool       `json:"requiresApproval"`                                 // 是否需要审批
 	DepartmentID       *int       `json:"departmentId,omitempty"`                           // 所属部门ID
+	CustomerID         *int       `json:"customerId,omitempty"`                             // 所属客户ID
 }
 
 // UpdateReleaseRequest 更新发布请求
@@ -98,6 +99,7 @@ type UpdateReleaseRequest struct {
 	IsEmergency        *bool      `json:"isEmergency"`                                      // 是否紧急发布
 	RequiresApproval   *bool      `json:"requiresApproval"`                                 // 是否需要审批
 	DepartmentID       *int       `json:"departmentId,omitempty"`                           // 所属部门ID
+	CustomerID         *int       `json:"customerId,omitempty"`                             // 所属客户ID
 }
 
 // ReleaseResponse 发布响应
@@ -114,6 +116,7 @@ type ReleaseResponse struct {
 	OwnerID            *int       `json:"ownerId"`       // 负责人ID
 	OwnerName          *string    `json:"ownerName"`     // 负责人姓名
 	DepartmentID       *int       `json:"departmentId,omitempty"`
+	CustomerID         *int       `json:"customerId,omitempty"`
 	CreatedBy          int        `json:"createdBy"`          // 创建人ID
 	CreatedByName      string     `json:"createdByName"`      // 创建人姓名
 	TenantID           int        `json:"tenantId"`           // 租户ID

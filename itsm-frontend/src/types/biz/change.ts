@@ -23,6 +23,7 @@ export interface Change {
   riskLevel: ChangeRisk;
   assigneeId?: number;
   departmentId?: number;
+  customerId?: number;
   assigneeName?: string;
   createdBy: number;
   createdByName: string;
@@ -94,6 +95,7 @@ export interface CreateChangeRequest {
   affectedCis?: string[];
   relatedTickets?: string[];
   departmentId?: number;
+  customerId?: number;
 }
 
 // 列表查询参数

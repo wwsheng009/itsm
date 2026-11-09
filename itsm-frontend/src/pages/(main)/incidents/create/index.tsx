@@ -6,6 +6,7 @@ import { ArrowLeft, Search, X, Sparkles } from 'lucide-react';
 import { IncidentAPI } from '@/lib/api/incident-api';
 import ProjectSelect, { useProjectLinkPermission } from '@/components/business/ProjectSelect';
 import DepartmentSelect from '@/components/business/DepartmentSelect';
+import CustomerSelect from '@/components/business/CustomerSelect';
 import { IncidentCategoryOptions } from '@/constants/taxonomy';
 import type { ConfigurationItem } from '@/types/biz/cmdb';
 import { CMDBApi } from '@/lib/api/cmdb-api';
@@ -66,6 +67,7 @@ interface IncidentFormValues {
   rootCause?: string;
   projectId?: number;
   departmentId?: number;
+  customerId?: number;
 }
 
 export default function CreateIncidentPage() {
@@ -282,6 +284,7 @@ export default function CreateIncidentPage() {
         configurationItemIds: selectedCIs.map(ci => ci.id),
         projectId: values.projectId ?? undefined,
         departmentId: values.departmentId ?? undefined,
+        customerId: values.customerId ?? undefined,
       });
 
       // 正文图片两段式：上传 → 用正式地址替换暂存占位 → 回写 description。
@@ -639,6 +642,14 @@ export default function CreateIncidentPage() {
                           tooltip="用于部门归属、统计与部门审批人路由"
                         >
                           <DepartmentSelect />
+                        </Form.Item>
+
+                        <Form.Item
+                          name="customerId"
+                          label="所属客户"
+                          tooltip="用于客户归属、统计与客户维度分析"
+                        >
+                          <CustomerSelect />
                         </Form.Item>
 
                         {/* PE-5 增补：创建时挂接项目（canAttach 门控；后端创建前动态复核 project:write + 项目非终态） */}

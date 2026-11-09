@@ -29,6 +29,7 @@ import { ReleaseApi } from '@/lib/api/release-api';
 import RichTextContent from '@/components/common/rich-text/RichTextContent';
 import { PermissionGate } from '@/components/auth/PermissionGate';
 import { DepartmentName } from '@/components/business/DepartmentSelect';
+import { CustomerName } from '@/components/business/CustomerSelect';
 
 const { Title, Text } = Typography;
 
@@ -222,6 +223,9 @@ const ReleaseDetail: React.FC = () => {
           <Descriptions.Item label="负责人">{release.ownerName || '-'}</Descriptions.Item>
           <Descriptions.Item label="所属部门">
             <DepartmentName departmentId={release.departmentId} />
+          </Descriptions.Item>
+          <Descriptions.Item label="所属客户">
+            <CustomerName customerId={release.customerId} />
           </Descriptions.Item>
           <Descriptions.Item label="计划发布日期">
             {release.plannedReleaseDate

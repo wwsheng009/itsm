@@ -294,6 +294,33 @@ func (_u *ProblemUpdate) ClearDepartmentID() *ProblemUpdate {
 	return _u
 }
 
+// SetCustomerID sets the "customer_id" field.
+func (_u *ProblemUpdate) SetCustomerID(v int) *ProblemUpdate {
+	_u.mutation.ResetCustomerID()
+	_u.mutation.SetCustomerID(v)
+	return _u
+}
+
+// SetNillableCustomerID sets the "customer_id" field if the given value is not nil.
+func (_u *ProblemUpdate) SetNillableCustomerID(v *int) *ProblemUpdate {
+	if v != nil {
+		_u.SetCustomerID(*v)
+	}
+	return _u
+}
+
+// AddCustomerID adds value to the "customer_id" field.
+func (_u *ProblemUpdate) AddCustomerID(v int) *ProblemUpdate {
+	_u.mutation.AddCustomerID(v)
+	return _u
+}
+
+// ClearCustomerID clears the value of the "customer_id" field.
+func (_u *ProblemUpdate) ClearCustomerID() *ProblemUpdate {
+	_u.mutation.ClearCustomerID()
+	return _u
+}
+
 // SetCreatedBy sets the "created_by" field.
 func (_u *ProblemUpdate) SetCreatedBy(v int) *ProblemUpdate {
 	_u.mutation.ResetCreatedBy()
@@ -679,6 +706,15 @@ func (_u *ProblemUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if _u.mutation.DepartmentIDCleared() {
 		_spec.ClearField(problem.FieldDepartmentID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.CustomerID(); ok {
+		_spec.SetField(problem.FieldCustomerID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedCustomerID(); ok {
+		_spec.AddField(problem.FieldCustomerID, field.TypeInt, value)
+	}
+	if _u.mutation.CustomerIDCleared() {
+		_spec.ClearField(problem.FieldCustomerID, field.TypeInt)
 	}
 	if value, ok := _u.mutation.CreatedBy(); ok {
 		_spec.SetField(problem.FieldCreatedBy, field.TypeInt, value)
@@ -1134,6 +1170,33 @@ func (_u *ProblemUpdateOne) ClearDepartmentID() *ProblemUpdateOne {
 	return _u
 }
 
+// SetCustomerID sets the "customer_id" field.
+func (_u *ProblemUpdateOne) SetCustomerID(v int) *ProblemUpdateOne {
+	_u.mutation.ResetCustomerID()
+	_u.mutation.SetCustomerID(v)
+	return _u
+}
+
+// SetNillableCustomerID sets the "customer_id" field if the given value is not nil.
+func (_u *ProblemUpdateOne) SetNillableCustomerID(v *int) *ProblemUpdateOne {
+	if v != nil {
+		_u.SetCustomerID(*v)
+	}
+	return _u
+}
+
+// AddCustomerID adds value to the "customer_id" field.
+func (_u *ProblemUpdateOne) AddCustomerID(v int) *ProblemUpdateOne {
+	_u.mutation.AddCustomerID(v)
+	return _u
+}
+
+// ClearCustomerID clears the value of the "customer_id" field.
+func (_u *ProblemUpdateOne) ClearCustomerID() *ProblemUpdateOne {
+	_u.mutation.ClearCustomerID()
+	return _u
+}
+
 // SetCreatedBy sets the "created_by" field.
 func (_u *ProblemUpdateOne) SetCreatedBy(v int) *ProblemUpdateOne {
 	_u.mutation.ResetCreatedBy()
@@ -1549,6 +1612,15 @@ func (_u *ProblemUpdateOne) sqlSave(ctx context.Context) (_node *Problem, err er
 	}
 	if _u.mutation.DepartmentIDCleared() {
 		_spec.ClearField(problem.FieldDepartmentID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.CustomerID(); ok {
+		_spec.SetField(problem.FieldCustomerID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedCustomerID(); ok {
+		_spec.AddField(problem.FieldCustomerID, field.TypeInt, value)
+	}
+	if _u.mutation.CustomerIDCleared() {
+		_spec.ClearField(problem.FieldCustomerID, field.TypeInt)
 	}
 	if value, ok := _u.mutation.CreatedBy(); ok {
 		_spec.SetField(problem.FieldCreatedBy, field.TypeInt, value)

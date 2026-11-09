@@ -6,6 +6,7 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/schema/edge"
 	"entgo.io/ent/schema/field"
+	"entgo.io/ent/schema/index"
 )
 
 type KnowledgeArticle struct{ ent.Schema }
@@ -24,6 +25,9 @@ func (KnowledgeArticle) Fields() []ent.Field {
 		field.String("tags").Comment("标签").Optional(),
 		field.Int("author_id").Comment("作者ID").Positive(),
 		field.Int("tenant_id").Comment("租户ID").Positive(),
+		field.Int("customer_id").
+			Comment("所属客户ID（同租户，关联 service_customers）").
+			Optional(),
 		field.Bool("is_published").Comment("是否发布").Default(false),
 		field.Int("view_count").Comment("浏览次数").Default(0),
 		field.Int("like_count").Comment("点赞次数").Default(0),
@@ -45,6 +49,12 @@ func (KnowledgeArticle) Fields() []ent.Field {
 		field.Time("created_at").Comment("创建时间").Default(time.Now),
 		field.Time("updated_at").Comment("更新时间").Default(time.Now).UpdateDefault(time.Now),
 		field.Time("deleted_at").Comment("软删除时间").Optional().Nillable(),
+	}
+}
+
+func (KnowledgeArticle) Indexes() []ent.Index {
+	return []ent.Index{
+		index.Fields("tenant_id", "customer_id"),
 	}
 }
 

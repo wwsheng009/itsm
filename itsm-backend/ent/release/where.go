@@ -94,6 +94,11 @@ func DepartmentID(v int) predicate.Release {
 	return predicate.Release(sql.FieldEQ(FieldDepartmentID, v))
 }
 
+// CustomerID applies equality check predicate on the "customer_id" field. It's identical to CustomerIDEQ.
+func CustomerID(v int) predicate.Release {
+	return predicate.Release(sql.FieldEQ(FieldCustomerID, v))
+}
+
 // ChangeID applies equality check predicate on the "change_id" field. It's identical to ChangeIDEQ.
 func ChangeID(v int) predicate.Release {
 	return predicate.Release(sql.FieldEQ(FieldChangeID, v))
@@ -682,6 +687,56 @@ func DepartmentIDIsNil() predicate.Release {
 // DepartmentIDNotNil applies the NotNil predicate on the "department_id" field.
 func DepartmentIDNotNil() predicate.Release {
 	return predicate.Release(sql.FieldNotNull(FieldDepartmentID))
+}
+
+// CustomerIDEQ applies the EQ predicate on the "customer_id" field.
+func CustomerIDEQ(v int) predicate.Release {
+	return predicate.Release(sql.FieldEQ(FieldCustomerID, v))
+}
+
+// CustomerIDNEQ applies the NEQ predicate on the "customer_id" field.
+func CustomerIDNEQ(v int) predicate.Release {
+	return predicate.Release(sql.FieldNEQ(FieldCustomerID, v))
+}
+
+// CustomerIDIn applies the In predicate on the "customer_id" field.
+func CustomerIDIn(vs ...int) predicate.Release {
+	return predicate.Release(sql.FieldIn(FieldCustomerID, vs...))
+}
+
+// CustomerIDNotIn applies the NotIn predicate on the "customer_id" field.
+func CustomerIDNotIn(vs ...int) predicate.Release {
+	return predicate.Release(sql.FieldNotIn(FieldCustomerID, vs...))
+}
+
+// CustomerIDGT applies the GT predicate on the "customer_id" field.
+func CustomerIDGT(v int) predicate.Release {
+	return predicate.Release(sql.FieldGT(FieldCustomerID, v))
+}
+
+// CustomerIDGTE applies the GTE predicate on the "customer_id" field.
+func CustomerIDGTE(v int) predicate.Release {
+	return predicate.Release(sql.FieldGTE(FieldCustomerID, v))
+}
+
+// CustomerIDLT applies the LT predicate on the "customer_id" field.
+func CustomerIDLT(v int) predicate.Release {
+	return predicate.Release(sql.FieldLT(FieldCustomerID, v))
+}
+
+// CustomerIDLTE applies the LTE predicate on the "customer_id" field.
+func CustomerIDLTE(v int) predicate.Release {
+	return predicate.Release(sql.FieldLTE(FieldCustomerID, v))
+}
+
+// CustomerIDIsNil applies the IsNil predicate on the "customer_id" field.
+func CustomerIDIsNil() predicate.Release {
+	return predicate.Release(sql.FieldIsNull(FieldCustomerID))
+}
+
+// CustomerIDNotNil applies the NotNil predicate on the "customer_id" field.
+func CustomerIDNotNil() predicate.Release {
+	return predicate.Release(sql.FieldNotNull(FieldCustomerID))
 }
 
 // ChangeIDEQ applies the EQ predicate on the "change_id" field.

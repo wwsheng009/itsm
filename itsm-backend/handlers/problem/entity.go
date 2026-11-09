@@ -21,6 +21,7 @@ type Problem struct {
 	// ProjectID 创建时挂接的项目（随 INSERT 一次写入；前置校验由 handler 调 projectlink.GuardCreate）。
 	ProjectID    *int
 	DepartmentID *int
+	CustomerID   *int
 	CreatedBy    int
 	TenantID     int
 	CreatedAt    time.Time

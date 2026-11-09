@@ -32,6 +32,7 @@ import RichTextContent from '@/components/common/rich-text/RichTextContent';
 import { PermissionGate, useCan } from '@/components/auth/PermissionGate';
 import RecordProjectLink from '@/components/business/RecordProjectLink';
 import { DepartmentName } from '@/components/business/DepartmentSelect';
+import { CustomerName } from '@/components/business/CustomerSelect';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -242,6 +243,9 @@ const ServiceRequestDetail: React.FC = () => {
                 <Descriptions.Item label="服务名称">{request.catalog?.name}</Descriptions.Item>
                 <Descriptions.Item label="所属部门">
                   <DepartmentName departmentId={request.departmentId} />
+                </Descriptions.Item>
+                <Descriptions.Item label="所属客户">
+                  <CustomerName customerId={request.customerId} />
                 </Descriptions.Item>
                 <Descriptions.Item label="所属项目">
                   <RecordProjectLink domain="service_request" recordId={request.id} showLabel={false} />

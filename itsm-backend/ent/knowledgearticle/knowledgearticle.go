@@ -28,6 +28,8 @@ const (
 	FieldAuthorID = "author_id"
 	// FieldTenantID holds the string denoting the tenant_id field in the database.
 	FieldTenantID = "tenant_id"
+	// FieldCustomerID holds the string denoting the customer_id field in the database.
+	FieldCustomerID = "customer_id"
 	// FieldIsPublished holds the string denoting the is_published field in the database.
 	FieldIsPublished = "is_published"
 	// FieldViewCount holds the string denoting the view_count field in the database.
@@ -91,6 +93,7 @@ var Columns = []string{
 	FieldTags,
 	FieldAuthorID,
 	FieldTenantID,
+	FieldCustomerID,
 	FieldIsPublished,
 	FieldViewCount,
 	FieldLikeCount,
@@ -193,6 +196,11 @@ func ByAuthorID(opts ...sql.OrderTermOption) OrderOption {
 // ByTenantID orders the results by the tenant_id field.
 func ByTenantID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldTenantID, opts...).ToFunc()
+}
+
+// ByCustomerID orders the results by the customer_id field.
+func ByCustomerID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCustomerID, opts...).ToFunc()
 }
 
 // ByIsPublished orders the results by the is_published field.

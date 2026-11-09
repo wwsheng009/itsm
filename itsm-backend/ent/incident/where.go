@@ -90,6 +90,11 @@ func DepartmentID(v int) predicate.Incident {
 	return predicate.Incident(sql.FieldEQ(FieldDepartmentID, v))
 }
 
+// CustomerID applies equality check predicate on the "customer_id" field. It's identical to CustomerIDEQ.
+func CustomerID(v int) predicate.Incident {
+	return predicate.Incident(sql.FieldEQ(FieldCustomerID, v))
+}
+
 // SLADefinitionID applies equality check predicate on the "sla_definition_id" field. It's identical to SLADefinitionIDEQ.
 func SLADefinitionID(v int) predicate.Incident {
 	return predicate.Incident(sql.FieldEQ(FieldSLADefinitionID, v))
@@ -693,6 +698,56 @@ func DepartmentIDIsNil() predicate.Incident {
 // DepartmentIDNotNil applies the NotNil predicate on the "department_id" field.
 func DepartmentIDNotNil() predicate.Incident {
 	return predicate.Incident(sql.FieldNotNull(FieldDepartmentID))
+}
+
+// CustomerIDEQ applies the EQ predicate on the "customer_id" field.
+func CustomerIDEQ(v int) predicate.Incident {
+	return predicate.Incident(sql.FieldEQ(FieldCustomerID, v))
+}
+
+// CustomerIDNEQ applies the NEQ predicate on the "customer_id" field.
+func CustomerIDNEQ(v int) predicate.Incident {
+	return predicate.Incident(sql.FieldNEQ(FieldCustomerID, v))
+}
+
+// CustomerIDIn applies the In predicate on the "customer_id" field.
+func CustomerIDIn(vs ...int) predicate.Incident {
+	return predicate.Incident(sql.FieldIn(FieldCustomerID, vs...))
+}
+
+// CustomerIDNotIn applies the NotIn predicate on the "customer_id" field.
+func CustomerIDNotIn(vs ...int) predicate.Incident {
+	return predicate.Incident(sql.FieldNotIn(FieldCustomerID, vs...))
+}
+
+// CustomerIDGT applies the GT predicate on the "customer_id" field.
+func CustomerIDGT(v int) predicate.Incident {
+	return predicate.Incident(sql.FieldGT(FieldCustomerID, v))
+}
+
+// CustomerIDGTE applies the GTE predicate on the "customer_id" field.
+func CustomerIDGTE(v int) predicate.Incident {
+	return predicate.Incident(sql.FieldGTE(FieldCustomerID, v))
+}
+
+// CustomerIDLT applies the LT predicate on the "customer_id" field.
+func CustomerIDLT(v int) predicate.Incident {
+	return predicate.Incident(sql.FieldLT(FieldCustomerID, v))
+}
+
+// CustomerIDLTE applies the LTE predicate on the "customer_id" field.
+func CustomerIDLTE(v int) predicate.Incident {
+	return predicate.Incident(sql.FieldLTE(FieldCustomerID, v))
+}
+
+// CustomerIDIsNil applies the IsNil predicate on the "customer_id" field.
+func CustomerIDIsNil() predicate.Incident {
+	return predicate.Incident(sql.FieldIsNull(FieldCustomerID))
+}
+
+// CustomerIDNotNil applies the NotNil predicate on the "customer_id" field.
+func CustomerIDNotNil() predicate.Incident {
+	return predicate.Incident(sql.FieldNotNull(FieldCustomerID))
 }
 
 // SLADefinitionIDEQ applies the EQ predicate on the "sla_definition_id" field.

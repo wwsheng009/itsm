@@ -28,6 +28,8 @@ type ServiceRequest struct {
 	ProjectID int `json:"project_id,omitempty"`
 	// 所属部门ID（同租户）
 	DepartmentID int `json:"department_id,omitempty"`
+	// 所属客户ID（同租户，关联 service_customers）
+	CustomerID int `json:"customer_id,omitempty"`
 	// 申请人ID
 	RequesterID int `json:"requester_id,omitempty"`
 	// 状态: submitted|approved|rejected|in_progress|completed|cancelled
@@ -92,7 +94,7 @@ func (*ServiceRequest) scanValues(columns []string) ([]any, error) {
 			values[i] = new([]byte)
 		case servicerequest.FieldNeedsPublicIP, servicerequest.FieldComplianceAck:
 			values[i] = new(sql.NullBool)
-		case servicerequest.FieldID, servicerequest.FieldTenantID, servicerequest.FieldCatalogID, servicerequest.FieldCiID, servicerequest.FieldProjectID, servicerequest.FieldDepartmentID, servicerequest.FieldRequesterID, servicerequest.FieldCurrentLevel, servicerequest.FieldTotalLevels, servicerequest.FieldProcessorID, servicerequest.FieldVersion:
+		case servicerequest.FieldID, servicerequest.FieldTenantID, servicerequest.FieldCatalogID, servicerequest.FieldCiID, servicerequest.FieldProjectID, servicerequest.FieldDepartmentID, servicerequest.FieldCustomerID, servicerequest.FieldRequesterID, servicerequest.FieldCurrentLevel, servicerequest.FieldTotalLevels, servicerequest.FieldProcessorID, servicerequest.FieldVersion:
 			values[i] = new(sql.NullInt64)
 		case servicerequest.FieldStatus, servicerequest.FieldTitle, servicerequest.FieldReason, servicerequest.FieldCostCenter, servicerequest.FieldDataClassification, servicerequest.FieldCurrentApprover, servicerequest.FieldApproverComment, servicerequest.FieldCompletionNote, servicerequest.FieldLastError:
 			values[i] = new(sql.NullString)
@@ -148,6 +150,12 @@ func (_m *ServiceRequest) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field department_id", values[i])
 			} else if value.Valid {
 				_m.DepartmentID = int(value.Int64)
+			}
+		case servicerequest.FieldCustomerID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field customer_id", values[i])
+			} else if value.Valid {
+				_m.CustomerID = int(value.Int64)
 			}
 		case servicerequest.FieldRequesterID:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -362,6 +370,9 @@ func (_m *ServiceRequest) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("department_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.DepartmentID))
+	builder.WriteString(", ")
+	builder.WriteString("customer_id=")
+	builder.WriteString(fmt.Sprintf("%v", _m.CustomerID))
 	builder.WriteString(", ")
 	builder.WriteString("requester_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.RequesterID))

@@ -247,6 +247,20 @@ func (_c *TicketCreate) SetNillableDepartmentID(v *int) *TicketCreate {
 	return _c
 }
 
+// SetCustomerID sets the "customer_id" field.
+func (_c *TicketCreate) SetCustomerID(v int) *TicketCreate {
+	_c.mutation.SetCustomerID(v)
+	return _c
+}
+
+// SetNillableCustomerID sets the "customer_id" field if the given value is not nil.
+func (_c *TicketCreate) SetNillableCustomerID(v *int) *TicketCreate {
+	if v != nil {
+		_c.SetCustomerID(*v)
+	}
+	return _c
+}
+
 // SetProjectID sets the "project_id" field.
 func (_c *TicketCreate) SetProjectID(v int) *TicketCreate {
 	_c.mutation.SetProjectID(v)
@@ -1123,6 +1137,10 @@ func (_c *TicketCreate) createSpec() (*Ticket, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.DepartmentID(); ok {
 		_spec.SetField(ticket.FieldDepartmentID, field.TypeInt, value)
 		_node.DepartmentID = value
+	}
+	if value, ok := _c.mutation.CustomerID(); ok {
+		_spec.SetField(ticket.FieldCustomerID, field.TypeInt, value)
+		_node.CustomerID = value
 	}
 	if value, ok := _c.mutation.ProjectID(); ok {
 		_spec.SetField(ticket.FieldProjectID, field.TypeInt, value)

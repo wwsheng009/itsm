@@ -37,6 +37,7 @@ import {
 import { AttachmentApi, releaseAttachmentPreviewUrl } from '@/lib/api/attachment-api';
 import type { UploadedImage } from '@/components/common/rich-text/RichTextEditor';
 import DepartmentSelect from '@/components/business/DepartmentSelect';
+import CustomerSelect from '@/components/business/CustomerSelect';
 
 const { TextArea } = Input;
 
@@ -59,6 +60,7 @@ interface ReleaseFormValues {
   changeId?: number;
   ownerId?: number;
   departmentId?: number;
+  customerId?: number;
   plannedReleaseDate?: Dayjs;
   plannedStartDate?: Dayjs;
   plannedEndDate?: Dayjs;
@@ -195,6 +197,7 @@ const ReleaseForm: React.FC = () => {
         changeId: values.changeId,
         ownerId: values.ownerId,
         departmentId: values.departmentId,
+        customerId: values.customerId,
         plannedReleaseDate: values.plannedReleaseDate?.toISOString(),
         plannedStartDate: values.plannedStartDate?.toISOString(),
         plannedEndDate: values.plannedEndDate?.toISOString(),
@@ -414,6 +417,14 @@ const ReleaseForm: React.FC = () => {
           tooltip="用于部门归属、统计与部门审批人路由"
         >
           <DepartmentSelect />
+        </Form.Item>
+
+        <Form.Item
+          name="customerId"
+          label="所属客户"
+          tooltip="用于客户归属、统计与客户维度分析"
+        >
+          <CustomerSelect />
         </Form.Item>
 
         <Divider>计划信息</Divider>

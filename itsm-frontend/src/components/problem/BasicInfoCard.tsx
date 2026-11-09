@@ -6,6 +6,7 @@ import { useI18n } from '@/lib/i18n/useI18n';
 import RichTextContent from '@/components/common/rich-text/RichTextContent';
 import RecordProjectLink from '@/components/business/RecordProjectLink';
 import { DepartmentName } from '@/components/business/DepartmentSelect';
+import { CustomerName } from '@/components/business/CustomerSelect';
 
 const { Title, Paragraph } = Typography;
 
@@ -23,6 +24,7 @@ interface BasicInfoCardProps {
     createdBy?: number;
     assigneeId?: number;
     departmentId?: number;
+    customerId?: number;
     // 后端 service 层 join user 表返回的中文姓名，优先展示姓名，缺失时退到 ID
     createdByName?: string;
     assigneeName?: string;
@@ -126,6 +128,9 @@ const BasicInfoCard: React.FC<BasicInfoCardProps> = ({ data }) => {
         <Descriptions.Item label={t('problem.updatedAt')}>{formatDate(updatedAt)}</Descriptions.Item>
         <Descriptions.Item label="所属部门">
           <DepartmentName departmentId={data.departmentId} />
+        </Descriptions.Item>
+        <Descriptions.Item label="所属客户">
+          <CustomerName customerId={data.customerId} />
         </Descriptions.Item>
         <Descriptions.Item label="所属项目" span={2}>
           <RecordProjectLink domain="problem" recordId={data.id} showLabel={false} />

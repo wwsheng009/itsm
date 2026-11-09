@@ -167,6 +167,9 @@ func (r *EntRepository) Create(ctx context.Context, params *CreateParams, tenant
 		if params.DepartmentID != nil {
 			builder.SetNillableDepartmentID(params.DepartmentID)
 		}
+		if params.CustomerID != nil {
+			builder.SetNillableCustomerID(params.CustomerID)
+		}
 		if params.TemplateID != nil {
 			builder.SetTemplateID(*params.TemplateID)
 		}
@@ -250,6 +253,9 @@ func (r *EntRepository) CreateWithTx(ctx context.Context, tx *ent.Tx, params *Cr
 	}
 	if params.DepartmentID != nil {
 		builder.SetNillableDepartmentID(params.DepartmentID)
+	}
+	if params.CustomerID != nil {
+		builder.SetNillableCustomerID(params.CustomerID)
 	}
 	if params.TemplateID != nil {
 		builder.SetTemplateID(*params.TemplateID)
@@ -382,6 +388,13 @@ func (r *EntRepository) Update(ctx context.Context, id int, params *UpdateParams
 			builder.SetDepartmentID(*params.DepartmentID)
 		}
 	}
+	if params.CustomerID != nil {
+		if *params.CustomerID == 0 {
+			builder.ClearCustomerID()
+		} else {
+			builder.SetCustomerID(*params.CustomerID)
+		}
+	}
 	if params.ReplaceTags {
 		builder.ClearTags()
 		if len(params.TagIDs) > 0 {
@@ -475,6 +488,13 @@ func (r *EntRepository) UpdateWithTxHook(ctx context.Context, id int, params *Up
 			builder.ClearDepartmentID()
 		} else {
 			builder.SetDepartmentID(*params.DepartmentID)
+		}
+	}
+	if params.CustomerID != nil {
+		if *params.CustomerID == 0 {
+			builder.ClearCustomerID()
+		} else {
+			builder.SetCustomerID(*params.CustomerID)
 		}
 	}
 	if params.FormFields != nil {
@@ -1069,6 +1089,9 @@ func toDomainModel(e *ent.Ticket) *Ticket {
 	}
 	if e.DepartmentID != 0 {
 		t.DepartmentID = &e.DepartmentID
+	}
+	if e.CustomerID != 0 {
+		t.CustomerID = &e.CustomerID
 	}
 	if e.ParentTicketID != 0 {
 		t.ParentTicketID = &e.ParentTicketID

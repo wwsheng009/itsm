@@ -45,6 +45,11 @@ func toDomain(e *ent.KnowledgeArticle) *Article {
 	if e.Tags != "" {
 		tags = strings.Split(e.Tags, ",")
 	}
+	var customerID *int
+	if e.CustomerID > 0 {
+		id := e.CustomerID
+		customerID = &id
+	}
 	return &Article{
 		ID:          e.ID,
 		Title:       e.Title,
@@ -54,6 +59,7 @@ func toDomain(e *ent.KnowledgeArticle) *Article {
 		Tags:        tags,
 		AuthorID:    e.AuthorID,
 		TenantID:    e.TenantID,
+		CustomerID:  customerID,
 		IsPublished: e.IsPublished,
 		CreatedAt:   e.CreatedAt,
 		UpdatedAt:   e.UpdatedAt,
@@ -76,6 +82,7 @@ func (r *EntRepository) Create(ctx context.Context, a *Article) (*Article, error
 		SetTags(tagsStr).
 		SetAuthorID(a.AuthorID).
 		SetTenantID(a.TenantID).
+		SetNillableCustomerID(a.CustomerID).
 		SetIsPublished(a.IsPublished).
 		// 时效性（L1）与权威性（L2）：三个时间字段用 Nillable setter，
 		// nil 表示不设时效/不设复核，与数据库默认值语义一致。
@@ -202,6 +209,12 @@ func (r *EntRepository) Update(ctx context.Context, a *Article) (*Article, error
 		SetIsPublished(a.IsPublished).
 		SetReviewIntervalDays(a.ReviewIntervalDays).
 		SetAuthorityLevel(a.AuthorityLevel)
+
+	if a.CustomerID != nil && *a.CustomerID > 0 {
+		u = u.SetCustomerID(*a.CustomerID)
+	} else {
+		u = u.ClearCustomerID()
+	}
 
 	// 时效字段传 nil 表示「解除时效设置」，必须显式 Clear。
 	// 注意 SetNillableXxx(nil) 在 ent 里是 no-op（不清除既有值），
