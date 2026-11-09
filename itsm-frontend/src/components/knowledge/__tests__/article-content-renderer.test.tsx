@@ -62,6 +62,48 @@ describe('ArticleContentRenderer：按内容类型分发渲染', () => {
     expect(container.querySelector('.ai-md-tablewrap > table')).not.toBeNull();
   });
 
+  it('markdown：内嵌 HTML 图片按图片渲染，并保留服务端绝对地址', () => {
+    const { container } = render(
+      <ArticleContentRenderer
+        content={
+          '## 图文混排\n\n**Markdown 语法仍然生效**\n\n<img src="http://172.18.3.238:8089/api/v1/attachments/32/content" alt="截图" width="640" data-itsm-width="50">'
+        }
+        contentType="markdown"
+      />
+    );
+
+    // Markdown 与内嵌 HTML 图片可以在同一篇正文里同时渲染。
+    expect(container.querySelector('h2')?.textContent).toBe('图文混排');
+    expect(container.querySelector('strong')?.textContent).toBe('Markdown 语法仍然生效');
+    const img = container.querySelector('img');
+    expect(img).not.toBeNull();
+    // 客户端发布后写入的是服务端绝对地址，必须保留。
+    expect(img?.getAttribute('src')).toBe(
+      'http://172.18.3.238:8089/api/v1/attachments/32/content'
+    );
+    expect(img?.getAttribute('alt')).toBe('截图');
+    expect(img?.getAttribute('width')).toBe('640');
+    // 编辑器私有属性不属于服务端渲染契约，允许被白名单剥离。
+    expect(img?.getAttribute('data-itsm-width')).toBeNull();
+  });
+
+  it('markdown：内嵌 HTML 仍走白名单净化，脚本与事件属性不进入 DOM', () => {
+    const { container } = render(
+      <ArticleContentRenderer
+        content={
+          '<img src="/api/v1/attachments/32/content" onerror="alert(1)"><script>alert(1)</script>'
+        }
+        contentType="markdown"
+      />
+    );
+
+    expect(container.querySelector('img')?.getAttribute('src')).toBe(
+      '/api/v1/attachments/32/content'
+    );
+    expect(container.querySelectorAll('[onerror]')).toHaveLength(0);
+    expect(container.querySelector('script')).toBeNull();
+  });
+
   it('text：保留换行与标记字符，不解析 Markdown', () => {
     const { container } = render(
       <ArticleContentRenderer content={'## 不是标题\n\n| 原样 | 文本 |'} contentType="text" />

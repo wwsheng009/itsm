@@ -490,9 +490,10 @@ func normalizeArticleContentType(a *Article) error {
 // 现按类型分流：
 //   - html / rich_text：仍走 UGC 白名单净化（剥 script / on* / javascript:），
 //     这两类正文本来就是要按 HTML 语义渲染的；
-//   - markdown / text：原样保留。安全性由渲染端保证——前端 Markdown 渲染链是
-//     react-markdown + remark-gfm + rehype-sanitize，未启用 rehype-raw，正文里的
-//     原始 HTML 不会被解析执行（见 components/ai/MarkdownMessage.tsx）。
+//   - markdown / text：原样保留。安全性由渲染端保证——知识库详情页的 Markdown
+//     渲染链是 react-markdown + remark-gfm + rehype-raw + rehype-sanitize：
+//     先解析正文里的内嵌 HTML（如 <img>），再按白名单剥离 script / on* /
+//     javascript: 等危险内容（见 components/ai/MarkdownMessage.tsx 的 allowHtml）。
 func sanitizeArticleContent(contentType, content string) string {
 	switch contentType {
 	case knowledgecontent.TypeHTML, knowledgecontent.TypeRichText:

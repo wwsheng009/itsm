@@ -66,7 +66,9 @@ export default function ArticleContentRenderer({
   if (contentType === 'markdown') {
     // 复用 MarkdownMessage 而不是自铺样式：解析链与知识库口径一致，
     // 且它的作用域样式取色走 antd token（暗色模式可用），表格自带横向滚动容器。
-    return <MarkdownMessage className={markdownClassName} content={raw} />;
+    // allowHtml：知识库正文可能来自桌面客户端/编辑器，图片是内嵌 HTML
+    // `<img src="...">`；开启后再经 rehype-sanitize 白名单净化。
+    return <MarkdownMessage allowHtml className={markdownClassName} content={raw} />;
   }
 
   // html / rich_text：两者都是 HTML，区别在来源与编辑链路（rich_text 由富文本编辑器产出，

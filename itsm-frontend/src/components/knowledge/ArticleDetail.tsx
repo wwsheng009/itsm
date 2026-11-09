@@ -299,7 +299,8 @@ const ArticleDetail: React.FC = () => {
                 <div className="article-content" style={{ minHeight: 400 }}>
                   {/*
                     正文渲染统一收敛到 ArticleContentRenderer：
-                    Markdown 走 react-markdown + remark-gfm + rehype-sanitize；
+                    Markdown 走 react-markdown + remark-gfm + rehype-raw + rehype-sanitize
+                    （支持 <img> 等内嵌 HTML，先解析后白名单净化）；
                     HTML / 富文本走 sanitizeRichTextHtml（白名单 + 站内图片加固）并挂图片查看器；
                     纯文本保留换行、不解析标记。
                   */}

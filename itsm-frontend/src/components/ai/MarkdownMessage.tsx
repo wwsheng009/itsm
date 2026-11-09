@@ -3,6 +3,7 @@ import { Button, theme } from 'antd';
 import { Check, Copy } from 'lucide-react';
 import ReactMarkdown, { type Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import rehypeRaw from 'rehype-raw';
 import rehypeSanitize from 'rehype-sanitize';
 
 /**
@@ -11,6 +12,9 @@ import rehypeSanitize from 'rehype-sanitize';
  * 设计要点：
  *  - 解析链与先例 `components/knowledge/ArticleDetail.tsx` 同口径：
  *    `react-markdown@9` + `remark-gfm@4`（表格/任务列表/删除线）+ `rehype-sanitize@6`（防 XSS）。
+ *  - 默认不解析 Markdown 中的原始 HTML（AI 回答保持纯 Markdown 语义）；
+ *    知识库正文需要兼容编辑器落盘的 `<img src="...">`，由调用方显式传入
+ *    `allowHtml`，此时在 `rehype-sanitize` 之前挂 `rehype-raw`，先解析再按白名单净化。
  *  - 块级代码：`<pre>` 容器 + 右上角「复制」按钮 + 语言标签（从 `language-xx` 类名解析）。
  *  - 行内 code：胶囊样式（浅底 + 圆角 + 等宽字体），由作用域内 CSS 的 `:not(pre) > code` 命中。
  *  - 列表：Tailwind preflight 会把 `ol / ul` 的 `list-style` 清成 none，必须在此显式补回
@@ -170,11 +174,30 @@ export interface MarkdownMessageProps {
   content: string;
   streaming?: boolean;
   className?: string;
+  /**
+   * 是否允许 Markdown 中的原始 HTML（如 `<img>`）。
+   *
+   * 仅在知识库正文等可信编辑来源开启；AI 回答、帮助文档保持默认关闭，
+   * 避免把模型输出的 HTML 当结构渲染。开启时仍然经过 `rehype-sanitize`
+   * 白名单净化，脚本、事件属性与危险协议会被剥离。
+   */
+  allowHtml?: boolean;
 }
 
-const MarkdownMessage: React.FC<MarkdownMessageProps> = ({ content, streaming, className }) => {
+const MarkdownMessage: React.FC<MarkdownMessageProps> = ({
+  content,
+  streaming,
+  className,
+  allowHtml = false,
+}) => {
   const { token } = theme.useToken();
   const css = useMemo(() => buildScopedCss(token), [token]);
+  // rehype-raw 必须排在 rehype-sanitize 之前：先把原始 HTML 解析成 hast，
+  // 再交给白名单净化，不能反过来（否则净化看不到标签内部属性）。
+  const rehypePlugins = useMemo(
+    () => (allowHtml ? [rehypeRaw, rehypeSanitize] : [rehypeSanitize]),
+    [allowHtml]
+  );
 
   const components = useMemo<Components>(
     () => ({
@@ -215,7 +238,7 @@ const MarkdownMessage: React.FC<MarkdownMessageProps> = ({ content, streaming, c
       <style>{css}</style>
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
-        rehypePlugins={[rehypeSanitize]}
+        rehypePlugins={rehypePlugins}
         components={components}
       >
         {content}
