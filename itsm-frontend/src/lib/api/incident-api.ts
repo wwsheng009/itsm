@@ -220,6 +220,7 @@ export interface UpdateIncidentRequest {
   isMajorIncident?: boolean;
   category?: string;
   subcategory?: string;
+  departmentId?: number;
   resolution?: string;
   resolutionNotes?: string;
   suspendReason?: string;

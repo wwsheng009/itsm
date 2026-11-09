@@ -20,6 +20,7 @@ import type { ProvisioningTask } from '@/lib/api/service-request-api';
 import { serviceRequestAPI } from '@/lib/api/service-request-api';
 import RichTextContent from '@/components/common/rich-text/RichTextContent';
 import { useCan } from '@/components/auth/PermissionGate';
+import { DepartmentName } from '@/components/business/DepartmentSelect';
 
 const { Title, Text } = Typography;
 
@@ -235,6 +236,9 @@ export default function MyRequestDetailPage() {
             </Descriptions.Item>
             <Descriptions.Item label="标题" span={2}>
               {detail?.title || detail?.catalog?.name || '-'}
+            </Descriptions.Item>
+            <Descriptions.Item label="所属部门">
+              <DepartmentName departmentId={detail?.departmentId} />
             </Descriptions.Item>
             <Descriptions.Item label="原因" span={2}>
               {detail?.reason ? <RichTextContent content={detail.reason} /> : '-'}

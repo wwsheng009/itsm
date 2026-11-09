@@ -13,6 +13,7 @@ import { htmlToPlainText, isRichTextEnabled } from '@/lib/rich-text/sanitize';
 import { useInlineImageUnbind } from '@/lib/rich-text/useInlineImageUnbind';
 import { AttachmentApi, problemAttachmentPreviewUrl } from '@/lib/api/attachment-api';
 import type { UploadedImage } from '@/components/common/rich-text/RichTextEditor';
+import DepartmentSelect from '@/components/business/DepartmentSelect';
 
 const { TextArea } = Input;
 
@@ -84,6 +85,7 @@ export default function ProblemEditPage() {
           status: data.status,
           rootCause: data.rootCause,
           impact: data.impact,
+          departmentId: data.departmentId,
         });
         captureInlineImageBaseline(data.description);
         if (rawCategory && !safeCategory) {
@@ -228,6 +230,18 @@ export default function ProblemEditPage() {
                       : []),
                   ]}
                 />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Row gutter={24}>
+            <Col span={24}>
+              <Form.Item
+                name="departmentId"
+                label="所属部门"
+                tooltip="用于部门归属、统计与部门审批人路由"
+              >
+                <DepartmentSelect />
               </Form.Item>
             </Col>
           </Row>

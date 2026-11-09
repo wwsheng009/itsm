@@ -11,6 +11,7 @@ import { htmlToPlainText, isRichTextEnabled } from '@/lib/rich-text/sanitize';
 import { useInlineImageUnbind } from '@/lib/rich-text/useInlineImageUnbind';
 import { AttachmentApi, incidentAttachmentPreviewUrl } from '@/lib/api/attachment-api';
 import type { UploadedImage } from '@/components/common/rich-text/RichTextEditor';
+import DepartmentSelect from '@/components/business/DepartmentSelect';
 
 const { TextArea } = Input;
 
@@ -33,6 +34,7 @@ interface IncidentFormValues {
   category?: string;
   subcategory?: string;
   source?: string;
+  departmentId?: number;
 }
 
 export default function IncidentEditPage() {
@@ -90,6 +92,7 @@ export default function IncidentEditPage() {
           category: data.category,
           subcategory: data.subcategory,
           status: data.status,
+          departmentId: data.departmentId,
         });
         captureInlineImageBaseline(data.description);
       } catch (error) {
@@ -140,6 +143,7 @@ export default function IncidentEditPage() {
         severity: values.severity,
         category: values.category,
         subcategory: values.subcategory,
+        departmentId: values.departmentId,
         // 乐观锁：回传读取时的版本，后端据此判定并发冲突并返回 4090。
         version: incidentData?.version,
       };
@@ -280,6 +284,18 @@ export default function IncidentEditPage() {
                   { value: 'chat', label: '在线聊天' },
                   { value: 'api', label: 'API' },
                 ]} />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Row gutter={24}>
+            <Col span={24}>
+              <Form.Item
+                name="departmentId"
+                label="所属部门"
+                tooltip="用于部门归属、统计与部门审批人路由"
+              >
+                <DepartmentSelect />
               </Form.Item>
             </Col>
           </Row>
