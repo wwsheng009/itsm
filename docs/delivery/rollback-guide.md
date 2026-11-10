@@ -1,5 +1,8 @@
 # 数据库迁移回滚指南
 
+> Status: current for the rollback process; the migration index in §2 is historical.
+> 更新：2026-11-09。2026-10/11 新增迁移的回滚覆盖见 §7。
+
 > 本文档配套 `itsm-backend/migrations/` 下所有 `YYYYMMDD_xxx.sql` 文件使用。
 > 每个迁移文件头部应包含 `ROLLBACK:` 注释指向回滚方案（手写或脚本生成）。
 > v1.0 GA 准入要求：所有 `2026-06-01` 之后的迁移必须有可执行的回滚 SQL。
@@ -88,15 +91,25 @@ for f in migrations/202606*.sql; do
 done
 ```
 
-## 7. TODO（PR #01 任务）
+## 7. 当前回滚覆盖（2026-11-09）
 
-- [ ] 为 `20260621_process_definition_approval_sla_config.sql` 添加头部 ROLLBACK 注释
-- [ ] 为 `20260620_*.sql` 两个文件添加 `_down.sql`
-- [ ] 为 `20260616_*.sql` 两个文件添加 `_down.sql`
-- [ ] 为 `20260614_*.sql` 添加 `_down.sql`
-- [ ] 为 `20260609_*.sql` 两个文件添加 `_down.sql`
-- [ ] 为 `20260607_*.sql` 添加 `_down.sql`
-- [ ] 为 `20260523_*.sql` 添加 `_down.sql`
+近期迁移中以下文件暂无同名 `_down.sql`，发布证据必须登记为 **forward-fix**：
+
+- `20261018_add_ai_help_coverage_menu.sql`（菜单数据）
+- `20261018_add_ai_observability_menu.sql`（菜单数据）
+- `20261018_ai_telemetry_events.sql`（新建表）
+- `20261018_ai_telemetry_events_filters.sql`（索引/字段）
+- `20261018_ai_telemetry_events_retention.sql`（索引）
+- `20261018m_msp_help_space.sql`
+- `20261018n_ai_doc_todo_states.sql`
+- `20261029_project_management_progress_backfill.sql`（数据回填）
+
+其余 2026-10/11 迁移（项目 P0–P2、客户主数据 P0–P2、合同 C1、SLA 快照、
+问题调查、HTTP 幂等、PAT 等）均有 `_down.sql`。新迁移合入时仍应遵循：
+
+- 2026-06-01 之后的迁移必须配套 `_down.sql`，或明确登记 forward-fix 理由；
+- 不兼容变更（DROP COLUMN / ALTER TYPE / 数据回填）必须先备份；
+- 生产回滚需 DBA + 架构师双签字。
 
 ---
 

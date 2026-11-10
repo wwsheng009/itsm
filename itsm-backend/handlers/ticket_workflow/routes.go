@@ -184,6 +184,30 @@ func (h *Handler) ListTicketCCRecords(c *gin.Context) {
 	common.Success(c, resp)
 }
 
+// RemoveTicketCCRecord 移除工单抄送记录
+func (h *Handler) RemoveTicketCCRecord(c *gin.Context) {
+	ticketID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		common.Fail(c, common.ParamErrorCode, "无效的工单ID")
+		return
+	}
+	ccRecordID, err := strconv.Atoi(c.Param("cc_id"))
+	if err != nil {
+		common.Fail(c, common.ParamErrorCode, "无效的抄送记录ID")
+		return
+	}
+	userID, tenantID, ok := getAuthContext(c)
+	if !ok {
+		return
+	}
+	if err := h.workflowService.RemoveTicketCCRecord(c.Request.Context(), ticketID, ccRecordID, userID, tenantID); err != nil {
+		h.logger.Errorw("Failed to remove ticket CC record", "error", err, "ticket_id", ticketID, "cc_record_id", ccRecordID)
+		common.FailWithErr(c, err, "操作失败")
+		return
+	}
+	common.Success(c, gin.H{"message": "抄送记录已移除", "ccRecordId": ccRecordID})
+}
+
 // ApproveTicket 审批工单
 func (h *Handler) ApproveTicket(c *gin.Context) {
 	var req dto.ApproveTicketRequest

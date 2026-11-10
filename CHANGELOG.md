@@ -31,6 +31,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **MSP 租户列表补 invite membership（后端，2026-11-10）** — `GET /api/v1/auth/tenants`
+  在 home + 有效 `MSPAllocation` 基础上补充 `source=invite`、`status=active`、
+  `invited_by` 非空且未过期的客户租户，使租户切换器与
+  `POST /api/v1/auth/switch-tenant` 的 invite 授权事实同源；无邀请人或已撤销/过期的
+  invite 仍不返回。新增测试覆盖 invite 租户可见性与无邀请人反例。
+
+- **工单响应补齐 SLA 暂停态与评分明细（后端，2026-11-10）** — `TicketResponse` 新增
+  `slaStatus/slaPausedAt/slaPauseReason` 与 `ratingComment/ratedAt/ratedBy`，
+  `GET /api/v1/tickets/:id/sla` 同步下发 SLA 暂停状态、暂停时间与原因；
+  仓储领域模型补齐 ent → domain 的 SLA/评分字段映射。桌面端据此直接展示 SLA
+  计时中/已暂停与评分结果，不再自行拼接状态。新增 handler 响应映射测试覆盖
+  SLA 暂停与评分字段。补记：`service.TicketService.GetTicketStats` 与
+  `handlers/ticket.GetTicketStats` 仍有旧签名调用，本轮一并修复，恢复整包编译。
+
+- **工单标签读取与抄送移除端点（后端，2026-11-09）** — 补齐桌面端维护闭环所缺的服务端能力：新增 `GET /api/v1/tickets/:id/tags`，返回当前工单已绑定标签（租户内、按名称排序）；新增 `DELETE /api/v1/tickets/:id/cc/:cc_id`，以 `ticket_cc.is_active=false` 软移除抄送记录。抄送移除允许抄送人移除自己，工单创建人/受理人及 `super_admin/admin/manager/technician` 可管理整张工单抄送；已结束工单仍可清理抄送。新增服务层测试覆盖标签绑定范围/排序与抄送移除权限、重复移除、自移除；已运行 `authz-gen` 同步路由权限预检。顺带修复旧 `TicketService.GetTicketStats` 未跟进新版 `CountByStatus` 行级数据范围签名导致的整包编译阻断（旧入口保持全租户统计）。
+
 - **合同建模 C1 落地（后端 + 前端 + 迁移/RLS，2026-11-08）** — 按 `docs/customer-master-data/06` 实现交付域合同聚合根：`support_contracts` 增加有效额/币种/类型/签订/层级/续签/SLA/软删/版本等字段；新增 `contract_service_items`、`contract_amendments`、`contract_usage_ledger`、`contract_project_links` 及迁移 `20261109_contract_c1.sql`、RLS `025`。后端支持服务项 CRUD、变更单创建/生效、用量台账幂等登记与额度守卫、合同-项目链接的 L-02/L-03/L-05 校验、额度视图、签订/终止/续签（可结转项目）及项目侧合同反查。前端合同详情新增概览/服务项/变更历史/用量台账/关联项目页签，合同列表增加合同额/有效额/分配/实耗列；项目详情新增“关联合同”Tab。验证：后端相关包测试、前端 type-check/Jest/build、docs 校验；未部署。
 
 - **客户主数据 P2 落地（后端 + 前端 + 迁移/RLS，2026-11-08）** — 按 `docs/customer-master-data/01/02` 实现 P2：新增 `customer_external_ids`（ERP/CRM/OA/外部工单对账键，租户内“系统编码 + 外部标识”唯一）及 `20261108_customer_master_p2.sql`、RLS `024`；客户详情支持外部标识 CRUD 与合并/撤销迁移。邮件报障客户识别升级为 L1 发件域名、L2 联系人邮箱、L3 税号（模型/正文提取）、L4 名称/别名/历史名精确、L5 模糊候选五级链路，L5 不自动绑定并写入 `canonical_data.candidates`，所有命中写 `field_sources`；邮件会话详情展示匹配级别、置信度和候选客户。新增客户 360 聚合接口/页签，按租户内数据汇总 SLA 达标/违约、工单/事件、合同续约、在途项目/风险、资产/CI、联系人、关系、租户和外部标识。验证：`GOFLAGS=-p=2 go build ./...`、`go test ./handlers/email_intake`、`npm run type-check`、`masterDataService` P2 契约 Jest 均通过；未部署。

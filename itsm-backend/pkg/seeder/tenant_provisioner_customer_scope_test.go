@@ -104,6 +104,21 @@ func TestProvisionTenant_CustomerScopeMSPBaseline(t *testing.T) {
 	assert.True(t, admin["cmdb:write"])
 	assert.True(t, admin["change:write"])
 
+	// data_scope 修复：客户租户 msp_tech 默认 all（provider 员工可见客户全部单据），
+	// end_user 收敛 owner，且内置角色补齐 is_system 标记。
+	techRole, err := client.Role.Query().
+		Where(role.TenantIDEQ(customer.ID), role.CodeEQ("msp_tech")).
+		Only(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, role.DataScopeAll, techRole.DataScope)
+	assert.True(t, techRole.IsSystem)
+	endUserRole, err := client.Role.Query().
+		Where(role.TenantIDEQ(customer.ID), role.CodeEQ("end_user")).
+		Only(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, role.DataScopeOwner, endUserRole.DataScope)
+	assert.True(t, endUserRole.IsSystem)
+
 	// 扩展回归（2026-10-13 客户可见性缺陷）：非 msp_* 角色（克隆自 default 的内置角色）
 	// 不得残留跨租户 MSP 数据面码（此前 sysadmin/provider_tenant_admin 等含 msp_ticket:read）。
 	for _, roleCode := range []string{"sysadmin", "provider_tenant_admin", "admin"} {

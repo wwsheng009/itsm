@@ -182,6 +182,28 @@ func (h *Handler) ListTags(c *gin.Context) {
 	})
 }
 
+// GetTicketTags 获取单个工单已绑定标签
+func (h *Handler) GetTicketTags(c *gin.Context) {
+	ticketID, ok := pathID(c)
+	if !ok {
+		return
+	}
+	tid, ok := tenantID(c)
+	if !ok {
+		return
+	}
+	tags, err := h.tagService.ListTicketTags(c.Request.Context(), ticketID, tid)
+	if err != nil {
+		h.logger.Error("Failed to list ticket tags", zap.Error(err), zap.Int("ticket_id", ticketID))
+		common.FailWithErr(c, err, "操作失败")
+		return
+	}
+	common.Success(c, gin.H{
+		"items": dto.ToTicketTagResponseList(tags),
+		"total": len(tags),
+	})
+}
+
 // AssignTagsToTicket 为工单分配标签
 func (h *Handler) AssignTagsToTicket(c *gin.Context) {
 	ticketID, ok := pathID(c)

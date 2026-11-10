@@ -106,6 +106,9 @@ services:
       - REDIS_PASSWORD=${REDIS_PASSWORD:?REDIS_PASSWORD must be set}
       - REDIS_DB=0
       - JWT_SECRET=${JWT_SECRET:?JWT_SECRET must be set}
+      - APP_VERSION=${VERSION:?VERSION must be set}
+      # Initialization ledger must be tied to the same immutable release tag.
+      - ITSM_RELEASE_VERSION=${VERSION:?VERSION must be set}
       - LOG_LEVEL=error
       - DEPLOYMENT_MODE=${DEPLOYMENT_MODE:-private}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD:?ADMIN_PASSWORD must be set - without it no admin account is created and you cannot sign in}
@@ -167,6 +170,9 @@ services:
       # 服务配置
       - SERVER_ENV=production
       - SERVER_HOST=0.0.0.0
+      # Public base URL used by invitation and notification links. If empty,
+      # invitation links fall back to the request Host header.
+      - APP_BASE_URL=${APP_BASE_URL:-}
       # Reported by GET /api/v1/version. Tied to the image tag so the API, the
       # running image and the release version cannot drift apart.
       - APP_VERSION=${VERSION:?VERSION must be set}
@@ -193,6 +199,9 @@ services:
       # 仅在 R2B 灰度闭环后由部署方显式开启。
       - RLS_MODE=${RLS_MODE:-off}
       - RLS_TENANT_VAR_NAME=${RLS_TENANT_VAR_NAME:-app.current_tenant}
+      # Production defaults to fatal when SERVER_ENV=production; keep explicit
+      # so a misconfigured environment cannot silently downgrade the guard.
+      - ITSM_TENANT_GUARD_POLICY=${ITSM_TENANT_GUARD_POLICY:-fatal}
 
       # 对象存储（生产用 S3 或 MinIO）
       - MINIO_ENDPOINT=${MINIO_ENDPOINT:-http://minio:9000}
@@ -239,14 +248,58 @@ services:
       - GUIDANCE_URL=${GUIDANCE_URL:-http://itsm-ai-service:8000}
 
       # 告警通知
+      # SMTP_ENABLED 是总开关：只配 HOST 而不置 true 时，部署级邮件仍不会启用。
+      - SMTP_ENABLED=${SMTP_ENABLED:-false}
       - SMTP_HOST=${SMTP_HOST:-}
       - SMTP_PORT=${SMTP_PORT:-587}
       - SMTP_USERNAME=${SMTP_USERNAME:-}
       - SMTP_PASSWORD=${SMTP_PASSWORD:-}
+      - SMTP_FROM_EMAIL=${SMTP_FROM_EMAIL:-}
       - SMTP_FROM=${SMTP_FROM:-noreply@yourdomain.com}
+      - SMTP_FROM_NAME=${SMTP_FROM_NAME:-ITSM System}
+      - SMTP_ENCRYPTION=${SMTP_ENCRYPTION:-tls}
 
       - DINGTALK_WEBHOOK=${DINGTALK_WEBHOOK:-}
       - WECOM_WEBHOOK=${WECOM_WEBHOOK:-}
+
+      # 个人访问令牌（PAT）。默认保持与镜像内 config.yaml 一致（启用）；
+      # 生产首轮建议显式设 PAT_ENABLED=false，验收后再开启。
+      - PAT_ENABLED=${PAT_ENABLED:-true}
+      - PAT_DEFAULT_TTL_DAYS=${PAT_DEFAULT_TTL_DAYS:-90}
+      - PAT_MAX_TTL_DAYS=${PAT_MAX_TTL_DAYS:-365}
+      - PAT_MAX_ACTIVE_PER_USER=${PAT_MAX_ACTIVE_PER_USER:-20}
+      - PAT_USAGE_AUDIT_MODE=${PAT_USAGE_AUDIT_MODE:-dedupe}
+      - PAT_USAGE_AUDIT_WINDOW_SECONDS=${PAT_USAGE_AUDIT_WINDOW_SECONDS:-60}
+      - PAT_RATE_LIMIT_PER_MINUTE=${PAT_RATE_LIMIT_PER_MINUTE:-120}
+      - PAT_HOUSEKEEPING_RETENTION_DAYS=${PAT_HOUSEKEEPING_RETENTION_DAYS:-180}
+
+      # Bot / MCP 运行时默认值。生产默认关闭 Bot 与 MCP 写工具面；
+      # 如需开启，必须经过安全评审与前端「系统配置 → AI 配置」授权。
+      - BOT_ENABLED=${BOT_ENABLED:-false}
+      - BOT_REDACTION_PROFILE=${BOT_REDACTION_PROFILE:-default}
+      - BOT_BUDGET_MAX_STEPS=${BOT_BUDGET_MAX_STEPS:-24}
+      - BOT_BUDGET_MAX_TOKENS=${BOT_BUDGET_MAX_TOKENS:-100000}
+      - BOT_BUDGET_MAX_TOOL_CALLS=${BOT_BUDGET_MAX_TOOL_CALLS:-12}
+      - BOT_BUDGET_TOOL_TIMEOUT_SECONDS=${BOT_BUDGET_TOOL_TIMEOUT_SECONDS:-30}
+      - BOT_BUDGET_MAX_OUTPUT_BYTES=${BOT_BUDGET_MAX_OUTPUT_BYTES:-65536}
+      - BOT_CONFIRMATION_TTL_HOURS=${BOT_CONFIRMATION_TTL_HOURS:-24}
+      - MCP_ENABLED=${MCP_ENABLED:-true}
+      - MCP_WRITE_ENABLED=${MCP_WRITE_ENABLED:-false}
+      - MCP_ALLOW_HTTP=${MCP_ALLOW_HTTP:-false}
+      - MCP_ALLOW_PRIVATE_NETWORKS=${MCP_ALLOW_PRIVATE_NETWORKS:-false}
+      - MCP_ALLOWED_PORTS=${MCP_ALLOWED_PORTS:-443}
+
+      # 附件域：保持镜像内默认值，允许按部署回退。
+      - ATTACHMENT_MAX_FILE_SIZE_MB=${ATTACHMENT_MAX_FILE_SIZE_MB:-10}
+      - ATTACHMENT_GENERIC_READ_ENABLED=${ATTACHMENT_GENERIC_READ_ENABLED:-true}
+      - ATTACHMENT_GENERIC_WRITE_ENABLED=${ATTACHMENT_GENERIC_WRITE_ENABLED:-true}
+      - ATTACHMENT_DUAL_WRITE_ENABLED=${ATTACHMENT_DUAL_WRITE_ENABLED:-false}
+      - ATTACHMENT_INLINE_IMAGE_ENABLED=${ATTACHMENT_INLINE_IMAGE_ENABLED:-true}
+      - ATTACHMENT_CLEANUP_ENABLED=${ATTACHMENT_CLEANUP_ENABLED:-false}
+      - ATTACHMENT_CLEANUP_PURGE_ENABLED=${ATTACHMENT_CLEANUP_PURGE_ENABLED:-false}
+      - ATTACHMENT_RETENTION_DAYS=${ATTACHMENT_RETENTION_DAYS:-30}
+      - ATTACHMENT_CLEANUP_INTERVAL_MINUTES=${ATTACHMENT_CLEANUP_INTERVAL_MINUTES:-360}
+      - ATTACHMENT_CLEANUP_BATCH_SIZE=${ATTACHMENT_CLEANUP_BATCH_SIZE:-200}
 
       # 其他配置
       - ENABLE_CORS=true
@@ -334,6 +387,7 @@ services:
       - SERVER_ENV=production
       - JWT_SECRET=${JWT_SECRET:?JWT_SECRET must be set}
       - CONFIG_SECRET_KEY=${CONFIG_SECRET_KEY:-}
+      - APP_BASE_URL=${APP_BASE_URL:-}
       - LOG_LEVEL=error
       - LOG_PATH=/app/logs
       - LOG_FORMAT=json
@@ -344,11 +398,33 @@ services:
       # RLS pilot — worker 默认 off，与 backend 保持一致
       - RLS_MODE=${RLS_MODE:-off}
       - RLS_TENANT_VAR_NAME=${RLS_TENANT_VAR_NAME:-app.current_tenant}
+      - ITSM_TENANT_GUARD_POLICY=${ITSM_TENANT_GUARD_POLICY:-fatal}
       - MINIO_ENDPOINT=${MINIO_ENDPOINT:-http://minio:9000}
       - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY:-}
       - MINIO_SECRET_KEY=${MINIO_SECRET_KEY:-}
       - MINIO_BUCKET=${MINIO_BUCKET:-itsm-uploads}
       - MINIO_USE_SSL=${MINIO_USE_SSL:-false}
+      # Worker also sends emails and runs attachment cleanup; keep these in
+      # sync with the backend env contract.
+      - SMTP_ENABLED=${SMTP_ENABLED:-false}
+      - SMTP_HOST=${SMTP_HOST:-}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_USERNAME=${SMTP_USERNAME:-}
+      - SMTP_PASSWORD=${SMTP_PASSWORD:-}
+      - SMTP_FROM_EMAIL=${SMTP_FROM_EMAIL:-}
+      - SMTP_FROM=${SMTP_FROM:-noreply@yourdomain.com}
+      - SMTP_FROM_NAME=${SMTP_FROM_NAME:-ITSM System}
+      - SMTP_ENCRYPTION=${SMTP_ENCRYPTION:-tls}
+      - ATTACHMENT_MAX_FILE_SIZE_MB=${ATTACHMENT_MAX_FILE_SIZE_MB:-10}
+      - ATTACHMENT_GENERIC_READ_ENABLED=${ATTACHMENT_GENERIC_READ_ENABLED:-true}
+      - ATTACHMENT_GENERIC_WRITE_ENABLED=${ATTACHMENT_GENERIC_WRITE_ENABLED:-true}
+      - ATTACHMENT_DUAL_WRITE_ENABLED=${ATTACHMENT_DUAL_WRITE_ENABLED:-false}
+      - ATTACHMENT_INLINE_IMAGE_ENABLED=${ATTACHMENT_INLINE_IMAGE_ENABLED:-true}
+      - ATTACHMENT_CLEANUP_ENABLED=${ATTACHMENT_CLEANUP_ENABLED:-false}
+      - ATTACHMENT_CLEANUP_PURGE_ENABLED=${ATTACHMENT_CLEANUP_PURGE_ENABLED:-false}
+      - ATTACHMENT_RETENTION_DAYS=${ATTACHMENT_RETENTION_DAYS:-30}
+      - ATTACHMENT_CLEANUP_INTERVAL_MINUTES=${ATTACHMENT_CLEANUP_INTERVAL_MINUTES:-360}
+      - ATTACHMENT_CLEANUP_BATCH_SIZE=${ATTACHMENT_CLEANUP_BATCH_SIZE:-200}
       - no_proxy=localhost,127.0.0.1
       - NO_PROXY=localhost,127.0.0.1
     depends_on:
@@ -431,7 +507,7 @@ services:
     container_name: itsm-nginx-prod
     hostname: nginx
     ports:
-      - "80:80"
+      - "${PROD_HTTP_PORT:-80}:80"
       # TLS 必须由企业入口网关/负载均衡器终止后转发到此端口。
       # 不映射一个没有 ssl 配置支撑的 443 端口，避免造成虚假的 HTTPS 就绪信号。
     volumes:

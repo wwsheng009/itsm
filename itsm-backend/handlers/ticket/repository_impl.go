@@ -52,6 +52,9 @@ func (r *EntRepository) toDomain(t *ticket.Ticket) *Ticket {
 		SLADefinitionID:       t.SLADefinitionID,
 		SLAResponseDeadline:   t.SLAResponseDeadline,
 		SLAResolutionDeadline: t.SLAResolutionDeadline,
+		SLAStatus:             t.SLAStatus,
+		SLAPausedAt:           t.SLAPausedAt,
+		SLAPauseReason:        t.SLAPauseReason,
 		FirstResponseAt:       t.FirstResponseAt,
 		ResolvedAt:            t.ResolvedAt,
 		ClosedAt:              t.ClosedAt,
@@ -299,17 +302,27 @@ func (r *EntRepository) Search(ctx context.Context, keyword string, tenantID int
 }
 
 func (r *EntRepository) GetStats(ctx context.Context, tenantID int) (*TicketStats, error) {
-	statusCounts, err := r.repo.CountByStatus(ctx, tenantID)
+	return r.GetStatsScoped(ctx, tenantID, datascope.DataScopeAll, 0)
+}
+
+// GetStatsScoped 返回与列表同 DataScope 口径的统计。
+func (r *EntRepository) GetStatsScoped(ctx context.Context, tenantID int, dataScope datascope.DataScope, currentUserID int) (*TicketStats, error) {
+	repoScope := toRepositoryDataScope(dataScope)
+	statusCounts, err := r.repo.CountByStatusScoped(ctx, tenantID, repoScope, currentUserID)
 	if err != nil {
 		return nil, fmt.Errorf("get status counts: %w", err)
 	}
-	priorityCounts, err := r.repo.CountByPriority(ctx, tenantID)
+	priorityCounts, err := r.repo.CountByPriorityScoped(ctx, tenantID, repoScope, currentUserID)
 	if err != nil {
 		return nil, fmt.Errorf("get priority counts: %w", err)
 	}
 
 	// Reuse the authoritative overdue filter without loading the full backlog.
-	overdue, err := r.repo.List(ctx, tenantID, &ticket.FilterParams{IsOverdue: true}, &base.QueryParams{Page: 1, PageSize: 1})
+	overdue, err := r.repo.List(ctx, tenantID, &ticket.FilterParams{
+		IsOverdue:     true,
+		DataScope:     repoScope,
+		CurrentUserID: currentUserID,
+	}, &base.QueryParams{Page: 1, PageSize: 1})
 	if err != nil {
 		return nil, fmt.Errorf("get overdue count: %w", err)
 	}

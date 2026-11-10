@@ -17,6 +17,7 @@ import (
 
 	"itsm-backend/ent"
 	"itsm-backend/ent/enttest"
+	"itsm-backend/ent/usertenantmembership"
 	"itsm-backend/middleware"
 )
 
@@ -153,6 +154,60 @@ func TestGetUserTenants_Union(t *testing.T) {
 		require.NoError(t, err)
 		assert.Len(t, list, 4) // home + provider + cust-a + cust-b
 	})
+}
+
+// TestGetUserTenants_IncludesActiveInviteMemberships 锁定列表与切换授权同源：
+// provider 员工被客户显式邀请后，即使没有 MSPAllocation，也必须能在切换器中看到该客户。
+func TestGetUserTenants_IncludesActiveInviteMemberships(t *testing.T) {
+	client, svc, _, inviter, ctx := newAuthScopeFixture(t)
+	defer client.Close()
+
+	provider := client.Tenant.Create().
+		SetName("Provider").SetCode("prov-invite").SetStatus("active").
+		SetType("msp_provider").SaveX(ctx)
+	invited := client.Tenant.Create().
+		SetName("Invited Customer").SetCode("cust-invite").SetStatus("active").
+		SetType("msp_customer").SetMspProviderID(provider.ID).SaveX(ctx)
+	notInvited := client.Tenant.Create().
+		SetName("Uninvited Customer").SetCode("cust-uninvited").SetStatus("active").
+		SetType("msp_customer").SetMspProviderID(provider.ID).SaveX(ctx)
+
+	mspUser := client.User.Create().
+		SetUsername("invitee").SetEmail("invitee@example.com").SetName("Invitee").
+		SetPasswordHash("hash").SetRole("agent").SetMspRole("provider_agent").
+		SetActive(true).SetTenantID(provider.ID).
+		SaveX(ctx)
+
+	client.UserTenantMembership.Create().
+		SetUserID(mspUser.ID).
+		SetTenantID(invited.ID).
+		SetAccountKind(usertenantmembership.AccountKindProvider).
+		SetSource(usertenantmembership.SourceInvite).
+		SetStatus(usertenantmembership.StatusActive).
+		SetInvitedBy(inviter.ID).
+		SaveX(ctx)
+	// invited_by 为空的 invite 不构成切换依据，也不应出现在列表。
+	client.UserTenantMembership.Create().
+		SetUserID(mspUser.ID).
+		SetTenantID(notInvited.ID).
+		SetAccountKind(usertenantmembership.AccountKindProvider).
+		SetSource(usertenantmembership.SourceInvite).
+		SetStatus(usertenantmembership.StatusActive).
+		SaveX(ctx)
+
+	list, err := svc.GetUserTenants(ctx, mspUser.ID)
+	require.NoError(t, err)
+	ids := make([]int, 0, len(list))
+	for _, item := range list {
+		entry, ok := item.(map[string]interface{})
+		require.True(t, ok)
+		id, ok := entry["id"].(int)
+		require.True(t, ok)
+		ids = append(ids, id)
+	}
+	assert.Contains(t, ids, provider.ID)
+	assert.Contains(t, ids, invited.ID)
+	assert.NotContains(t, ids, notInvited.ID)
 }
 
 // TestGetUserTenants_ExpiryIsNullWhenUnset 锁定：未设置到期时间的租户必须输出

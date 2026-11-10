@@ -98,14 +98,15 @@ plugins:
 nav:
   - 首页: index.md
   - 快速开始:
-      - 安装: getting-started/install.md
+      - 安装: install.md
   - 架构:
       - 系统总览: architecture/overview.md
-      - 部署: deployment.md
-      - 数据库: database.md
-      - 配置: configuration.md
-      - 开发: development.md
-      - 运维: operations.md
+      - 部署优化: deployment-optimization.md
+      - 生产部署清单: delivery/production-deployment-checklist.md
+      - 生产数据初始化: delivery/production-initialization.md
+      - 迁移回滚: delivery/rollback-guide.md
+      - 开发命令: dev-commands-reference.md
+      - 多租户部署与配置: multi-tenant/02-deployment-and-configuration.md
       - v1.0 GA 验收: v1-ga-readiness.md
   - 客户主数据:
       - 设计总览: customer-master-data/README.md

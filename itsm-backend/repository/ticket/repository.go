@@ -34,6 +34,10 @@ type Repository interface {
 	FindOverdue(ctx context.Context, tenantID int) ([]*Ticket, error)
 	CountByStatus(ctx context.Context, tenantID int) (map[Status]int, error)
 	CountByPriority(ctx context.Context, tenantID int) (map[Priority]int, error)
+	// CountByStatusScoped / CountByPriorityScoped 与 List 使用同一 DataScope 行级过滤，
+	// 供统计接口与列表保持同口径。
+	CountByStatusScoped(ctx context.Context, tenantID int, dataScope DataScope, currentUserID int) (map[Status]int, error)
+	CountByPriorityScoped(ctx context.Context, tenantID int, dataScope DataScope, currentUserID int) (map[Priority]int, error)
 
 	// 编号生成
 	GenerateTicketNumber(ctx context.Context, tenantID int) (string, error)

@@ -2,6 +2,7 @@ package ticket
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -58,6 +59,7 @@ func TestTicketHandler_PauseResumeSLA(t *testing.T) {
 	})
 	r.PUT("/api/v1/tickets/:id/sla/pause", h.PauseSLA)
 	r.PUT("/api/v1/tickets/:id/sla/resume", h.ResumeSLA)
+	r.GET("/api/v1/tickets/:id/sla", h.GetTicketSLAInfo)
 
 	do := func(method, path, body string) *httptest.ResponseRecorder {
 		w := httptest.NewRecorder()
@@ -82,6 +84,16 @@ func TestTicketHandler_PauseResumeSLA(t *testing.T) {
 	got := client.Ticket.GetX(ctx, tkt.ID)
 	assert.Equal(t, "paused", got.SLAStatus)
 	assert.Equal(t, "客户侧停电", got.SLAPauseReason)
+	w = do(http.MethodGet, "/api/v1/tickets/"+strconv.Itoa(tkt.ID)+"/sla", "")
+	require.Equal(t, http.StatusOK, w.Code, w.Body.String())
+	var slaEnvelope struct {
+		Code int                    `json:"code"`
+		Data map[string]interface{} `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &slaEnvelope))
+	assert.Equal(t, "paused", slaEnvelope.Data["slaStatus"])
+	assert.Equal(t, "客户侧停电", slaEnvelope.Data["slaPauseReason"])
+	assert.NotNil(t, slaEnvelope.Data["slaPausedAt"])
 
 	// 篡改 paused_at 到 10 分钟前；恢复 → deadline 追加 ~10 分钟。
 	past := time.Now().Add(-10 * time.Minute)
@@ -94,4 +106,10 @@ func TestTicketHandler_PauseResumeSLA(t *testing.T) {
 	delta := after.SLAResolutionDeadline.Sub(before.SLAResolutionDeadline)
 	assert.GreaterOrEqual(t, delta, 9*time.Minute)
 	assert.LessOrEqual(t, delta, 11*time.Minute)
+	w = do(http.MethodGet, "/api/v1/tickets/"+strconv.Itoa(tkt.ID)+"/sla", "")
+	require.Equal(t, http.StatusOK, w.Code, w.Body.String())
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &slaEnvelope))
+	assert.Equal(t, "active", slaEnvelope.Data["slaStatus"])
+	assert.Empty(t, slaEnvelope.Data["slaPauseReason"])
+	assert.Nil(t, slaEnvelope.Data["slaPausedAt"])
 }

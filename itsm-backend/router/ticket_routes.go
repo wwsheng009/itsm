@@ -273,6 +273,7 @@ func SetupTicketRoutes(tenant *gin.RouterGroup, config *RouterConfig) {
 			tickets.POST("/workflow/close", middleware.RequirePermission("workflow", "write"), config.TicketWorkflowHandler.CloseTicket)
 			tickets.POST("/workflow/reopen", middleware.RequirePermission("workflow", "write"), config.TicketWorkflowHandler.ReopenTicket)
 			tickets.GET("/:id/cc", middleware.RequirePermission("workflow", "read"), config.TicketWorkflowHandler.ListTicketCCRecords)
+			tickets.DELETE("/:id/cc/:cc_id", middleware.RequirePermission("workflow", "write"), config.TicketWorkflowHandler.RemoveTicketCCRecord)
 			tickets.GET("/:id/workflow/state", middleware.RequirePermission("workflow", "read"), config.TicketWorkflowHandler.GetTicketWorkflowState)
 			// 工单详情体验增强：V2 聚合 BPMN 真实节点状态（当前/下一/历史）。
 			tickets.GET("/:id/workflow/state-v2", middleware.RequirePermission("workflow", "read"), config.TicketWorkflowHandler.GetTicketWorkflowStateV2)
@@ -310,6 +311,7 @@ func SetupTicketRoutes(tenant *gin.RouterGroup, config *RouterConfig) {
 		}
 
 		if config.TicketTagHandler != nil {
+			tickets.GET("/:id/tags", middleware.RequirePermission("ticket_tag", "read"), config.TicketTagHandler.GetTicketTags)
 			tickets.POST("/:id/tags", middleware.RequirePermission("ticket_tag", "create"), config.TicketTagHandler.AssignTagsToTicket)
 			tickets.DELETE("/:id/tags", middleware.RequirePermission("ticket_tag", "delete"), config.TicketTagHandler.RemoveTagsFromTicket)
 		}

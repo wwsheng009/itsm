@@ -10,6 +10,7 @@ import (
 	"itsm-backend/common"
 	"itsm-backend/ent"
 	"itsm-backend/ent/enttest"
+	"itsm-backend/handlers/common/datascope"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -84,6 +85,33 @@ func TestProblemServiceLifecycleAndTimestamps(t *testing.T) {
 	assert.Equal(t, common.ConflictCode, badStatusErr.Code)
 }
 
+// TestProblemListAndStatsRespectDataScope 锁定列表与统计同口径：
+// end_user/owner 仅本人创建/被指派；all 为租户全量。
+func TestProblemListAndStatsRespectDataScope(t *testing.T) {
+	client, service, ctx := setupProblemHandlerTest(t)
+	defer client.Close()
+	tenant := createProblemHandlerTenant(t, ctx, client, "scope")
+	owner := createProblemHandlerUser(t, ctx, client, tenant.ID, "scope-owner")
+	other := createProblemHandlerUser(t, ctx, client, tenant.ID, "scope-other")
+
+	createProblemHandlerProblem(t, ctx, service, tenant.ID, owner.ID)
+	createProblemHandlerProblem(t, ctx, service, tenant.ID, owner.ID)
+	createProblemHandlerProblem(t, ctx, service, tenant.ID, other.ID)
+
+	list, total, err := service.List(ctx, tenant.ID, 1, 10, nil, owner.ID, datascope.DataScopeOwnedOrAssigned)
+	require.NoError(t, err)
+	assert.Len(t, list, 2)
+	assert.Equal(t, 2, total)
+
+	stats, err := service.GetStatsScoped(ctx, tenant.ID, datascope.DataScopeOwnedOrAssigned, owner.ID)
+	require.NoError(t, err)
+	assert.Equal(t, 2, stats.Total)
+
+	statsAll, err := service.GetStatsScoped(ctx, tenant.ID, datascope.DataScopeAll, 0)
+	require.NoError(t, err)
+	assert.Equal(t, 3, statsAll.Total)
+}
+
 func TestGoldenJourney_ProblemRCAResolvedAndClosed(t *testing.T) {
 	client, service, ctx := setupProblemHandlerTest(t)
 	defer client.Close()
@@ -126,7 +154,7 @@ func TestProblemRepositorySoftDeleteExcludedEverywhere(t *testing.T) {
 	require.NoError(t, service.Delete(ctx, p.ID, tenant.ID, user.ID, "agent"))
 	_, err := service.Get(ctx, p.ID, tenant.ID)
 	require.True(t, ent.IsNotFound(err))
-	list, total, err := service.List(ctx, tenant.ID, 1, 10, nil, user.ID, "super_admin")
+	list, total, err := service.List(ctx, tenant.ID, 1, 10, nil, user.ID, datascope.DataScopeAll)
 	require.NoError(t, err)
 	assert.Zero(t, total)
 	assert.Empty(t, list)

@@ -296,16 +296,7 @@ func (r *EntRepository) List(ctx context.Context, tenantID int, page, size int, 
 	// OwnedOrAssigned 时强制追加 Or(CreatedByEQ(uid), AssigneeIDEQ(uid))，
 	// 使普通用户只能看到自己创建或分配给自己的问题单。
 	// CurrentUserID<=0 时 fail-closed，返回空集而非全量。
-	if dataScope == datascope.DataScopeOwnedOrAssigned {
-		if currentUserID <= 0 {
-			query = query.Where(problem.IDEQ(-1))
-		} else {
-			query = query.Where(problem.Or(
-				problem.CreatedByEQ(currentUserID),
-				problem.AssigneeIDEQ(currentUserID),
-			))
-		}
-	}
+	query = query.Where(problemDataScopePredicates(dataScope, currentUserID)...)
 
 	total, err := query.Count(ctx)
 	if err != nil {
@@ -406,7 +397,13 @@ func (r *EntRepository) GetAllForAnalytics(ctx context.Context, tenantID int, st
 }
 
 func (r *EntRepository) GetStats(ctx context.Context, tenantID int) (*ProblemStats, error) {
+	return r.GetStatsScoped(ctx, tenantID, datascope.DataScopeAll, 0)
+}
+
+// GetStatsScoped 返回与 List 同 DataScope 口径的问题统计。
+func (r *EntRepository) GetStatsScoped(ctx context.Context, tenantID int, dataScope datascope.DataScope, currentUserID int) (*ProblemStats, error) {
 	base := []entpredicate.Problem{problem.TenantIDEQ(tenantID), problem.DeletedAtIsNil()}
+	base = append(base, problemDataScopePredicates(dataScope, currentUserID)...)
 	query := r.client.Problem.Query().Where(base...)
 
 	total, err := query.Count(ctx)
@@ -417,7 +414,9 @@ func (r *EntRepository) GetStats(ctx context.Context, tenantID int) (*ProblemSta
 	// Simple count queries. Optimization: group by status/priority?
 	// For now keeping it simple as per original service.
 	count := func(pred entpredicate.Problem) (int, error) {
-		return r.client.Problem.Query().Where(problem.TenantIDEQ(tenantID), problem.DeletedAtIsNil(), pred).Count(ctx)
+		preds := append([]entpredicate.Problem{}, base...)
+		preds = append(preds, pred)
+		return r.client.Problem.Query().Where(preds...).Count(ctx)
 	}
 	open, err := count(problem.StatusEQ("open"))
 	if err != nil {
@@ -448,6 +447,23 @@ func (r *EntRepository) GetStats(ctx context.Context, tenantID int) (*ProblemSta
 		Closed:       closed,
 		HighPriority: high,
 	}, nil
+}
+
+// problemDataScopePredicates 返回问题单行级范围的附加谓词。
+// 与 ticket 仓储保持一致：all 无过滤；owner/department（暂）收窄为本人创建或被指派。
+func problemDataScopePredicates(dataScope datascope.DataScope, currentUserID int) []entpredicate.Problem {
+	switch dataScope {
+	case datascope.DataScopeAll:
+		return nil
+	default:
+		if currentUserID <= 0 {
+			return []entpredicate.Problem{problem.IDEQ(-1)}
+		}
+		return []entpredicate.Problem{problem.Or(
+			problem.CreatedByEQ(currentUserID),
+			problem.AssigneeIDEQ(currentUserID),
+		)}
+	}
 }
 
 // LoadUserNames 批量加载 user 显示名（id -> name）。当前租户范围，name 为空回退 username。

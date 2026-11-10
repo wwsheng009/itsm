@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"sort"
 	"strings"
 	"time"
 
@@ -156,6 +157,22 @@ func (s *TicketTagService) ListTags(ctx context.Context, req *ListTagsRequest) (
 	}
 
 	return tags, total, nil
+}
+
+// ListTicketTags 查询单个工单已绑定标签（按名称排序）。
+func (s *TicketTagService) ListTicketTags(ctx context.Context, ticketID, tenantID int) ([]*ent.TicketTag, error) {
+	ticketEntity, err := s.client.Ticket.Query().
+		Where(ticket.ID(ticketID), ticket.TenantID(tenantID), ticket.DeletedAtIsNil()).
+		WithTags().
+		Only(ctx)
+	if err != nil {
+		return nil, err
+	}
+	tags := append([]*ent.TicketTag(nil), ticketEntity.Edges.Tags...)
+	sort.Slice(tags, func(i, j int) bool {
+		return strings.ToLower(tags[i].Name) < strings.ToLower(tags[j].Name)
+	})
+	return tags, nil
 }
 
 // UpdateTag 更新工单标签

@@ -68,6 +68,8 @@ type CreateRoleRequest struct {
 	Permissions []string `json:"permissions"`
 	Status      string   `json:"status"`
 	IsSystem    bool     `json:"isSystem"`
+	// DataScope 数据范围：all/department/owner；留空默认 owner（安全默认）。
+	DataScope string `json:"dataScope"`
 }
 
 // UpdateRoleRequest represents the request for updating a role
@@ -76,6 +78,8 @@ type UpdateRoleRequest struct {
 	Code        *string  `json:"code"`
 	Description *string  `json:"description"`
 	Permissions []string `json:"permissions"`
+	// DataScope 数据范围：all/department/owner；nil=不修改。
+	DataScope *string `json:"dataScope"`
 	// Status 是启用状态的唯一线上契约（active/inactive），落库到 role.is_active。
 	// 曾并存同义字段 isActive，但 service 只读 isActive 导致前端发送的 status 被静默丢弃，
 	// 角色启用/禁用开关表现为「更新成功却毫无变化」，故删除双轨字段。

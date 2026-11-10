@@ -11,6 +11,7 @@ import (
 	"itsm-backend/dto"
 	"itsm-backend/ent"
 	"itsm-backend/handlers/common/projectlink"
+	"itsm-backend/handlers/common/scopectx"
 	"itsm-backend/middleware"
 
 	"github.com/gin-gonic/gin"
@@ -464,7 +465,7 @@ func (h *IncidentHandler) Lists(c *gin.Context) {
 	tenantID := c.GetInt("tenant_id")
 	// 行级数据权限：从鉴权中间件注入的 user_id/role 取得，下传给 service 判定 DataScope。
 	currentUserID := c.GetInt("user_id")
-	currentRole := c.GetString("role")
+	dataScope := scopectx.Resolve(c, tenantID)
 
 	// filters 的 key 是仓储层/数据库列名（snake_case），不是 HTTP 契约；
 	// HTTP 侧统一读取 camelCase。
@@ -530,7 +531,7 @@ func (h *IncidentHandler) Lists(c *gin.Context) {
 		filters["assignee_id"] = currentUserID
 	}
 
-	incidents, total, err := h.service.List(c.Request.Context(), tenantID, page, size, filters, currentUserID, currentRole)
+	incidents, total, err := h.service.List(c.Request.Context(), tenantID, page, size, filters, currentUserID, dataScope)
 	if err != nil {
 		common.FailWithErr(c, err, "操作失败")
 		return

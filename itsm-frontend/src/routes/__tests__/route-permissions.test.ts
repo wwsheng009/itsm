@@ -21,7 +21,7 @@ import {
   permissionGranted,
   resolveRoutePermission,
 } from '../route-permissions';
-import { canUseMspWorkbench } from '../area-permissions';
+import { canReturnToProviderTenant, canUseMspWorkbench } from '../area-permissions';
 import { routes } from '../index';
 
 /** 递归收集路由表全部路径（拼接父子段；无 path 的布局路由只递归不产出）。 */
@@ -206,6 +206,67 @@ describe('canUseMspWorkbench（顶栏客户过滤器门禁）', () => {
         tenantType: 'msp_provider',
         mspRole: 'msp_manager',
         hasPermission: allowAll,
+      })
+    ).toBe(false);
+  });
+});
+
+describe('canReturnToProviderTenant（深度态返回入口）', () => {
+  it('服务商员工切到客户租户 → 显示返回入口', () => {
+    for (const tenantType of ['msp_customer', 'saas_customer', 'customer']) {
+      expect(
+        canReturnToProviderTenant({
+          currentTenantId: 2,
+          currentTenantType: tenantType,
+          homeTenantId: 1,
+          mspRole: 'provider_agent',
+        })
+      ).toBe(true);
+    }
+  });
+
+  it('provider 租户 / 归属租户自身 → 不显示（非深度态）', () => {
+    expect(
+      canReturnToProviderTenant({
+        currentTenantId: 1,
+        currentTenantType: 'msp_provider',
+        homeTenantId: 1,
+        mspRole: 'provider_admin',
+      })
+    ).toBe(false);
+    expect(
+      canReturnToProviderTenant({
+        currentTenantId: 2,
+        currentTenantType: 'msp_customer',
+        homeTenantId: 2,
+        mspRole: 'customer_user',
+      })
+    ).toBe(false);
+  });
+
+  it('缺少 homeTenantId / 非服务商角色 → fail-closed', () => {
+    expect(
+      canReturnToProviderTenant({
+        currentTenantId: 2,
+        currentTenantType: 'msp_customer',
+        homeTenantId: undefined,
+        mspRole: 'provider_admin',
+      })
+    ).toBe(false);
+    expect(
+      canReturnToProviderTenant({
+        currentTenantId: 2,
+        currentTenantType: 'msp_customer',
+        homeTenantId: 1,
+        mspRole: 'customer_user',
+      })
+    ).toBe(false);
+    expect(
+      canReturnToProviderTenant({
+        currentTenantId: 2,
+        currentTenantType: 'msp_customer',
+        homeTenantId: 1,
+        mspRole: undefined,
       })
     ).toBe(false);
   });

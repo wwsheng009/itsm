@@ -365,6 +365,38 @@ func (s *TicketWorkflowService) ListTicketCCRecords(ctx context.Context, ticketI
 	return s.buildCCListResponse(ctx, records)
 }
 
+// RemoveTicketCCRecord 软停用一条抄送记录。
+// 抄送人可移除自己；创建人、受理人、管理员/经理/技术员可管理整张工单的抄送。
+func (s *TicketWorkflowService) RemoveTicketCCRecord(ctx context.Context, ticketID, ccRecordID, userID, tenantID int) error {
+	tk, err := s.getTicket(ctx, ticketID, tenantID)
+	if err != nil {
+		return err
+	}
+	record, err := s.client.TicketCC.Query().
+		Where(
+			ticketcc.ID(ccRecordID),
+			ticketcc.TicketID(ticketID),
+			ticketcc.TenantID(tenantID),
+			ticketcc.IsActive(true),
+		).
+		Only(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return fmt.Errorf("抄送记录不存在")
+		}
+		return fmt.Errorf("查询抄送记录失败: %w", err)
+	}
+	if record.UserID != userID {
+		if err := s.ensureCanManageTicketCC(ctx, tk, userID, tenantID); err != nil {
+			return err
+		}
+	}
+	if _, err := record.Update().SetIsActive(false).Save(ctx); err != nil {
+		return fmt.Errorf("移除抄送记录失败: %w", err)
+	}
+	return nil
+}
+
 // ApproveTicket 审批工单（事务保护，保证审批记录更新、工单状态变更与流转记录的原子性）
 func (s *TicketWorkflowService) ApproveTicket(ctx context.Context, req *dto.ApproveTicketRequest, userID, tenantID int) error {
 	s.logger.Infow("Approving ticket", "ticket_id", req.TicketID, "action", req.Action, "user_id", userID)
@@ -1500,6 +1532,27 @@ func (s *TicketWorkflowService) ensureCanViewTicketCC(ctx context.Context, tk *e
 	}
 
 	return fmt.Errorf("无权访问该工单抄送信息")
+}
+
+func (s *TicketWorkflowService) ensureCanManageTicketCC(ctx context.Context, tk *ent.Ticket, userID, tenantID int) error {
+	if tk == nil {
+		return fmt.Errorf("工单不存在")
+	}
+	if tk.RequesterID == userID || (tk.AssigneeID != 0 && tk.AssigneeID == userID) {
+		return nil
+	}
+	currentUser, err := s.client.User.Query().
+		Where(user.ID(userID), user.TenantID(tenantID), user.Active(true)).
+		Only(ctx)
+	if err != nil {
+		return fmt.Errorf("用户不存在或无权限")
+	}
+	switch currentUser.Role {
+	case "super_admin", "admin", "manager", "technician":
+		return nil
+	default:
+		return fmt.Errorf("无权管理该工单抄送信息")
+	}
 }
 
 func normalizeNotifyChannels(channels []string) []string {

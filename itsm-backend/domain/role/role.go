@@ -49,6 +49,81 @@ func IsAdminLike(r string) bool {
 	}
 }
 
+// data_scope 词表（与 ent/schema/role.go、handlers/common/datascope 保持一致）。
+const (
+	DataScopeAll        = "all"
+	DataScopeDepartment = "department"
+	DataScopeOwner      = "owner"
+)
+
+// IsValidDataScope 判断 data_scope 是否为合法枚举值。
+func IsValidDataScope(scope string) bool {
+	switch scope {
+	case DataScopeAll, DataScopeDepartment, DataScopeOwner:
+		return true
+	default:
+		return false
+	}
+}
+
+// DataScopeRank 返回数据范围的宽度序号：all(0) > department(1) > owner(2)；
+// 非法值返回 3（按最窄处理，seeder 会以规范值修正）。
+func DataScopeRank(scope string) int {
+	switch scope {
+	case DataScopeAll:
+		return 0
+	case DataScopeDepartment:
+		return 1
+	case DataScopeOwner:
+		return 2
+	default:
+		return 3
+	}
+}
+
+// DefaultDataScope 返回内置角色的规范数据范围（单一源，避免 seeder / provisioner /
+// datascope 各自硬编码漂移）。
+//
+// 口径：
+//   - 管理类（IsAdminLike）与 MSP/provider 角色 → all；
+//   - 部门管理/一线/二线 → department（工单仓储暂按 owner 安全收窄）；
+//   - 其余（agent/technician/end_user/guest/岗位角色）→ owner，保持既有硬编码行为。
+//
+// 注意：这只是「角色 code → 默认值」的规范；运行时仍以 roles.data_scope 为准，
+// 管理员显式调整后应保留（seeder 仅收敛仍为旧默认 all 的内置角色）。
+func DefaultDataScope(code string) string {
+	switch code {
+	case SuperAdmin, Admin, Manager, SysAdmin,
+		"provider_tenant_admin",
+		"msp_viewer", "msp_tech", "msp_specialist", "msp_manager", "msp_admin":
+		return DataScopeAll
+	case "dept_manager", "sd_manager", "l1_support", "l2_support":
+		return DataScopeDepartment
+	default:
+		return DataScopeOwner
+	}
+}
+
+// builtinRoleCodes 是内置角色 code 集合（含 config/seed/default.json 的岗位角色）。
+// 用途：存量角色可能尚未标记 is_system，运行时仍需按内置规范收敛 data_scope，
+// 避免旧默认值 all 在迁移前造成越权。
+var builtinRoleCodes = map[string]struct{}{
+	SuperAdmin: {}, Admin: {}, Manager: {}, ITAdmin: {}, SecurityAdmin: {},
+	Agent: {}, Technician: {}, SysAdmin: {}, EndUser: {},
+	"guest": {}, "it_director": {}, "ops_director": {}, "audit_admin": {},
+	"ops_manager": {}, "ops_engineer": {}, "dba": {}, "network_eng": {},
+	"sd_manager": {}, "l1_support": {}, "l2_support": {}, "l3_expert": {},
+	"change_manager": {}, "service_catalog_admin": {}, "dept_manager": {},
+	"provider_tenant_admin": {},
+	"msp_viewer":            {}, "msp_tech": {}, "msp_specialist": {}, "msp_manager": {}, "msp_admin": {},
+}
+
+// IsBuiltinRoleCode 判断角色 code 是否属于内置词表。
+func IsBuiltinRoleCode(code string) bool {
+	_, ok := builtinRoleCodes[code]
+	return ok
+}
+
 // IsSuperAdmin 判断是否超级管理员。
 func IsSuperAdmin(r string) bool { return r == SuperAdmin }
 

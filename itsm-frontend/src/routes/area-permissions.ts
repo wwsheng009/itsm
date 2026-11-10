@@ -108,6 +108,21 @@ export function isMspProviderRole(role?: string | null): boolean {
 }
 
 /**
+ * 客户租户类型（镜像后端 pkg/tenantmode.IsCustomerTenantType）：
+ * `msp_customer` + `saas_customer` + 历史别名 `customer`。
+ */
+export const CUSTOMER_TENANT_TYPES: string[] = [
+  'msp_customer',
+  'saas_customer',
+  'customer',
+];
+
+/** 当前租户上下文是否客户租户（未知类型一律 false，fail-closed）。 */
+export function isCustomerTenantType(type?: string | null): boolean {
+  return !!type && CUSTOMER_TENANT_TYPES.includes(type);
+}
+
+/**
  * 顶栏 MSP 客户过滤器可见性（与 MspProviderGate 同向收敛）。
  *
  * 修复 2026-10-18 E2E：此前仅看 `msp_ticket:read`，超级管理员的 `*` 通配被
@@ -129,4 +144,30 @@ export function canUseMspWorkbench(input: {
   if (!input.userId || !isMspProviderTenant(input.tenantType)) return false;
   if (!isMspProviderRole(input.mspRole)) return false;
   return input.hasPermission(MSP_WORKBENCH_PERMISSIONS[0]);
+}
+
+/**
+ * 深度切换「返回工作台」入口可见性（MSW-4 / WB-A6）。
+ *
+ * 与 canUseMspWorkbench 的关键区别：本判定**不要求当前租户是 provider**。
+ * 深度态恰恰是「已切到客户租户」，此时 CustomerFilter 会被 provider 门禁整体
+ * 隐藏（否则会请求必然 403 的 /msp/* 数据面），返回入口必须独立存在。
+ *
+ * 条件（全部满足）：
+ * - 存在归属租户 `homeTenantId`（切换后 /auth/me 的权威字段；不能用 `tenantId`
+ *   兜底——后者已变成目标客户租户）；
+ * - 当前租户与归属租户不同（原生客户用户不显示「返回」）；
+ * - 当前租户是客户租户类型（provider 内普通导航不显示）；
+ * - 用户持有服务商员工角色（mspRole 词表；客户账号/平台超管不显示）。
+ */
+export function canReturnToProviderTenant(input: {
+  currentTenantId?: number | null;
+  currentTenantType?: string | null;
+  homeTenantId?: number | null;
+  mspRole?: string | null;
+}): boolean {
+  if (!input.homeTenantId || !input.currentTenantId) return false;
+  if (input.currentTenantId === input.homeTenantId) return false;
+  if (!isCustomerTenantType(input.currentTenantType)) return false;
+  return isMspProviderRole(input.mspRole);
 }

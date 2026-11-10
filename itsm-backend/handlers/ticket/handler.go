@@ -9,6 +9,7 @@ import (
 	"itsm-backend/common/handlerctx"
 	"itsm-backend/dto"
 	"itsm-backend/handlers/common/projectlink"
+	"itsm-backend/handlers/common/scopectx"
 	"itsm-backend/middleware"
 	"itsm-backend/pkg/tenantquota"
 	"itsm-backend/service"
@@ -61,6 +62,8 @@ func ticketToResponse(t *Ticket) *dto.TicketResponse {
 		FormFields:        t.FormFields,
 		RequesterID:       t.RequesterID,
 		TenantID:          t.TenantID,
+		SLAStatus:         t.SLAStatus,
+		SLAPauseReason:    t.SLAPauseReason,
 		Version:           t.Version,
 		CreatedAt:         t.CreatedAt,
 		UpdatedAt:         t.UpdatedAt,
@@ -94,6 +97,21 @@ func ticketToResponse(t *Ticket) *dto.TicketResponse {
 	}
 	if t.FirstResponseAt != nil && !t.FirstResponseAt.IsZero() {
 		resp.FirstResponseAt = t.FirstResponseAt
+	}
+	if t.SLAPausedAt != nil && !t.SLAPausedAt.IsZero() {
+		resp.SLAPausedAt = t.SLAPausedAt
+	}
+	if t.Rating != nil {
+		resp.Rating = *t.Rating
+	}
+	if t.RatingComment != nil {
+		resp.RatingComment = *t.RatingComment
+	}
+	if t.RatedAt != nil && !t.RatedAt.IsZero() {
+		resp.RatedAt = t.RatedAt
+	}
+	if t.RatedBy != nil {
+		resp.RatedBy = *t.RatedBy
 	}
 	return resp
 }
@@ -253,7 +271,7 @@ func (h *Handler) ListTickets(c *gin.Context) {
 		return
 	}
 	currentUserID := c.GetInt("user_id")
-	currentRole := c.GetString("role")
+	dataScope := scopectx.Resolve(c, tenantID)
 
 	filters := make(map[string]interface{})
 	if req.Status != "" {
@@ -301,7 +319,7 @@ func (h *Handler) ListTickets(c *gin.Context) {
 		filters["date_to"] = *req.DateTo
 	}
 
-	tickets, total, err := h.service.List(c.Request.Context(), tenantID, req.Page, req.PageSize, filters, currentUserID, currentRole)
+	tickets, total, err := h.service.List(c.Request.Context(), tenantID, req.Page, req.PageSize, filters, currentUserID, dataScope)
 	if err != nil {
 		common.FailWithErr(c, err, "操作失败")
 		return
@@ -521,7 +539,8 @@ func (h *Handler) GetTicketStats(c *gin.Context) {
 		return
 	}
 
-	stats, err := h.service.GetStats(c.Request.Context(), tenantID)
+	dataScope := scopectx.Resolve(c, tenantID)
+	stats, err := h.service.GetStatsScoped(c.Request.Context(), tenantID, dataScope, c.GetInt("user_id"))
 	if err != nil {
 		common.FailWithErr(c, err, "操作失败")
 		return

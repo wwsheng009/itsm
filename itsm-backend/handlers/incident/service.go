@@ -243,12 +243,8 @@ func (s *Service) Get(ctx context.Context, id int, tenantID int) (*Incident, err
 
 // List 列出事件单。推广 ticket 的 DataScope 行级权限：
 // 管理角色可见全租户，其余角色仅可见本人创建或分配给自己的事件单。
-// currentUserID/currentRole 由 handler 从鉴权中间件注入的 user_id/role 取得。
-func (s *Service) List(ctx context.Context, tenantID int, page, size int, filters map[string]interface{}, currentUserID int, currentRole string) ([]*Incident, int, error) {
-	dataScope := datascope.DataScopeAll
-	if !datascope.IsDataScopeAllRole(currentRole) {
-		dataScope = datascope.DataScopeOwnedOrAssigned
-	}
+// dataScope 由 handler 通过 scopectx.Resolve 按当前租户 membership 角色解析。
+func (s *Service) List(ctx context.Context, tenantID int, page, size int, filters map[string]interface{}, currentUserID int, dataScope datascope.DataScope) ([]*Incident, int, error) {
 	return s.repo.List(ctx, tenantID, page, size, filters, dataScope, currentUserID)
 }
 

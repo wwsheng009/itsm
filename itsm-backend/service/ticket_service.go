@@ -1537,6 +1537,7 @@ func (s *TicketService) CloseTicket(ctx context.Context, ticketID int, tenantID 
 
 // GetTicketStats 获取工单统计
 func (s *TicketService) GetTicketStats(ctx context.Context, tenantID int) (*dto.TicketStatsResponse, error) {
+	// 兼容旧服务入口：该方法不携带用户上下文，保持全租户统计。
 	statusCounts, err := s.repo.CountByStatus(ctx, tenantID)
 	if err != nil {
 		return nil, err

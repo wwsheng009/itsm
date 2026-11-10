@@ -47,6 +47,18 @@ func TestCreateRole_DefaultIsActiveTrue(t *testing.T) {
 	roleEntity, err := client.Role.Get(ctx, resp.ID)
 	assert.NoError(t, err)
 	assert.True(t, roleEntity.IsActive, "数据库中角色 is_active 字段应为 true")
+	assert.Equal(t, "owner", string(roleEntity.DataScope), "新建角色默认 data_scope 应为 owner（安全默认）")
+
+	// data_scope 可更新：显式 all 后落库。
+	allScope := "all"
+	updated, err := svc.UpdateRole(ctx, resp.ID, &dto.UpdateRoleRequest{DataScope: &allScope}, tenant.ID)
+	assert.NoError(t, err)
+	assert.Equal(t, "all", updated.DataScope)
+
+	// 非法值拒绝。
+	invalid := "team"
+	_, err = svc.UpdateRole(ctx, resp.ID, &dto.UpdateRoleRequest{DataScope: &invalid}, tenant.ID)
+	assert.Error(t, err)
 }
 
 // TestRoleService_DeleteRole_TenantIsolation 跨租户删除角色隔离测试

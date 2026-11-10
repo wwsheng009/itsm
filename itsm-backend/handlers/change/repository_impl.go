@@ -260,7 +260,8 @@ func (r *EntRepository) List(ctx context.Context, tenantID int, page, size int, 
 	// 使普通用户只能看到自己创建或分配给自己的变更单。
 	// 安全关键路径：即使上层忘记传归属过滤，这里仍会兜底收窄；
 	// CurrentUserID<=0 时 fail-closed，返回空集而非全量。
-	if dataScope == datascope.DataScopeOwnedOrAssigned {
+	// 安全收窄：除 all 外的任何档位（含暂未实现 department）均按 owner 处理。
+	if dataScope != datascope.DataScopeAll {
 		if currentUserID <= 0 {
 			q = q.Where(change.IDEQ(-1))
 		} else {

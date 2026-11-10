@@ -5,15 +5,15 @@
  * - 只改视图（URL query customerTenantIds），**不改会话作用域**；
  * - 数据源：GET /api/v1/msp/customers（可访问集合，服务端 allocation 收口）；
  *   徽标：GET /api/v1/msp/workbench/summary（open/slaRisk/unassigned）；
- * - 深度态指示：当前会话已切到客户租户时显示"当前客户：X（深度操作中）"+ 返回工作台，
- *   与工作台态（过滤器生效）文案区分（WB-A6）；
  * - "进入客户"深度入口：POST /api/v1/auth/switch-tenant，成功后整页重载重新引导会话
  *   （会话/store 刷新链路由父会话负责，本组件不依赖未定 API）。
+ * - 深度态的「当前客户：X（深度操作中）+ 返回工作台」由 DeepTenantReturn 独立渲染：
+ *   本组件受 provider 门禁保护（客户作用域会卸载），返回入口不能挂在组件内部。
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router';
 import { Badge, Button, Checkbox, Empty, Input, Popconfirm, Popover, Spin, Tag, Tooltip, message } from 'antd';
-import { LogIn, Search, Undo2, Users } from 'lucide-react';
+import { LogIn, Search, Users } from 'lucide-react';
 import { DESIGN } from '@/design-system/tokens';
 import { useAuthStore } from '@/lib/store/auth-store';
 import {
@@ -47,8 +47,6 @@ export const CustomerFilter: React.FC<CustomerFilterProps> = ({ className }) => 
   const location = useLocation();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const currentTenant = useAuthStore(state => state.currentTenant);
-  const user = useAuthStore(state => state.user);
   const switchTenant = useAuthStore(state => state.switchTenant);
 
   const [customers, setCustomers] = useState<MspCustomer[]>([]);
@@ -59,7 +57,6 @@ export const CustomerFilter: React.FC<CustomerFilterProps> = ({ className }) => 
   const [open, setOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [enteringId, setEnteringId] = useState<number | null>(null);
-  const [backLoading, setBackLoading] = useState(false);
   const saveTimerRef = useRef<number | null>(null);
   const prefHydratedRef = useRef(false);
 
@@ -201,27 +198,6 @@ export const CustomerFilter: React.FC<CustomerFilterProps> = ({ className }) => 
     [navigate, switchTenant]
   );
 
-  // MSW-4 / Q4=A："返回工作台"必须把会话切回 provider 作用域——仅导航会让
-  // /msp/workbench 在客户作用域下被 RBAC 拒绝（V3 实测 403）。
-  const handleBackToWorkbench = useCallback(async () => {
-    // homeTenantId 为权威字段（MSW-4 契约：/auth/me 的 homeTenantId=归属租户；
-    // 旧会话缺省时回退 user.tenantId）。
-    const homeTenantId = user?.homeTenantId ?? user?.tenantId;
-    if (!homeTenantId) {
-      message.error('无法确定服务商租户，请重新登录后再试');
-      return;
-    }
-    setBackLoading(true);
-    try {
-      await switchTenant(homeTenantId);
-      navigate(MSP_WORKBENCH_PATH);
-    } catch (error) {
-      message.error(error instanceof Error ? error.message : '返回工作台失败');
-    } finally {
-      setBackLoading(false);
-    }
-  }, [navigate, switchTenant, user?.homeTenantId, user?.tenantId]);
-
   const displayCustomers = useMemo(() => {
     const keyword = searchTerm.trim().toLowerCase();
     if (!keyword) return customers;
@@ -239,13 +215,6 @@ export const CustomerFilter: React.FC<CustomerFilterProps> = ({ className }) => 
       0
     );
   }, [customers, selected, selectedIds, summaryByCustomer]);
-
-  // 深度态：会话已切到客户租户（后端类型为 msp_customer；兼容 customer/saas_customer 旧值）。
-  const currentTenantType = (currentTenant as unknown as { type?: string } | null)?.type;
-  const isDeepCustomerTenant =
-    !!currentTenantType && ['customer', 'msp_customer', 'saas_customer'].includes(currentTenantType);
-  const deepTenantName =
-    (currentTenant as unknown as { name?: string } | null)?.name ?? '客户';
 
   const panel = (
     <div style={{ width: 336 }} data-testid="customer-filter-panel">
@@ -391,23 +360,6 @@ export const CustomerFilter: React.FC<CustomerFilterProps> = ({ className }) => 
 
   return (
     <span className={className} style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-      {isDeepCustomerTenant && (
-        <>
-          <Tag color="orange" data-testid="deep-tenant-indicator" style={{ margin: 0 }}>
-            当前客户：{deepTenantName}（深度操作中）
-          </Tag>
-          <Button
-            size="small"
-            icon={<Undo2 size={14} />}
-            loading={backLoading}
-            onClick={handleBackToWorkbench}
-            data-testid="back-to-workbench"
-            title="切回服务商作用域并打开工作台"
-          >
-            返回工作台
-          </Button>
-        </>
-      )}
       <Popover
         open={open}
         onOpenChange={setOpen}

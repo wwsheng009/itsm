@@ -216,7 +216,9 @@ make prod-init              # 生成 .env.prod（自动填充随机密钥）
 
 # ⚠️ 必须检查以下配置：
 #   - CORS_ALLOWED_ORIGINS（改为实际域名）
-#   - LLM_PROVIDER / OPENAI_API_KEY
+#   - APP_BASE_URL（邀请/通知链接）
+#   - AI Provider 在「系统配置 → LLM 模型」页面配置（默认启用）
+#   - RLS_MODE（默认 off；enforce 前先跑 rls-apply）
 #   - 域名 / SSL 证书路径
 ```
 

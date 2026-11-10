@@ -11,6 +11,7 @@ import (
 	"itsm-backend/ent/mspallocation"
 	enttenant "itsm-backend/ent/tenant"
 	entuser "itsm-backend/ent/user"
+	"itsm-backend/ent/usertenantmembership"
 	"itsm-backend/middleware"
 	"itsm-backend/pkg/tenantmode"
 	"itsm-backend/service"
@@ -589,9 +590,10 @@ func (s *Service) GetAuditLogs(ctx context.Context, tenantID int, userID int) ([
 }
 
 // GetUserTenants 获取用户可访问的租户集合（IP-P0-6 语义修正）：
-// home ∪ 有效 allocation 客户 ∪ 平台全量（super_admin/sysadmin）；去重且 home 优先。
+// home ∪ 有效 allocation 客户 ∪ active invite 客户 ∪ 平台全量
+// （super_admin/sysadmin）；去重且 home 优先。
 func (s *Service) GetUserTenants(ctx context.Context, userID int) ([]interface{}, error) {
-	// IP-P0-6：本方法跨租户聚合（home ∪ allocation 客户 ∪ 平台全量），属平台范围查询；
+	// IP-P0-6：本方法跨租户聚合（home ∪ allocation/invite 客户 ∪ 平台全量），属平台范围查询；
 	// R2B：显式 system bypass，避免 enforce 下被 RLS 装饰器 fail-closed 拦截（平台面白名单）。
 	ctx = tenantctx.WithSystemBypass(ctx)
 	user, err := s.client.User.Get(ctx, userID)
@@ -657,6 +659,34 @@ func (s *Service) GetUserTenants(ctx context.Context, userID int) ([]interface{}
 			}
 			// R2：客户必须归属本 provider（fail-closed；与 mspguard.validateCustomerForProvider 同口径）。
 			if t.MspProviderID == 0 || t.MspProviderID != user.TenantID {
+				continue
+			}
+			add(t)
+		}
+
+		// 2c) 客户侧显式邀请：与 SwitchTenantWithRevoke 的授权事实保持同源。
+		// 这类用户可能没有 MSPAllocation，但切换接口允许其进入已确认的客户租户；
+		// 若租户列表不返回，桌面端切换器就看不到该客户。
+		memberships, mErr := s.client.UserTenantMembership.Query().
+			Where(
+				usertenantmembership.UserIDEQ(userID),
+				usertenantmembership.SourceEQ(usertenantmembership.SourceInvite),
+				usertenantmembership.StatusEQ(usertenantmembership.StatusActive),
+				usertenantmembership.DeletedAtIsNil(),
+				usertenantmembership.InvitedByNotNil(),
+				middleware.MembershipNotExpired(),
+			).
+			Order(ent.Asc(usertenantmembership.FieldID)).
+			All(ctx)
+		if mErr != nil {
+			return nil, fmt.Errorf("failed to list tenant invite memberships: %w", mErr)
+		}
+		for _, membership := range memberships {
+			t, tErr := s.client.Tenant.Get(ctx, membership.TenantID)
+			if tErr != nil {
+				continue
+			}
+			if !tenantmode.IsCustomerTenantType(string(t.Type)) {
 				continue
 			}
 			add(t)

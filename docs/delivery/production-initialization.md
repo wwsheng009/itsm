@@ -1,5 +1,10 @@
 # 生产数据初始化运行手册
 
+> 当前 Compose 路径说明：`docker-compose.prod.yml` 的 `itsm-init` 使用
+> `ADMIN_PASSWORD` 一次性首管路径（`BOOTSTRAP_TOKEN_ENABLED=0`），backend 保持
+> `BOOTSTRAP_TOKEN_ENABLED=1` 以跳过重复首管。一次性 bootstrap token 流程需要
+> 独立 CLI/API 步骤，尚未接入该 Compose；两者不可混用。
+
 ## 发布前提
 
 - 使用 PostgreSQL 17，并已完成可恢复备份和恢复抽检。

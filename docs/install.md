@@ -1,6 +1,8 @@
 # 安装
 
-> Status: current。开发账号仅用于本地环境；生产初始化和认证以[部署优化报告](../DEPLOYMENT_OPTIMIZATION.md)及当前发布的 bootstrap/readiness 接口为准。
+> Status: current。开发账号仅用于本地环境；生产初始化与认证以
+> [生产部署清单](./delivery/production-deployment-checklist.md) 和
+> [生产数据初始化](./delivery/production-initialization.md) 为准。
 
 > 适用版本：ITSM v1.0+
 > 阅读时间：约 5 分钟
@@ -49,16 +51,19 @@ LOG_LEVEL=info  # debug | info | warn | error
 
 完整配置项说明见 `.env.example` 注释。
 
-### 3.1 附件域灰度开关（可选，默认全关）
+### 3.1 附件域开关（当前默认开启通用链路）
 
-附件域通用链路（方案见 `docs/plan/generic-attachment-richtext-control-plan.md` §6.1）默认全部关闭，即保留现网旧链路、零行为变化。灰度与回退开关分两级，**部署级默认值**写在 `itsm-backend/config.yaml` 的 `attachment` 块（样例见 `itsm-backend/config.yaml.example`；容器部署样例见 `itsm-backend/deploy/config.yaml`）：
+附件域通用链路（方案见 `docs/plan/generic-attachment-richtext-control-plan.md` §6.1）在当前镜像中
+已默认开启通用读写与富文本内嵌图片；双写对账与生命周期清理默认关闭。灰度与回退开关分两级，
+**部署级默认值**写在 `itsm-backend/config.yaml` 的 `attachment` 块（样例见
+`itsm-backend/config.yaml.example`；容器部署样例见 `itsm-backend/deploy/config.yaml`）：
 
-| 配置键 | 默认 | 作用 | 关闭后行为 |
+| 配置键 | 当前镜像默认 | 作用 | 关闭后行为 |
 |:---|:---|:---|:---|
-| `attachment.generic_read_enabled` | false | 通用读路径（A2/A3/A4/A6） | 回退旧表读取，URL 不变 |
-| `attachment.generic_write_enabled` | false | 通用写入（A1/A5） | 回退旧工单写入路径 |
+| `attachment.generic_read_enabled` | true | 通用读路径（A2/A3/A4/A6） | 回退旧表读取，URL 不变 |
+| `attachment.generic_write_enabled` | true | 通用写入（A1/A5） | 回退旧工单写入路径 |
 | `attachment.dual_write_enabled` | false | 双写对账（P2） | 停止双写，旧表为事实源 |
-| `attachment.inline_image_enabled` | false | 富文本内嵌图片走通用链路 | 编辑器图片入口禁用（fail-fast） |
+| `attachment.inline_image_enabled` | true | 富文本内嵌图片走通用链路 | 编辑器图片入口禁用（fail-fast） |
 
 也可用环境变量覆盖同名配置：`ATTACHMENT_GENERIC_READ_ENABLED` / `ATTACHMENT_GENERIC_WRITE_ENABLED` / `ATTACHMENT_DUAL_WRITE_ENABLED` / `ATTACHMENT_INLINE_IMAGE_ENABLED`（取值 `true` / `false`）。
 
@@ -95,7 +100,7 @@ make dev-start-docker
 首次启动会：
 
 1. 拉取镜像（约 5-10 分钟，取决于网速）
-2. 初始化 PostgreSQL schema（[Ent migrations](../../itsm-backend/ent/migrate)）
+2. 初始化 PostgreSQL schema（[Ent migrations](../itsm-backend/ent/migrate)）
 3. 播种基础数据（角色、权限、菜单）
 4. 在本地开发模式创建开发管理员 `admin / admin123`
 
@@ -127,26 +132,24 @@ start http://localhost:3000  # Windows
 ⚠️ **生产环境必须使用独立的 `.env.prod` 文件**：
 
 ```bash
-# 1. 生成强密码和密钥
-openssl rand -hex 32 > JWT_SECRET.txt
-openssl rand -hex 16 > DB_PASSWORD.txt
-openssl rand -hex 16 > REDIS_PASSWORD.txt
+# 1. 生成 .env.prod 与随机密钥（不要先手动 cp；否则 init 会跳过）
+./scripts/deploy-prod.sh init
 
-# 2. 创建 .env.prod（参考 .env.prod.example）
-cp .env.prod.example .env.prod
-# 编辑 .env.prod，填入上述密钥
+# 2. 编辑 .env.prod：VERSION、域名、ADMIN_PASSWORD、APP_BASE_URL、SMTP、AI/RLS 决策
 
-# 3. 启动（必须显式传入 --env-file）
-make prod-deploy
+# 3. 只读预检（不启动/重建容器）
+./scripts/deploy-prod.sh deploy --dry-run
 
-# 手工执行时必须显式传入环境文件
-docker compose --env-file .env.prod -f docker-compose.prod.yml build itsm-backend itsm-frontend
-docker compose --env-file .env.prod -f docker-compose.prod.yml up -d
+# 4. 安全发布（校验→备份→构建→部署→验证）
+./scripts/deploy-prod.sh deploy
 ```
 
-生产环境不得假定存在默认管理员密码。部署后应先检查当前版本的 bootstrap 状态，由初始化 CLI 生成一次性 token，再通过受支持的 bootstrap API 创建首位管理员；token 必须过期、单次消费并产生审计。如果当前发布没有 bootstrap 状态接口，则该版本不满足本文的生产首次认证要求。
+当前 `docker-compose.prod.yml` 的 `itsm-init` 走一次性 `ADMIN_PASSWORD` 首管路径；
+一次性 bootstrap token 流程需要独立 CLI/API 步骤，尚未接入该 Compose。生产环境不得
+假定存在默认管理员密码，必须使用强随机 `ADMIN_PASSWORD`，并在首次登录后轮换。
 
-详见 [生产部署指南](../DEPLOYMENT_OPTIMIZATION.md)。
+完整清单见[生产部署清单](./delivery/production-deployment-checklist.md)；
+初始化、失败重试与回滚见[生产数据初始化](./delivery/production-initialization.md)。
 
 ## 7. 卸载
 
@@ -160,6 +163,6 @@ docker compose --env-file .env -f docker-compose.dev.yml --profile dev down -v
 
 ## 下一步
 
-- [本地开发命令](../dev-commands-reference.md)：如何修改代码、运行测试
-- [项目快速开始](../../README.md#快速开始)：当前开发环境入口
-- [架构总览](../architecture/overview.md)：理解模块划分
+- [本地开发命令](./dev-commands-reference.md)：如何修改代码、运行测试
+- [项目快速开始](../README.md#快速开始)：当前开发环境入口
+- [架构总览](./architecture/overview.md)：理解模块划分

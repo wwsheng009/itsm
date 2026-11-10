@@ -2,7 +2,7 @@
 
 本指南面向从 **v1.6.x** 升级到最新版本（含开源就绪加固）的自部署用户，覆盖破坏性变更、环境变量变更、数据库迁移、部署与回滚。
 
-> 当前稳定版本：`1.6.9`（见 `package.json` / `CHANGELOG.md`）。
+> 当前工作树版本：`1.8.0-dev`（`package.json` 仍为 `1.7.0`；正式发布以 git tag 为准）。
 > 本文档同时适用于 Docker Compose 与私有化（k8s / 二进制）部署。
 
 ---
@@ -172,8 +172,11 @@ cookie 模式，否则将无法完成认证。
 
 > 如果你之前依赖 `GRAFANA_PASSWORD`，请改为设置 `GRAFANA_ADMIN_PASSWORD`，否则 Grafana 仍为默认密码。
 
-### 2.3 `SERVER_PORT` 仍有效（保留）
-`SERVER_PORT` 通过 `itsm-backend/config.yaml.example` 的 `server.port: ${SERVER_PORT:8080}` 被后端消费，**保留**，请勿删除。`config.yaml` 由后端 `config.LoadConfig()` 加载并做环境变量替换。
+### 2.3 `SERVER_PORT` 在 Compose 生产中不生效
+`itsm-backend/config.yaml.example` 使用 `server.port: ${SERVER_PORT:8080}`，但生产镜像打入的是
+`itsm-backend/config.yaml`，其中端口固定为 `8090`；`docker-compose.prod.yml` 也按 `8090`
+配置 nginx 上游。Compose 部署修改 `SERVER_PORT` 不会改变监听端口。仅在裸机运行并使用
+`config.yaml.example` 时该变量有效。
 
 ---
 
@@ -197,16 +200,21 @@ cookie 模式，否则将无法完成认证。
 
 ### 4.1 生产部署
 ```bash
-cp .env.prod.example .env.prod
-# 编辑 .env.prod：DB_PASSWORD / JWT_SECRET / ADMIN_PASSWORD / CORS_ALLOWED_ORIGINS / GRAFANA_ADMIN_PASSWORD
-./scripts/deploy-prod.sh init     # 生成强密钥并写入 .env.prod（chmod 600）
-./scripts/deploy-prod.sh deploy   # 拉起全部服务（含 nginx 与 itsm-worker）
+# 先生成，再编辑；不要先 cp，否则 init 会因文件已存在而跳过密钥生成
+./scripts/deploy-prod.sh init
+# 编辑 .env.prod：VERSION / ADMIN_PASSWORD / APP_BASE_URL / CORS_ALLOWED_ORIGINS /
+# SMTP / AI / RLS，以及可选的 GRAFANA_ADMIN_PASSWORD
+./scripts/deploy-prod.sh deploy --dry-run   # 只读预检
+./scripts/deploy-prod.sh deploy             # 校验→备份→构建→部署→验证
 ```
 
 `deploy-prod.sh deploy` 现已包含：
 - 启动 `nginx` 与 `itsm-worker`（历史版本漏起，导致静态资源 502 / 异步任务不执行）。
-- `nginx` 健康检查（`:80`）+ `itsm-worker` 存活检查。
+- `nginx` 健康检查（`:80`）+ `itsm-worker` / frontend / AI sidecar 存活检查。
 - 登录冒烟测试读取 `.env.prod` 的 `ADMIN_PASSWORD`（不再硬编码 `admin123`）。
+
+完整配置默认项与验收命令见
+[生产部署清单](./docs/delivery/production-deployment-checklist.md)。
 
 ### 4.2 MinIO 为可选（storage profile）
 后端与前端当前**不使用** MinIO/S3。MinIO 仅在 `docker-compose.prod.yml` 的 `storage` profile 下启动：
@@ -227,7 +235,8 @@ docker compose -f docker-compose.dev.yml up -d
 ## 5. 镜像标签与版本固定
 
 - 生产环境**固定具体标签**（如 `:1.6.9`），不要使用 `:latest`，便于回滚。
-- 镜像：`ghcr.io/heidsoft/itsm-backend`、`ghcr.io/heidsoft/itsm-frontend`、`ghcr.io/heidsoft/itsm-init`。
+- 镜像：`ghcr.io/heidsoft/itsm-backend`、`ghcr.io/heidsoft/itsm-frontend`、`ghcr.io/heidsoft/itsm-ai-service`；
+  `itsm-init` 与 `itsm-worker` 复用 backend 镜像。
 - 升级时前后端标签保持一致，避免 DTO 契约错配（见 1.1）。
 
 ---

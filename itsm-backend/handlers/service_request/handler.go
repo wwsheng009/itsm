@@ -8,8 +8,8 @@ import (
 	"itsm-backend/common"
 	"itsm-backend/dto"
 	"itsm-backend/ent"
-	"itsm-backend/handlers/common/datascope"
 	"itsm-backend/handlers/common/projectlink"
+	"itsm-backend/handlers/common/scopectx"
 	"itsm-backend/middleware"
 
 	"github.com/gin-gonic/gin"
@@ -241,7 +241,6 @@ func (h *Handler) List(c *gin.Context) {
 	tenantID := c.GetInt("tenant_id")
 	// 行级数据权限：从鉴权中间件注入的 user_id/role 取得。
 	currentUserID := c.GetInt("user_id")
-	currentRole := c.GetString("role")
 
 	// If listing "me", we need user ID
 	userID := 0
@@ -256,10 +255,7 @@ func (h *Handler) List(c *gin.Context) {
 
 	// 行级数据权限（推广自 ticket DataScope 模式）：管理角色可见全租户，
 	// 其余角色仅可见本人创建或处理的请求单。
-	dataScope := datascope.DataScopeAll
-	if !datascope.IsDataScopeAllRole(currentRole) {
-		dataScope = datascope.DataScopeOwnedOrAssigned
-	}
+	dataScope := scopectx.Resolve(c, tenantID)
 
 	filters := ListFilters{
 		Status:        normalizeServiceRequestStatus(req.Status),

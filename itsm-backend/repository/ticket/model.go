@@ -68,6 +68,9 @@ type Ticket struct {
 	SLADefinitionID       *int
 	SLAResponseDeadline   *time.Time
 	SLAResolutionDeadline *time.Time
+	SLAStatus             string
+	SLAPausedAt           *time.Time
+	SLAPauseReason        string
 	FirstResponseAt       *time.Time
 	ResolvedAt            *time.Time
 	ClosedAt              *time.Time

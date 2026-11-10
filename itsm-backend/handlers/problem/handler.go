@@ -9,6 +9,7 @@ import (
 	"itsm-backend/common"
 	"itsm-backend/dto"
 	"itsm-backend/handlers/common/projectlink"
+	"itsm-backend/handlers/common/scopectx"
 	"itsm-backend/middleware"
 
 	"github.com/gin-gonic/gin"
@@ -422,7 +423,7 @@ func (h *Handler) List(c *gin.Context) {
 	}
 	// 行级数据权限：从鉴权中间件注入的 user_id/role 取得，下传给 service 判定 DataScope。
 	currentUserID := c.GetInt("user_id")
-	currentRole := c.GetString("role")
+	dataScope := scopectx.Resolve(c, tenantID)
 
 	// Convert DTO filters to map
 	filters := make(map[string]interface{})
@@ -439,7 +440,7 @@ func (h *Handler) List(c *gin.Context) {
 		filters["keyword"] = req.Keyword
 	}
 
-	list, total, err := h.service.List(c.Request.Context(), tenantID, req.Page, req.PageSize, filters, currentUserID, currentRole)
+	list, total, err := h.service.List(c.Request.Context(), tenantID, req.Page, req.PageSize, filters, currentUserID, dataScope)
 	if err != nil {
 		common.FailWithErr(c, err, "操作失败")
 		return
@@ -765,7 +766,8 @@ func (h *Handler) GetStats(c *gin.Context) {
 	if !tenantOK {
 		return
 	}
-	stats, err := h.service.GetStats(c.Request.Context(), tenantID)
+	dataScope := scopectx.Resolve(c, tenantID)
+	stats, err := h.service.GetStatsScoped(c.Request.Context(), tenantID, dataScope, c.GetInt("user_id"))
 	if err != nil {
 		common.FailWithErr(c, err, "操作失败")
 		return

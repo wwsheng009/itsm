@@ -21,6 +21,7 @@ import { UserMenuDropdown } from './UserMenuDropdown';
 import { NotificationDrawer } from './NotificationDrawer';
 import { GlobalSearch, SearchInput } from './GlobalSearch';
 import { CustomerFilter } from './CustomerFilter';
+import { DeepTenantReturn } from './DeepTenantReturn';
 import { buildBreadcrumb, useBuildBreadcrumb } from './breadcrumb-utils';
 import { canUseMspWorkbench as resolveMspWorkbenchAccess } from '@/routes/area-permissions';
 import styles from './Header.module.css';
@@ -276,6 +277,10 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* 右侧 */}
         <div className={styles.right}>
+          {/* 深度态返回入口：与 provider 过滤器解耦，客户作用域下仍可用。
+              否则 CustomerFilter 被门禁隐藏时，「返回工作台」会一起消失。 */}
+          {isClient && <DeepTenantReturn />}
+
           {/* 跨客户全局过滤器（仅 provider；只改视图不改会话） */}
           {isClient && canUseMspWorkbench ? <CustomerFilter /> : null}
 

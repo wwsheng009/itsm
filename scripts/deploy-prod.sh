@@ -59,7 +59,10 @@ BACKUP_DIR="$PROJECT_ROOT/backups"
 LOG_DIR="$PROJECT_ROOT/logs"
 
 BACKEND_URL="http://localhost:8090"
-FRONTEND_URL="http://localhost:3000"
+# Production frontend is intentionally not published on :3000; browser traffic
+# goes through nginx on :80. Probe the public entrypoint after nginx is up and
+# use container health for the frontend before nginx starts.
+FRONTEND_URL="http://localhost"
 HEALTH_PATH="/api/v1/health"
 
 DEPLOY_STATE_DIR="$PROJECT_ROOT/.deploy"
@@ -197,6 +200,11 @@ init_prod_env() {
     set_env_value "$ENV_FILE" "REDIS_PASSWORD" "$(generate_secret 36)"
     set_env_value "$ENV_FILE" "JWT_SECRET" "$(generate_secret 48)"
     set_env_value "$ENV_FILE" "ADMIN_PASSWORD" "$(generate_secret 24)"
+    # System config secrets are encrypted with CONFIG_SECRET_KEY. Generate a
+    # stable key up front; rotating it later makes existing ciphertext
+    # unreadable by design.
+    set_env_value "$ENV_FILE" "CONFIG_SECRET_KEY" "$(generate_hex 32)"
+    set_env_value "$ENV_FILE" "LLM_PROVIDER_ENCRYPTION_KEY" "$(generate_hex 32)"
     set_env_value "$ENV_FILE" "MINIO_ACCESS_KEY" "itsm_$(generate_hex 12)"
     set_env_value "$ENV_FILE" "MINIO_SECRET_KEY" "$(generate_secret 36)"
     set_env_value "$ENV_FILE" "GRAFANA_ADMIN_PASSWORD" "$(generate_secret 24)"
@@ -246,9 +254,12 @@ preflight_checks() {
     else
         log_success ".env.prod found"
         source_env_file "$ENV_FILE"
+        FRONTEND_URL="http://localhost:${PROD_HTTP_PORT:-80}"
 
-        # Required variables
-        local required=("DB_PASSWORD" "REDIS_PASSWORD" "JWT_SECRET" "ADMIN_PASSWORD" "MINIO_ACCESS_KEY" "MINIO_SECRET_KEY")
+        # Required variables. MinIO is optional (only the "storage" profile
+        # consumes it); requiring its keys here used to block every fresh
+        # deployment even though .env.prod.example marks them optional.
+        local required=("VERSION" "DB_PASSWORD" "REDIS_PASSWORD" "JWT_SECRET" "ADMIN_PASSWORD")
         for var in "${required[@]}"; do
             if [[ -z "${!var:-}" ]]; then
                 log_error "$var not set in .env.prod"; errors=$((errors + 1))
@@ -267,6 +278,27 @@ preflight_checks() {
             errors=$((errors + 1))
         fi
 
+        if [[ "${VERSION:-}" == "latest" || "${VERSION:-}" == CHANGE_ME_RELEASE_TAG* ]]; then
+            log_error "VERSION must be a fixed, tested release tag or image version (not latest/placeholder)"
+            errors=$((errors + 1))
+        fi
+
+        if [[ -z "${CONFIG_SECRET_KEY:-}" ]]; then
+            log_warn "CONFIG_SECRET_KEY is empty; saving encrypted system config (SMTP password, etc.) will fail closed"
+            log_warn "Generate one with: openssl rand -hex 32"
+        elif [[ ! "$CONFIG_SECRET_KEY" =~ ^[0-9a-fA-F]{64}$ ]]; then
+            log_warn "CONFIG_SECRET_KEY should be 64 hex characters (32 bytes); current value may fail encryption checks"
+        fi
+
+        if [[ "${LLM_MULTI_PROVIDER_ENABLED:-true}" == "true" && -z "${LLM_PROVIDER_ENCRYPTION_KEY:-}" ]]; then
+            log_warn "LLM_PROVIDER_ENCRYPTION_KEY is empty; provider API keys will fall back to a JWT-derived key"
+            log_warn "Set a stable value before saving provider keys: openssl rand -hex 32"
+        fi
+
+        if [[ -z "${APP_BASE_URL:-}" ]]; then
+            log_warn "APP_BASE_URL is empty; invitation links will rely on the request Host header or fail"
+        fi
+
         if ! dc --env-file "$ENV_FILE" -f "$COMPOSE_PROD" config >/dev/null; then
             log_error "docker-compose.prod.yml validation failed"
             errors=$((errors + 1))
@@ -281,7 +313,7 @@ preflight_checks() {
     fi
 
     # Ports
-    for port in 8090 3000; do
+    for port in "${PROD_HTTP_PORT:-80}" 8090; do
         if port_in_use "$port"; then
             log_warn "Port $port is in use (will fail if container can't bind)"
         fi
@@ -458,10 +490,10 @@ deploy_services() {
         return 1
     fi
 
-    log_info "Waiting for frontend..."
+    log_info "Waiting for frontend container..."
     if ! $DRY_RUN; then
-        if wait_for_http "$FRONTEND_URL" "frontend" 60; then
-            log_success "Frontend is healthy"
+        if wait_for_container_healthy "itsm-frontend-prod" 60; then
+            log_success "Frontend container is healthy"
         else
             log_error "Frontend failed to start"
             dc --env-file "$ENV_FILE" -f "$COMPOSE_PROD" logs --tail=50 itsm-frontend
@@ -469,14 +501,15 @@ deploy_services() {
         fi
     fi
 
-    # Start nginx (public entrypoint on :80/:443) and the background worker.
+    # Start nginx (public entrypoint on :80/:443), the background worker and
+    # the AI sidecar. All three are part of the production contract.
     # Historically these were never started by the main deploy path, so a
     # "successful" deployment served no traffic and ran no SLA / escalation /
     # indexing schedules. Both must be part of the main flow.
-    log_step "Starting nginx and background worker"
-    if ! run dc --env-file "$ENV_FILE" -f "$COMPOSE_PROD" up -d nginx itsm-worker; then
-        log_error "Failed to start nginx or itsm-worker"
-        dc --env-file "$ENV_FILE" -f "$COMPOSE_PROD" logs --tail=50 nginx itsm-worker
+    log_step "Starting nginx, background worker and AI sidecar"
+    if ! run dc --env-file "$ENV_FILE" -f "$COMPOSE_PROD" up -d nginx itsm-worker itsm-ai-service; then
+        log_error "Failed to start nginx, itsm-worker or itsm-ai-service"
+        dc --env-file "$ENV_FILE" -f "$COMPOSE_PROD" logs --tail=50 nginx itsm-worker itsm-ai-service
         return 1
     fi
 
@@ -499,6 +532,14 @@ deploy_services() {
         else
             log_error "Worker container exited; SLA/escalation/index schedules will not run"
             dc --env-file "$ENV_FILE" -f "$COMPOSE_PROD" logs --tail=50 itsm-worker
+            return 1
+        fi
+
+        if wait_for_container_healthy "itsm-ai-service-prod" 60; then
+            log_success "AI sidecar is healthy"
+        else
+            log_error "AI sidecar failed to become healthy"
+            dc --env-file "$ENV_FILE" -f "$COMPOSE_PROD" logs --tail=50 itsm-ai-service
             return 1
         fi
     fi
@@ -533,7 +574,7 @@ verify_deployment() {
     fi
 
     # Containers
-    for c in itsm-postgres-prod itsm-redis-prod itsm-nginx-prod itsm-worker-prod; do
+    for c in itsm-postgres-prod itsm-redis-prod itsm-backend-prod itsm-frontend-prod itsm-nginx-prod itsm-worker-prod itsm-ai-service-prod; do
         if container_running "$c"; then
             log_success "$c: running"
         else
@@ -606,6 +647,10 @@ do_rollback() {
 # Status / health / logs
 # ============================================================
 show_status() {
+    if [[ -f "$ENV_FILE" ]]; then
+        source_env_file "$ENV_FILE"
+        FRONTEND_URL="http://localhost:${PROD_HTTP_PORT:-80}"
+    fi
     echo ""
     if [[ -f "$CURRENT_STATE" ]]; then
         local _deploy_time _git_commit
@@ -621,6 +666,10 @@ show_status() {
 }
 
 show_health() {
+    if [[ -f "$ENV_FILE" ]]; then
+        source_env_file "$ENV_FILE"
+        FRONTEND_URL="http://localhost:${PROD_HTTP_PORT:-80}"
+    fi
     log_step "Production health checks"
     echo ""
 
@@ -639,7 +688,7 @@ show_health() {
     fi
 
     # Containers
-    for c in itsm-postgres-prod itsm-redis-prod itsm-backend-prod itsm-frontend-prod itsm-nginx-prod itsm-worker-prod; do
+    for c in itsm-postgres-prod itsm-redis-prod itsm-backend-prod itsm-frontend-prod itsm-nginx-prod itsm-worker-prod itsm-ai-service-prod; do
         if container_running "$c"; then
             local started; started=$(docker inspect --format='{{.State.StartedAt}}' "$c" 2>/dev/null | cut -d'.' -f1 || echo "?")
             log_success "$c: running since $started"
@@ -765,7 +814,8 @@ ${BOLD}Options:${NC}
 ${BOLD}Prerequisites:${NC}
   1. ./scripts/deploy-prod.sh init
   2. Review .env.prod and set domain/SSL/LLM values
-  3. Ensure ports 3000 and 8090 are available
+  3. Ensure the host entry port (PROD_HTTP_PORT, default 80) and 8090 are available
+     (TLS terminates at the upstream gateway)
 
 ${BOLD}Examples:${NC}
   $(basename "$0") init                      # Generate .env.prod secrets

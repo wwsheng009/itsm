@@ -26,6 +26,7 @@ type Repository interface {
 
 	// Stats
 	GetStats(ctx context.Context, tenantID int) (*TicketStats, error)
+	GetStatsScoped(ctx context.Context, tenantID int, dataScope datascope.DataScope, currentUserID int) (*TicketStats, error)
 
 	// Number generation
 	GenerateTicketNumber(ctx context.Context, tenantID int) (string, error)

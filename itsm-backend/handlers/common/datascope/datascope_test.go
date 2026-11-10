@@ -1,6 +1,19 @@
 package datascope
 
-import "testing"
+import (
+	"context"
+	"fmt"
+	"testing"
+	"time"
+
+	"itsm-backend/ent"
+	"itsm-backend/ent/enttest"
+	entrole "itsm-backend/ent/role"
+
+	_ "github.com/mattn/go-sqlite3"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
 
 // TestIsDataScopeAllRole 锁定角色→可见范围映射，防止回归导致越权收窄或放宽。
 func TestIsDataScopeAllRole(t *testing.T) {
@@ -25,6 +38,103 @@ func TestDataScopeConstants(t *testing.T) {
 	if DataScopeAll == DataScopeOwnedOrAssigned {
 		t.Fatal("DataScopeAll 必须与 DataScopeOwnedOrAssigned 不同")
 	}
+}
+
+// TestResolveForActor_CanonicalFallback 锁定无 DB 时的角色规范值：
+// provider 员工（end_user + msp_tech）取最宽 all；原生 end_user 仍为 owner。
+func TestResolveForActor_CanonicalFallback(t *testing.T) {
+	cases := []struct {
+		name        string
+		primaryRole string
+		roleCodes   []string
+		want        DataScope
+	}{
+		{"super_admin", "super_admin", nil, DataScopeAll},
+		{"admin", "admin", nil, DataScopeAll},
+		{"end_user", "end_user", nil, DataScopeOwnedOrAssigned},
+		{"agent", "agent", nil, DataScopeOwnedOrAssigned},
+		{"msp_tech", "msp_tech", nil, DataScopeAll},
+		{"provider switch: end_user + msp_tech", "end_user", []string{"msp_tech"}, DataScopeAll},
+		{"native customer membership end_user", "end_user", []string{"end_user"}, DataScopeOwnedOrAssigned},
+		{"department role", "l1_support", nil, DataScopeDepartment},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := ResolveForActor(context.Background(), nil, 1, tc.primaryRole, tc.roleCodes)
+			assert.Equal(t, tc.want, got)
+		})
+	}
+}
+
+// TestResolveForActor_UsesRoleDataScope 锁定 DB 优先 + 内置角色安全收敛：
+//   - end_user 旧默认 all 必须收敛为 owner；
+//   - msp_tech all 允许 provider 员工看到客户全部单据；
+//   - 管理员把 msp_tech 收紧为 owner 时尊重收紧；
+//   - 自定义角色以 DB data_scope 为准。
+func TestResolveForActor_UsesRoleDataScope(t *testing.T) {
+	ctx := context.Background()
+	dsn := fmt.Sprintf("file:datascope_%d?mode=memory&cache=shared&_fk=1", time.Now().UnixNano())
+	client := enttest.Open(t, "sqlite3", dsn)
+	t.Cleanup(func() { _ = client.Close() })
+
+	tenantEntity, err := client.Tenant.Create().
+		SetName("DataScope Customer").
+		SetCode("datascope-customer").
+		SetStatus("active").
+		Save(ctx)
+	require.NoError(t, err)
+
+	createRole := func(code, scope string, system bool) *ent.Role {
+		entity, err := client.Role.Create().
+			SetName(code).
+			SetCode(code).
+			SetTenantID(tenantEntity.ID).
+			SetIsSystem(system).
+			SetDataScope(entrole.DataScope(scope)).
+			Save(ctx)
+		require.NoError(t, err)
+		return entity
+	}
+
+	createRole("end_user", "all", true)
+	tech := createRole("msp_tech", "all", true)
+	createRole("custom_all", "all", false)
+	createRole("custom_owner", "owner", false)
+
+	// 内置 end_user 的旧默认 all 收敛为 owner。
+	assert.Equal(t, DataScopeOwnedOrAssigned,
+		ResolveForActor(ctx, client, tenantEntity.ID, "end_user", nil))
+
+	// provider 员工：end_user + msp_tech → all。
+	assert.Equal(t, DataScopeAll,
+		ResolveForActor(ctx, client, tenantEntity.ID, "end_user", []string{"msp_tech"}))
+
+	// 管理员把 msp_tech 收紧为 owner → 尊重收紧。
+	_, err = tech.Update().SetDataScope(entrole.DataScopeOwner).Save(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, DataScopeOwnedOrAssigned,
+		ResolveForActor(ctx, client, tenantEntity.ID, "end_user", []string{"msp_tech"}))
+
+	// 自定义角色以 DB 为准（all 不被内置规范收窄）。
+	assert.Equal(t, DataScopeAll,
+		ResolveForActor(ctx, client, tenantEntity.ID, "custom_all", nil))
+	assert.Equal(t, DataScopeOwnedOrAssigned,
+		ResolveForActor(ctx, client, tenantEntity.ID, "custom_owner", nil))
+
+	// 平台超管直通。
+	assert.Equal(t, DataScopeAll,
+		ResolveForActor(ctx, client, tenantEntity.ID, "super_admin", nil))
+}
+
+func TestCanWriteResourceWithScope(t *testing.T) {
+	assignee := 42
+	other := 7
+
+	assert.True(t, CanWriteResourceWithScope(0, DataScopeAll, 999, nil))
+	assert.True(t, CanWriteResourceWithScope(other, DataScopeOwnedOrAssigned, other, nil))
+	assert.True(t, CanWriteResourceWithScope(assignee, DataScopeOwnedOrAssigned, 999, &assignee))
+	assert.False(t, CanWriteResourceWithScope(other, DataScopeOwnedOrAssigned, 999, &assignee))
+	assert.False(t, CanWriteResourceWithScope(0, DataScopeOwnedOrAssigned, 999, nil))
 }
 
 // TestCanWriteResource_AdminLikeRolesAlwaysAllowed 管理角色全租户可写。

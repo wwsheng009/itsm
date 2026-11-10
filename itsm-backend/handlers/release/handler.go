@@ -6,6 +6,7 @@ import (
 
 	"itsm-backend/common"
 	"itsm-backend/dto"
+	"itsm-backend/handlers/common/scopectx"
 	"itsm-backend/middleware"
 	"itsm-backend/service"
 
@@ -41,9 +42,9 @@ func (h *ReleaseHandler) ListReleases(c *gin.Context) {
 	releaseType := c.Query("type")
 	// 行级数据权限：从鉴权中间件注入的 user_id/role 取得，下传给 service 判定 DataScope。
 	currentUserID := c.GetInt("user_id")
-	currentRole := c.GetString("role")
+	dataScope := scopectx.Resolve(c, tenantID)
 
-	releases, err := h.releaseService.ListReleases(c.Request.Context(), tenantID, page, pageSize, status, releaseType, currentUserID, currentRole)
+	releases, err := h.releaseService.ListReleases(c.Request.Context(), tenantID, page, pageSize, status, releaseType, currentUserID, dataScope)
 	if err != nil {
 		h.logger.Errorw("List releases failed", "error", err, "tenant_id", tenantID)
 		common.FailWithErr(c, err, "操作失败")

@@ -169,9 +169,9 @@ func (s *ReleaseService) GetReleaseByID(ctx context.Context, id, tenantID int) (
 
 // ListReleases 获取发布列表。推广 ticket 的 DataScope 行级权限：
 // 管理角色（super_admin/admin/manager/sysadmin）可见全租户，其余角色仅可见
-// 本人创建或分配给自己的发布单。currentUserID/currentRole 由 controller 从
-// 鉴权中间件注入的 user_id/role 取得。
-func (s *ReleaseService) ListReleases(ctx context.Context, tenantID int, page, pageSize int, status, releaseType string, currentUserID int, currentRole string) (*dto.ReleaseListResponse, error) {
+// 本人创建或分配给自己的发布单。dataScope 由 controller 通过 scopectx.Resolve
+// 按当前租户 membership 角色解析。
+func (s *ReleaseService) ListReleases(ctx context.Context, tenantID int, page, pageSize int, status, releaseType string, currentUserID int, dataScope datascope.DataScope) (*dto.ReleaseListResponse, error) {
 	query := s.client.Release.Query().Where(release.TenantIDEQ(tenantID))
 
 	if status != "" {
@@ -185,11 +185,8 @@ func (s *ReleaseService) ListReleases(ctx context.Context, tenantID int, page, p
 	// OwnedOrAssigned 时强制追加 Or(CreatedByEQ(uid), OwnerIDEQ(uid))，
 	// 使普通用户只能看到自己创建或分配给自己的发布单。
 	// CurrentUserID<=0 时 fail-closed，返回空集而非全量。
-	dataScope := datascope.DataScopeAll
-	if !datascope.IsDataScopeAllRole(currentRole) {
-		dataScope = datascope.DataScopeOwnedOrAssigned
-	}
-	if dataScope == datascope.DataScopeOwnedOrAssigned {
+	// 安全收窄：除 all 外的任何档位（含暂未实现 department）均按 owner 处理。
+	if dataScope != datascope.DataScopeAll {
 		if currentUserID <= 0 {
 			query = query.Where(release.IDEQ(-1))
 		} else {

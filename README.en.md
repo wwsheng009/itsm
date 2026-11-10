@@ -285,7 +285,7 @@ open http://localhost:8090/swagger/index.html
 | Knowledge search | `GET /api/v1/knowledge/search?q=keyword` — search knowledge articles |
 | Ingest external alerts | After configuring `ALERT_SOURCE_CONFIG`, `POST /api/v1/alerts/sources/:source/ingest` to receive alert webhooks |
 
-Full API documentation: [API Reference](./docs/api/API_REFERENCE.md).
+Full API documentation: [API Reference](./docs/api-reference.md).
 
 ## Core Business Flows
 
@@ -436,9 +436,10 @@ Three deployment modes are supported:
 - **saas_msp**: SaaS + MSP, platform and service provider collaboration
 
 ```bash
-make prod-init        # Generate production config
+./scripts/deploy-prod.sh init   # Generate .env.prod + random secrets (do not cp first)
 # Edit .env.prod: change passwords, JWT secret, domain, etc.
-make prod-deploy      # Deploy
+make prod-preflight   # Read-only preflight
+make prod-deploy      # Validate → backup → build → deploy → verify
 make prod-health      # Check status
 ```
 
@@ -451,7 +452,9 @@ Pre-launch checklist:
 - [ ] Test capacity, failure recovery, and dead-letter replay
 - [ ] Validate enabled modules (CMDB, AI, connectors, etc.)
 
-> Never use development defaults in production. See [Production Readiness Program](./docs/delivery/production-readiness-program.md) and [Operations Runbook](./docs/runbooks/production-initialization.md) for detailed steps.
+> Never use development defaults in production. See the [Production Deployment Checklist](./docs/delivery/production-deployment-checklist.md),
+> [Production Initialization](./docs/delivery/production-initialization.md), and
+> [Rollback Guide](./docs/delivery/rollback-guide.md) for detailed steps.
 
 ### Demo Environment (Standalone Stack)
 
@@ -480,7 +483,7 @@ for deployment, rollback, and uploads permission rules.
 | [Commercial-Ready Architecture](./docs/architecture/commercial-ready-architecture.md) | Production-grade overall architecture |
 | [CMDB Commercial MVP](./docs/product/cmdb-commercial-mvp.md) | CMDB Available/Preview boundaries and acceptance criteria |
 | [Outbox Architecture](./docs/architecture/operational-command-outbox.md) | Reliable async execution specification |
-| [API Reference](./docs/api/API_REFERENCE.md) | HTTP API documentation |
+| [API Reference](./docs/api-reference.md) | HTTP API documentation |
 | [Local Development Commands](./docs/dev-commands-reference.md) | Development commands, debugging, and troubleshooting |
 | [Testing Guide](./docs/testing/README.md) | Unit, integration, contract, and E2E testing |
 | [Roadmap](./ROADMAP.md) | Single source of truth for current iteration direction |
@@ -536,7 +539,7 @@ Before submitting, stage files explicitly and confirm the staging area contains 
 
 ## Star History
 
-[![GitHub Star History](./docs/assets/star-history.svg)](https://github.com/heidsoft/itsm/stargazers)
+[![GitHub Star History](./docs/images/star-history.svg)](https://github.com/heidsoft/itsm/stargazers)
 
 ## License
 

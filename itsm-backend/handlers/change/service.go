@@ -88,13 +88,9 @@ func (s *Service) GetChange(ctx context.Context, id int, tenantID int) (*Change,
 
 // ListChanges 列出变更单。推广 ticket 的 DataScope 行级权限：
 // 管理角色（super_admin/admin/manager/sysadmin）可见全租户，其余角色仅可见
-// 本人创建或分配给自己的变更单。currentUserID/currentRole 由 handler 从
-// 鉴权中间件注入的 user_id/role 取得。
-func (s *Service) ListChanges(ctx context.Context, tenantID int, page, size int, status, search, riskLevel string, currentUserID int, currentRole string) ([]*Change, int, error) {
-	dataScope := datascope.DataScopeAll
-	if !datascope.IsDataScopeAllRole(currentRole) {
-		dataScope = datascope.DataScopeOwnedOrAssigned
-	}
+// 本人创建或分配给自己的变更单。dataScope 由 handler 通过 scopectx.Resolve
+// 按当前租户 membership 角色解析。
+func (s *Service) ListChanges(ctx context.Context, tenantID int, page, size int, status, search, riskLevel string, currentUserID int, dataScope datascope.DataScope) ([]*Change, int, error) {
 	return s.repo.List(ctx, tenantID, page, size, status, search, riskLevel, dataScope, currentUserID)
 }
 

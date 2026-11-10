@@ -612,17 +612,7 @@ func (r *EntRepository) List(ctx context.Context, tenantID int, filters *FilterP
 		// DataScopeOwnedOrAssigned 强制追加 Or(RequesterIDEQ(uid), AssigneeIDEQ(uid))，
 		// 使普通员工只能看到自己创建或分配给自己的工单。
 		// 这是安全关键路径：即使上层忘记传 RequesterID 过滤，这里仍会兜底收窄。
-		if filters.DataScope == DataScopeOwnedOrAssigned {
-			if filters.CurrentUserID <= 0 {
-				// 防御性：未提供用户 ID 时 fail closed，返回空集而非全量。
-				query = query.Where(ticket.IDEQ(-1))
-			} else {
-				query = query.Where(ticket.Or(
-					ticket.RequesterIDEQ(filters.CurrentUserID),
-					ticket.AssigneeIDEQ(filters.CurrentUserID),
-				))
-			}
-		}
+		query = applyDataScope(query, filters.DataScope, filters.CurrentUserID)
 	}
 
 	// 获取总数
@@ -663,6 +653,26 @@ func (r *EntRepository) List(ctx context.Context, tenantID int, filters *FilterP
 	}
 
 	return result, nil
+}
+
+// applyDataScope 将行级数据权限统一追加到 ticket 查询。
+// DataScopeAll 无过滤；OwnedOrAssigned 仅本人创建/被指派；其他值按安全收窄处理。
+func applyDataScope(query *ent.TicketQuery, dataScope DataScope, currentUserID int) *ent.TicketQuery {
+	switch dataScope {
+	case DataScopeAll:
+		return query
+	case DataScopeOwnedOrAssigned:
+		if currentUserID <= 0 {
+			// 防御性：未提供用户 ID 时 fail closed，返回空集而非全量。
+			return query.Where(ticket.IDEQ(-1))
+		}
+		return query.Where(ticket.Or(
+			ticket.RequesterIDEQ(currentUserID),
+			ticket.AssigneeIDEQ(currentUserID),
+		))
+	default:
+		return query.Where(ticket.IDEQ(-1))
+	}
 }
 
 // BatchDelete 批量软删除工单。
@@ -755,6 +765,11 @@ func (r *EntRepository) FindOverdue(ctx context.Context, tenantID int) ([]*Ticke
 
 // CountByStatus 按状态统计工单数量
 func (r *EntRepository) CountByStatus(ctx context.Context, tenantID int) (map[Status]int, error) {
+	return r.CountByStatusScoped(ctx, tenantID, DataScopeAll, 0)
+}
+
+// CountByStatusScoped 按状态统计工单数量（与 List 同 DataScope 口径）。
+func (r *EntRepository) CountByStatusScoped(ctx context.Context, tenantID int, dataScope DataScope, currentUserID int) (map[Status]int, error) {
 	// 使用 Ent 的聚合功能
 	type statusCount struct {
 		Status string `json:"status"`
@@ -762,8 +777,10 @@ func (r *EntRepository) CountByStatus(ctx context.Context, tenantID int) (map[St
 	}
 
 	var results []statusCount
-	err := r.Client().Ticket.Query().
-		Where(ticket.TenantID(tenantID), ticket.DeletedAtIsNil()).
+	query := r.Client().Ticket.Query().
+		Where(ticket.TenantID(tenantID), ticket.DeletedAtIsNil())
+	query = applyDataScope(query, dataScope, currentUserID)
+	err := query.
 		GroupBy(ticket.FieldStatus).
 		Aggregate(ent.Count()).
 		Scan(ctx, &results)
@@ -781,14 +798,21 @@ func (r *EntRepository) CountByStatus(ctx context.Context, tenantID int) (map[St
 
 // CountByPriority 按优先级统计工单数量
 func (r *EntRepository) CountByPriority(ctx context.Context, tenantID int) (map[Priority]int, error) {
+	return r.CountByPriorityScoped(ctx, tenantID, DataScopeAll, 0)
+}
+
+// CountByPriorityScoped 按优先级统计工单数量（与 List 同 DataScope 口径）。
+func (r *EntRepository) CountByPriorityScoped(ctx context.Context, tenantID int, dataScope DataScope, currentUserID int) (map[Priority]int, error) {
 	type priorityCount struct {
 		Priority string `json:"priority"`
 		Count    int    `json:"count"`
 	}
 
 	var results []priorityCount
-	err := r.Client().Ticket.Query().
-		Where(ticket.TenantID(tenantID), ticket.DeletedAtIsNil()).
+	query := r.Client().Ticket.Query().
+		Where(ticket.TenantID(tenantID), ticket.DeletedAtIsNil())
+	query = applyDataScope(query, dataScope, currentUserID)
+	err := query.
 		GroupBy(ticket.FieldPriority).
 		Aggregate(ent.Count()).
 		Scan(ctx, &results)
@@ -1068,6 +1092,7 @@ func toDomainModel(e *ent.Ticket) *Ticket {
 		Priority:          Priority(e.Priority),
 		RequesterID:       e.RequesterID,
 		TenantID:          e.TenantID,
+		SLAStatus:         e.SLAStatus,
 		Version:           e.Version,
 		IsManagedByMSP:    e.IsManagedByMsp,
 		CreatedAt:         e.CreatedAt,
@@ -1107,6 +1132,12 @@ func toDomainModel(e *ent.Ticket) *Ticket {
 	if !e.SLAResolutionDeadline.IsZero() {
 		t.SLAResolutionDeadline = &e.SLAResolutionDeadline
 	}
+	if !e.SLAPausedAt.IsZero() {
+		t.SLAPausedAt = &e.SLAPausedAt
+	}
+	if e.SLAPauseReason != "" {
+		t.SLAPauseReason = e.SLAPauseReason
+	}
 	if !e.FirstResponseAt.IsZero() {
 		t.FirstResponseAt = &e.FirstResponseAt
 	}
@@ -1115,6 +1146,18 @@ func toDomainModel(e *ent.Ticket) *Ticket {
 	}
 	if e.Resolution != "" {
 		t.Resolution = &e.Resolution
+	}
+	if e.Rating != 0 {
+		t.Rating = &e.Rating
+	}
+	if e.RatingComment != "" {
+		t.RatingComment = &e.RatingComment
+	}
+	if !e.RatedAt.IsZero() {
+		t.RatedAt = &e.RatedAt
+	}
+	if e.RatedBy != 0 {
+		t.RatedBy = &e.RatedBy
 	}
 	if e.ClosedAt != nil {
 		t.ClosedAt = e.ClosedAt

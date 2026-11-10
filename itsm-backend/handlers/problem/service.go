@@ -68,12 +68,8 @@ func (s *Service) RemoveAssociation(ctx context.Context, tenantID, problemID int
 
 // List 列出问题单。推广 ticket 的 DataScope 行级权限：
 // 管理角色可见全租户，其余角色仅可见本人创建或分配给自己的问题单。
-// currentUserID/currentRole 由 handler 从鉴权中间件注入的 user_id/role 取得。
-func (s *Service) List(ctx context.Context, tenantID int, page, size int, filters map[string]interface{}, currentUserID int, currentRole string) ([]*Problem, int, error) {
-	dataScope := datascope.DataScopeAll
-	if !datascope.IsDataScopeAllRole(currentRole) {
-		dataScope = datascope.DataScopeOwnedOrAssigned
-	}
+// dataScope 由 handler 通过 scopectx.Resolve 按当前租户 membership 角色解析。
+func (s *Service) List(ctx context.Context, tenantID int, page, size int, filters map[string]interface{}, currentUserID int, dataScope datascope.DataScope) ([]*Problem, int, error) {
 	return s.repo.List(ctx, tenantID, page, size, filters, dataScope, currentUserID)
 }
 
@@ -268,7 +264,12 @@ func (s *Service) Delete(ctx context.Context, id int, tenantID int, actorID int,
 }
 
 func (s *Service) GetStats(ctx context.Context, tenantID int) (*ProblemStats, error) {
-	return s.repo.GetStats(ctx, tenantID)
+	return s.repo.GetStatsScoped(ctx, tenantID, datascope.DataScopeAll, 0)
+}
+
+// GetStatsScoped 返回与 List 同 DataScope 口径的问题统计。
+func (s *Service) GetStatsScoped(ctx context.Context, tenantID int, dataScope datascope.DataScope, currentUserID int) (*ProblemStats, error) {
+	return s.repo.GetStatsScoped(ctx, tenantID, dataScope, currentUserID)
 }
 
 // GetTrend computes problem trend data for the given period.

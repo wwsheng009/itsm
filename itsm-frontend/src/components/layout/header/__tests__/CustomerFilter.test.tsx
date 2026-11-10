@@ -174,42 +174,6 @@ describe('CustomerFilter', () => {
     );
   });
 
-  it('深度态："返回工作台"切回 provider 作用域并导航（MSW-4 / Q4=A）', async () => {
-    const switchTenant = jest.fn().mockResolvedValue(undefined);
-    useAuthStore.setState({
-      currentTenant: { id: 2, name: 'Beta LLC', code: 'BETA', type: 'msp_customer', status: 'active', createdAt: '', updatedAt: '' },
-      user: { id: 1, username: 'msp', email: '', name: '', tenantId: 1, homeTenantId: 1, createdAt: '', updatedAt: '' },
-      switchTenant,
-    } as never);
-
-    render(<CustomerFilter />);
-    expect(screen.getByTestId('deep-tenant-indicator')).toHaveTextContent('当前客户：Beta LLC（深度操作中）');
-
-    await userEvent.click(screen.getByTestId('back-to-workbench'));
-
-    await waitFor(() => expect(switchTenant).toHaveBeenCalledWith(1));
-    expect(mockNavigate).toHaveBeenCalledWith('/msp/workbench');
-    useAuthStore.setState({ currentTenant: null, user: null } as never);
-  });
-
-  it('深度态：切回失败时不导航、保留会话并提示（MSW-A5）', async () => {
-    const switchTenant = jest.fn().mockRejectedValue(new Error('租户已被暂停'));
-    useAuthStore.setState({
-      currentTenant: { id: 2, name: 'Beta LLC', code: 'BETA', type: 'msp_customer', status: 'active', createdAt: '', updatedAt: '' },
-      user: { id: 1, username: 'msp', email: '', name: '', tenantId: 1, homeTenantId: 1, createdAt: '', updatedAt: '' },
-      switchTenant,
-    } as never);
-
-    render(<CustomerFilter />);
-    await userEvent.click(screen.getByTestId('back-to-workbench'));
-
-    await waitFor(() => expect(switchTenant).toHaveBeenCalledWith(1));
-    expect(mockNavigate).not.toHaveBeenCalled();
-    expect(useAuthStore.getState().currentTenant?.id).toBe(2);
-    expect(await screen.findByText('租户已被暂停')).toBeInTheDocument();
-    useAuthStore.setState({ currentTenant: null, user: null } as never);
-  });
-
   it('"进入客户"切换会话后落到登录后主页 /dashboard（不落公开落地页，MSW-A5 回归）', async () => {
     const switchTenant = jest.fn().mockResolvedValue(undefined);
     useAuthStore.setState({

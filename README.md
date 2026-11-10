@@ -290,7 +290,7 @@ open http://localhost:8090/swagger/index.html
 | 知识库检索 | `GET /api/v1/knowledge/search?q=关键词` 搜索知识文章 |
 | 接入外部告警 | 配置 `ALERT_SOURCE_CONFIG` 后，通过 `POST /api/v1/alerts/sources/:source/ingest` 接收告警 Webhook |
 
-完整 API 文档见 [API 参考](./docs/api/API_REFERENCE.md)。
+完整 API 文档见 [API 参考](./docs/api-reference.md)。
 
 ## 核心业务流程
 
@@ -440,9 +440,10 @@ python3 output/dev_business_flow_test.py
 - **saas_msp**：SaaS + MSP，平台与服务商协同
 
 ```bash
-make prod-init        # 生成生产配置
+./scripts/deploy-prod.sh init   # 生成 .env.prod 与随机密钥（不要先手动 cp）
 # 编辑 .env.prod，修改密码、JWT、域名等
-make prod-deploy      # 部署
+make prod-preflight   # 只读预检（不启动/重建容器）
+make prod-deploy      # 安全发布：校验→备份→构建→部署→验证
 make prod-health      # 检查状态
 ```
 
@@ -455,7 +456,9 @@ make prod-health      # 检查状态
 - [ ] 测试容量、故障恢复和死信重放
 - [ ] 验收 CMDB、AI、连接器等已启用模块
 
-> 不要把开发默认配置用于生产。详细步骤见[生产就绪计划](./docs/delivery/production-readiness-program.md)和[运维手册](./docs/runbooks/production-initialization.md)。
+> 不要把开发默认配置用于生产。完整清单见[生产部署清单](./docs/delivery/production-deployment-checklist.md)，
+> 初始化与回滚细则见[生产数据初始化](./docs/delivery/production-initialization.md)和
+> [数据库迁移回滚指南](./docs/delivery/rollback-guide.md)。
 
 ### 演示环境（独立 Demo 栈）
 
@@ -482,7 +485,7 @@ make demo-status       # 容器与线上版本
 | [商业化架构](./docs/architecture/commercial-ready-architecture.md) | 生产级总体架构 |
 | [CMDB 商业 MVP](./docs/product/cmdb-commercial-mvp.md) | CMDB 可用/预览边界和验收门槛 |
 | [Outbox 架构](./docs/architecture/operational-command-outbox.md) | 可靠异步执行规范 |
-| [API 参考](./docs/api/API_REFERENCE.md) | HTTP 接口文档 |
+| [API 参考](./docs/api-reference.md) | HTTP 接口文档 |
 | [本地开发命令](./docs/dev-commands-reference.md) | 开发命令、调试与故障排查 |
 | [测试指南](./docs/testing/README.md) | 单元、集成、契约和 E2E 测试 |
 | [Roadmap](./ROADMAP.md) | 当前迭代方向唯一事实源 |
@@ -538,7 +541,7 @@ git push origin feature/your-feature
 
 ## Star 趋势
 
-[![GitHub Star 增长趋势](./docs/assets/star-history.svg)](https://github.com/heidsoft/itsm/stargazers)
+[![GitHub Star 增长趋势](./docs/images/star-history.svg)](https://github.com/heidsoft/itsm/stargazers)
 
 ## License
 

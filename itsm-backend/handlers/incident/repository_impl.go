@@ -262,7 +262,8 @@ func (r *EntRepository) List(ctx context.Context, tenantID int, page, size int, 
 	// OwnedOrAssigned 时强制追加 Or(ReporterIDEQ(uid), AssigneeIDEQ(uid))，
 	// 使普通用户只能看到自己创建或分配给自己的事件单。
 	// CurrentUserID<=0 时 fail-closed，返回空集而非全量。
-	if dataScope == datascope.DataScopeOwnedOrAssigned {
+	// 安全收窄：除 all 外的任何档位（含暂未实现 department）均按 owner 处理。
+	if dataScope != datascope.DataScopeAll {
 		if currentUserID <= 0 {
 			query = query.Where(incident.IDEQ(-1))
 		} else {

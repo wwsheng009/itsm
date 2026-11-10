@@ -8,8 +8,8 @@
 
 | 角色 | 建议阅读 |
 |:---|:---|
-| 试用者 | [开源产品能力说明](./product/open-source-release-capability.md)、[README 快速开始](../README.md#快速开始)、[安装指南](./getting-started/install.md) |
-| 部署人员 | [部署优化报告](./DEPLOYMENT_OPTIMIZATION.md)、[运维运行手册](./runbooks/production-initialization.md) |
+| 试用者 | [开源产品能力说明](./product/open-source-release-capability.md)、[README 快速开始](../README.md#快速开始)、[安装指南](./install.md) |
+| 部署人员 | [生产部署清单](./delivery/production-deployment-checklist.md)、[部署优化报告](./deployment-optimization.md)、[生产数据初始化](./delivery/production-initialization.md) |
 | 后端开发 | [本地开发命令](./dev-commands-reference.md)、[PostgreSQL 升级运行手册](./pg-upgrade-runbook.md)、[后端 CI](../.github/workflows/backend-ci.yml) |
 | 前端开发 | [本地开发命令](./dev-commands-reference.md)、[前端 CI](../.github/workflows/frontend-ci.yml) |
 | 产品/方案 | [开源发布能力说明](./product/open-source-release-capability.md)、ServiceNow 对标评审（参见 [archive](./archive/reviews/servicenow-benchmark-2026-06-18.md)） |
@@ -19,10 +19,11 @@
 
 ## 核心文档
 
-- [部署优化报告](./DEPLOYMENT_OPTIMIZATION.md): Docker Compose、生产部署、反向代理和发布部署建议。
+- [生产部署清单](./delivery/production-deployment-checklist.md): 当前生产发布的单一入口、配置默认项与验收集合。
+- [部署优化报告](./deployment-optimization.md): Docker Compose、生产部署、反向代理和发布部署建议。
 - [本地开发命令](./dev-commands-reference.md): 本地开发、前后端命令、调试和常见问题。
 - [PostgreSQL 升级运行手册](./pg-upgrade-runbook.md): 数据库迁移、备份和模型说明。
-- [运维运行手册](./runbooks/production-initialization.md): 日志、健康检查、备份、恢复和故障排查。
+- [生产数据初始化](./delivery/production-initialization.md): 初始化、迁移、失败重试、回滚和发布证据。
 - [文档状态与事实源](./documentation-governance.md): 当前规范、计划、测试报告和归档材料的权威层级。
 - [文档命名与维护规范](./documentation-style-guide.md): 目录分层、命名规则和归档标准。
 - [开源产品能力说明](./product/open-source-release-capability.md): 当前业务闭环、成熟度、明确限制和验收路径。

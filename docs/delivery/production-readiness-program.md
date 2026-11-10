@@ -1,5 +1,9 @@
 # ITSM Production Readiness Program
 
+> 当前执行入口：生产发布的具体配置与验收命令已收敛到
+> [`production-deployment-checklist.md`](./production-deployment-checklist.md)。
+> 本文保留为发布工程/多工作流的程序性计划。
+
 ## Objective
 
 Turn the current open-source ITSM system into a production-usable release train with measurable gates, parallel workstreams, and clear agent ownership.

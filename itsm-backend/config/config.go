@@ -683,13 +683,16 @@ func LoadConfig() (*Config, error) {
 		}
 	}
 
-	// SMTP 环境变量支持
-	config.SMTP.Enabled = config.SMTP.Enabled || os.Getenv("SMTP_ENABLED") == "true"
+	// SMTP 环境变量支持。生产 compose 通过 SMTP_* 注入；这里统一支持裸键与
+	// ITSM_ 前缀，并保留 SMTP_FROM 作为 SMTP_FROM_EMAIL 的兼容别名。
+	config.SMTP.Enabled = getEnvBoolWithDefault("SMTP_ENABLED", config.SMTP.Enabled)
 	config.SMTP.Host = getEnvWithDefault("SMTP_HOST", config.SMTP.Host)
+	config.SMTP.Port = getEnvIntWithDefault("SMTP_PORT", config.SMTP.Port)
 	config.SMTP.Username = getEnvWithDefault("SMTP_USERNAME", config.SMTP.Username)
 	config.SMTP.Password = getEnvWithDefault("SMTP_PASSWORD", config.SMTP.Password)
-	config.SMTP.FromEmail = getEnvWithDefault("SMTP_FROM_EMAIL", config.SMTP.FromEmail)
+	config.SMTP.FromEmail = getEnvWithDefault("SMTP_FROM_EMAIL", getEnvWithDefault("SMTP_FROM", config.SMTP.FromEmail))
 	config.SMTP.FromName = getEnvWithDefault("SMTP_FROM_NAME", config.SMTP.FromName)
+	config.SMTP.Encryption = getEnvWithDefault("SMTP_ENCRYPTION", config.SMTP.Encryption)
 
 	return &config, nil
 }

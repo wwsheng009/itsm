@@ -117,6 +117,8 @@ type RoleSeed struct {
 	Name        string `json:"name"`
 	Code        string `json:"code"`
 	Description string `json:"description"`
+	// DataScope 数据范围（all/department/owner）。留空时按 domain/role 内置规范推导。
+	DataScope string `json:"dataScope,omitempty"`
 }
 
 // GroupSeed 审批组种子。Name 是 BPMN candidateGroups / assignee_type(group)
@@ -1154,10 +1156,19 @@ func (s *Seeder) seedRoles(ctx context.Context) {
 			Where(role.CodeEQ(r.Code), role.TenantIDEQ(t.ID)).
 			Only(ctx)
 		if err == nil {
-			if _, err := existing.Update().
+			update := existing.Update().
 				SetName(r.Name).
 				SetDescription(r.Description).
-				Save(ctx); err != nil {
+				SetIsSystem(existing.IsSystem || domainrole.IsBuiltinRoleCode(r.Code))
+			// 内置角色的 data_scope 以规范值为上限：允许管理员收紧（owner/department），
+			// 但旧默认 all 必须收敛，避免 end_user/agent 越权。
+			desiredScope := roleSeedDataScope(r)
+			currentScope := string(existing.DataScope)
+			if !domainrole.IsValidDataScope(currentScope) ||
+				domainrole.DataScopeRank(currentScope) < domainrole.DataScopeRank(string(desiredScope)) {
+				update = update.SetDataScope(desiredScope)
+			}
+			if _, err := update.Save(ctx); err != nil {
 				s.sugar.Warnw("update role failed", "error", err, "code", r.Code)
 			}
 			continue
@@ -1171,11 +1182,23 @@ func (s *Seeder) seedRoles(ctx context.Context) {
 			SetCode(r.Code).
 			SetDescription(r.Description).
 			SetTenantID(t.ID).
+			SetIsSystem(domainrole.IsBuiltinRoleCode(r.Code)).
+			SetDataScope(roleSeedDataScope(r)).
 			Save(ctx); err != nil {
 			s.sugar.Warnw("seed role failed", "error", err, "name", r.Name)
 		}
 	}
 	s.sugar.Infow("roles seeded", "count", len(merged), "builtin", len(BuiltinRoles()), "config", len(s.config.Roles))
+}
+
+// roleSeedDataScope 收敛角色种子的 data_scope：
+// 显式配置且合法 → 使用配置；否则按内置词表规范推导（自定义 code 默认 owner）。
+func roleSeedDataScope(seed RoleSeed) role.DataScope {
+	scope := strings.TrimSpace(seed.DataScope)
+	if !domainrole.IsValidDataScope(scope) {
+		scope = domainrole.DefaultDataScope(seed.Code)
+	}
+	return role.DataScope(scope)
 }
 
 // MigrateUserRolesBackfill 回填 user_roles 边（Phase 1 迁移）。

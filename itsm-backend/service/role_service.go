@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"itsm-backend/common"
+	domainrole "itsm-backend/domain/role"
 	"itsm-backend/dto"
 	"itsm-backend/ent"
 	"itsm-backend/ent/permission"
@@ -140,6 +141,14 @@ func (s *RoleService) CreateRole(ctx context.Context, req *dto.CreateRoleRequest
 		return nil, fmt.Errorf("%w: %s", ErrReservedRoleCode, strings.TrimSpace(code))
 	}
 
+	dataScope := strings.TrimSpace(req.DataScope)
+	if dataScope == "" {
+		dataScope = domainrole.DataScopeOwner
+	}
+	if !domainrole.IsValidDataScope(dataScope) {
+		return nil, fmt.Errorf("无效的数据范围: %s（可选 all/department/owner）", dataScope)
+	}
+
 	roleEntity, err := s.client.Role.Create().
 		SetName(req.Name).
 		SetDescription(req.Description).
@@ -147,6 +156,7 @@ func (s *RoleService) CreateRole(ctx context.Context, req *dto.CreateRoleRequest
 		SetTenantID(tenantID).
 		SetIsSystem(req.IsSystem).
 		SetIsActive(req.Status != dto.RoleStatusInactive). // 默认启用，仅显式 inactive 时禁用
+		SetDataScope(role.DataScope(dataScope)).
 		Save(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("创建角色失败: %w", err)
@@ -297,6 +307,13 @@ func (s *RoleService) UpdateRole(ctx context.Context, id int, req *dto.UpdateRol
 	// handler 已用 dto.RoleActiveFromStatus 校验取值，此处只需按契约映射
 	if req.Status != nil {
 		update = update.SetIsActive(*req.Status == dto.RoleStatusActive)
+	}
+	if req.DataScope != nil {
+		dataScope := strings.TrimSpace(*req.DataScope)
+		if !domainrole.IsValidDataScope(dataScope) {
+			return nil, fmt.Errorf("无效的数据范围: %s（可选 all/department/owner）", dataScope)
+		}
+		update = update.SetDataScope(role.DataScope(dataScope))
 	}
 
 	_, err = update.Save(ctx)

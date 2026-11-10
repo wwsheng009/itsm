@@ -117,7 +117,13 @@ type TicketResponse struct {
 	FirstResponseAt       *time.Time             `json:"firstResponseAt,omitempty"`
 	SLAResponseDeadline   *time.Time             `json:"slaResponseDeadline,omitempty"`
 	SLAResolutionDeadline *time.Time             `json:"slaResolutionDeadline,omitempty"`
+	SLAStatus             string                 `json:"slaStatus,omitempty"`
+	SLAPausedAt           *time.Time             `json:"slaPausedAt,omitempty"`
+	SLAPauseReason        string                 `json:"slaPauseReason,omitempty"`
 	Rating                int                    `json:"rating,omitempty"`
+	RatingComment         string                 `json:"ratingComment,omitempty"`
+	RatedAt               *time.Time             `json:"ratedAt,omitempty"`
+	RatedBy               int                    `json:"ratedBy,omitempty"`
 }
 
 // ListTicketsResponse 工单列表响应

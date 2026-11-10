@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"itsm-backend/database"
+	domainrole "itsm-backend/domain/role"
 	"itsm-backend/dto"
 	"itsm-backend/ent"
 	"itsm-backend/ent/approvalworkflow"
@@ -199,9 +200,16 @@ func createMissingRoles(ctx context.Context, c *ent.Client, source []*ent.Role, 
 	for _, batch := range chunkSlice(missing, provisionBulkChunkSize) {
 		builders := make([]*ent.RoleCreate, 0, len(batch))
 		for _, item := range batch {
+			dataScope := item.DataScope
+			if !domainrole.IsValidDataScope(string(dataScope)) {
+				dataScope = role.DataScope(domainrole.DefaultDataScope(item.Code))
+			}
 			builders = append(builders, c.Role.Create().
 				SetCode(item.Code).SetName(item.Name).SetDescription(item.Description).
-				SetIsSystem(item.IsSystem).SetIsActive(item.IsActive).SetTenantID(tenantID))
+				SetIsSystem(item.IsSystem || domainrole.IsBuiltinRoleCode(item.Code)).
+				SetIsActive(item.IsActive).
+				SetDataScope(dataScope).
+				SetTenantID(tenantID))
 		}
 		created, err := c.Role.CreateBulk(builders...).Save(ctx)
 		if err != nil {
@@ -209,6 +217,33 @@ func createMissingRoles(ctx context.Context, c *ent.Client, source []*ent.Role, 
 		}
 		for _, item := range created {
 			target[item.Code] = item
+		}
+	}
+
+	// 存量角色幂等收敛：内置角色允许比规范值更窄，但不能因旧默认 all 放宽；
+	// 同时补齐 is_system 标记，保证运行时 ResolveForActor 的内置角色判定生效。
+	for code, item := range target {
+		if item == nil || !domainrole.IsBuiltinRoleCode(code) {
+			continue
+		}
+		desired := domainrole.DefaultDataScope(code)
+		current := string(item.DataScope)
+		update := item.Update()
+		changed := false
+		if !item.IsSystem {
+			update = update.SetIsSystem(true)
+			changed = true
+		}
+		if !domainrole.IsValidDataScope(current) ||
+			domainrole.DataScopeRank(current) < domainrole.DataScopeRank(desired) {
+			update = update.SetDataScope(role.DataScope(desired))
+			changed = true
+		}
+		if !changed {
+			continue
+		}
+		if _, err := update.Save(ctx); err != nil {
+			return fmt.Errorf("reconcile role %s data_scope: %w", code, err)
 		}
 	}
 	return nil

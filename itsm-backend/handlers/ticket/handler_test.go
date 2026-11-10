@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strconv"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -210,6 +211,10 @@ func (m *mockRepository) GetStats(ctx context.Context, tenantID int) (*TicketSta
 	return stats, nil
 }
 
+func (m *mockRepository) GetStatsScoped(ctx context.Context, tenantID int, dataScope datascope.DataScope, currentUserID int) (*TicketStats, error) {
+	return m.GetStats(ctx, tenantID)
+}
+
 func (m *mockRepository) GenerateTicketNumber(ctx context.Context, tenantID int) (string, error) {
 	return "TKT-" + time.Now().Format("20060102") + "-001", nil
 }
@@ -332,6 +337,9 @@ func newTestHarness(t *testing.T) (*gin.Engine, *mockRepository) {
 			c.Set("role", v)
 		} else {
 			c.Set("role", "agent")
+		}
+		if v := c.GetHeader("X-Test-Roles"); v != "" {
+			c.Set("roles", strings.Split(v, ","))
 		}
 		c.Next()
 	}
@@ -560,6 +568,18 @@ func TestHandler_List_DataScopeNarrowing(t *testing.T) {
 		map[string]string{"X-Test-TenantID": "1", "X-Test-UserID": "1", "X-Test-Role": "admin"})
 	require.Equal(t, 200, w.Code, w.Body.String())
 	assert.Equal(t, datascope.DataScopeAll, repo.lastListDataScope)
+
+	// 深切换回归：JWT 主角色 end_user，但 membership 角色 msp_tech 必须取最宽 all。
+	w = doJSON(t, r, http.MethodGet, "/api/v1/tickets", nil,
+		map[string]string{
+			"X-Test-TenantID": "1",
+			"X-Test-UserID":   "8",
+			"X-Test-Role":     "end_user",
+			"X-Test-Roles":    "msp_tech",
+		})
+	require.Equal(t, 200, w.Code, w.Body.String())
+	assert.Equal(t, datascope.DataScopeAll, repo.lastListDataScope)
+	assert.Equal(t, 8, repo.lastListUserID)
 }
 
 // F2 契约锁定（OB-3）：终态（resolved/closed）不允许经编辑直改状态，

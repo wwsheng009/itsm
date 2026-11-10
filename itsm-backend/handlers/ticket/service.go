@@ -138,11 +138,10 @@ func (s *Service) GetByNumber(ctx context.Context, ticketNumber string, tenantID
 }
 
 // List lists tickets with pagination and filtering.
-func (s *Service) List(ctx context.Context, tenantID int, page, size int, filters map[string]interface{}, currentUserID int, currentRole string) ([]*Ticket, int, error) {
-	dataScope := datascope.DataScopeAll
-	if !IsDataScopeAllRole(currentRole) {
-		dataScope = datascope.DataScopeOwnedOrAssigned
-	}
+//
+// dataScope 由 handler 通过 scopectx.Resolve 按当前租户 membership 角色解析，
+// 不再用 JWT 主角色（深切换后仍是 end_user）直接判定。
+func (s *Service) List(ctx context.Context, tenantID int, page, size int, filters map[string]interface{}, currentUserID int, dataScope datascope.DataScope) ([]*Ticket, int, error) {
 	return s.repo.List(ctx, tenantID, page, size, filters, dataScope, currentUserID)
 }
 
@@ -365,7 +364,12 @@ func (s *Service) GetTicketsByAssignee(ctx context.Context, assigneeID int, tena
 
 // GetStats returns ticket statistics.
 func (s *Service) GetStats(ctx context.Context, tenantID int) (*TicketStats, error) {
-	return s.repo.GetStats(ctx, tenantID)
+	return s.repo.GetStatsScoped(ctx, tenantID, datascope.DataScopeAll, 0)
+}
+
+// GetStatsScoped returns ticket statistics under the same data scope as List.
+func (s *Service) GetStatsScoped(ctx context.Context, tenantID int, dataScope datascope.DataScope, currentUserID int) (*TicketStats, error) {
+	return s.repo.GetStatsScoped(ctx, tenantID, dataScope, currentUserID)
 }
 
 // ExportTickets exports tickets (placeholder — delegates to existing service layer).
@@ -503,6 +507,9 @@ func (s *Service) GetTicketSLAInfo(ctx context.Context, ticketID int, tenantID i
 		"slaDefinitionId":            t.SLADefinitionID,
 		"slaResponseDeadline":        t.SLAResponseDeadline,
 		"slaResolutionDeadline":      t.SLAResolutionDeadline,
+		"slaStatus":                  t.SLAStatus,
+		"slaPausedAt":                t.SLAPausedAt,
+		"slaPauseReason":             t.SLAPauseReason,
 		"firstResponseAt":            t.FirstResponseAt,
 		"status":                     t.Status,
 		"resolutionDeadlineBreached": t.SLAResolutionDeadline != nil && time.Now().After(*t.SLAResolutionDeadline),

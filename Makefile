@@ -1,5 +1,5 @@
 # ITSM Makefile - 构建和部署自动化
-.PHONY: help build build-backend build-frontend build-images build-parallel build-no-cache deploy deploy-backend deploy-frontend prod-init prod-deploy prod-health prod-status demo-preflight demo-deploy demo-permissions demo-smoke demo-status test test-backend test-frontend test-unit lint lint-backend lint-frontend type-check check-contracts docs-gate check-handlers-hygiene verify-scripts health dev-health dev-start-docker dev-start-local dev-stop dev-stop-docker dev-stop-local dev-clean dev-reset dev-rebuild dev-backend-local dev-frontend-only dev-seed-demo swagger-gen clean clean-all logs restart status version
+.PHONY: help build build-backend build-frontend build-images build-parallel build-no-cache deploy deploy-backend deploy-frontend prod-init prod-preflight prod-deploy prod-start prod-stop prod-rollback prod-backup prod-health prod-status demo-preflight demo-deploy demo-permissions demo-smoke demo-status test test-backend test-frontend test-unit lint lint-backend lint-frontend type-check check-contracts docs-gate check-handlers-hygiene verify-scripts health dev-health dev-start-docker dev-start-local dev-stop dev-stop-docker dev-stop-local dev-clean dev-reset dev-rebuild dev-backend-local dev-frontend-only dev-seed-demo swagger-gen clean clean-all logs restart status version
 
 # 默认版本
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "latest")
@@ -45,11 +45,10 @@ build-no-cache: ## 不使用缓存构建
 	DOCKER_BUILDKIT=1 docker compose -f $(COMPOSE_FILE) --env-file $(ENV_FILE) \
 		build --no-cache --build-arg "VERSION=$(VERSION)"
 
-deploy: ## 部署到生产环境
-	@echo "$(BLUE)部署到生产环境...$(NC)"
-	docker compose -f $(COMPOSE_FILE) --env-file $(ENV_FILE) down
+deploy: ## 底层 compose 启动（不备份/不构建；生产请使用 prod-deploy）
+	@echo "$(YELLOW)警告：deploy 仅执行 compose up -d，不含备份/构建/健康检查$(NC)"
 	docker compose -f $(COMPOSE_FILE) --env-file $(ENV_FILE) up -d
-	@echo "$(GREEN)部署完成！$(NC)"
+	@echo "$(GREEN)compose 启动完成；生产发布请使用 make prod-deploy$(NC)"
 
 deploy-backend: ## 只部署后端
 	@echo "$(BLUE)部署后端...$(NC)"
@@ -139,15 +138,32 @@ prod-init: ## 生成 .env.prod（不覆盖已有文件），空密钥字段填�
 		echo "$(RED).env.prod 已存在，跳过生成以避免覆盖真实凭据$(NC)"; \
 	else \
 		cp .env.prod.example .env.prod; \
-		for k in DB_PASSWORD REDIS_PASSWORD JWT_SECRET; do \
+		for k in DB_PASSWORD REDIS_PASSWORD JWT_SECRET CONFIG_SECRET_KEY LLM_PROVIDER_ENCRYPTION_KEY GRAFANA_ADMIN_PASSWORD; do \
 			val=$$(openssl rand -hex 32); \
 			perl -pi -e "s{^$${k}=.*}{$${k}=$${val}}" .env.prod; \
 		done; \
-		echo "$(GREEN).env.prod 已生成：DB_PASSWORD/REDIS_PASSWORD/JWT_SECRET 已填入随机值$(NC)"; \
-		echo "$(RED)仍必须手动设置：ADMIN_PASSWORD、固定 VERSION、域名与入口 TLS 等全部 [REQUIRED] 项$(NC)"; \
+		echo "$(GREEN).env.prod 已生成：DB_PASSWORD/REDIS_PASSWORD/JWT_SECRET/CONFIG_SECRET_KEY/LLM_PROVIDER_ENCRYPTION_KEY/GRAFANA_ADMIN_PASSWORD 已填入随机值$(NC)"; \
+		echo "$(RED)仍必须手动设置：ADMIN_PASSWORD、固定 VERSION、APP_BASE_URL、CORS_ALLOWED_ORIGINS 与入口 TLS 等全部 [REQUIRED] 项$(NC)"; \
 	fi
 
-prod-deploy: deploy ## 部署到生产环境（deploy 别名）
+prod-preflight: ## 生产发布预检（只读；不启动/重建任何容器）
+	@bash scripts/deploy-prod.sh deploy --dry-run
+
+prod-deploy: ## 生产安全发布（校验→备份→构建→部署→验证）
+	@bash scripts/deploy-prod.sh deploy
+
+prod-start: ## 使用已有镜像启动生产栈（跳过构建与备份）
+	@bash scripts/deploy-prod.sh deploy --skip-build --skip-backup
+
+prod-stop: ## 停止生产环境
+	@bash scripts/deploy-prod.sh down
+
+prod-rollback: ## 回滚到上一次生产部署
+	@bash scripts/deploy-prod.sh rollback
+
+prod-backup: ## 生产数据库备份
+	@bash scripts/deploy-prod.sh backup
+
 prod-health: health ## 生产健康检查（health 别名）
 prod-status: status ## 生产状态查询（status 别名）
 build-images: build ## 构建全部镜像（build 别名，支持 VERSION/REGISTRY 变量）

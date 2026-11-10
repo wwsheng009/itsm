@@ -10,6 +10,7 @@ import (
 	"itsm-backend/dto"
 	"itsm-backend/handlers/common/datascope"
 	"itsm-backend/handlers/common/projectlink"
+	"itsm-backend/handlers/common/scopectx"
 	"itsm-backend/middleware"
 
 	"github.com/gin-gonic/gin"
@@ -386,9 +387,9 @@ func (h *Handler) ListChanges(c *gin.Context) {
 	}
 	// 行级数据权限：从鉴权中间件注入的 user_id/role 取得，下传给 service 判定 DataScope。
 	currentUserID := c.GetInt("user_id")
-	currentRole := c.GetString("role")
+	dataScope := scopectx.Resolve(c, tenantID)
 
-	list, total, err := h.svc.ListChanges(c.Request.Context(), tenantID, page, pageSize, status, search, riskLevel, currentUserID, currentRole)
+	list, total, err := h.svc.ListChanges(c.Request.Context(), tenantID, page, pageSize, status, search, riskLevel, currentUserID, dataScope)
 	if err != nil {
 		common.InternalError(c, "查询变更列表失败: "+err.Error())
 		return
