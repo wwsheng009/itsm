@@ -271,12 +271,15 @@ provider 员工切到客户租户后：
 | 项 | 值 |
 |---|---|
 | 目标 | `http://172.18.3.238:8088` |
-| 版本 | `1.8.0-dev.ae57b4ec`（含 P1 写路径/统计 + P2 角色 UI/readyz） |
-| 镜像 | backend/frontend/ai-service/worker 同 tag `1.8.0-dev.ae57b4ec` |
+| 版本 | `1.8.0-dev.61bf03ef`（含 department 租户内全量语义） |
+| 镜像 | backend/frontend/ai-service/worker 同 tag `1.8.0-dev.61bf03ef` |
 | 迁移 | `20261110_role_data_scope_backfill`、`20261110_c2_read_permissions` 均已登记 |
 | 验证账号 | `prov.smoke.agt1012232309`（role=end_user，mspRole=provider_agent，home=2，客户=3） |
 | 深切换结果 | 切客户 200；`/tickets` total=2；`/tickets/stats` total=2；`/problems` total=1；`/msp/workbench` 403；切回 home 200 |
+| department 实测 | 临时将租户 3 `msp_tech.data_scope=department`：`/tickets` total=2、stats=2、`/problems` total=1；`PUT /tickets/2/status` 非法状态返回 400（写守卫放行）；验证后已恢复 `all` |
+| 原生客户隔离 | `custa.smoke1`（end_user，tenant=3）：`/tickets` total=1、stats=1；租户 3 实际 2 条，owner 收窄仍生效 |
 | 角色数据 | 客户租户 `msp_tech` data_scope=all；`end_user` data_scope=owner；`is_system=true` |
 | C2 读码 | 租户 3 `msp_tech` 已具备 problem/change/service_request/incident/release read |
 | 写路径 | provider 员工非法状态流转返回 400（通过行级守卫）；原生 end_user 仍仅本人 |
+| 前端 | 新 bundle 含「部门数据域（租户内全量）」文案 |
 | readyz | `schemaVersion=20261110_role_data_scope_backfill`，`requiredSchemaVersion` 同值 |
