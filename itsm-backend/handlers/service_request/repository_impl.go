@@ -338,8 +338,8 @@ func (r *EntRepository) List(ctx context.Context, tenantID int, filters ListFilt
 	// OwnedOrAssigned 时强制追加 Or(RequesterIDEQ(uid), ProcessorIDEQ(uid))，
 	// 使普通用户只能看到自己创建或自己处理的请求单。
 	// CurrentUserID<=0 时 fail-closed，返回空集而非全量。
-	// 安全收窄：除 all 外的任何档位（含暂未实现 department）均按 owner 处理。
-	if filters.DataScope != datascope.DataScopeAll {
+	// all 与 department 均为目标租户内全量；department 不再额外过滤部门。
+	if !datascope.IsTenantWide(filters.DataScope) {
 		if filters.CurrentUserID <= 0 {
 			query = query.Where(servicerequest.IDEQ(-1))
 		} else {

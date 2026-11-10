@@ -21,7 +21,7 @@ func TestToRepositoryDataScope_EnumAlignment(t *testing.T) {
 	}{
 		{"all", datascope.DataScopeAll, repoticket.DataScopeAll},
 		{"owned-or-assigned", datascope.DataScopeOwnedOrAssigned, repoticket.DataScopeOwnedOrAssigned},
-		{"department-safe-narrow", datascope.DataScopeDepartment, repoticket.DataScopeOwnedOrAssigned},
+		{"department-tenant-wide", datascope.DataScopeDepartment, repoticket.DataScopeAll},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

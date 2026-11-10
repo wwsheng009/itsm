@@ -778,12 +778,13 @@ func (s *Service) UpdateStatus(ctx context.Context, id, tenantID, actorID int, a
 	return nil
 }
 
-// hasFullDataScope 判断请求 context 中解析出的租户级 DataScope 是否为 all。
+// hasFullDataScope 判断请求 context 中解析出的租户级 DataScope 是否覆盖全量。
 // provider 员工深切换进客户租户后 membership 角色为 msp_tech（data_scope=all），
 // 但 JWT 主角色仍是 end_user；写守卫不能只看 actorRole。
+// department 与 all 同义：目标租户的部门树属于目标租户数据域，不做额外过滤。
 func hasFullDataScope(ctx context.Context) bool {
 	scope, ok := datascope.DataScopeFromContext(ctx)
-	return ok && scope == datascope.DataScopeAll
+	return ok && datascope.IsTenantWide(scope)
 }
 
 // Delete deletes a service request

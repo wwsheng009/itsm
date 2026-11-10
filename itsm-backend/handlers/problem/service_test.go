@@ -110,6 +110,15 @@ func TestProblemListAndStatsRespectDataScope(t *testing.T) {
 	statsAll, err := service.GetStatsScoped(ctx, tenant.ID, datascope.DataScopeAll, 0)
 	require.NoError(t, err)
 	assert.Equal(t, 3, statsAll.Total)
+
+	// department 属于目标租户数据域，不做额外部门过滤：列表与统计均为全量。
+	deptList, deptTotal, err := service.List(ctx, tenant.ID, 1, 10, nil, owner.ID, datascope.DataScopeDepartment)
+	require.NoError(t, err)
+	assert.Len(t, deptList, 3)
+	assert.Equal(t, 3, deptTotal)
+	deptStats, err := service.GetStatsScoped(ctx, tenant.ID, datascope.DataScopeDepartment, owner.ID)
+	require.NoError(t, err)
+	assert.Equal(t, 3, deptStats.Total)
 }
 
 func TestGoldenJourney_ProblemRCAResolvedAndClosed(t *testing.T) {

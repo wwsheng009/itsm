@@ -450,20 +450,19 @@ func (r *EntRepository) GetStatsScoped(ctx context.Context, tenantID int, dataSc
 }
 
 // problemDataScopePredicates 返回问题单行级范围的附加谓词。
-// 与 ticket 仓储保持一致：all 无过滤；owner/department（暂）收窄为本人创建或被指派。
+// all 与 department 均为目标租户内全量（department 不再额外过滤部门）；
+// owner 收窄为本人创建或被指派。
 func problemDataScopePredicates(dataScope datascope.DataScope, currentUserID int) []entpredicate.Problem {
-	switch dataScope {
-	case datascope.DataScopeAll:
+	if datascope.IsTenantWide(dataScope) {
 		return nil
-	default:
-		if currentUserID <= 0 {
-			return []entpredicate.Problem{problem.IDEQ(-1)}
-		}
-		return []entpredicate.Problem{problem.Or(
-			problem.CreatedByEQ(currentUserID),
-			problem.AssigneeIDEQ(currentUserID),
-		)}
 	}
+	if currentUserID <= 0 {
+		return []entpredicate.Problem{problem.IDEQ(-1)}
+	}
+	return []entpredicate.Problem{problem.Or(
+		problem.CreatedByEQ(currentUserID),
+		problem.AssigneeIDEQ(currentUserID),
+	)}
 }
 
 // LoadUserNames 批量加载 user 显示名（id -> name）。当前租户范围，name 为空回退 username。

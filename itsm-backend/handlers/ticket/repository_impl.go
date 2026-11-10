@@ -255,11 +255,13 @@ func (r *EntRepository) List(ctx context.Context, tenantID int, page, size int, 
 // 禁止直接类型转换：datascope.OwnedOrAssigned=2 而 ticket.DataScope 的
 // OwnedOrAssigned=1（枚举集合不同，数值不对齐），直接转换会让
 // repository 层的安全收窄谓词静默失效——end_user/agent 将看到全租户工单
-// （阻断8 回归，2026-10-16 修复）。Department 等工单域未支持档位按
-// 「安全收窄」处理为本人创建/被指派，与 datascope.ParseDataScope 默认策略一致。
+// （阻断8 回归，2026-10-16 修复）。
+//
+// department 语义：目标租户的部门树属于目标租户数据域，不再按部门过滤，
+// 因此映射到工单仓储的 DataScopeAll。
 func toRepositoryDataScope(ds datascope.DataScope) ticket.DataScope {
 	switch ds {
-	case datascope.DataScopeAll:
+	case datascope.DataScopeAll, datascope.DataScopeDepartment:
 		return ticket.DataScopeAll
 	case datascope.DataScopeOwnedOrAssigned:
 		return ticket.DataScopeOwnedOrAssigned

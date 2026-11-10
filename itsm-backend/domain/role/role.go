@@ -66,8 +66,10 @@ func IsValidDataScope(scope string) bool {
 	}
 }
 
-// DataScopeRank 返回数据范围的宽度序号：all(0) > department(1) > owner(2)；
+// DataScopeRank 返回数据范围的形式宽度序号：all(0) > department(1) > owner(2)；
 // 非法值返回 3（按最窄处理，seeder 会以规范值修正）。
+// 注意：department 在运行时按目标租户内全量处理（部门树属于目标租户数据域），
+// rank 仅用于内置角色「只收紧不放宽」的配置校验与 UI 排序。
 func DataScopeRank(scope string) int {
 	switch scope {
 	case DataScopeAll:
@@ -86,7 +88,7 @@ func DataScopeRank(scope string) int {
 //
 // 口径：
 //   - 管理类（IsAdminLike）与 MSP/provider 角色 → all；
-//   - 部门管理/一线/二线 → department（工单仓储暂按 owner 安全收窄）；
+//   - 部门管理/一线/二线 → department（目标租户内全量，不做额外部门过滤）；
 //   - 其余（agent/technician/end_user/guest/岗位角色）→ owner，保持既有硬编码行为。
 //
 // 注意：这只是「角色 code → 默认值」的规范；运行时仍以 roles.data_scope 为准，

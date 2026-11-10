@@ -33,11 +33,22 @@ func TestIsDataScopeAllRole(t *testing.T) {
 	}
 }
 
-// TestDataScopeConstants 确保两个枚举值互不相同。
+// TestDataScopeConstants 确保枚举值互不相同。
 func TestDataScopeConstants(t *testing.T) {
 	if DataScopeAll == DataScopeOwnedOrAssigned {
 		t.Fatal("DataScopeAll 必须与 DataScopeOwnedOrAssigned 不同")
 	}
+	if DataScopeDepartment == DataScopeOwnedOrAssigned {
+		t.Fatal("DataScopeDepartment 必须与 DataScopeOwnedOrAssigned 不同")
+	}
+}
+
+// TestIsTenantWide 锁定 department 语义：目标租户的部门树属于目标租户
+// 数据域，因此 department 与 all 一样覆盖租户内全量，不再按 owner 收窄。
+func TestIsTenantWide(t *testing.T) {
+	assert.True(t, IsTenantWide(DataScopeAll))
+	assert.True(t, IsTenantWide(DataScopeDepartment))
+	assert.False(t, IsTenantWide(DataScopeOwnedOrAssigned))
 }
 
 // TestResolveForActor_CanonicalFallback 锁定无 DB 时的角色规范值：
@@ -131,6 +142,8 @@ func TestCanWriteResourceWithScope(t *testing.T) {
 	other := 7
 
 	assert.True(t, CanWriteResourceWithScope(0, DataScopeAll, 999, nil))
+	assert.True(t, CanWriteResourceWithScope(0, DataScopeDepartment, 999, nil),
+		"department 与 all 同义：目标租户内全量可写")
 	assert.True(t, CanWriteResourceWithScope(other, DataScopeOwnedOrAssigned, other, nil))
 	assert.True(t, CanWriteResourceWithScope(assignee, DataScopeOwnedOrAssigned, 999, &assignee))
 	assert.False(t, CanWriteResourceWithScope(other, DataScopeOwnedOrAssigned, 999, &assignee))
@@ -144,6 +157,10 @@ func TestCanWriteResourceFromContext(t *testing.T) {
 	allCtx := WithDataScope(context.Background(), DataScopeAll)
 	assert.True(t, CanWriteResourceFromContext(allCtx, other, "end_user", 999, &assignee),
 		"context all 应允许 provider 员工写非本人单据")
+
+	departmentCtx := WithDataScope(context.Background(), DataScopeDepartment)
+	assert.True(t, CanWriteResourceFromContext(departmentCtx, other, "end_user", 999, &assignee),
+		"context department 应视为目标租户内全量，可写非本人单据")
 
 	ownerCtx := WithDataScope(context.Background(), DataScopeOwnedOrAssigned)
 	assert.True(t, CanWriteResourceFromContext(ownerCtx, other, "end_user", other, nil))

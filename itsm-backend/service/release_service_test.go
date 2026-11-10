@@ -319,6 +319,12 @@ func TestReleaseService_GetReleaseStats(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 2, ownerStats.Total)
 	assert.Equal(t, 2, ownerStats.Draft)
+
+	// department 属于目标租户数据域，不做额外部门过滤，与 all 同口径。
+	departmentStats, err := releaseService.GetReleaseStatsScoped(ctx, testTenant.ID, datascope.DataScopeDepartment, testUser.ID)
+	require.NoError(t, err)
+	assert.Equal(t, 3, departmentStats.Total)
+	assert.Equal(t, 3, departmentStats.Draft)
 }
 
 // TestReleaseService_WritePath_RowLevelGuard 锁定 DataScope 行级写守卫（#27 release

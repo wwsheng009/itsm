@@ -185,8 +185,8 @@ func (s *ReleaseService) ListReleases(ctx context.Context, tenantID int, page, p
 	// OwnedOrAssigned 时强制追加 Or(CreatedByEQ(uid), OwnerIDEQ(uid))，
 	// 使普通用户只能看到自己创建或分配给自己的发布单。
 	// CurrentUserID<=0 时 fail-closed，返回空集而非全量。
-	// 安全收窄：除 all 外的任何档位（含暂未实现 department）均按 owner 处理。
-	if dataScope != datascope.DataScopeAll {
+	// all 与 department 均为目标租户内全量；department 不再额外过滤部门。
+	if !datascope.IsTenantWide(dataScope) {
 		if currentUserID <= 0 {
 			query = query.Where(release.IDEQ(-1))
 		} else {
@@ -543,7 +543,7 @@ func (s *ReleaseService) GetReleaseStatsScoped(ctx context.Context, tenantID int
 	stats := &dto.ReleaseStatsResponse{}
 
 	base := s.client.Release.Query().Where(release.TenantIDEQ(tenantID))
-	if dataScope != datascope.DataScopeAll {
+	if !datascope.IsTenantWide(dataScope) {
 		if currentUserID <= 0 {
 			base = base.Where(release.IDEQ(-1))
 		} else {

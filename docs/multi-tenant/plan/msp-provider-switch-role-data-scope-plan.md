@@ -1,6 +1,6 @@
 # MSP 深切换后按角色 data_scope 取数修复方案
 
-> 状态：Phase 1-3 完成；Phase 4 列表接入完成，写面/角色 UI 待后续（2026-11-10）
+> 状态：Phase 1-4 完成；department 语义已定稿（目标租户内全量，不做额外部门过滤）（2026-11-10）
 > 范围：provider 员工深度切换到客户租户后，工单/问题等租户内单据的列表与统计口径
 > 关联：MSW-4、canon I2/I3/I9、C2 客户租户角色基线
 
@@ -111,12 +111,16 @@ active allocation 或客户侧 invite（`internal/authz/switch.go:74-105`）。
 | `super_admin`, `admin`, `manager`, `sysadmin` | `all` | 现有 `IsAdminLike` 口径 |
 | 客户租户内 `msp_viewer`, `msp_tech`, `msp_specialist`, `msp_manager`, `msp_admin` | `all` | 服务商员工在客户租户内应看到客户全部单据 |
 | `provider_tenant_admin` | `all` | provider 首管 |
-| `dept_manager`, `sd_manager`, `l1_support`, `l2_support` | `department` | 工单仓储暂只实现 all/owner；department 落库后按安全收窄处理 |
+| `dept_manager`, `sd_manager`, `l1_support`, `l2_support` | `department` | 目标租户内全量：部门树属于目标租户数据域，不做跨租户/部门过滤 |
 | `agent`, `technician`, `end_user`, `guest` | `owner` | 与当前硬编码行为一致 |
 | 其他 config 角色 / 自定义角色 | `owner`（新角色默认）或保留已有配置 | 安全默认 |
 
 > 注：`it_admin`、`security_admin`、`ops_manager` 等目前不在
 > `IsAdminLike` 中，本次先保持 `owner`，避免行为回归；后续可按业务调整。
+>
+> **department 定稿语义**：目标租户的部门属于目标租户的数据域，provider 员工
+> 深切换后不再用 home 租户的 `department_id` 与客户租户单据比较，也不按 owner
+> 收窄。运行时 `department` 与 `all` 等价：列表、统计、写守卫均为目标租户内全量。
 
 ## 5. 实施清单
 
@@ -161,6 +165,7 @@ active allocation 或客户侧 invite（`internal/authz/switch.go:74-105`）。
 - [x] 角色管理 UI 暴露 `dataScope` 配置（all/department/owner）
 - [x] `/readyz` 使用磁盘发现迁移的最新版本（不再固定 027）
 - [x] 部署脚本显式构建 AI sidecar；`--skip-build` 预检三类应用镜像
+- [x] department 语义定稿：目标租户内全量，列表/统计/写守卫统一按租户级全量处理
 - [ ] 清理 `IsDataScopeAllRole` 硬编码回退（保留迁移期兜底）
 
 ## 6. 验收口径
@@ -174,6 +179,7 @@ provider 员工切到客户租户后：
 | `GET /problems` | 返回客户租户全部问题 |
 | `GET /msp/workbench/tickets` | 仍 403（客户作用域不使用工作台接口） |
 | 原生客户 `end_user` | 仍仅本人创建/被指派；统计同口径 |
+| 客户租户 `department` 角色 | 目标租户内全量；不按 provider 侧部门过滤，也不按 owner 收窄 |
 | 客户租户 `msp_viewer` | 可看全部，无写权限 |
 | 客户租户 `msp_tech` | 可看全部，可处理工单/问题 |
 
@@ -195,8 +201,9 @@ provider 员工切到客户租户后：
 | 2026-11-10 | Phase 1 角色数据 | 完成 | seeder/provisioner/role service/migration |
 | 2026-11-10 | Phase 2 解析器 | 完成 | datascope.ResolveForActor + scopectx + 单测 |
 | 2026-11-10 | Phase 3 工单/问题 | 完成 | 列表 + 统计同口径 |
-| 2026-11-10 | Phase 4 其他域 | 列表完成 | incident/change/request/release 读面接入；写面/UI 待后续 |
+| 2026-11-10 | Phase 4 其他域 | 完成 | incident/change/request/release 读面、写面、统计与角色 UI 全部接入 |
 | 2026-11-10 | C2 读权限补齐 | 完成 | 客户租户 msp_* 增加 problem/change/request/incident/release read |
+| 2026-11-10 | department 语义定稿 | 完成 | 目标租户内全量；列表/统计/写守卫统一 `IsTenantWide` |
 
 ## 9. 实施记录（2026-11-10）
 
@@ -205,7 +212,7 @@ provider 员工切到客户租户后：
 | 文件 | 变更 |
 |---|---|
 | `domain/role/role.go` | data_scope 词表、规范值、rank、内置 code 集合 |
-| `handlers/common/datascope/datascope.go` | `ResolveForActor`、`CanWriteResourceWithScope` |
+| `handlers/common/datascope/datascope.go` | `ResolveForActor`、`CanWriteResourceWithScope`、`IsTenantWide` |
 | `handlers/common/scopectx/scopectx.go` | Gin context → DataScope 统一入口 |
 | `router/router.go` | 租户组挂载 `scopectx.Middleware`，请求期注入 DataScope |
 | `pkg/seeder/seeder.go` | `RoleSeed.DataScope`、内置角色幂等校正 |
@@ -219,6 +226,7 @@ provider 员工切到客户租户后：
 | `migrations/20261110_role_data_scope_backfill*.sql` | 存量角色 data_scope 回填/回滚 |
 | `migrations/20261110_c2_read_permissions*.sql` | 客户租户 msp_* 角色读权限回填/回滚 |
 | `itsm-frontend/.../admin/roles/index.tsx` | 角色编辑暴露 dataScope 选择 |
+| `itsm-frontend/src/lib/i18n/translations.ts` | department 文案明确为「部门数据域（租户内全量）」 |
 | `migration/discovery.go` + `router/initialization_readiness.go` | `/readyz` 使用磁盘发现最新迁移版本 |
 | `scripts/deploy-prod.sh` | 显式构建 AI sidecar；skip-build 镜像预检 |
 
@@ -244,6 +252,7 @@ provider 员工切到客户租户后：
 | 本地前端类型检查 | `tsc --noEmit` 通过；roles/api/i18n eslint 通过 |
 | 本地 migration/router 测试 | `LatestAvailableVersion` + readiness 测试通过 |
 | 238 实测（P2） | `/readyz` schemaVersion=`20261110_role_data_scope_backfill`；前端 bundle 含 dataScope；版本 `1.8.0-dev.ae57b4ec` |
+| department 单测 | `datascope.IsTenantWide`、写守卫、ticket 映射、change/problem/release 统计/列表均按租户内全量通过 |
 
 ### 9.3 待确认/后续
 
@@ -251,11 +260,11 @@ provider 员工切到客户租户后：
    即使迁移暂未执行，`ResolveForActor` 也会按内置词表规范值收敛旧默认 all
    （`end_user/agent → owner`、`msp_tech → all`），不会产生越权；
    迁移用于修正库中展示值并支撑后续管理员自定义；
-2. 角色管理 UI 增加 dataScope 选择（当前后端已支持，前端未暴露）；
-3. 各域写路径切换到 `CanWriteResourceWithScope`（当前读面已按角色解析，写面仍主要用 JWT 主角色）；
-4. 观察 `/msp/workbench/*` 在客户作用域仍 403——这是 C1/C2 边界，不是回归。
-5. `department` 档位在 ticket/problem/incident/change/service_request/release 仓储中暂按
-   owner 安全收窄；需要部门维度可见性时再补部门树过滤。
+2. 观察 `/msp/workbench/*` 在客户作用域仍 403——这是 C1/C2 边界，不是回归；
+3. `IsDataScopeAllRole` 硬编码回退仍保留，用于无 context 的单测/迁移窗口兼容；
+   后续可评估清理。
+4. `department` 已定稿为目标租户内全量；若未来需要真正的部门隔离，应另立需求，
+   先定义跨租户 provider 员工到目标租户部门的映射规则，再改 `IsTenantWide`。
 
 ### 9.4 238 发布记录
 

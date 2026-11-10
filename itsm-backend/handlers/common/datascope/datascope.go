@@ -24,7 +24,11 @@ type dataScopeContextKey struct{}
 const (
 	// DataScopeAll 全租户可见（admin/manager/super_admin/sysadmin 等管理角色）。
 	DataScopeAll DataScope = iota
-	// DataScopeDepartment 仅可见本部门数据（需部门树查询支持）。
+	// DataScopeDepartment 部门数据域。
+	//
+	// 目标租户的部门树属于目标租户的数据域，provider 员工深切换后不应再按
+	// home 租户的 department_id 过滤客户租户单据。因此当前语义与 DataScopeAll
+	// 一致：目标租户内全量可见/可写，不做额外部门过滤。
 	DataScopeDepartment
 	// DataScopeOwnedOrAssigned 仅可见本人创建或分配给本人的单据（end_user/agent）。
 	DataScopeOwnedOrAssigned
@@ -64,8 +68,9 @@ func IsDataScopeAllRole(r string) bool {
 	return role.IsAdminLike(r)
 }
 
-// IsDataScopeDepartmentRole 判断角色是否拥有本部门数据权限。
-// 某些角色（如 department_manager）可配置为 department 档。
+// IsDataScopeDepartmentRole 判断角色是否拥有部门数据域权限。
+// 某些角色（如 department_manager）可配置为 department 档；该档位在目标
+// 租户内按全量处理，不再做部门过滤。
 func IsDataScopeDepartmentRole(role string) bool {
 	switch role {
 	case "department_manager", "l1_support", "l2_support":
@@ -225,11 +230,21 @@ func CanWriteResource(actorID int, actorRole string, ownerID int, assigneeID *in
 	return CanWriteResourceWithScope(actorID, DataScopeOwnedOrAssigned, ownerID, assigneeID)
 }
 
+// IsTenantWide 判断数据范围是否覆盖目标租户内全部数据。
+//
+// DataScopeDepartment 与 DataScopeAll 同义：部门树本身属于目标租户的数据域，
+// 跨租户深切换时不把 provider 侧 department_id 与客户租户单据的 department_id
+// 直接比较，也不按 owner 收窄。
+func IsTenantWide(scope DataScope) bool {
+	return scope == DataScopeAll || scope == DataScopeDepartment
+}
+
 // CanWriteResourceWithScope 按已解析的 DataScope 判定行级写权限。
 // 规则与 CanWriteResource 一致，但角色来源由调用方按租户 membership 解析，
 // 避免深切换后 JWT 主角色（end_user）与 membership 角色（msp_tech）口径分叉。
+// DataScopeDepartment 与 DataScopeAll 一样视为目标租户内全量可写。
 func CanWriteResourceWithScope(actorID int, scope DataScope, ownerID int, assigneeID *int) bool {
-	if scope == DataScopeAll {
+	if IsTenantWide(scope) {
 		return true
 	}
 	if actorID <= 0 {
@@ -254,7 +269,9 @@ func CanWriteResourceFromContext(ctx context.Context, actorID int, actorRole str
 }
 
 // ApplyTicketFilter 将 DataScope 过滤器应用到 ticket 查询。
-// query 为 ent Ticket 查询，userID 为当前用户 ID，departmentID 为用户所属部门。
+// query 为 ent Ticket 查询，userID 为当前用户 ID。
+// departmentID 保留用于兼容旧调用；department 已定稿为目标租户内全量，
+// 不再按部门过滤，因此该参数当前不参与谓词。
 //
 // 示例:
 //
@@ -262,18 +279,9 @@ func CanWriteResourceFromContext(ctx context.Context, actorID int, actorRole str
 //	query = datascope.ApplyTicketFilter(query, 123, 456, DataScopeOwnedOrAssigned)
 func ApplyTicketFilter(query *ent.TicketQuery, userID, departmentID int, ds DataScope) *ent.TicketQuery {
 	switch ds {
-	case DataScopeAll:
-		// 无过滤，全量
+	case DataScopeAll, DataScopeDepartment:
+		// 目标租户内全量；department 不再额外过滤部门。
 		return query
-	case DataScopeDepartment:
-		// 本人创建 或 本部门
-		if userID <= 0 {
-			return query.Where(ticket.IDEQ(-1)) // 安全收窄
-		}
-		return query.Where(ticket.Or(
-			ticket.RequesterID(userID),
-			ticket.DepartmentID(departmentID),
-		))
 	case DataScopeOwnedOrAssigned:
 		// 本人创建 或 分配给本人
 		if userID <= 0 {

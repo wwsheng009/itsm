@@ -74,4 +74,9 @@ func TestStatsRepository_RespectsDataScope(t *testing.T) {
 	allStats, err := repo.GetStatsScoped(ctx, tenantEntity.ID, datascope.DataScopeAll, 0)
 	require.NoError(t, err)
 	assert.Equal(t, 3, allStats.Total)
+
+	// department 属于目标租户数据域，不做额外部门过滤，与 all 同口径。
+	departmentStats, err := repo.GetStatsScoped(ctx, tenantEntity.ID, datascope.DataScopeDepartment, owner.ID)
+	require.NoError(t, err)
+	assert.Equal(t, 3, departmentStats.Total)
 }

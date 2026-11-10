@@ -40,14 +40,15 @@ func (r *incidentStatsRepository) GetStats(ctx context.Context, tenantID int) (*
 	return r.GetStatsScoped(ctx, tenantID, datascope.DataScopeAll, 0)
 }
 
-// GetStatsScoped 与列表同 DataScope 口径：非 all 时仅统计报告人或受理人为当前用户的事件。
+// GetStatsScoped 与列表同 DataScope 口径：all/department 统计租户全量，
+// owner 仅统计报告人或受理人为当前用户的事件。
 func (r *incidentStatsRepository) GetStatsScoped(ctx context.Context, tenantID int, dataScope datascope.DataScope, currentUserID int) (*IncidentStats, error) {
 	if tenantID <= 0 {
 		return nil, fmt.Errorf("incident stats repository requires tenantID")
 	}
 	scopeClause := ""
 	args := []any{tenantID}
-	if dataScope != datascope.DataScopeAll {
+	if !datascope.IsTenantWide(dataScope) {
 		if currentUserID <= 0 {
 			scopeClause = " AND FALSE"
 		} else {

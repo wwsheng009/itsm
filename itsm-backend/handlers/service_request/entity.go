@@ -71,7 +71,8 @@ type ListFilters struct {
 	Size   int
 	// 行级数据权限（推广自 ticket DataScope 模式）。
 	// DataScopeOwnedOrAssigned 时 repository 强制收窄到本人创建或处理的请求单；
-	// CurrentUserID 为调用者身份，<=0 时 repository fail-closed 返回空集。
+	// DataScopeAll/DataScopeDepartment 为目标租户内全量。
+	// CurrentUserID 为调用者身份，owner 档位下 <=0 时 repository fail-closed 返回空集。
 	DataScope     datascope.DataScope
 	CurrentUserID int
 }
