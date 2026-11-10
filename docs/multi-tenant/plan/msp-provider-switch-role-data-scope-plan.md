@@ -153,6 +153,8 @@ active allocation 或客户侧 invite（`internal/authz/switch.go:74-105`）。
 ### Phase 4：其他域与写面（后续）
 
 - [x] incident / change / service_request / release 列表接入同一解析
+- [x] C2 读权限补齐：`problem:read` / `change:read` / `service_request:read` /
+      `incident:read` / `release:read`（修复 `/problems` 等 GET 列表 2003）
 - [ ] 各域写路径改用 `CanWriteResourceWithScope`
 - [ ] 角色管理 UI 暴露 `dataScope` 配置
 - [ ] 清理 `IsDataScopeAllRole` 硬编码回退（保留迁移期兜底）
@@ -190,6 +192,7 @@ provider 员工切到客户租户后：
 | 2026-11-10 | Phase 2 解析器 | 完成 | datascope.ResolveForActor + scopectx + 单测 |
 | 2026-11-10 | Phase 3 工单/问题 | 完成 | 列表 + 统计同口径 |
 | 2026-11-10 | Phase 4 其他域 | 列表完成 | incident/change/request/release 读面接入；写面/UI 待后续 |
+| 2026-11-10 | C2 读权限补齐 | 完成 | 客户租户 msp_* 增加 problem/change/request/incident/release read |
 
 ## 9. 实施记录（2026-11-10）
 
@@ -207,6 +210,7 @@ provider 员工切到客户租户后：
 | `handlers/problem/*` | List/GetStatsScoped/仓储 scoped stats |
 | `handlers/{incident,change,service_request,release}/*` | 列表接入 `scopectx.Resolve` |
 | `migrations/20261110_role_data_scope_backfill*.sql` | 存量角色 data_scope 回填/回滚 |
+| `migrations/20261110_c2_read_permissions*.sql` | 客户租户 msp_* 角色读权限回填/回滚 |
 
 ### 9.2 验证记录
 
@@ -221,6 +225,8 @@ provider 员工切到客户租户后：
 | `go test ./pkg/seeder -run TestProvisionTenant_CustomerScopeMSPBaseline` | 通过（含 msp_tech=all / end_user=owner 断言） |
 | `go test ./service -run TestCreateRole_DefaultIsActiveTrue` | 通过（默认 owner + 更新 all + 非法值拒绝） |
 | `handlers/service_request` 全量 | 既有 Windows 临时文件清理失败，与本次改动无关 |
+| 238 实测（provider 深切换） | `/tickets` total=2 returned=2；stats total=2；`/msp/workbench` 403；切回 home 成功 |
+| 238 实测（C2 读权限修复前） | `/problems` 返回 2003（缺 `problem:read`） |
 
 ### 9.3 待确认/后续
 

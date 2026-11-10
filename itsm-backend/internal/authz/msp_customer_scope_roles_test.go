@@ -46,6 +46,11 @@ func TestMSPCustomerScopeRolePermissionCodes(t *testing.T) {
 	for _, code := range []string{"problem:write", "change:write", "service_request:write"} {
 		require.Contains(t, m["msp_tech"], code)
 	}
+	// 读面门禁（深切换后 provider 员工需在客户租户内查看这些单据）：
+	for _, code := range []string{"problem:read", "change:read", "service_request:read", "incident:read", "release:read"} {
+		require.Contains(t, m["msp_tech"], code)
+		require.Contains(t, m["msp_viewer"], code)
+	}
 	require.NotContains(t, m["msp_tech"], "change:approve")
 	require.NotContains(t, m["msp_tech"], "service_request:approve")
 	// 任务面基线与内置词表同口径。

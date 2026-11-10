@@ -456,15 +456,23 @@ func MSPCustomerScopeRolePermissionCodes() map[string][]string {
 	}
 	tech := withBaseline(
 		"ticket:read", "ticket:create", "ticket:update", "ticket:write",
-		"ticket:assign", "problem:write",
-		"change:write", "service_request:write",
+		"ticket:assign",
+		// 读面：深切换后 provider 员工需在客户租户内查看问题/变更/请求/事件/发布。
+		"problem:read", "change:read", "service_request:read",
+		"incident:read", "release:read",
+		"problem:write", "change:write", "service_request:write",
 		"knowledge:read", "cmdb:read", "service_catalog:read",
 		"project:read", // P2+ MSP 客户交付：provider 员工需读客户项目（IP-P2-1x 演进）
 	)
 	manager := appendMissingCodes(tech, "user:write", "report:read", "project:write")
 	admin := appendMissingCodes(manager, "cmdb:write", "change:write")
 	return map[string][]string{
-		"msp_viewer":     withBaseline("ticket:read", "ticket:create"),
+		"msp_viewer": withBaseline(
+			"ticket:read", "ticket:create",
+			"problem:read", "change:read", "service_request:read",
+			"incident:read", "release:read",
+			"knowledge:read", "cmdb:read", "service_catalog:read", "project:read",
+		),
 		"msp_tech":       tech,
 		"msp_specialist": append([]string(nil), tech...),
 		"msp_manager":    manager,
