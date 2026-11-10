@@ -234,6 +234,8 @@ provider 员工切到客户租户后：
 | 238 实测（C2 读权限修复前） | `/problems` 返回 2003（缺 `problem:read`） |
 | 238 实测（C2 读权限修复后） | `/problems` code=0 total=1 returned=1；版本 `1.8.0-dev.a6281950` |
 | 本地单测（P1） | ticket/problem/incident/change/datascope 全通过；release scoped stats 通过 |
+| 238 实测（P1 写权限） | provider 客户作用域 `PUT /tickets/:id/status` 非法状态返回 400（非 403），说明写守卫已按 all 放行 |
+| 238 实测（P1 原生隔离） | 客户 `custa.smoke1`（end_user）：`/tickets` total=1，`/tickets/stats` total=1 |
 
 ### 9.3 待确认/后续
 
@@ -252,10 +254,11 @@ provider 员工切到客户租户后：
 | 项 | 值 |
 |---|---|
 | 目标 | `http://172.18.3.238:8088` |
-| 版本 | `1.8.0-dev.a6281950` |
-| 镜像 | backend/frontend/ai-service 同 tag `1.8.0-dev.a6281950` |
+| 版本 | `1.8.0-dev.7c0ca10f`（含 P1 写路径与统计收口） |
+| 镜像 | backend/frontend/ai-service/worker 同 tag `1.8.0-dev.7c0ca10f` |
 | 迁移 | `20261110_role_data_scope_backfill`、`20261110_c2_read_permissions` 均已登记 |
 | 验证账号 | `prov.smoke.agt1012232309`（role=end_user，mspRole=provider_agent，home=2，客户=3） |
 | 深切换结果 | 切客户 200；`/tickets` total=2；`/tickets/stats` total=2；`/problems` total=1；`/msp/workbench` 403；切回 home 200 |
 | 角色数据 | 客户租户 `msp_tech` data_scope=all；`end_user` data_scope=owner；`is_system=true` |
 | C2 读码 | 租户 3 `msp_tech` 已具备 problem/change/service_request/incident/release read |
+| 写路径 | provider 员工非法状态流转返回 400（通过行级守卫）；原生 end_user 仍仅本人 |
