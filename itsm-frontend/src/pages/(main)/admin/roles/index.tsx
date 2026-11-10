@@ -224,6 +224,7 @@ export default function RoleManagement() {
         code: values.code,
         description: values.description,
         status: (values.status ? 'active' : 'inactive') as 'active' | 'inactive',
+        dataScope: (values.dataScope || 'owner') as 'all' | 'department' | 'owner',
       };
 
       let roleId: number;
@@ -368,6 +369,7 @@ export default function RoleManagement() {
                   code: record.code,
                   description: record.description,
                   status: record.status !== 'inactive',
+                  dataScope: record.dataScope || 'owner',
                 };
 
                 permissionModules.forEach(({ resource, actions }) => {
@@ -517,6 +519,19 @@ export default function RoleManagement() {
             rules={[{ required: true, message: t('roles.enterRoleDescription') }]}
           >
             <Input.TextArea rows={3} placeholder={t('roles.enterRoleDescription')} />
+          </Form.Item>
+          <Form.Item
+            label={t('roles.dataScope')}
+            name="dataScope"
+            tooltip={t('roles.dataScopeTooltip')}
+          >
+            <Select
+              options={[
+                { value: 'all', label: t('roles.dataScopeAll') },
+                { value: 'department', label: t('roles.dataScopeDepartment') },
+                { value: 'owner', label: t('roles.dataScopeOwner') },
+              ]}
+            />
           </Form.Item>
           <Form.Item label={t('roles.status')} name="status" valuePropName="checked">
             <Switch checkedChildren={t('roles.active')} unCheckedChildren={t('roles.inactive')} />

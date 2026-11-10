@@ -21,7 +21,7 @@ type initializationReadiness struct {
 }
 
 func checkInitializationReadiness(ctx context.Context, db *sql.DB) initializationReadiness {
-	requiredSchemaVersion := migration.RegisteredMigrations[len(migration.RegisteredMigrations)-1].Version
+	requiredSchemaVersion := migration.LatestAvailableVersion()
 	result := initializationReadiness{
 		RequiredSchemaVersion:   requiredSchemaVersion,
 		RequiredBaselineVersion: seeder.CurrentTenantTemplateVersion,

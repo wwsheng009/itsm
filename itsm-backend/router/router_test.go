@@ -195,7 +195,7 @@ func TestSetupRoutes_ReadinessFailsClosedWithoutInitializationLedger(t *testing.
 func TestInitializationReadinessRequiresLatestRegisteredMigration(t *testing.T) {
 	readiness := checkInitializationReadiness(context.Background(), nil)
 	require.NotEmpty(t, migration.RegisteredMigrations)
-	assert.Equal(t, migration.RegisteredMigrations[len(migration.RegisteredMigrations)-1].Version, readiness.RequiredSchemaVersion)
+	assert.Equal(t, migration.LatestAvailableVersion(), readiness.RequiredSchemaVersion)
 }
 
 func TestSetupRoutes_VersionEndpoint(t *testing.T) {

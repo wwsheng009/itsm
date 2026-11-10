@@ -426,6 +426,8 @@ export interface CreateRoleRequest {
   description: string;
   permissions: string[];
   status: 'active' | 'inactive';
+  /** 数据范围：all / department / owner；留空后端默认 owner。 */
+  dataScope?: 'all' | 'department' | 'owner';
 }
 
 export interface UpdateRoleRequest {
@@ -434,6 +436,8 @@ export interface UpdateRoleRequest {
   description?: string;
   permissions?: string[];
   status?: 'active' | 'inactive';
+  /** 数据范围：all / department / owner；nil=不修改。 */
+  dataScope?: 'all' | 'department' | 'owner';
 }
 
 export interface GetRolesParams {

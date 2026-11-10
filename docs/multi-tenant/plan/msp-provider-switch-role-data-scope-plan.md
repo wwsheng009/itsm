@@ -158,7 +158,9 @@ active allocation 或客户侧 invite（`internal/authz/switch.go:74-105`）。
 - [x] 各域写路径改用 `CanWriteResourceWithScope`（请求 context 注入 DataScope）
 - [x] incident / change / release 统计接入 scoped 统计
 - [x] 新增 `scopectx.Middleware`：租户组请求期统一解析一次 DataScope
-- [ ] 角色管理 UI 暴露 `dataScope` 配置
+- [x] 角色管理 UI 暴露 `dataScope` 配置（all/department/owner）
+- [x] `/readyz` 使用磁盘发现迁移的最新版本（不再固定 027）
+- [x] 部署脚本显式构建 AI sidecar；`--skip-build` 预检三类应用镜像
 - [ ] 清理 `IsDataScopeAllRole` 硬编码回退（保留迁移期兜底）
 
 ## 6. 验收口径
@@ -216,6 +218,9 @@ provider 员工切到客户租户后：
 | incident/change/release stats | 新增 `GetStatsScoped`，与列表同口径 |
 | `migrations/20261110_role_data_scope_backfill*.sql` | 存量角色 data_scope 回填/回滚 |
 | `migrations/20261110_c2_read_permissions*.sql` | 客户租户 msp_* 角色读权限回填/回滚 |
+| `itsm-frontend/.../admin/roles/index.tsx` | 角色编辑暴露 dataScope 选择 |
+| `migration/discovery.go` + `router/initialization_readiness.go` | `/readyz` 使用磁盘发现最新迁移版本 |
+| `scripts/deploy-prod.sh` | 显式构建 AI sidecar；skip-build 镜像预检 |
 
 ### 9.2 验证记录
 
@@ -236,6 +241,8 @@ provider 员工切到客户租户后：
 | 本地单测（P1） | ticket/problem/incident/change/datascope 全通过；release scoped stats 通过 |
 | 238 实测（P1 写权限） | provider 客户作用域 `PUT /tickets/:id/status` 非法状态返回 400（非 403），说明写守卫已按 all 放行 |
 | 238 实测（P1 原生隔离） | 客户 `custa.smoke1`（end_user）：`/tickets` total=1，`/tickets/stats` total=1 |
+| 本地前端类型检查 | `tsc --noEmit` 通过；roles/api/i18n eslint 通过 |
+| 本地 migration/router 测试 | `LatestAvailableVersion` + readiness 测试通过 |
 
 ### 9.3 待确认/后续
 

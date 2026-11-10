@@ -283,6 +283,19 @@ preflight_checks() {
             errors=$((errors + 1))
         fi
 
+        # --skip-build 必须复用同一 VERSION 的四类应用镜像；缺失时提前失败，
+        # 避免 compose up 隐式重建 AI sidecar（PyTorch 依赖耗时不可控）。
+        if $SKIP_BUILD; then
+            for image in "itsm-backend:${VERSION}" "itsm-frontend:${VERSION}" "itsm-ai-service:${VERSION}"; do
+                if docker image inspect "$image" >/dev/null 2>&1; then
+                    log_success "$image found"
+                else
+                    log_error "$image not found; build/tag it first or run without --skip-build"
+                    errors=$((errors + 1))
+                fi
+            done
+        fi
+
         if [[ -z "${CONFIG_SECRET_KEY:-}" ]]; then
             log_warn "CONFIG_SECRET_KEY is empty; saving encrypted system config (SMTP password, etc.) will fail closed"
             log_warn "Generate one with: openssl rand -hex 32"
@@ -409,13 +422,30 @@ build_images() {
         log_success "Frontend image built"
     fi
 
+    # AI sidecar
+    log_step "Building AI service image"
+    start=$(timer_start)
+    if $DRY_RUN; then
+        run echo "Would build itsm-ai-service:prod"
+    elif ! dc --env-file "$ENV_FILE" -f "$COMPOSE_PROD" build --build-arg BUILDKIT_INLINE_CACHE=1 itsm-ai-service; then
+        log_error "AI service image build failed"
+        return 1
+    fi
+    timer_end "$start" "AI service image build"
+    if $DRY_RUN; then
+        log_info "AI service image build planned"
+    else
+        log_success "AI service image built"
+    fi
+
     # Save deployment state
     if ! $DRY_RUN; then
         {
             echo "deploy_time=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
             echo "git_commit=$(git rev-parse --short HEAD 2>/dev/null || echo unknown)"
-            echo "backend_digest=$(docker inspect --format='{{.Id}}' itsm-backend:prod 2>/dev/null || echo unknown)"
-            echo "frontend_digest=$(docker inspect --format='{{.Id}}' itsm-frontend:prod 2>/dev/null || echo unknown)"
+            echo "backend_digest=$(docker inspect --format='{{.Id}}' "itsm-backend:${VERSION}" 2>/dev/null || echo unknown)"
+            echo "frontend_digest=$(docker inspect --format='{{.Id}}' "itsm-frontend:${VERSION}" 2>/dev/null || echo unknown)"
+            echo "ai_service_digest=$(docker inspect --format='{{.Id}}' "itsm-ai-service:${VERSION}" 2>/dev/null || echo unknown)"
         } > "$CURRENT_STATE"
     fi
 }

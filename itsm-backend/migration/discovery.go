@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 )
 
 // FilesystemMigrations 包外可用的「从目录发现的迁移」读取与排序入口。
@@ -163,4 +164,33 @@ func MergeWithRegistered(fs []Migration) []Migration {
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Version < out[j].Version })
 	return out
+}
+
+var (
+	latestAvailableVersionOnce sync.Once
+	latestAvailableVersion     string
+)
+
+// LatestAvailableVersion 返回「磁盘发现 + 硬编码注册」合并后的最新迁移版本。
+// 供 /readyz 等只读探针使用：此前只读 RegisteredMigrations，会把磁盘迁移
+// （如 20261110_*）误报为未要求，导致 schemaVersion 停留在旧版本。
+func LatestAvailableVersion() string {
+	latestAvailableVersionOnce.Do(func() {
+		if fsMigrations, err := FilesystemMigrations(""); err == nil {
+			merged := MergeWithRegistered(fsMigrations)
+			if len(merged) > 0 {
+				latestAvailableVersion = merged[len(merged)-1].Version
+				return
+			}
+		}
+		versions := make([]string, 0, len(RegisteredMigrations))
+		for _, item := range RegisteredMigrations {
+			versions = append(versions, item.Version)
+		}
+		sort.Strings(versions)
+		if len(versions) > 0 {
+			latestAvailableVersion = versions[len(versions)-1]
+		}
+	})
+	return latestAvailableVersion
 }
