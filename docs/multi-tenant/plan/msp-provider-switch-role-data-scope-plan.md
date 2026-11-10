@@ -227,6 +227,7 @@ provider 员工切到客户租户后：
 | `handlers/service_request` 全量 | 既有 Windows 临时文件清理失败，与本次改动无关 |
 | 238 实测（provider 深切换） | `/tickets` total=2 returned=2；stats total=2；`/msp/workbench` 403；切回 home 成功 |
 | 238 实测（C2 读权限修复前） | `/problems` 返回 2003（缺 `problem:read`） |
+| 238 实测（C2 读权限修复后） | `/problems` code=0 total=1 returned=1；版本 `1.8.0-dev.a6281950` |
 
 ### 9.3 待确认/后续
 
@@ -239,3 +240,16 @@ provider 员工切到客户租户后：
 4. 观察 `/msp/workbench/*` 在客户作用域仍 403——这是 C1/C2 边界，不是回归。
 5. `department` 档位在 ticket/problem/incident/change/service_request/release 仓储中暂按
    owner 安全收窄；需要部门维度可见性时再补部门树过滤。
+
+### 9.4 238 发布记录
+
+| 项 | 值 |
+|---|---|
+| 目标 | `http://172.18.3.238:8088` |
+| 版本 | `1.8.0-dev.a6281950` |
+| 镜像 | backend/frontend/ai-service 同 tag `1.8.0-dev.a6281950` |
+| 迁移 | `20261110_role_data_scope_backfill`、`20261110_c2_read_permissions` 均已登记 |
+| 验证账号 | `prov.smoke.agt1012232309`（role=end_user，mspRole=provider_agent，home=2，客户=3） |
+| 深切换结果 | 切客户 200；`/tickets` total=2；`/tickets/stats` total=2；`/problems` total=1；`/msp/workbench` 403；切回 home 200 |
+| 角色数据 | 客户租户 `msp_tech` data_scope=all；`end_user` data_scope=owner；`is_system=true` |
+| C2 读码 | 租户 3 `msp_tech` 已具备 problem/change/service_request/incident/release read |
