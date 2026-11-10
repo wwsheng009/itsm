@@ -176,10 +176,23 @@ var (
 // （如 20261110_*）误报为未要求，导致 schemaVersion 停留在旧版本。
 func LatestAvailableVersion() string {
 	latestAvailableVersionOnce.Do(func() {
-		if fsMigrations, err := FilesystemMigrations(""); err == nil {
+		// 生产 cwd=/app（migrations/）；单测 cwd 是包目录（../migrations）。
+		// 显式尝试两个位置，避免探针在测试/非标准 cwd 下回退到旧的硬编码版本。
+		for _, dir := range []string{defaultMigrationsDir(), "../migrations"} {
+			fsMigrations, err := FilesystemMigrations(dir)
+			if err != nil {
+				continue
+			}
 			merged := MergeWithRegistered(fsMigrations)
-			if len(merged) > 0 {
-				latestAvailableVersion = merged[len(merged)-1].Version
+			// 只把 YYYYMMDD 前缀的迁移作为“最新数据迁移”：
+			// add_missing_indexes* 等历史别名按字典序排在 2026* 之后，
+			// 直接取 merged 末尾会把 /readyz 误报成旧索引迁移。
+			for _, item := range merged {
+				if strings.HasPrefix(item.Version, "20") && item.Version > latestAvailableVersion {
+					latestAvailableVersion = item.Version
+				}
+			}
+			if latestAvailableVersion != "" {
 				return
 			}
 		}

@@ -3,11 +3,19 @@ package migration
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestLatestAvailableVersionPrefersDatedMigration(t *testing.T) {
+	got := LatestAvailableVersion()
+	require.NotEmpty(t, got)
+	assert.True(t, strings.HasPrefix(got, "20"), "latest schema version must be YYYYMMDD-prefixed, got %q", got)
+	assert.NotEqual(t, "add_missing_indexes_batch2", got)
+}
 
 // TestFilesystemMigrations_DiscoveryFromRealDir 验证自发现器在真实仓库目录下的行为：
 //  1. 解析版本号与描述
