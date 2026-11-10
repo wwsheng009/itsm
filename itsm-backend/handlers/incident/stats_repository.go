@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+
+	"itsm-backend/handlers/common/datascope"
 )
 
 // incidentStatsRepository 负责 incidents 表的聚合统计。
@@ -35,10 +37,25 @@ func newIncidentStatsRepository(db *sql.DB) *incidentStatsRepository {
 //   - avgResolutionTime: 已解决/已关闭事件的平均 (resolved_at - created_at) 分钟数；
 //     未解决事件排除；空集通过 COALESCE 返回 0 而非 NULL。
 func (r *incidentStatsRepository) GetStats(ctx context.Context, tenantID int) (*IncidentStats, error) {
+	return r.GetStatsScoped(ctx, tenantID, datascope.DataScopeAll, 0)
+}
+
+// GetStatsScoped 与列表同 DataScope 口径：非 all 时仅统计报告人或受理人为当前用户的事件。
+func (r *incidentStatsRepository) GetStatsScoped(ctx context.Context, tenantID int, dataScope datascope.DataScope, currentUserID int) (*IncidentStats, error) {
 	if tenantID <= 0 {
 		return nil, fmt.Errorf("incident stats repository requires tenantID")
 	}
-	const query = `
+	scopeClause := ""
+	args := []any{tenantID}
+	if dataScope != datascope.DataScopeAll {
+		if currentUserID <= 0 {
+			scopeClause = " AND FALSE"
+		} else {
+			scopeClause = " AND (reporter_id = $2 OR assignee_id = $2)"
+			args = append(args, currentUserID)
+		}
+	}
+	query := fmt.Sprintf(`
 		SELECT
 		  COUNT(*) FILTER (WHERE TRUE) AS total,
 		  COUNT(*) FILTER (WHERE status IN ('open','in_progress')) AS open,
@@ -49,11 +66,11 @@ func (r *incidentStatsRepository) GetStats(ctx context.Context, tenantID int) (*
 		           FILTER (WHERE status IN ('resolved','closed') AND resolved_at IS NOT NULL),
 		           0)::int AS avg_minutes
 		FROM incidents
-		WHERE tenant_id = $1 AND deleted_at IS NULL
-	`
+		WHERE tenant_id = $1 AND deleted_at IS NULL%s
+	`, scopeClause)
 
 	stats := &IncidentStats{}
-	row := r.db.QueryRowContext(ctx, query, tenantID)
+	row := r.db.QueryRowContext(ctx, query, args...)
 	if err := row.Scan(
 		&stats.TotalIncidents,
 		&stats.OpenIncidents,

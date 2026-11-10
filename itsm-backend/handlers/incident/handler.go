@@ -1302,7 +1302,8 @@ func (h *IncidentHandler) GetStats(c *gin.Context) {
 		return
 	}
 
-	stats, err := h.service.GetStats(c.Request.Context(), tenantID)
+	dataScope := scopectx.Resolve(c, tenantID)
+	stats, err := h.service.GetStatsScoped(c.Request.Context(), tenantID, dataScope, c.GetInt("user_id"))
 	if err != nil {
 		zap.S().Errorw("GetStats: failed to query incident stats", "tenant_id", tenantID, "error", err)
 		common.Fail(c, common.InternalErrorCode, "Failed to retrieve incident statistics")

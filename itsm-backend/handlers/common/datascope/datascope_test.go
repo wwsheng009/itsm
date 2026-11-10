@@ -137,6 +137,22 @@ func TestCanWriteResourceWithScope(t *testing.T) {
 	assert.False(t, CanWriteResourceWithScope(0, DataScopeOwnedOrAssigned, 999, nil))
 }
 
+func TestCanWriteResourceFromContext(t *testing.T) {
+	assignee := 42
+	other := 7
+
+	allCtx := WithDataScope(context.Background(), DataScopeAll)
+	assert.True(t, CanWriteResourceFromContext(allCtx, other, "end_user", 999, &assignee),
+		"context all 应允许 provider 员工写非本人单据")
+
+	ownerCtx := WithDataScope(context.Background(), DataScopeOwnedOrAssigned)
+	assert.True(t, CanWriteResourceFromContext(ownerCtx, other, "end_user", other, nil))
+	assert.False(t, CanWriteResourceFromContext(ownerCtx, other, "end_user", 999, &assignee))
+
+	// 未注入 context 时回退旧行为：super_admin 全租户可写。
+	assert.True(t, CanWriteResourceFromContext(context.Background(), other, "super_admin", 999, &assignee))
+}
+
 // TestCanWriteResource_AdminLikeRolesAlwaysAllowed 管理角色全租户可写。
 func TestCanWriteResource_AdminLikeRolesAlwaysAllowed(t *testing.T) {
 	for _, role := range []string{"super_admin", "admin", "manager", "sysadmin"} {

@@ -334,7 +334,8 @@ func (h *ReleaseHandler) GetReleaseStats(c *gin.Context) {
 		return
 	}
 
-	stats, err := h.releaseService.GetReleaseStats(c.Request.Context(), tenantID)
+	dataScope := scopectx.Resolve(c, tenantID)
+	stats, err := h.releaseService.GetReleaseStatsScoped(c.Request.Context(), tenantID, dataScope, c.GetInt("user_id"))
 	if err != nil {
 		h.logger.Errorw("Get release stats failed", "error", err, "tenant_id", tenantID)
 		common.FailWithErr(c, err, "操作失败")

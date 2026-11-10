@@ -191,6 +191,10 @@ func (m *mockRepository) GetStats(ctx context.Context, tenantID int) (*IncidentS
 	return stats, nil
 }
 
+func (m *mockRepository) GetStatsScoped(ctx context.Context, tenantID int, dataScope datascope.DataScope, currentUserID int) (*IncidentStats, error) {
+	return m.GetStats(ctx, tenantID)
+}
+
 func (m *mockRepository) CreateEvent(ctx context.Context, e *IncidentEvent) (*IncidentEvent, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()

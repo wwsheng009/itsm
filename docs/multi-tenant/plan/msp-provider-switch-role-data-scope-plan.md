@@ -155,7 +155,9 @@ active allocation 或客户侧 invite（`internal/authz/switch.go:74-105`）。
 - [x] incident / change / service_request / release 列表接入同一解析
 - [x] C2 读权限补齐：`problem:read` / `change:read` / `service_request:read` /
       `incident:read` / `release:read`（修复 `/problems` 等 GET 列表 2003）
-- [ ] 各域写路径改用 `CanWriteResourceWithScope`
+- [x] 各域写路径改用 `CanWriteResourceWithScope`（请求 context 注入 DataScope）
+- [x] incident / change / release 统计接入 scoped 统计
+- [x] 新增 `scopectx.Middleware`：租户组请求期统一解析一次 DataScope
 - [ ] 角色管理 UI 暴露 `dataScope` 配置
 - [ ] 清理 `IsDataScopeAllRole` 硬编码回退（保留迁移期兜底）
 
@@ -203,12 +205,15 @@ provider 员工切到客户租户后：
 | `domain/role/role.go` | data_scope 词表、规范值、rank、内置 code 集合 |
 | `handlers/common/datascope/datascope.go` | `ResolveForActor`、`CanWriteResourceWithScope` |
 | `handlers/common/scopectx/scopectx.go` | Gin context → DataScope 统一入口 |
+| `router/router.go` | 租户组挂载 `scopectx.Middleware`，请求期注入 DataScope |
 | `pkg/seeder/seeder.go` | `RoleSeed.DataScope`、内置角色幂等校正 |
 | `pkg/seeder/tenant_provisioner.go` | 克隆/存量角色 data_scope 收敛 + `is_system` |
 | `dto/role_dto.go` / `service/role_service.go` | 角色创建/更新支持 dataScope |
 | `handlers/ticket/*` | List/GetStatsScoped/仓储 scoped count |
 | `handlers/problem/*` | List/GetStatsScoped/仓储 scoped stats |
 | `handlers/{incident,change,service_request,release}/*` | 列表接入 `scopectx.Resolve` |
+| ticket/problem/incident/change/service_request/release 写服务 | 写守卫改用 `CanWriteResourceFromContext` |
+| incident/change/release stats | 新增 `GetStatsScoped`，与列表同口径 |
 | `migrations/20261110_role_data_scope_backfill*.sql` | 存量角色 data_scope 回填/回滚 |
 | `migrations/20261110_c2_read_permissions*.sql` | 客户租户 msp_* 角色读权限回填/回滚 |
 
@@ -228,6 +233,7 @@ provider 员工切到客户租户后：
 | 238 实测（provider 深切换） | `/tickets` total=2 returned=2；stats total=2；`/msp/workbench` 403；切回 home 成功 |
 | 238 实测（C2 读权限修复前） | `/problems` 返回 2003（缺 `problem:read`） |
 | 238 实测（C2 读权限修复后） | `/problems` code=0 total=1 returned=1；版本 `1.8.0-dev.a6281950` |
+| 本地单测（P1） | ticket/problem/incident/change/datascope 全通过；release scoped stats 通过 |
 
 ### 9.3 待确认/后续
 

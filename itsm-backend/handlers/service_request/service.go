@@ -13,6 +13,7 @@ import (
 	"itsm-backend/dto"
 	"itsm-backend/ent"
 	"itsm-backend/handlers/cmdb"
+	"itsm-backend/handlers/common/datascope"
 	"itsm-backend/handlers/service_catalog"
 	"itsm-backend/service"
 
@@ -684,7 +685,7 @@ func (s *Service) Update(ctx context.Context, id, tenantID, actorID int, actorRo
 	if req.Status != SRStatusSubmitted {
 		return nil, common.NewConflictError("Only submitted requests can be edited", req.Status)
 	}
-	if actorID != req.RequesterID && !isServiceRequestAdmin(actorRole) {
+	if actorID != req.RequesterID && !isServiceRequestAdmin(actorRole) && !hasFullDataScope(ctx) {
 		return nil, common.NewForbiddenError("Only the requester or an administrator can edit this request")
 	}
 
@@ -764,10 +765,10 @@ func (s *Service) UpdateStatus(ctx context.Context, id, tenantID, actorID int, a
 		return common.NewConflictError("Invalid service request status transition", req.Status+" -> "+status)
 	}
 	if status == SRStatusCancelled {
-		if actorID != req.RequesterID && !isServiceRequestAdmin(actorRole) {
+		if actorID != req.RequesterID && !isServiceRequestAdmin(actorRole) && !hasFullDataScope(ctx) {
 			return common.NewForbiddenError("Only the requester or an administrator can cancel this request")
 		}
-	} else if !isServiceRequestOperator(actorRole) {
+	} else if !isServiceRequestOperator(actorRole) && !hasFullDataScope(ctx) {
 		return common.NewForbiddenError("Only service operators can update fulfillment status")
 	}
 	if err := s.repo.UpdateStatus(ctx, req, status, actorID); err != nil {
@@ -777,6 +778,14 @@ func (s *Service) UpdateStatus(ctx context.Context, id, tenantID, actorID int, a
 	return nil
 }
 
+// hasFullDataScope 判断请求 context 中解析出的租户级 DataScope 是否为 all。
+// provider 员工深切换进客户租户后 membership 角色为 msp_tech（data_scope=all），
+// 但 JWT 主角色仍是 end_user；写守卫不能只看 actorRole。
+func hasFullDataScope(ctx context.Context) bool {
+	scope, ok := datascope.DataScopeFromContext(ctx)
+	return ok && scope == datascope.DataScopeAll
+}
+
 // Delete deletes a service request
 func (s *Service) Delete(ctx context.Context, id, tenantID, actorID int, actorRole string) error {
 	// 1. Get existing request
@@ -784,7 +793,7 @@ func (s *Service) Delete(ctx context.Context, id, tenantID, actorID int, actorRo
 	if err != nil {
 		return common.NewNotFoundError("Service Request not found")
 	}
-	if actorID != req.RequesterID && !isServiceRequestAdmin(actorRole) {
+	if actorID != req.RequesterID && !isServiceRequestAdmin(actorRole) && !hasFullDataScope(ctx) {
 		return common.NewForbiddenError("Only the requester or an administrator can delete this request")
 	}
 	if req.Status != SRStatusSubmitted && req.Status != SRStatusRejected && req.Status != SRStatusCancelled {

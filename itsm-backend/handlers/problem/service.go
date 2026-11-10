@@ -91,7 +91,7 @@ func (s *Service) Update(ctx context.Context, tenantID int, id int, p *Problem, 
 	}
 	// P1-DataScope：写路径行级校验——写权限 ⊆ 读权限，普通角色仅可修改
 	// 本人创建或受理的问题单（datascope.CanWriteResource）。
-	if !datascope.CanWriteResource(actorID, actorRole, existing.CreatedBy, existing.AssigneeID) {
+	if !datascope.CanWriteResourceFromContext(ctx, actorID, actorRole, existing.CreatedBy, existing.AssigneeID) {
 		return nil, common.NewForbiddenError("无权限修改该问题单：仅创建人、受理人或管理员可操作")
 	}
 
@@ -257,7 +257,7 @@ func (s *Service) Delete(ctx context.Context, id int, tenantID int, actorID int,
 	if err != nil {
 		return err
 	}
-	if !datascope.CanWriteResource(actorID, actorRole, existing.CreatedBy, existing.AssigneeID) {
+	if !datascope.CanWriteResourceFromContext(ctx, actorID, actorRole, existing.CreatedBy, existing.AssigneeID) {
 		return common.NewForbiddenError("无权限删除该问题单：仅创建人、受理人或管理员可操作")
 	}
 	return s.repo.Delete(ctx, id, tenantID)

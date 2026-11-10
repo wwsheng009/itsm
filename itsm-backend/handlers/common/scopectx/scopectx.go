@@ -28,6 +28,9 @@ func Resolve(c *gin.Context, tenantID int) datascope.DataScope {
 	if c == nil || tenantID <= 0 {
 		return datascope.DataScopeOwnedOrAssigned
 	}
+	if scope, ok := datascope.DataScopeFromContext(c.Request.Context()); ok {
+		return scope
+	}
 
 	primaryRole := c.GetString("role")
 	var client *ent.Client
@@ -44,4 +47,20 @@ func Resolve(c *gin.Context, tenantID int) datascope.DataScope {
 		primaryRole,
 		middleware.GetContextRoles(c),
 	)
+}
+
+// Middleware 在租户路由组内统一解析一次 DataScope，并写入请求 context。
+//
+// 挂载位置：RBACMiddleware / TenantMiddleware 之后、业务 handler 之前。
+// 这样读 handler 的 scopectx.Resolve 会直接命中 context，写路径的服务层
+// 可通过 datascope.CanWriteResourceFromContext 复用同一范围，避免每层重复查库。
+func Middleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		tenantID := c.GetInt("tenant_id")
+		if tenantID > 0 {
+			scope := Resolve(c, tenantID)
+			c.Request = c.Request.WithContext(datascope.WithDataScope(c.Request.Context(), scope))
+		}
+		c.Next()
+	}
 }

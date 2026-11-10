@@ -34,6 +34,7 @@ import (
 	"itsm-backend/handlers/cloud"
 	"itsm-backend/handlers/cmdb"
 	domainCommon "itsm-backend/handlers/common"
+	"itsm-backend/handlers/common/scopectx"
 	connectorHandler "itsm-backend/handlers/connector"
 	dingtalkHandler "itsm-backend/handlers/dingtalk"
 	"itsm-backend/handlers/email_intake"
@@ -517,6 +518,8 @@ func SetupRoutes(r *gin.Engine, config *RouterConfig) {
 	{
 		// 租户中间件
 		tenant := auth.Use(middleware.TenantMiddleware(config.Client))
+		// 请求期 data_scope：RBAC/Tenant 之后统一解析一次，读 handler 与写服务层复用。
+		tenant.(*gin.RouterGroup).Use(scopectx.Middleware())
 		// 审计必须位于租户解析之后，确保所有租户内写操作都有可靠的租户和操作者上下文。
 		tenant.(*gin.RouterGroup).Use(middleware.AuditMiddleware(config.Client))
 

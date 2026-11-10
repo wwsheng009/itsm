@@ -239,7 +239,7 @@ func (s *ReleaseService) UpdateRelease(ctx context.Context, id, tenantID int, re
 		return nil, fmt.Errorf("failed to get release: %w", err)
 	}
 
-	if !datascope.CanWriteResource(actorID, actorRole, releaseEntity.CreatedBy, releaseEntity.OwnerID) {
+	if !datascope.CanWriteResourceFromContext(ctx, actorID, actorRole, releaseEntity.CreatedBy, releaseEntity.OwnerID) {
 		s.logger.Warnw("Release update rejected by row-level guard",
 			"release_id", id, "tenant_id", tenantID, "actor_id", actorID, "actor_role", actorRole)
 		return nil, common.NewForbiddenError("无权限操作该发布单：仅创建人、负责人或管理员可操作")
@@ -351,7 +351,7 @@ func (s *ReleaseService) UpdateReleaseStatus(ctx context.Context, id, tenantID i
 		return nil, fmt.Errorf("failed to get release: %w", err)
 	}
 
-	if !datascope.CanWriteResource(actorID, actorRole, releaseEntity.CreatedBy, releaseEntity.OwnerID) {
+	if !datascope.CanWriteResourceFromContext(ctx, actorID, actorRole, releaseEntity.CreatedBy, releaseEntity.OwnerID) {
 		s.logger.Warnw("Release status transition rejected by row-level guard",
 			"release_id", id, "tenant_id", tenantID, "actor_id", actorID, "actor_role", actorRole, "target_status", status)
 		return nil, common.NewForbiddenError("无权限操作该发布单：仅创建人、负责人或管理员可执行状态流转")
@@ -509,7 +509,7 @@ func (s *ReleaseService) DeleteRelease(ctx context.Context, id, tenantID int, ac
 		return fmt.Errorf("failed to delete release: %w", err)
 	}
 
-	if !datascope.CanWriteResource(actorID, actorRole, releaseEntity.CreatedBy, releaseEntity.OwnerID) {
+	if !datascope.CanWriteResourceFromContext(ctx, actorID, actorRole, releaseEntity.CreatedBy, releaseEntity.OwnerID) {
 		s.logger.Warnw("Release delete rejected by row-level guard",
 			"release_id", id, "tenant_id", tenantID, "actor_id", actorID, "actor_role", actorRole)
 		return common.NewForbiddenError("无权限删除该发布单：仅创建人、负责人或管理员可删除")
@@ -535,9 +535,26 @@ func (s *ReleaseService) DeleteRelease(ctx context.Context, id, tenantID int, ac
 
 // GetReleaseStats 获取发布统计
 func (s *ReleaseService) GetReleaseStats(ctx context.Context, tenantID int) (*dto.ReleaseStatsResponse, error) {
+	return s.GetReleaseStatsScoped(ctx, tenantID, datascope.DataScopeAll, 0)
+}
+
+// GetReleaseStatsScoped 返回与列表同 DataScope 口径的发布统计。
+func (s *ReleaseService) GetReleaseStatsScoped(ctx context.Context, tenantID int, dataScope datascope.DataScope, currentUserID int) (*dto.ReleaseStatsResponse, error) {
 	stats := &dto.ReleaseStatsResponse{}
 
-	total, err := s.client.Release.Query().Where(release.TenantIDEQ(tenantID)).Count(ctx)
+	base := s.client.Release.Query().Where(release.TenantIDEQ(tenantID))
+	if dataScope != datascope.DataScopeAll {
+		if currentUserID <= 0 {
+			base = base.Where(release.IDEQ(-1))
+		} else {
+			base = base.Where(release.Or(
+				release.CreatedByEQ(currentUserID),
+				release.OwnerIDEQ(currentUserID),
+			))
+		}
+	}
+
+	total, err := base.Clone().Count(ctx)
 	if err != nil {
 		s.logger.Errorw("Failed to count releases", "error", err)
 		return nil, err
@@ -545,13 +562,13 @@ func (s *ReleaseService) GetReleaseStats(ctx context.Context, tenantID int) (*dt
 	stats.Total = total
 
 	// 统计各状态数量
-	draft, _ := s.client.Release.Query().Where(release.TenantIDEQ(tenantID), release.StatusEQ(string(dto.ReleaseStatusDraft))).Count(ctx)
-	scheduled, _ := s.client.Release.Query().Where(release.TenantIDEQ(tenantID), release.StatusEQ(string(dto.ReleaseStatusScheduled))).Count(ctx)
-	inProgress, _ := s.client.Release.Query().Where(release.TenantIDEQ(tenantID), release.StatusEQ(string(dto.ReleaseStatusInProgress))).Count(ctx)
-	completed, _ := s.client.Release.Query().Where(release.TenantIDEQ(tenantID), release.StatusEQ(string(dto.ReleaseStatusCompleted))).Count(ctx)
-	cancelled, _ := s.client.Release.Query().Where(release.TenantIDEQ(tenantID), release.StatusEQ(string(dto.ReleaseStatusCancelled))).Count(ctx)
-	failed, _ := s.client.Release.Query().Where(release.TenantIDEQ(tenantID), release.StatusEQ(string(dto.ReleaseStatusFailed))).Count(ctx)
-	rolledBack, _ := s.client.Release.Query().Where(release.TenantIDEQ(tenantID), release.StatusEQ(string(dto.ReleaseStatusRolledBack))).Count(ctx)
+	draft, _ := base.Clone().Where(release.StatusEQ(string(dto.ReleaseStatusDraft))).Count(ctx)
+	scheduled, _ := base.Clone().Where(release.StatusEQ(string(dto.ReleaseStatusScheduled))).Count(ctx)
+	inProgress, _ := base.Clone().Where(release.StatusEQ(string(dto.ReleaseStatusInProgress))).Count(ctx)
+	completed, _ := base.Clone().Where(release.StatusEQ(string(dto.ReleaseStatusCompleted))).Count(ctx)
+	cancelled, _ := base.Clone().Where(release.StatusEQ(string(dto.ReleaseStatusCancelled))).Count(ctx)
+	failed, _ := base.Clone().Where(release.StatusEQ(string(dto.ReleaseStatusFailed))).Count(ctx)
+	rolledBack, _ := base.Clone().Where(release.StatusEQ(string(dto.ReleaseStatusRolledBack))).Count(ctx)
 
 	stats.Draft = draft
 	stats.Scheduled = scheduled

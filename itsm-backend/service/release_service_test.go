@@ -8,6 +8,7 @@ import (
 	"itsm-backend/dto"
 	"itsm-backend/ent"
 	"itsm-backend/ent/enttest"
+	"itsm-backend/handlers/common/datascope"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -291,12 +292,33 @@ func TestReleaseService_GetReleaseStats(t *testing.T) {
 		Type:          "patch",
 	}, testUser.ID, testTenant.ID)
 
+	otherUser, err := client.User.Create().
+		SetUsername("otheruser").
+		SetEmail("other@example.com").
+		SetName("Other User").
+		SetPasswordHash("hashedpassword").
+		SetRole("agent").
+		SetActive(true).
+		SetTenantID(testTenant.ID).
+		Save(ctx)
+	require.NoError(t, err)
+	_, _ = releaseService.CreateRelease(ctx, &dto.CreateReleaseRequest{
+		ReleaseNumber: "REL-003",
+		Title:         "发布3",
+		Type:          "patch",
+	}, otherUser.ID, testTenant.ID)
+
 	// 测试获取统计
 	stats, err := releaseService.GetReleaseStats(ctx, testTenant.ID)
 	assert.NoError(t, err)
 	assert.NotNil(t, stats)
-	assert.Equal(t, 2, stats.Total)
-	assert.Equal(t, 2, stats.Draft)
+	assert.Equal(t, 3, stats.Total)
+	assert.Equal(t, 3, stats.Draft)
+
+	ownerStats, err := releaseService.GetReleaseStatsScoped(ctx, testTenant.ID, datascope.DataScopeOwnedOrAssigned, testUser.ID)
+	require.NoError(t, err)
+	assert.Equal(t, 2, ownerStats.Total)
+	assert.Equal(t, 2, ownerStats.Draft)
 }
 
 // TestReleaseService_WritePath_RowLevelGuard 锁定 DataScope 行级写守卫（#27 release

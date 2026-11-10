@@ -6,6 +6,7 @@ import (
 
 	"itsm-backend/ent"
 	"itsm-backend/ent/change"
+	"itsm-backend/handlers/common/datascope"
 )
 
 // statsRepository 将变更单状态分布聚合从 EntRepository 拆出来。
@@ -38,22 +39,36 @@ type countsByStatus struct {
 //
 // 安全关键：所有 SQL 都绑定 tenantID，未传或 ≤0 直接返回错误而非返回全表。
 func (r *statsRepository) GetStats(ctx context.Context, tenantID int) (*Stats, error) {
+	return r.GetStatsScoped(ctx, tenantID, datascope.DataScopeAll, 0)
+}
+
+// GetStatsScoped 与列表同 DataScope 口径：非 all 时仅统计创建人或受理人为当前用户的变更单。
+func (r *statsRepository) GetStatsScoped(ctx context.Context, tenantID int, dataScope datascope.DataScope, currentUserID int) (*Stats, error) {
 	if tenantID <= 0 {
 		return nil, errors.New("stats repository requires tenantID")
 	}
 	stats := &Stats{}
 
-	total, err := r.client.Change.Query().
-		Where(change.TenantIDEQ(tenantID)).
-		Count(ctx)
+	base := r.client.Change.Query().Where(change.TenantIDEQ(tenantID))
+	if dataScope != datascope.DataScopeAll {
+		if currentUserID <= 0 {
+			base = base.Where(change.IDEQ(-1))
+		} else {
+			base = base.Where(change.Or(
+				change.CreatedByEQ(currentUserID),
+				change.AssigneeIDEQ(currentUserID),
+			))
+		}
+	}
+
+	total, err := base.Clone().Count(ctx)
 	if err != nil {
 		return nil, err
 	}
 	stats.Total = total
 
 	rows := []countsByStatus{}
-	if err := r.client.Change.Query().
-		Where(change.TenantIDEQ(tenantID)).
+	if err := base.Clone().
 		GroupBy(change.FieldStatus).
 		Aggregate(ent.Count()).
 		Scan(ctx, &rows); err != nil {

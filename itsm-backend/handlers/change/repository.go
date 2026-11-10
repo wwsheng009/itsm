@@ -21,6 +21,7 @@ type Repository interface {
 	UpdateStatusCAS(ctx context.Context, id, tenantID int, expectedStatus, targetStatus string) (bool, error)
 	Delete(ctx context.Context, id int, tenantID int) error
 	GetStats(ctx context.Context, tenantID int) (*Stats, error)
+	GetStatsScoped(ctx context.Context, tenantID int, dataScope datascope.DataScope, currentUserID int) (*Stats, error)
 	SubmitForApproval(ctx context.Context, changeID, tenantID int, plan []ApprovalLevelPlan, comment string) error
 
 	// Approvals

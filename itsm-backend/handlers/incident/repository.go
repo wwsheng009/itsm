@@ -28,6 +28,7 @@ type Repository interface {
 
 	// Stats operations
 	GetStats(ctx context.Context, tenantID int) (*IncidentStats, error)
+	GetStatsScoped(ctx context.Context, tenantID int, dataScope datascope.DataScope, currentUserID int) (*IncidentStats, error)
 
 	// Event operations
 	CreateEvent(ctx context.Context, event *IncidentEvent) (*IncidentEvent, error)

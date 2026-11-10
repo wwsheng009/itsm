@@ -142,6 +142,10 @@ func (m *slaMockRepository) GetStats(ctx context.Context, tenantID int) (*Incide
 	return stats, nil
 }
 
+func (m *slaMockRepository) GetStatsScoped(ctx context.Context, tenantID int, dataScope datascope.DataScope, currentUserID int) (*IncidentStats, error) {
+	return m.GetStats(ctx, tenantID)
+}
+
 func (m *slaMockRepository) CreateEvent(ctx context.Context, e *IncidentEvent) (*IncidentEvent, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()

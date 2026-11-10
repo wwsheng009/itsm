@@ -373,6 +373,13 @@ func (r *EntRepository) GetStats(ctx context.Context, tenantID int) (*Stats, err
 	return r.stats.GetStats(ctx, tenantID)
 }
 
+func (r *EntRepository) GetStatsScoped(ctx context.Context, tenantID int, dataScope datascope.DataScope, currentUserID int) (*Stats, error) {
+	if r.stats == nil {
+		return nil, fmt.Errorf("change stats repository not initialised")
+	}
+	return r.stats.GetStatsScoped(ctx, tenantID, dataScope, currentUserID)
+}
+
 // Approval Records —— 已封装到 changeApprovalRecordRepository
 func (r *EntRepository) CreateApprovalRecord(ctx context.Context, rec *ApprovalRecord) (*ApprovalRecord, error) {
 	if r.approvalRecords == nil {

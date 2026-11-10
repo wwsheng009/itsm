@@ -82,7 +82,7 @@ func (s *Service) acknowledgeGuard(ctx context.Context, id, actorID int, actorRo
 	if err != nil {
 		return err
 	}
-	if !datascope.CanWriteResource(actorID, actorRole, current.ReporterID, current.AssigneeID) {
+	if !datascope.CanWriteResourceFromContext(ctx, actorID, actorRole, current.ReporterID, current.AssigneeID) {
 		return common.NewForbiddenError("无权限操作该事件单：仅报告人、受理人或管理员可执行生命周期操作")
 	}
 	return nil
@@ -131,7 +131,7 @@ func (s *Service) Delete(ctx context.Context, id, tenantID int, actorID int, act
 	if err != nil {
 		return err
 	}
-	if !datascope.CanWriteResource(actorID, actorRole, current.ReporterID, current.AssigneeID) {
+	if !datascope.CanWriteResourceFromContext(ctx, actorID, actorRole, current.ReporterID, current.AssigneeID) {
 		return common.NewForbiddenError("无权限删除该事件单：仅报告人、受理人或管理员可操作")
 	}
 	return lifecycleError(s.productionService.DeleteIncident(ctx, id, tenantID))
@@ -272,7 +272,7 @@ func (s *Service) updateIncident(ctx context.Context, tenantID int, id int, upda
 	if err != nil {
 		return nil, err
 	}
-	if !datascope.CanWriteResource(actorID, actorRole, current.ReporterID, current.AssigneeID) {
+	if !datascope.CanWriteResourceFromContext(ctx, actorID, actorRole, current.ReporterID, current.AssigneeID) {
 		return nil, common.NewForbiddenError("无权限修改该事件单：仅报告人、受理人或管理员可操作")
 	}
 
@@ -485,6 +485,14 @@ func (s *Service) GetStats(ctx context.Context, tenantID int) (*IncidentStats, e
 		return nil, fmt.Errorf("invalid tenant id: %d", tenantID)
 	}
 	return s.repo.GetStats(ctx, tenantID)
+}
+
+// GetStatsScoped 返回与列表同 DataScope 口径的事件统计。
+func (s *Service) GetStatsScoped(ctx context.Context, tenantID int, dataScope datascope.DataScope, currentUserID int) (*IncidentStats, error) {
+	if tenantID <= 0 {
+		return nil, fmt.Errorf("invalid tenant id: %d", tenantID)
+	}
+	return s.repo.GetStatsScoped(ctx, tenantID, dataScope, currentUserID)
 }
 
 // ─── 子资源读模型（自 handler 下沉）────────────────────────────────

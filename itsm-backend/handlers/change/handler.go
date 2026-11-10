@@ -614,7 +614,8 @@ func (h *Handler) GetStats(c *gin.Context) {
 	if !ok {
 		return
 	}
-	res, err := h.svc.GetStats(c.Request.Context(), tenantID)
+	dataScope := scopectx.Resolve(c, tenantID)
+	res, err := h.svc.GetStatsScoped(c.Request.Context(), tenantID, dataScope, c.GetInt("user_id"))
 	if err != nil {
 		common.InternalError(c, "获取统计信息失败: "+err.Error())
 		return
@@ -776,7 +777,7 @@ func (h *Handler) AssignChange(c *gin.Context) {
 	// P1-DataScope：分配变更处理人属于写操作，同样受行级写权限约束
 	actorID := c.GetInt("user_id")
 	actorRole := c.GetString("role")
-	if !datascope.CanWriteResource(actorID, actorRole, existing.CreatedBy, existing.AssigneeID) {
+	if !datascope.CanWriteResourceFromContext(c.Request.Context(), actorID, actorRole, existing.CreatedBy, existing.AssigneeID) {
 		common.RespondError(c, common.NewForbiddenError("无权限分配该变更单：仅创建人、受理人或管理员可操作"), "操作失败")
 		return
 	}

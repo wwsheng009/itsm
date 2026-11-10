@@ -390,6 +390,13 @@ func (r *EntRepository) GetStats(ctx context.Context, tenantID int) (*IncidentSt
 	return r.stats.GetStats(ctx, tenantID)
 }
 
+func (r *EntRepository) GetStatsScoped(ctx context.Context, tenantID int, dataScope datascope.DataScope, currentUserID int) (*IncidentStats, error) {
+	if r.stats == nil {
+		return nil, fmt.Errorf("incident stats repository not initialised")
+	}
+	return r.stats.GetStatsScoped(ctx, tenantID, dataScope, currentUserID)
+}
+
 func (r *EntRepository) GenerateIncidentNumber(ctx context.Context, tenantID int, year int, month int) (string, error) {
 	// tenantID 入参保留以兼容 Repository 接口契约，但编号生成不依赖租户：
 	// incident_number_seq 是全局序列，租户隔离由

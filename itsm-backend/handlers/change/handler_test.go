@@ -216,6 +216,10 @@ func (m *mockRepository) GetStats(ctx context.Context, tenantID int) (*Stats, er
 	return stats, nil
 }
 
+func (m *mockRepository) GetStatsScoped(ctx context.Context, tenantID int, dataScope datascope.DataScope, currentUserID int) (*Stats, error) {
+	return m.GetStats(ctx, tenantID)
+}
+
 func (m *mockRepository) SubmitForApproval(ctx context.Context, changeID, tenantID int, plan []ApprovalLevelPlan, comment string) error {
 	if m.submitErr != nil {
 		return m.submitErr

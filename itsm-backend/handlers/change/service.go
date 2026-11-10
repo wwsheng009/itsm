@@ -104,7 +104,7 @@ func (s *Service) UpdateChange(ctx context.Context, c *Change, actorID int, acto
 	}
 	// P1-DataScope：写路径行级校验——写权限 ⊆ 读权限，普通角色仅可修改
 	// 本人创建或受理的变更单（datascope.CanWriteResource）。
-	if !datascope.CanWriteResource(actorID, actorRole, existing.CreatedBy, existing.AssigneeID) {
+	if !datascope.CanWriteResourceFromContext(ctx, actorID, actorRole, existing.CreatedBy, existing.AssigneeID) {
 		return nil, common.NewForbiddenError("无权限修改该变更单：仅创建人、受理人或管理员可操作")
 	}
 	if existing.Status != "draft" {
@@ -172,7 +172,7 @@ func (s *Service) DeleteChange(ctx context.Context, id int, tenantID int, actorI
 		}
 		return fmt.Errorf("change not found")
 	}
-	if !datascope.CanWriteResource(actorID, actorRole, existing.CreatedBy, existing.AssigneeID) {
+	if !datascope.CanWriteResourceFromContext(ctx, actorID, actorRole, existing.CreatedBy, existing.AssigneeID) {
 		return common.NewForbiddenError("无权限删除该变更单：仅创建人、受理人或管理员可操作")
 	}
 	return s.repo.Delete(ctx, id, tenantID)
@@ -180,6 +180,11 @@ func (s *Service) DeleteChange(ctx context.Context, id int, tenantID int, actorI
 
 func (s *Service) GetStats(ctx context.Context, tenantID int) (*Stats, error) {
 	return s.repo.GetStats(ctx, tenantID)
+}
+
+// GetStatsScoped 返回与列表同 DataScope 口径的变更统计。
+func (s *Service) GetStatsScoped(ctx context.Context, tenantID int, dataScope datascope.DataScope, currentUserID int) (*Stats, error) {
+	return s.repo.GetStatsScoped(ctx, tenantID, dataScope, currentUserID)
 }
 
 // GetCalendarView 获取日历视图数据
@@ -943,7 +948,7 @@ func (s *Service) TransitionStatus(ctx context.Context, id, tenantID, userID int
 	}
 
 	if targetStatus != "approved" && targetStatus != "rejected" && targetStatus != "rolled_back" {
-		if !datascope.CanWriteResource(userID, actorRole, c.CreatedBy, c.AssigneeID) {
+		if !datascope.CanWriteResourceFromContext(ctx, userID, actorRole, c.CreatedBy, c.AssigneeID) {
 			return nil, common.NewForbiddenError("无权限操作该变更单：仅创建人、受理人或管理员可执行状态流转")
 		}
 	}

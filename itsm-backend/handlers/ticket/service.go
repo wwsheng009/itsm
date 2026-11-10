@@ -158,7 +158,7 @@ func (s *Service) Update(ctx context.Context, tenantID int, id int, params *Upda
 	if err != nil {
 		return nil, err
 	}
-	if !datascope.CanWriteResource(actorID, actorRole, current.RequesterID, current.AssigneeID) {
+	if !datascope.CanWriteResourceFromContext(ctx, actorID, actorRole, current.RequesterID, current.AssigneeID) {
 		return nil, common.NewForbiddenError("无权限修改该工单：仅创建人、受理人或管理员可操作")
 	}
 	// 状态机校验（单一事实来源）：与 UpdateStatus 同规则，禁止 PUT 链路旁路。
@@ -230,7 +230,7 @@ func (s *Service) Delete(ctx context.Context, id int, tenantID int, actorID int,
 	if err != nil {
 		return err
 	}
-	if !datascope.CanWriteResource(actorID, actorRole, current.RequesterID, current.AssigneeID) {
+	if !datascope.CanWriteResourceFromContext(ctx, actorID, actorRole, current.RequesterID, current.AssigneeID) {
 		return common.NewForbiddenError("无权限删除该工单：仅创建人、受理人或管理员可操作")
 	}
 	return s.repo.Delete(ctx, id, tenantID)
@@ -246,7 +246,7 @@ func (s *Service) BatchDelete(ctx context.Context, ids []int, tenantID int, acto
 			if err != nil {
 				return err
 			}
-			if !datascope.CanWriteResource(actorID, actorRole, current.RequesterID, current.AssigneeID) {
+			if !datascope.CanWriteResourceFromContext(ctx, actorID, actorRole, current.RequesterID, current.AssigneeID) {
 				return common.NewForbiddenError(fmt.Sprintf("无权限删除工单 %d：仅创建人、受理人或管理员可操作", id))
 			}
 		}
@@ -341,7 +341,7 @@ func (s *Service) lifecycleGuard(ctx context.Context, ticketID, actorID int, act
 	if err != nil {
 		return err
 	}
-	if !datascope.CanWriteResource(actorID, actorRole, current.RequesterID, current.AssigneeID) {
+	if !datascope.CanWriteResourceFromContext(ctx, actorID, actorRole, current.RequesterID, current.AssigneeID) {
 		return common.NewForbiddenError(fmt.Sprintf("无权限%s该工单：仅创建人、受理人或管理员可操作", action))
 	}
 	return nil
@@ -468,7 +468,7 @@ func (s *Service) UpdateSubtask(ctx context.Context, tenantID int, subtaskID int
 	if err != nil {
 		return nil, err
 	}
-	if !datascope.CanWriteResource(actorID, actorRole, current.RequesterID, current.AssigneeID) {
+	if !datascope.CanWriteResourceFromContext(ctx, actorID, actorRole, current.RequesterID, current.AssigneeID) {
 		return nil, common.NewForbiddenError("无权限修改该子任务：仅创建人、受理人或管理员可操作")
 	}
 	// 修复：原代码比较 *current.ParentTicketID != tenantID —— ParentTicketID 是父工单 ID，
@@ -487,7 +487,7 @@ func (s *Service) DeleteSubtask(ctx context.Context, subtaskID int, tenantID int
 	if err != nil {
 		return err
 	}
-	if !datascope.CanWriteResource(actorID, actorRole, current.RequesterID, current.AssigneeID) {
+	if !datascope.CanWriteResourceFromContext(ctx, actorID, actorRole, current.RequesterID, current.AssigneeID) {
 		return common.NewForbiddenError("无权限删除该子任务：仅创建人、受理人或管理员可操作")
 	}
 	return s.repo.Delete(ctx, subtaskID, tenantID)

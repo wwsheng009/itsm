@@ -19,6 +19,8 @@ import (
 // DataScope 行级数据权限范围。
 type DataScope int
 
+type dataScopeContextKey struct{}
+
 const (
 	// DataScopeAll 全租户可见（admin/manager/super_admin/sysadmin 等管理角色）。
 	DataScopeAll DataScope = iota
@@ -147,6 +149,20 @@ func ResolveForActor(
 	return best
 }
 
+// WithDataScope 把已解析的数据范围写入请求 context，供服务层写守卫复用。
+func WithDataScope(ctx context.Context, scope DataScope) context.Context {
+	return context.WithValue(ctx, dataScopeContextKey{}, scope)
+}
+
+// DataScopeFromContext 读取请求 context 中已解析的数据范围。
+func DataScopeFromContext(ctx context.Context) (DataScope, bool) {
+	if ctx == nil {
+		return DataScopeOwnedOrAssigned, false
+	}
+	scope, ok := ctx.Value(dataScopeContextKey{}).(DataScope)
+	return scope, ok
+}
+
 // dataScopeFromCanonical 按内置词表规范值计算角色集合的最宽范围。
 func dataScopeFromCanonical(codes []string) DataScope {
 	best := DataScopeOwnedOrAssigned
@@ -226,6 +242,15 @@ func CanWriteResourceWithScope(actorID int, scope DataScope, ownerID int, assign
 		return true
 	}
 	return false
+}
+
+// CanWriteResourceFromContext 优先使用请求 context 中已解析的租户级 DataScope；
+// 未注入时回退到按 JWT 主角色推断的旧行为（单测/非租户路由兼容）。
+func CanWriteResourceFromContext(ctx context.Context, actorID int, actorRole string, ownerID int, assigneeID *int) bool {
+	if scope, ok := DataScopeFromContext(ctx); ok {
+		return CanWriteResourceWithScope(actorID, scope, ownerID, assigneeID)
+	}
+	return CanWriteResource(actorID, actorRole, ownerID, assigneeID)
 }
 
 // ApplyTicketFilter 将 DataScope 过滤器应用到 ticket 查询。
