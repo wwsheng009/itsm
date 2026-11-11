@@ -51,7 +51,8 @@ go test -p=1 -gcflags=all=-l ./middleware ./dto -count=1         PASS
 go test -p=1 -gcflags=all=-l ./service/bpmn -count=1            PASS
 go test -p=1 -gcflags=all=-l ./handlers/common ./handlers/auth  PASS
 go test -p=1 -gcflags=all=-l ./handlers/ticket_comment \
-  ./handlers/notification ./handlers/approval ./handlers/bpmn    PASS
+  ./handlers/notification ./handlers/approval ./handlers/bpmn \
+  -run '^$'                                                       PASS（编译）
 npx tsc --noEmit                                                 PASS
 npx eslint <changed frontend files>                              PASS
 pglast parse(migration + post_schema_constraints.sql)            PASS
