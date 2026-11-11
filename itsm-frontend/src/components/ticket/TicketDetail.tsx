@@ -209,12 +209,12 @@ const TicketDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
   // 入口级权限门禁（与后端端点逐条对齐）：
   // 批准/拒绝 → tickets POST /approval/submit（approval:write）；
   // 分配 → POST /tickets/:id/assign（ticket:assign）；编辑 → PUT /tickets/:id（ticket:update）；
-  // 抄送 → POST /tickets/workflow/cc（workflow:write）；删除 → DELETE /tickets/:id（ticket:delete）。
+  // 抄送 → POST /tickets/workflow/cc（ticket:update）；删除 → DELETE /tickets/:id（ticket:delete）。
   const canApproveTicket = hasPermission('approval:write');
   const canReadApprovalRecords = hasPermission('approval:read');
   const canAssignTicket = hasPermission('ticket:assign');
   const canUpdateTicket = hasPermission('ticket:update');
-  const canCcTicket = hasPermission('workflow:write');
+  const canCcTicket = hasPermission('ticket:update') || hasPermission('workflow:write');
   const canDeleteTicket = hasPermission('ticket:delete');
   // V0-01 AI Inline 面板会立即请求 /ai/triage 与 /ai/rag/search（均要求 ai:read）；
   // 无权限时必须入口级隐藏，否则每次打开工单详情都会产生 403 和误导性的“AI 暂不可用”。

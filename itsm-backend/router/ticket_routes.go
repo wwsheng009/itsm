@@ -268,13 +268,15 @@ func SetupTicketRoutes(tenant *gin.RouterGroup, config *RouterConfig) {
 			tickets.POST("/workflow/reject", middleware.RequirePermission("workflow", "write"), config.TicketWorkflowHandler.RejectTicket)
 			tickets.POST("/workflow/withdraw", middleware.RequirePermission("workflow", "write"), config.TicketWorkflowHandler.WithdrawTicket)
 			tickets.POST("/workflow/forward", middleware.RequirePermission("workflow", "write"), config.TicketWorkflowHandler.ForwardTicket)
-			tickets.POST("/workflow/cc", middleware.RequirePermission("workflow", "write"), config.TicketWorkflowHandler.CCTicket)
+			// 抄送属于工单协作更新，不是流程设计/实例管理。使用 ticket:update 让
+			// 客户技术员与客户租户内 provider 可用；工单级权限仍由 CCTicket 服务校验。
+			tickets.POST("/workflow/cc", middleware.RequirePermission("ticket", "update"), config.TicketWorkflowHandler.CCTicket)
 			tickets.POST("/workflow/approve", middleware.RequirePermission("workflow", "write"), config.TicketWorkflowHandler.ApproveTicket)
 			tickets.POST("/workflow/resolve", middleware.RequirePermission("workflow", "write"), config.TicketWorkflowHandler.ResolveTicket)
 			tickets.POST("/workflow/close", middleware.RequirePermission("workflow", "write"), config.TicketWorkflowHandler.CloseTicket)
 			tickets.POST("/workflow/reopen", middleware.RequirePermission("workflow", "write"), config.TicketWorkflowHandler.ReopenTicket)
-			tickets.GET("/:id/cc", middleware.RequirePermission("workflow", "read"), config.TicketWorkflowHandler.ListTicketCCRecords)
-			tickets.DELETE("/:id/cc/:cc_id", middleware.RequirePermission("workflow", "write"), config.TicketWorkflowHandler.RemoveTicketCCRecord)
+			tickets.GET("/:id/cc", middleware.RequirePermission("ticket", "read"), config.TicketWorkflowHandler.ListTicketCCRecords)
+			tickets.DELETE("/:id/cc/:cc_id", middleware.RequirePermission("ticket", "update"), config.TicketWorkflowHandler.RemoveTicketCCRecord)
 			tickets.GET("/:id/workflow/state", middleware.RequirePermission("workflow", "read"), config.TicketWorkflowHandler.GetTicketWorkflowState)
 			// 工单详情体验增强：V2 聚合 BPMN 真实节点状态（当前/下一/历史）。
 			tickets.GET("/:id/workflow/state-v2", middleware.RequirePermission("workflow", "read"), config.TicketWorkflowHandler.GetTicketWorkflowStateV2)

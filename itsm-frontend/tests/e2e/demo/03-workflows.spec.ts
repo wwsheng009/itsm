@@ -422,7 +422,7 @@ test.describe('Demo Round 3 · multi-user business workflows', () => {
       await switchDemoTenant(agent, 3);
       switched = true;
 
-      await apiPost(agent, `/api/v1/tickets/${ticket.id}/cc`, {
+      await apiPost(agent, `/api/v1/tickets/workflow/cc`, {
         ticketId: ticket.id,
         ccUsers: [Number(itadmin.user.id)],
         comment: 'E2E provider 合法抄送',
@@ -434,7 +434,7 @@ test.describe('Demo Round 3 · multi-user business workflows', () => {
       expect(valid, '合法抄送记录应存在').toBeTruthy();
       expect(valid!.userMembershipId, '抄送接收人必须携带客户租户 membership').toBeGreaterThan(0);
 
-      const invalid = await callRaw(agent.api, 'POST', `/api/v1/tickets/${ticket.id}/cc`, {
+      const invalid = await callRaw(agent.api, 'POST', `/api/v1/tickets/workflow/cc`, {
         headers: authHeaders(agent),
         data: {
           ticketId: ticket.id,
