@@ -130,11 +130,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   并回填存量工单；③ provider 深度态代客建单要求显式客户 `requesterId`，服务端解析
   目标租户 membership，并记录 provider membership 为建单人；前端建单页增加“客户申请人”
   选择器；④ 修复 `jwt_tenant_source` 与 `tenant_source` 混用导致的代客建单误判；
-  ⑤ 变更重复删除由 500 改为 404。验证：受影响 Go 包全绿、`npx tsc --noEmit`、
+  ⑤ 变更重复删除由 500 改为 404；⑥ 工单单张/批量/智能/重新分配同步
+  `assignee_membership_id`。验证：受影响 Go 包全绿、`npx tsc --noEmit`、
   改动文件 ESLint、auth-store/session-bootstrap Jest 33/33、demo E2E 45/45；
-  238 部署版本 `1.8.0-dev.ad878805`，6/6 容器 healthy、readyz ready、migration 已应用；
+  238 部署版本 `1.8.0-dev.e1599ffd`，6/6 容器 healthy、readyz ready、migration 已应用；
   证据：[C 方案](docs/multi-tenant/plan/membership-tenant-identity-c-plan.md)、
-  [238 部署证据](docs/review/evidence/2026-11-11-demo-full-deploy-ad878805.md)。
+  [238 部署证据](docs/review/evidence/2026-11-11-demo-full-deploy-e1599ffd.md)。
 
 - **菜单树层级修复**：修复 demo/存量租户菜单同步及新租户菜单克隆丢失 `parent_id` 的问题。按菜单 `path` 重映射目标租户父节点，保留租户自定义名称、排序和可见性；重复初始化可修复历史扁平菜单且不重复插入。
 

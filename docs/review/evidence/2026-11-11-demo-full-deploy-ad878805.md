@@ -1,6 +1,9 @@
 # 238 Demo 全量部署证据（2026-11-11 · 1.8.0-dev.ad878805）
 
-> **Status: current**
+> **Status: historical** — 已被 `1.8.0-dev.e1599ffd` 取代，见
+> [2026-11-11-demo-full-deploy-e1599ffd.md](./2026-11-11-demo-full-deploy-e1599ffd.md)。
+
+> **状态**：success
 > **环境**：`http://172.18.3.238:8089`（`itsm-demo`，`saas_msp`）
 > **部署来源**：当前工作区 HEAD `ad8788051e75e81ecc5085759a5b737566cc267e`
 > **部署 worktree**：`/home/n9e/itsm/repo-e2e-6745c998`，branch `deploy/full-ad878805`

@@ -5,7 +5,7 @@
 | 项 | 值 |
 |---|---|
 | Base URL | `http://172.18.3.238:8089` |
-| Version | `1.8.0-dev.ad878805`（部署 worktree commit `ad8788051`） |
+| Version | `1.8.0-dev.e1599ffd`（部署 worktree commit `e1599ffdb`） |
 | Deployment mode | `saas_msp` |
 | Browser | Chrome（Playwright `channel: chrome`） |
 | Worker | `1`（规避登录限流） |
@@ -27,21 +27,21 @@ Running 45 tests using 1 worker
 ```
 
 > 0 个 expected failure；D1–D18、多租户跳转/业务操作与附件角色访问的回归断言均为普通用例。
-> `a0d4240a` 起复核改为按 spec 分组独立进程执行，最终 `ad878805` 复核累计 45/45 通过；单进程全量在本机 Windows 上曾因 Chrome 内存不足 OOM，非产品失败。
+> `a0d4240a` 起复核改为按 spec 分组独立进程执行，最终 `e1599ffd` 复核累计 45/45 通过；单进程全量在本机 Windows 上曾因 Chrome 内存不足 OOM，非产品失败。
 
 > 已移除旧的 known-defect 容忍分支：跨租户删除/问题关联不再接受 500，事件转换后必须返回
 > `problemId`，L1/L2/L3 审批必须 200，D10 删除后 GET 必须 404，Dashboard/AI 不再允许 403 白名单。
 
 ## 发布与部署后验证
 
-238 已从当前工作区 HEAD `ad8788051` 全量发布 `1.8.0-dev.ad878805`：
+238 已从当前工作区 HEAD `e1599ffdb` 全量发布 `1.8.0-dev.e1599ffd`：
 
 - 6 个常驻容器（backend/worker/frontend/nginx/redis/ai-service）healthy；`itsm-init-demo` exit=0。
-- `/api/v1/healthz` ok、`/api/v1/readyz` ready；`/api/v1/version` 返回 `ad878805`。
-- 部署 worktree：`/home/n9e/itsm/repo-e2e-6745c998`，branch `deploy/full-ad878805`。
-- 备份/回滚证据：`backups/demo-release-1.8.0-dev.ad878805-20261111T114926Z`。
-- 镜像：backend `sha256:a610565d62fc835db698c214f853f44c91f781b9637cb4425e2fe1ee1a018f9f`；frontend `sha256:f22a65fe0675a307ed2f47085eff73e6e6ddad3a8cc242e96a77954b3400fa96`；ai-service `sha256:f99367604826ed7fa1541bfa8868dee1eb7492b4307d4e55f050d35b6a2d3301`。
-- demo E2E 分组累计 `45/45 passed`；此前 `f7dd2974`、`44faf311`、`5699b5a8`、`af3cba9c`、`a0d4240a`、`91eb6e82` 全量部署均已被本结果取代。
+- `/api/v1/healthz` ok、`/api/v1/readyz` ready；`/api/v1/version` 返回 `e1599ffd`。
+- 部署 worktree：`/home/n9e/itsm/repo-e2e-6745c998`，branch `deploy/full-e1599ffd`。
+- 备份/回滚证据：`backups/demo-release-1.8.0-dev.e1599ffd-20261111T125504Z`。
+- 镜像：backend `sha256:af1cc2efa5cee2a9f53f29e1170e24c708d123c4dae5f1f37fc0d7a01289a1e6`；frontend `sha256:f22a65fe0675a307ed2f47085eff73e6e6ddad3a8cc242e96a77954b3400fa96`；ai-service `sha256:f99367604826ed7fa1541bfa8868dee1eb7492b4307d4e55f050d35b6a2d3301`。
+- demo E2E 分组累计 `45/45 passed`；此前 `f7dd2974`、`44faf311`、`5699b5a8`、`af3cba9c`、`a0d4240a`、`91eb6e82`、`49a2ad11`、`ad878805` 全量部署均已被本结果取代。
 
 > 发布前曾用本地生产构建 + 238 后端验证前端门控与布局修复；最终验证据以部署后的 238 结果为准。此前 `f7dd2974` 是独立部署分支的裁剪版本，未包含当前分支的 DeepTenantReturn 与完整当前代码；本次已纠正。
 
@@ -52,7 +52,7 @@ Running 45 tests using 1 worker
 | Round 0 | 环境/版本/ready、平台/服务商/客户代表登录、客户与 MSP 页面 smoke、登录与 `/auth/me` 角色一致性 | pass |
 | Round 1 | end_user / 客户管理员 / MSP manager / MSP agents 权限矩阵、跨租户 GET/LIST/PUT/DELETE、未认证 | pass |
 | Round 2 | 工单↔工单、问题↔工单/事件/变更、事件→问题、变更↔CMDB、变更关联工单、工单↔CI、发布↔变更 | pass |
-| Round 3 | 事件→问题→变更全生命周期、服务请求 L1/L2/L3、工单协作、MSP 指派/回复/改状态、租户 readiness | pass |
+| Round 3 | 事件→问题→变更全生命周期、服务请求 L1/L2/L3、工单协作（含 assignee membership 断言）、MSP 指派/回复/改状态、租户 readiness | pass |
 | Round 4 | 客户核心页面、工单详情 BPMN/i18n、MSP 工作台、readiness 向导、360/768/1440 响应式、服务目录统计、无 ai:read 的工单/变更 AI 门控、发布↔变更 UI、provider→customer→返回工作台 | pass |
 | Round 5 | provider 深度切换三客户处理既有工单、客户作用域评论/改状态、跨租户隔离、MSP 工作台指派/回复、provider 员工分配边界、provider 读取客户问题且医疗不可见、provider 代客建单（显式客户 requesterId） | pass |
 | Round 6 | 工单附件上传后 end_user / it_admin / security_admin / provider 深度态列出附件；ticket 74 类场景 | pass |
@@ -101,6 +101,7 @@ Running 45 tests using 1 worker
 
 - 238 已发布本轮修复；E2E 分组累计 45/45 通过，无 expected failure。
 - C 方案 membership 租户内身份：membership 上下文、工单 membership 回填、provider 代客建单、`/auth/me` membership 字段；详见 [`../../../multi-tenant/plan/membership-tenant-identity-c-plan.md`](../../../multi-tenant/plan/membership-tenant-identity-c-plan.md)。
+- 工单分配 membership 同步：单张/批量/智能/重新分配均写 `assignee_membership_id`；238 active 有处理人工单 62/62 有 membership，缺失 0。
 - 硬编码角色白名单审计及穷尽复核补漏：Header AI `isAdmin()` 旁路、AI 通知/审批 fallback 无效角色码、MSP 写权限重复白名单、provider `allowedActions` 行级误判；详见 [`../../2026-11-11-role-whitelist-audit.md`](../../2026-11-11-role-whitelist-audit.md)。
 - provider 深度态代客建单已修复：必须显式提交客户 `requesterId`，服务端解析目标租户 membership；
   缺失 `requesterId` 返回 400（不再落入 404 申请人校验）。

@@ -175,6 +175,7 @@ tickets.assignee_id
 - [x] 未提供 `requesterId` 的 provider 建单返回 400，不再出现 404「申请人不存在或不可用」；
 - [x] 客户用户不能通过 `requesterId` 伪造他人建单；
 - [x] 跨租户 requester membership 被拒绝；
+- [x] 工单单张/批量/智能分配同步更新 `assignee_membership_id`；
 - [x] `/auth/me` 返回目标租户 `membershipId/accountKind`；
 - [x] 工单响应包含 membership 引用，旧 `requesterId/assigneeId` 保持兼容；
 - [x] 回填 SQL 在 238 demo 执行成功，无不可解释 NULL（active tickets 72/72，mismatch=0）；
@@ -196,9 +197,9 @@ tickets.assignee_id
 本轮已落地 Phase 1 + Phase 2 工单主链路，Phase 3/4 保留为后续迁移计划。
 
 ```text
-runtime_commit=ad8788051e75e81ecc5085759a5b737566cc267e
-version=1.8.0-dev.ad878805
-deploy_branch=deploy/full-ad878805
+runtime_commit=e1599ffdb5fdf56b44aa783261fe6535bf5714f2
+version=1.8.0-dev.e1599ffd
+deploy_branch=deploy/full-e1599ffd
 e2e=45/45
 backend=go test ./service ./handlers/ticket ./handlers/auth ./handlers/common ./middleware ./dto ./repository/ticket ./migration
 frontend=npx tsc --noEmit + eslint
@@ -209,11 +210,11 @@ frontend=npx tsc --noEmit + eslint
 - `5c8f32a62` feat(multi-tenant): use membership as tenant identity
 - `49a2ad115` fix(ticket): detect provider switch scope from JWT source
 - `ad8788051` fix(change): return 404 when deleting missing change
+- `e1599ffdb` fix(ticket): persist assignee membership on assignment
 
 发布与运行态证据：
-[2026-11-11-demo-full-deploy-ad878805.md](../../review/evidence/2026-11-11-demo-full-deploy-ad878805.md)。
+[2026-11-11-demo-full-deploy-e1599ffd.md](../../review/evidence/2026-11-11-demo-full-deploy-e1599ffd.md)。
 
 本轮未完成、保留到 Phase 3：
 
-- 工单分配接口同步更新 `assignee_membership_id`（本轮已完成创建时解析与存量回填）；
 - 工单评论/附件/审批/CC/通知/审计 actor 的 membership 引用迁移。
