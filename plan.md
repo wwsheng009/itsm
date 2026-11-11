@@ -133,4 +133,4 @@
 - `D4`：`itsm_msp.py workbench-tickets` 参数与当前后端 `customerTenantIds/q/limit/cursor` 不一致。
 - `D5`：`demo-environment.md` 的版本号、工作台数量、SLA 样本表述需按实测校正。
 
-**执行原则**：不覆盖本文件上方历史计划；只改本任务相关文件；测试数据统一 `[E2E-<runId>]` 前缀并清理；历史评审文档保留 `Status: historical`，不复写历史结论。**执行进展（2026-11-11）**：Round 0–4 已完成；238 已发布 `1.8.0-dev.f7dd2974`，全量 demo E2E **39 passed / 0 预期失败**；D1–D15 均已修复并完成运行态回归。报告见 `docs/review/2026-11-10-msp-demo-e2e-validation.md`，运行摘要见 `docs/review/evidence/2026-11-10-msp-demo-e2e/run-summary.md`。
+**执行原则**：不覆盖本文件上方历史计划；只改本任务相关文件；测试数据统一 `[E2E-<runId>]` 前缀并清理；历史评审文档保留 `Status: historical`，不复写历史结论。**执行进展（2026-11-11）**：Round 0–4 已完成；238 已从当前工作区 HEAD `44faf3110` 全量发布 `1.8.0-dev.44faf311`，全量 demo E2E **40 passed / 0 预期失败**；D1–D16 均已修复并完成运行态回归（含 provider→customer→返回工作台）。报告见 `docs/review/2026-11-10-msp-demo-e2e-validation.md`，运行摘要见 `docs/review/evidence/2026-11-10-msp-demo-e2e/run-summary.md`。

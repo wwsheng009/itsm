@@ -46,10 +46,10 @@ DEMO_ADMIN_PASSWORD='...' DEMO_USER_PASSWORD='...' ...
 
 - 新建数据标题统一 `[E2E-<runId>]`。
 - 工单/变更/问题/事件/服务请求/关联在用例内 `finally` 发起删除；相关资源为软删，API/工作台不可见但审计行保留。
-- 租户管理员自 `1.8.0-dev.f7dd2974` 起具备 `service_request:delete`，服务请求通过删除接口清理。
+- 租户管理员自 `1.8.0-dev.44faf311` 起具备 `service_request:delete`，服务请求通过删除接口清理。
 - **不要**删除或改写 demo 种子数据（`[DEMO]` 前缀记录）。
 
-## 4. 已修复项（238 `1.8.0-dev.f7dd2974` 已验证）
+## 4. 已修复项（238 `1.8.0-dev.44faf311` 已验证）
 
 | 编号 | 现象 | 处理 |
 |---|---|---|
@@ -68,6 +68,7 @@ DEMO_ADMIN_PASSWORD='...' DEMO_USER_PASSWORD='...' ...
 | D13 | 发布单接受其他租户引用 | 已修复并发布（写入前校验四类引用）；`02-associations` A6 通过 |
 | D14 | 发布表单无法选择变更，详情不展示变更 | 已修复并发布（`ChangeSelect` + 详情跳转）；`04-ui-ux` 通过 |
 | D15 | 服务请求软删后 GET 返回 HTTP 200（包体 code=404） | 已修复并发布（HTTP 404 + 业务码 4004）；`03-workflows` D10 通过 |
+| D16 | provider 进入客户租户后 Header 丢失“返回工作台” | 已修复并全量发布（`DeepTenantReturn` 独立渲染）；`04-ui-ux` 多租户跳转通过 |
 
 > 当前套件无预期失败用例；上述回归均为普通断言。
 

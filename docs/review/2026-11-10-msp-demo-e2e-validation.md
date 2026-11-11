@@ -1,8 +1,8 @@
 # MSP Demo 多轮多用户 E2E 验证与缺陷修复报告（2026-11-10）
 
-**Status: current** — 本报告基于 2026-11-10 的 E2E 验证与 2026-11-11 的 238 演示栈发布复核。
+**Status: current** — 本报告基于 2026-11-10 的 E2E 验证与 2026-11-11 的 238 全量重部署复核。
 
-> **环境**：`itsm-demo`（`saas_msp`），当前部署版本 `1.8.0-dev.f7dd2974`
+> **环境**：`itsm-demo`（`saas_msp`），当前部署版本 `1.8.0-dev.44faf311`
 > **范围**：多用户、多角色、多租户、多单据关联、权限、前端 UI/UX、文档一致性
 > **套件**：`itsm-frontend/tests/e2e/demo/`；配置 `itsm-frontend/playwright.demo.config.ts`
 > **证据**：[`evidence/2026-11-10-msp-demo-e2e/run-summary.md`](./evidence/2026-11-10-msp-demo-e2e/run-summary.md)
@@ -11,8 +11,9 @@
 
 ## 0. 结论摘要
 
-- 全量 demo E2E：**39 passed**（1 worker，约 2.8 分钟），**0 个预期失败**。
+- 全量 demo E2E：**40 passed**（1 worker，约 1.9 分钟），**0 个预期失败**。
 - 已确认并修复 **15** 个产品/契约缺陷：D1–D15（含租户管理员删除服务请求、软删后 GET 仍 HTTP 200）。
+- 另修复 1 个部署回归：provider→customer 深度切换后返回工作台入口丢失（D16）；本次从当前工作区 HEAD 全量部署后验证通过。
 - **无开放代码缺陷**；仅剩 demo 库历史残留（`review-test`、31 张历史验收/E2E 工单、未关闭 SLA 全部超期），不属于本轮测试产生。
 - 已校正当前文档：demo 版本/工单数量/SLA 现状/review-test 残留，并补充 238 E2E 运行手册；历史评审保持 `historical` 不改写。
 - 本轮 `[E2E]` 数据 API 可见残留为 0；软删审计行仍保留在数据库但不可见，未触碰 `[DEMO]` 种子数据。
@@ -208,6 +209,19 @@ npx playwright test -c playwright.demo.config.ts tests/e2e/demo --workers=1
 - 单测 `TestServiceRequestHandler_Delete` 增补 HTTP 404 断言。
 - E2E：`03-workflows` D10 同一链路断言 DELETE 200 且后续 GET 为 403/404。
 
+### D16 · provider 进入客户租户后返回工作台入口丢失
+
+**现象**：`demo.msp.manager`（`provider_admin`）从服务商工作台进入客户租户后，Header 中“当前客户（深度操作中）/ 返回工作台”入口消失，用户无法直接回到 provider 作用域。
+
+**根因**：返回入口原先位于 `CustomerFilter` 内，而 Header 仅在 `canUseMspWorkbench=true` 时渲染 `CustomerFilter`。切到客户租户后当前租户类型变为 `msp_customer`，该条件为 false，整个组件被卸载，返回入口随之消失。更早的 238 部署 `f7dd2974` 来自独立裁剪分支，未包含 `DeepTenantReturn` 独立入口修复。
+
+**修复**：
+
+- 将返回入口拆为独立 `DeepTenantReturn`，由 Header 在客户端稳定渲染，不依赖 `CustomerFilter` 与 `/msp/*` 数据面。
+- 可见性统一由 `canReturnToProviderTenant` 判定：`homeTenantId` 存在、当前租户为不同客户租户、用户为服务商员工；缺少权威字段时 fail-closed。
+- 返回动作先 `switchTenant(homeTenantId)` 切回 provider 作用域，成功后再导航 `/msp/workbench`。
+- 新增 E2E：`04-ui-ux` 多租户跳转，断言客户作用域显示返回入口、点击后回到工作台；全量套件由 39 增至 40 条。
+
 ---
 
 ## 3. 开放项
@@ -223,8 +237,8 @@ npx playwright test -c playwright.demo.config.ts tests/e2e/demo --workers=1
 ### 4.1 E2E
 
 ```text
-Running 39 tests using 1 worker
-39 passed (2.8m)
+Running 40 tests using 1 worker
+40 passed (1.9m)
 ```
 
 > 0 个预期失败；所有缺陷回归均为普通用例并通过。详见 run-summary。
@@ -269,22 +283,22 @@ Running 39 tests using 1 worker
 - Windows 测试库清理：服务请求测试统一 `t.Cleanup(client.Close)`，修复 SQLite 文件句柄导致的 TempDir 假红；
   BPMN 桥接夹具补齐 `taskVariables.taskPurpose=approval`。
 
-> 238 已发布 `1.8.0-dev.f7dd2974`；所有回归均为普通用例，全量复跑 39/39 通过。
+> 238 已从当前工作区 HEAD `44faf3110` 全量发布 `1.8.0-dev.44faf311`；所有回归均为普通用例，全量复跑 40/40 通过。
 
 ### 4.4 238 部署与运行态验证
 
 | 项 | 结果 |
 |---|---|
-| 部署版本 | `1.8.0-dev.f7dd2974`（Git worktree commit `f7dd29743`） |
-| 部署入口 | `/home/n9e/itsm/repo-e2e-6745c998`（基于 238 HEAD `72788d42` + 本轮 patch） |
+| 部署版本 | `1.8.0-dev.44faf311`（Git worktree commit `44faf3110`） |
+| 部署入口 | `/home/n9e/itsm/repo-e2e-6745c998`（branch `deploy/full-44faf311`，从当前工作区 HEAD 全量构建） |
 | Init/migration | `itsm-init-demo` exit=0；`20261111_service_request_delete_grants` 已应用 |
 | 容器 | backend/worker/frontend/nginx/redis/ai-service 6/6 healthy |
-| 健康 | `/healthz`、`/readyz` ready；`/api/v1/version` 返回 f7dd2974 |
+| 健康 | `/healthz`、`/readyz` ready；`/api/v1/version` 返回 44faf311 |
 | D10 授权 | `admin` / `provider_tenant_admin` 的 `service_request:delete` 已在存量租户落库 |
 | 附件 smoke | 真实评论附件上传/预览/SHA256/删除通过 |
-| 全量 E2E | `39 passed`，0 expected failure |
+| 全量 E2E | `40 passed`，0 expected failure |
 
-> 部署前备份：`/home/n9e/itsm/repo-e2e-6745c998/backups/demo-release-1.8.0-dev.6745c998-20261111T002925Z`。
+> 部署前备份：`/home/n9e/itsm/repo-e2e-6745c998/backups/demo-release-1.8.0-dev.44faf311-20261111T043741Z`。
 
 ---
 
@@ -292,7 +306,7 @@ Running 39 tests using 1 worker
 
 | 文件 | 修正 |
 |---|---|
-| `docs/multi-tenant/demo-environment.md` | 版本号更新为 `1.8.0-dev.f7dd2974`；工作台 34 `[DEMO]` + 31 残留 = 65；SLA `slaDueSoon=0`；review-test 说明；E2E 差异表更新为已发布验证 |
+| `docs/multi-tenant/demo-environment.md` | 版本号更新为 `1.8.0-dev.44faf311`；工作台 34 `[DEMO]` + 31 残留 = 65；SLA `slaDueSoon=0`；review-test 说明；E2E 差异表更新为已发布验证 |
 | `itsm-frontend/tests/e2e/BEST_PRACTICES.md` | 标明 `admin/admin123` 等为历史本地 seeder，不适用于 238；链接 demo README |
 | `docs/multi-tenant/scenarios/README.md` / `00-environment-and-accounts.md` | 增加 238 demo 账号矩阵与本地开发账号的区分提示 |
 | `itsm-frontend/tests/e2e/demo/README.md` | 新增 238 E2E 运行手册、账号、清理与已修复项清单 |
@@ -307,13 +321,14 @@ Running 39 tests using 1 worker
 - 配置：`itsm-frontend/playwright.demo.config.ts`
 - 运行手册：`itsm-frontend/tests/e2e/demo/README.md`
 - 本轮摘要与遗留：`docs/review/evidence/2026-11-10-msp-demo-e2e/run-summary.md`
+- 2026-11-11 全量部署证据：`docs/review/evidence/2026-11-11-demo-full-deploy-44faf311.md`
 - Playwright HTML：`.dev/playwright-demo-report/`（本地）
 - 失败 trace/screenshot：`.dev/playwright-demo-results/`（本地）
 
 **发布后复核已完成**：
 
-1. 238 已发布 `1.8.0-dev.f7dd2974`，6/6 容器 healthy，readyz ready；
+1. 238 已发布 `1.8.0-dev.44faf311`，6/6 容器 healthy，readyz ready；
 2. 原 12 个预期失败回归已改为普通用例，`/tickets/7` 已并回核心页面 smoke；
-3. 全量 demo 套件 `39 passed`，0 expected failure；
+3. 全量 demo 套件 `40 passed`，0 expected failure；
 4. 版本/工作台数量/SLA/review-test 事实已回填 `demo-environment.md`；
 5. D10 已按“授予租户管理员删除”决策落库并完成 E2E。
