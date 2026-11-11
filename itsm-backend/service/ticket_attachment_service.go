@@ -721,24 +721,23 @@ func (s *TicketAttachmentService) saveFile(fileHeader *FileHeader, filePath stri
 
 func (s *TicketAttachmentService) authorizeTicketAttachmentAccess(ctx context.Context, ticketID, tenantID, userID int) error {
 	if userID <= 0 {
-		return fmt.Errorf("authentication required")
+		return ErrTicketAttachmentForbidden
 	}
 	t, err := s.client.Ticket.Query().Where(ticket.ID(ticketID), ticket.TenantID(tenantID)).Only(ctx)
 	if err != nil {
-		return fmt.Errorf("ticket not found")
+		return ErrTicketAttachmentNotFound
 	}
 	if t.RequesterID == userID || (t.AssigneeID > 0 && t.AssigneeID == userID) {
 		return nil
 	}
-	u, err := s.client.User.Query().Where(user.ID(userID), user.TenantID(tenantID), user.Active(true)).Only(ctx)
+	// 路由层已用 ticket:read 做资源读取闸门；这里只确认当前认证用户仍是 active。
+	// 不能再按 tenant_id 过滤：provider 深度切换到客户租户后，用户行仍归属 provider，
+	// 否则 /tickets/:id/attachments 会 500（本次 ticket 74 的根因）。
+	_, err = s.client.User.Query().Where(user.ID(userID), user.Active(true)).Only(ctx)
 	if err != nil {
-		return fmt.Errorf("permission denied")
+		return ErrTicketAttachmentForbidden
 	}
-	switch string(u.Role) {
-	case "super_admin", "admin", "manager", "agent", "technician", "security":
-		return nil
-	}
-	return fmt.Errorf("permission denied")
+	return nil
 }
 
 func SanitizeDownloadFilename(name string) string { return sanitizeFilename(name) }
@@ -789,6 +788,11 @@ var (
 	ErrAttachmentUsageInvalid = errors.New("attachment usage not allowed")
 	// ErrAttachmentUsageBackendMissing 需要通用后端才能承载的用途未注入通用服务（部署未接线）。
 	ErrAttachmentUsageBackendMissing = errors.New("attachment usage requires generic backend")
+
+	// ErrTicketAttachmentNotFound / ErrTicketAttachmentForbidden 用于旧工单附件端点的
+	// 可判定错误分派，避免权限/不存在一律落成 HTTP 500。
+	ErrTicketAttachmentNotFound  = errors.New("ticket attachment host not found")
+	ErrTicketAttachmentForbidden = errors.New("ticket attachment permission denied")
 )
 
 // allowedAttachmentMIMEs 附件 MIME 白名单：内容嗅探命中即放行。

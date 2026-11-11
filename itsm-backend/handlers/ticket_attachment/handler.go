@@ -93,6 +93,14 @@ func (h *Handler) ListTicketAttachments(c *gin.Context) {
 
 	attachments, err := h.attachmentService.ListAttachments(c.Request.Context(), ticketID, tenantID, userID)
 	if err != nil {
+		if errors.Is(err, service.ErrTicketAttachmentForbidden) {
+			common.Fail(c, common.ForbiddenCode, "无权查看该工单附件")
+			return
+		}
+		if errors.Is(err, service.ErrTicketAttachmentNotFound) {
+			common.NotFound(c, "工单不存在")
+			return
+		}
 		h.logger.Errorw("Failed to list ticket attachments", "error", err, "ticket_id", ticketID, "tenant_id", tenantID)
 		common.Fail(c, common.InternalErrorCode, "获取附件列表失败")
 		return
