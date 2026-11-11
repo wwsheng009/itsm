@@ -54,7 +54,7 @@ DEMO_ADMIN_PASSWORD='...' DEMO_USER_PASSWORD='...' ...
 - 租户管理员自 `1.8.0-dev.af3cba9c` 起具备 `service_request:delete`，服务请求通过删除接口清理。
 - **不要**删除或改写 demo 种子数据（`[DEMO]` 前缀记录）。
 
-## 4. 已修复项（238 `1.8.0-dev.a0d4240a` 已验证）
+## 4. 已修复项（238 `1.8.0-dev.91eb6e82` 已验证）
 
 | 编号 | 现象 | 处理 |
 |---|---|---|
@@ -78,6 +78,10 @@ DEMO_ADMIN_PASSWORD='...' DEMO_USER_PASSWORD='...' ...
 | D18 | 工单附件列表对 end_user / it_admin / security_admin / provider 深度态返回 500 | 已修复并全量发布（跟随 `ticket:read` + active 用户）；`06-attachment-access` 通过 |
 
 > 当前套件无预期失败用例；上述回归均为普通断言。
+>
+> 权限补漏回归：`MT-3` 额外断言 provider（`demo.msp.manager`，家租户
+> `users.role=end_user`）读取客户问题详情时 `allowedActions.status.allowed=true`，
+> 锁定“provider 写门禁通过后不得再按家租户角色误判为不可写”。
 >
 > **待产品决策**：provider 深度切到客户作用域后直接建单仍返回 404「申请人不存在或不可用」；
 > 当前用例验证的是客户建单、provider 深度处理的主路径。

@@ -266,13 +266,26 @@ test.describe('Demo Round 5 · multi-tenant business operations', () => {
     });
 
     try {
-      const providerView = await apiGet<{ id: number; title: string }>(
+      const providerView = await apiGet<{
+        id: number;
+        title: string;
+        allowedActions?: Array<{ action: string; allowed: boolean; reasonCode?: string }>;
+      }>(
         manager,
         `/api/v1/msp/problems/${problem.id}`,
         { params: { customerTenantId: 3 } },
       );
       expect(providerView.id).toBe(problem.id);
       expect(providerView.title).toBe(problemTitle);
+      const statusAction = providerView.allowedActions?.find(
+        action => action.action === 'status',
+      );
+      expect(
+        statusAction?.allowed,
+        `provider 写门禁通过时 allowedActions 不得按家租户 users.role 误判为不可写: ${JSON.stringify(
+          providerView.allowedActions,
+        )}`,
+      ).toBe(true);
 
       const wrongTenant = await callRaw(manager.api, 'GET', `/api/v1/msp/problems/${problem.id}`, {
         headers: authHeaders(manager),

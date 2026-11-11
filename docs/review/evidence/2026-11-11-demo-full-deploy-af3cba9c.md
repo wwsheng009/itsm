@@ -1,7 +1,7 @@
 # 238 Demo 全量部署证据（2026-11-11 · 1.8.0-dev.af3cba9c）
 
-> **Status: historical** — 已被 `1.8.0-dev.a0d4240a` 取代，见
-> [2026-11-11-demo-full-deploy-a0d4240a.md](./2026-11-11-demo-full-deploy-a0d4240a.md)。
+> **Status: historical** — 已被 `1.8.0-dev.a0d4240a` / `1.8.0-dev.91eb6e82` 取代，见
+> [2026-11-11-demo-full-deploy-91eb6e82.md](./2026-11-11-demo-full-deploy-91eb6e82.md)。
 
 > **状态**：success
 > **环境**：`http://172.18.3.238:8089`（`itsm-demo`，`saas_msp`）

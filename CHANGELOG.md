@@ -117,9 +117,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   限制（明确租户内隔离语义）；`ticket_workflow_service.go` CC 管理角色白名单、旧前端
   `RoleGuard`/`isAdmin()` 旁路与平台租户页 `super_admin` 条件登记为待产品决策风险。
   验证：`npx tsc --noEmit`、改动文件 ESLint、Header Jest 4/4、`go test ./service -count=1`
-  全包通过、后端 Docker 编译、238 六容器 healthy、E2E 分组累计 44/44；部署见审计报告与
-  部署证据。上一轮部署版本 `1.8.0-dev.a0d4240a`。证据：
-  [角色白名单审计](docs/review/2026-11-11-role-whitelist-audit.md)。
+  全包通过、238 全量发布构建、六容器 healthy、`/api/v1/readyz` ready、E2E 分组累计 44/44；
+  部署版本 `1.8.0-dev.91eb6e82`。证据：
+  [角色白名单审计](docs/review/2026-11-11-role-whitelist-audit.md)、
+  [238 全量部署证据](docs/review/evidence/2026-11-11-demo-full-deploy-91eb6e82.md)。
 
 - **菜单树层级修复**：修复 demo/存量租户菜单同步及新租户菜单克隆丢失 `parent_id` 的问题。按菜单 `path` 重映射目标租户父节点，保留租户自定义名称、排序和可见性；重复初始化可修复历史扁平菜单且不重复插入。
 

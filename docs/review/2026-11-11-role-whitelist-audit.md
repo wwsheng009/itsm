@@ -1,6 +1,6 @@
 # 硬编码角色白名单审计（2026-11-11）
 
-**Status: current** — 审计基线：8089 `1.8.0-dev.a0d4240a`；代码锚点 `a0d4240ad78ea32212236b6680bbe5f1bb3ac8b3`。
+**Status: current** — 审计基线：8089 `1.8.0-dev.91eb6e82`；代码锚点 `91eb6e82e1678885d5c37e8ba5ed5e0e7e040548`。
 
 > **审计口径**：授权决策应以权限码、资源归属和统一角色能力（`domain/role` / `middleware`）为准；
 > 角色字符串只允许出现在角色定义、种子、展示映射、通知收件人筛选等非授权场景。
@@ -22,7 +22,7 @@
 |---|---|---|
 | `itsm-backend/service/ai_health.go` | AI 健康告警收件人使用 `user.RoleIn("admin","super_admin","tenant_admin")`；`tenant_admin` 不是 `users.role` 枚举，管理员筛选静默漏人 | 改用合法的 `user.RoleAdmin/RoleSuperAdmin/RoleSysadmin`，并用 `TestAIHealthService_AlertRecipientsUseValidUserRoleEnum` 锁定 |
 | `itsm-backend/service/approval_service.go` | 审批人 fallback 词表含无效用户角色 `tenant_admin` / `workflow_admin`，动态审批人解析失败时可能找不到租户管理员 | 收敛为 `user.RoleSuperAdmin/RoleAdmin/RoleSysadmin`，保留既有优先级；新增 `TestResolveTenantAdminApprover_UsesValidUserRoleEnum` |
-| `itsm-backend/service/msp_record_write.go` | 工作台 `allowedActions` 在 provider 写门禁已通过后，仍用家租户 `users.role` 做 owner/assignee 行级白名单；provider 深切换时家租户 `end_user` 会误显示不可写，而域服务按目标租户 `data_scope=all` 放行 | provider 调用方（`MSPRole` 非空）不再叠加家租户角色行级守卫；写门禁 `msp_ticket:write` / 客户 active / 终态校验仍 fail-closed，非 MSP 调用方保持原行级守卫。三张矩阵测试补 provider 断言 |
+| `itsm-backend/service/msp_record_write.go` | 工作台 `allowedActions` 在 provider 写门禁已通过后，仍用家租户 `users.role` 做 owner/assignee 行级白名单；provider 深切换时家租户 `end_user` 会误显示不可写，而域服务按目标租户 `data_scope=all` 放行 | provider 调用方（`MSPRole` 非空）不再叠加家租户角色行级守卫；写门禁 `msp_ticket:write` / 客户 active / 终态校验仍 fail-closed，非 MSP 调用方保持原行级守卫。三张矩阵测试补 provider 断言；`05-multi-tenant-business.spec.ts` MT-3 增加运行态 `allowedActions.status.allowed=true` 断言 |
 
 ## 2. 复核为“有意设计”，不改
 
@@ -44,11 +44,11 @@
 
 ## 4. 验证
 
-- 前端：`npx tsc --noEmit`、改动文件 ESLint、`Header.tenant-scope` Jest 4/4 通过。
-- 后端：`go test ./service -count=1` 全包通过（86.474s）；远端 Docker `go build` 编译通过；8089 六容器 healthy、`readyz=true`。
+- 前端：`npx tsc --noEmit`、改动文件 ESLint、`Header.tenant-scope` Jest 4/4 通过；新增 E2E 断言后 `05-multi-tenant-business` 3/3 通过。
+- 后端：`go test ./service -count=1` 全包通过（86.474s）；远端 Docker 发布构建通过；8089 六容器 healthy、`/api/v1/healthz` ok、`/api/v1/readyz` ready。
 - E2E：按 spec 分组累计 **44/44** 通过（00 smoke 6、01 permissions 8、02 associations 8、03 workflows 7、04 UI 11、05 多租户 3、06 附件 1）。
   - 本机单进程一次跑 44 条时 Chrome 因 Windows 内存不足 OOM；单个 spec 独立进程复跑均通过，属于本机测试运行器资源问题，不是产品失败。
-- 部署：`1.8.0-dev.a0d4240a`；备份 `demo-release-1.8.0-dev.a0d4240a-20261111T080506Z`；tag `demo-1.8.0-dev.a0d4240a`。
+- 部署：`1.8.0-dev.91eb6e82`；备份 `demo-release-1.8.0-dev.91eb6e82-20261111T092029Z`；tag `demo-1.8.0-dev.91eb6e82`。
 
 ## 5. 建议门禁
 
