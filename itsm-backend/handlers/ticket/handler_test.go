@@ -354,6 +354,7 @@ func newTestHarness(t *testing.T) (*gin.Engine, *mockRepository) {
 		}
 		if v := c.GetHeader("X-Test-Tenant-Source"); v != "" {
 			c.Set("tenant_source", v)
+			c.Set("jwt_tenant_source", v)
 		}
 		c.Next()
 	}

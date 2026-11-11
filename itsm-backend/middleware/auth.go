@@ -232,6 +232,7 @@ func AuthMiddleware(jwtSecret string) gin.HandlerFunc {
 			c.Set("username", identity.Username)
 			c.Set("role", identity.Role)
 			c.Set("tenant_id", identity.TenantID)
+			c.Set("jwt_tenant_source", "pat")
 			c.Set("token", tokenString)
 			zap.S().Debugw("AuthMiddleware: PAT authentication successful",
 				"path", c.Request.URL.Path,
@@ -327,6 +328,7 @@ func AuthMiddleware(jwtSecret string) gin.HandlerFunc {
 			c.Set("username", claims.Username)
 			c.Set("role", claims.Role)
 			c.Set("tenant_id", claims.TenantID) // 添加租户ID
+			c.Set("jwt_tenant_source", claims.TenantSource)
 			c.Set("token", tokenString)
 
 			// 调试日志：认证成功

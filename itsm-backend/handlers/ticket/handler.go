@@ -172,11 +172,11 @@ func (h *Handler) CreateTicket(c *gin.Context) {
 		return
 	}
 	actorMembershipID := middleware.GetMembershipID(c)
-	targetIsCustomer := c.GetString("tenant_source") == "switch"
+	targetIsCustomer := c.GetString("jwt_tenant_source") == "switch"
 	if tenantCtx, ok := middleware.GetTenantContext(c); ok && tenantCtx.Tenant != nil {
 		targetIsCustomer = tenantmode.IsCustomerTenantType(string(tenantCtx.Tenant.Type))
 	}
-	providerOnBehalf := middleware.IsProviderMembership(c) && c.GetString("tenant_source") == "switch" && targetIsCustomer
+	providerOnBehalf := middleware.IsProviderMembership(c) && c.GetString("jwt_tenant_source") == "switch" && targetIsCustomer
 	requesterID := userID
 	if providerOnBehalf {
 		if actorMembershipID <= 0 {

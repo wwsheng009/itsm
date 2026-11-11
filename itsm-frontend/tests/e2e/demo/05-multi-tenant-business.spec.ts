@@ -324,18 +324,36 @@ test.describe('Demo Round 5 · multi-tenant business operations', () => {
 
     try {
       await switchDemoTenant(manager, 3);
-      const created = await apiPost<{
-        id: number;
-        requesterId: number;
-        requesterMembershipId?: number;
-        createdByMembershipId?: number;
-      }>(manager, '/api/v1/tickets', {
-        title: title(run, 'provider 代客建单'),
-        description: 'provider on-behalf create E2E; safe to delete.',
-        priority: 'low',
-        type: 'incident',
-        requesterId: mfgUser.user.id,
+      const me = await apiGet<{
+        tenantId: number;
+        homeTenantId: number;
+        membershipId?: number;
+        accountKind?: string;
+      }>(manager, '/api/v1/auth/me');
+      expect(me.tenantId).toBe(3);
+      expect(me.homeTenantId).toBe(managerHome);
+      expect(me.membershipId).toBeGreaterThan(0);
+      expect(me.accountKind).toBe('provider');
+      const createResponse = await callRaw(manager.api, 'POST', '/api/v1/tickets', {
+        headers: authHeaders(manager),
+        data: {
+          title: title(run, 'provider 代客建单'),
+          description: 'provider on-behalf create E2E; safe to delete.',
+          priority: 'low',
+          type: 'incident',
+          requesterId: mfgUser.user.id,
+        },
       });
+      const createBody = await createResponse.text();
+      expect(createResponse.status(), createBody).toBe(200);
+      const created = (JSON.parse(createBody) as {
+        data: {
+          id: number;
+          requesterId: number;
+          requesterMembershipId?: number;
+          createdByMembershipId?: number;
+        };
+      }).data;
       ticketId = created.id;
       expect(created.requesterId).toBe(mfgUser.user.id);
       expect(created.requesterMembershipId).toBeGreaterThan(0);
