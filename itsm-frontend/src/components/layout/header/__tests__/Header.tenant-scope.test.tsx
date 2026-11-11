@@ -116,6 +116,8 @@ function setAuthState(input: {
   currentTenant: typeof PROVIDER_TENANT | typeof CUSTOMER_TENANT;
   homeTenantId: number;
   mspRole: string;
+  role?: string;
+  permissions?: string[];
   switchTenant?: jest.Mock;
 }) {
   useAuthStore.setState({
@@ -124,10 +126,11 @@ function setAuthState(input: {
       username: 'msp',
       email: '',
       name: '',
+      role: input.role,
       tenantId: input.currentTenant.id,
       homeTenantId: input.homeTenantId,
       mspRole: input.mspRole,
-      permissions: ['msp_ticket:read'],
+      permissions: input.permissions ?? ['msp_ticket:read'],
       createdAt: '',
       updatedAt: '',
     },
@@ -204,5 +207,19 @@ describe('Header 租户作用域入口编排', () => {
     expect(screen.queryByTestId('customer-filter')).not.toBeInTheDocument();
     expect(screen.queryByTestId('deep-tenant-indicator')).not.toBeInTheDocument();
     expect(screen.queryByTestId('back-to-workbench')).not.toBeInTheDocument();
+  });
+
+  it('AI 入口只按 ai:read 放行，admin 角色不能绕过资源权限', async () => {
+    setAuthState({
+      currentTenant: PROVIDER_TENANT,
+      homeTenantId: 1,
+      mspRole: 'provider_admin',
+      role: 'admin',
+      permissions: [],
+    });
+
+    renderHeader();
+    await waitFor(() => expect(screen.getByTestId('location')).toBeInTheDocument());
+    expect(screen.queryByLabelText('AI助手')).not.toBeInTheDocument();
   });
 });

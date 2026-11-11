@@ -298,7 +298,7 @@ func (s *Service) notifyAutopilotRollback(ctx context.Context, tenantID, actorID
 	recipients := make([]int, 0, 8)
 	admins, err := s.entClient.User.Query().
 		Where(user.TenantID(tenantID), user.ActiveEQ(true),
-			user.RoleIn("admin", "super_admin", "tenant_admin")).
+			user.RoleIn(user.RoleAdmin, user.RoleSuperAdmin, user.RoleSysadmin)).
 		Limit(50).
 		All(ctx)
 	if err != nil {

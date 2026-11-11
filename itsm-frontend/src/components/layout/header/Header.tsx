@@ -50,7 +50,7 @@ export const Header: React.FC<HeaderProps> = ({
 }) => {
   const navigate = useNavigate();
   const pathname = useLocation().pathname;
-  const { user, token, currentTenant, hasPermission, isAdmin } = useAuthStore();
+  const { user, token, currentTenant, hasPermission } = useAuthStore();
   const { isDark, toggleTheme } = useTheme();
   const { language, changeLanguage } = useI18n();
   useAuthStoreHydration();
@@ -295,8 +295,8 @@ export const Header: React.FC<HeaderProps> = ({
             onOpen={handleOpenSearch}
           />
 
-          {/* AI 助手入口：权限码与后端 permissions 表对齐（ai:read），admin 默认放行 */}
-          {hasPermission('ai:read') || isAdmin() ? (
+          {/* AI 助手入口：权限码与后端 permissions 表对齐（ai:read）；不允许角色旁路。 */}
+          {hasPermission('ai:read') ? (
             <Tooltip title="AI助手">
               <Button
                 type="text"

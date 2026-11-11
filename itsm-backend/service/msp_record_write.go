@@ -29,6 +29,7 @@ import (
 	"itsm-backend/common"
 	"itsm-backend/common/tenantctx"
 	"itsm-backend/dto"
+	domainrole "itsm-backend/domain/role"
 	"itsm-backend/ent"
 	"itsm-backend/ent/user"
 	"itsm-backend/middleware"
@@ -392,8 +393,7 @@ func (s *MSPWorkbenchService) loadActorHomeRole(ctx context.Context, actor MSPWo
 // handlers/*；一致性由 service/msp_record_write_test.go 的 parity 用例锁定）：
 // 管理角色全租户可写；其余仅 owner（创建人）或当前受理人可写；actorID<=0 拒绝。
 func canWriteRecord(actorID int, actorRole string, ownerID, assigneeID int) bool {
-	switch strings.ToLower(strings.TrimSpace(actorRole)) {
-	case "super_admin", "admin", "manager", "sysadmin":
+	if domainrole.IsAdminLike(strings.ToLower(strings.TrimSpace(actorRole))) {
 		return true
 	}
 	if actorID <= 0 {

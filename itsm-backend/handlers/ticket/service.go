@@ -526,12 +526,7 @@ func (s *Service) GetTicketSLAInfo(ctx context.Context, ticketID int, tenantID i
 
 // IsDataScopeAllRole returns true if the role has access to all tickets.
 func IsDataScopeAllRole(role string) bool {
-	switch role {
-	case "admin", "super_admin", "manager":
-		return true
-	default:
-		return false
-	}
+	return datascope.IsDataScopeAllRole(role)
 }
 
 // GetTicketActivity retrieves ticket activity log (merged comments, attachments, status changes)

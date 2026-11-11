@@ -19,6 +19,7 @@ import (
 	"itsm-backend/common"
 	"itsm-backend/common/tenantctx"
 	"itsm-backend/dto"
+	domainrole "itsm-backend/domain/role"
 	"itsm-backend/ent"
 	"itsm-backend/ent/configurationitem"
 	"itsm-backend/ent/department"
@@ -899,12 +900,7 @@ func isSupportedTicketType(value string) bool {
 // 阻断8：管理角色（super_admin/admin/manager/sysadmin）可见全租户工单，
 // 其余角色（end_user/agent 等）只能查看本人创建或分配给自己的工单。
 func isTicketDataScopeAllRole(role string) bool {
-	switch role {
-	case "super_admin", "admin", "manager", "sysadmin":
-		return true
-	default:
-		return false
-	}
+	return domainrole.IsAdminLike(role)
 }
 
 // enforceTicketRowScope 行级数据权限（M-7 修复）：非全量数据角色
