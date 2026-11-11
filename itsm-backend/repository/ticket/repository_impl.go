@@ -859,32 +859,60 @@ func (r *EntRepository) generateTicketNumberWithRedis(ctx context.Context, tenan
 		return r.generateTicketNumberWithDB(ctx, tenantID, year, month)
 	}
 
-	// S-4 对齐（D-6）：tickets.ticket_number 是**全局唯一**约束（不含 tenant_id），
-	// 而序列 key 按租户/年月分片，新租户或历史补数会让候选号与他租户已用号碰撞。
-	// 对候选号做全局存在性校验并向前跳号（≤20），把「必然失败」降级为「跳过占用号」。
-	//
-	// RLS（R2 批次 1，tickets 纳入 policy）：全局唯一探针必须走 system 作用域
-	// （管理池 BYPASSRLS），否则请求 ctx 被策略收窄为本租户，只见本租户号段，
-	// 碰撞漏检 → INSERT 23505 → 建单 500（enforce 演练 D-11 实锤）。
+	candidate := fmt.Sprintf("TKT-%04d%02d-%06d", year, month, seq)
+	return r.nextFreeTicketNumber(ctx, candidate, year, month)
+}
+
+// maxGlobalTicketSequence 返回当前年月在所有租户中的最大工单号序列。
+//
+// ticket_number 是全局唯一约束（不含 tenant_id），但每个租户的序列独立。
+// 只看本租户的 max 会把「他租户已占用的号」当成可用号，最终 INSERT 23505。
+// 探针必须走 system 作用域，避免 RLS 把查询收窄到当前租户。
+func (r *EntRepository) maxGlobalTicketSequence(ctx context.Context, prefix string) int {
 	probeCtx := tenantctx.WithSystemBypass(ctx)
-	for probe := 0; probe < 20; probe++ {
-		candidate := fmt.Sprintf("TKT-%04d%02d-%06d", year, month, seq)
-		occupied, checkErr := r.Client().Ticket.Query().
+	t, err := r.Client().Ticket.Query().
+		Where(ticket.TicketNumberHasPrefix(prefix)).
+		Order(ent.Desc(ticket.FieldTicketNumber)).
+		First(probeCtx)
+	if err != nil {
+		if !ent.IsNotFound(err) {
+			r.logger.Warnw("global ticket number probe failed", "error", err, "prefix", prefix)
+		}
+		return 0
+	}
+	return parseSequenceSuffix(t.TicketNumber)
+}
+
+// nextFreeTicketNumber 从候选号开始，在全局范围寻找未占用编号。
+//
+// Redis 序列和 DB 回退都必须经过这里：只做租户内存在性检查无法保证
+// tickets_ticket_number_key 的全局唯一约束不冲突。
+func (r *EntRepository) nextFreeTicketNumber(
+	ctx context.Context,
+	candidate string,
+	year, month int,
+) (string, error) {
+	prefix := fmt.Sprintf("TKT-%04d%02d-", year, month)
+	seq := parseSequenceSuffix(candidate)
+	if global := r.maxGlobalTicketSequence(ctx, prefix); global > seq {
+		seq = global
+	}
+
+	probeCtx := tenantctx.WithSystemBypass(ctx)
+	for probe := 0; probe < 1000; probe++ {
+		candidate = fmt.Sprintf("TKT-%04d%02d-%06d", year, month, seq)
+		occupied, err := r.Client().Ticket.Query().
 			Where(ticket.TicketNumberEQ(candidate)).
 			Exist(probeCtx)
-		if checkErr != nil {
-			return "", fmt.Errorf("check ticket number %s: %w", candidate, checkErr)
+		if err != nil {
+			return "", fmt.Errorf("check ticket number %s: %w", candidate, err)
 		}
 		if !occupied {
 			return candidate, nil
 		}
-		r.logger.Warnw("ticket number occupied globally, skipping", "number", candidate, "probe", probe+1)
-		seq, err = r.sequenceService.GetNextSequenceWithExpiry(ctx, key, expiredAt)
-		if err != nil {
-			// 序列推进失败（Redis 抖动等）→ 回退 DB 路径继续跳号，不把「跳过占用号」变成失败。
-			r.logger.Warnw("Redis sequence failed during collision probe, fallback to DB", "error", err)
-			return r.generateTicketNumberWithDB(ctx, tenantID, year, month)
-		}
+		r.logger.Warnw("ticket number occupied globally, skipping",
+			"number", candidate, "probe", probe+1)
+		seq++
 	}
 	return "", fmt.Errorf("no free ticket number after probing occupied numbers")
 }
@@ -918,7 +946,7 @@ func (r *EntRepository) generateTicketNumberWithDB(ctx context.Context, tenantID
 					r.logger.Warnw("Ticket number collision detected, retrying", "number", candidate, "attempt", attempt+1)
 					continue
 				}
-				return candidate, nil
+				return r.nextFreeTicketNumber(ctx, candidate, year, month)
 			}
 		}
 
@@ -956,22 +984,7 @@ func (r *EntRepository) generateTicketNumberWithDB(ctx context.Context, tenantID
 			}
 		}
 
-		// S-4 对齐（D-6）：DB 回退同样必须跨租户校验，占用则向前跳号。
-		// 与 Redis 路径同口径：全局唯一探针走 system 作用域（见上）。
-		probeCtx := tenantctx.WithSystemBypass(ctx)
-		for probe := 0; probe < 20; probe++ {
-			occupied, checkErr := r.Client().Ticket.Query().
-				Where(ticket.TicketNumberEQ(candidate)).
-				Exist(probeCtx)
-			if checkErr != nil || !occupied {
-				break
-			}
-			r.logger.Warnw("ticket number occupied globally, skipping (db fallback)", "number", candidate, "probe", probe+1)
-			seq = parseSequenceSuffix(candidate) + 1
-			candidate = fmt.Sprintf("TKT-%04d%02d-%06d", year, month, seq)
-		}
-
-		return candidate, nil
+		return r.nextFreeTicketNumber(ctx, candidate, year, month)
 	}
 
 	return "", fmt.Errorf("failed to generate unique ticket number after 3 attempts")

@@ -1024,4 +1024,9 @@ func TestGenerateTicketNumber_SkipsGloballyOccupied(t *testing.T) {
 	num, err := repo.GenerateTicketNumber(ctx, tenant.ID)
 	require.NoError(t, err)
 	assert.Equal(t, prefix+"000003", num, "占用号必须被跳过")
+
+	// DB fallback 与 Redis 序列共用同一全局探针；这里直接验证底层 helper。
+	fallbackNum, err := repo.nextFreeTicketNumber(ctx, prefix+"000001", now.Year(), int(now.Month()))
+	require.NoError(t, err)
+	assert.Equal(t, prefix+"000003", fallbackNum, "DB fallback 也必须跳过他租户占用号")
 }
