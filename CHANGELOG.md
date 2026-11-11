@@ -122,6 +122,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   [角色白名单审计](docs/review/2026-11-11-role-whitelist-audit.md)、
   [238 全量部署证据](docs/review/evidence/2026-11-11-demo-full-deploy-91eb6e82.md)。
 
+- **C 方案：membership 作为租户内身份（后端 + 前端 + 迁移，2026-11-11）** — 修复
+  provider 深度切到客户租户后“权限通过但申请人 404”的身份模型缺口：
+  ① RBAC 请求上下文解析 `membership_id/account_kind/source`，Login/Refresh/SwitchTenant/
+  `/auth/me` 返回目标租户 membership；② `tickets` 增加 requester/assignee/created_by
+  membership 引用，迁移 `20261111_membership_tenant_identity` 补齐缺失 home membership
+  并回填存量工单；③ provider 深度态代客建单要求显式客户 `requesterId`，服务端解析
+  目标租户 membership，并记录 provider membership 为建单人；前端建单页增加“客户申请人”
+  选择器；④ 修复 `jwt_tenant_source` 与 `tenant_source` 混用导致的代客建单误判；
+  ⑤ 变更重复删除由 500 改为 404。验证：受影响 Go 包全绿、`npx tsc --noEmit`、
+  改动文件 ESLint、auth-store/session-bootstrap Jest 33/33、demo E2E 45/45；
+  238 部署版本 `1.8.0-dev.ad878805`，6/6 容器 healthy、readyz ready、migration 已应用；
+  证据：[C 方案](docs/multi-tenant/plan/membership-tenant-identity-c-plan.md)、
+  [238 部署证据](docs/review/evidence/2026-11-11-demo-full-deploy-ad878805.md)。
+
 - **菜单树层级修复**：修复 demo/存量租户菜单同步及新租户菜单克隆丢失 `parent_id` 的问题。按菜单 `path` 重映射目标租户父节点，保留租户自定义名称、排序和可见性；重复初始化可修复历史扁平菜单且不重复插入。
 
 - **AI 助手执行稳定性与写操作歧义治理（后端 + 前端，2026-10-20）** — 预算超限时前端不再只显示错误而没有任何答案：`error` 帧回带 `errorCode`，前端在 `budget_exceeded` 时把已完成的工具摘要与“拆小请求 / 补明确编号”的降级建议写入消息正文（`stream-fallback.ts`），并以 warning 提示替代纯错误；错误字典动作由“知道了”改为“拆分后重试”。10 次调用中 6 次重复 `help_search`：工具循环对相同参数的只读调用复用同一轮结果（写工具永不缓存），并补 `TestRAG_ToolLoopReusesIdenticalReadOnlyResult`。写操作前未澄清“第二张单”：系统提示词新增消歧规则，执行点增加确定性闸门（序数/近指代/随便/任意命中时返回 `clarification_required`，不创建审批单；用户已确认或给出稳定编号时不拦截）。同时修复 Enter 提示与实现不一致（残留 `isComposing` 但 keyCode=13 时仍发送）。验证：前端 AI 相关 62 套件 441 用例、后端 `handlers/ai` / `service` / `helpindex` / `assistantcontext` 全绿，`tsc --noEmit` 与改动文件 `eslint` 无输出。

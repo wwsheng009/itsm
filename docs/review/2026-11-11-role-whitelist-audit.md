@@ -1,6 +1,6 @@
 # 硬编码角色白名单审计（2026-11-11）
 
-**Status: current** — 审计基线：8089 `1.8.0-dev.91eb6e82`；代码锚点 `91eb6e82e1678885d5c37e8ba5ed5e0e7e040548`。
+**Status: current** — 审计基线：8089 `1.8.0-dev.ad878805`；代码锚点 `ad8788051e75e81ecc5085759a5b737566cc267e`。
 
 > **审计口径**：授权决策应以权限码、资源归属和统一角色能力（`domain/role` / `middleware`）为准；
 > 角色字符串只允许出现在角色定义、种子、展示映射、通知收件人筛选等非授权场景。
@@ -44,11 +44,11 @@
 
 ## 4. 验证
 
-- 前端：`npx tsc --noEmit`、改动文件 ESLint、`Header.tenant-scope` Jest 4/4 通过；新增 E2E 断言后 `05-multi-tenant-business` 3/3 通过。
+- 前端：`npx tsc --noEmit`、改动文件 ESLint、`Header.tenant-scope` Jest 4/4 通过；新增 E2E 断言后 `05-multi-tenant-business` 4/4 通过。
 - 后端：`go test ./service -count=1` 全包通过（86.474s）；远端 Docker 发布构建通过；8089 六容器 healthy、`/api/v1/healthz` ok、`/api/v1/readyz` ready。
-- E2E：按 spec 分组累计 **44/44** 通过（00 smoke 6、01 permissions 8、02 associations 8、03 workflows 7、04 UI 11、05 多租户 3、06 附件 1）。
-  - 本机单进程一次跑 44 条时 Chrome 因 Windows 内存不足 OOM；单个 spec 独立进程复跑均通过，属于本机测试运行器资源问题，不是产品失败。
-- 部署：`1.8.0-dev.91eb6e82`；备份 `demo-release-1.8.0-dev.91eb6e82-20261111T092029Z`；tag `demo-1.8.0-dev.91eb6e82`。
+- E2E：按 spec 分组累计 **45/45** 通过（00 smoke 6、01 permissions 8、02 associations 8、03 workflows 7、04 UI 11、05 多租户 4、06 附件 1）。
+  - 本机单进程一次跑 45 条时 Chrome 因 Windows 内存不足 OOM；单个 spec 独立进程复跑均通过，属于本机测试运行器资源问题，不是产品失败。
+- 部署：`1.8.0-dev.ad878805`；备份 `demo-release-1.8.0-dev.ad878805-20261111T114926Z`；C 方案变更见 [`membership-tenant-identity-c-plan.md`](../multi-tenant/plan/membership-tenant-identity-c-plan.md)。
 
 ## 5. 建议门禁
 

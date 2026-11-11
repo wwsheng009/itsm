@@ -1,6 +1,6 @@
 # C 方案：membership 作为租户内身份（2026-11-11）
 
-> **状态**：in-progress（本文件定义完整目标；本轮落地 Phase 1 + Phase 2 工单垂直切片）
+> **状态**：implemented-deployed（Phase 1 + Phase 2 工单垂直切片已完成并发布 238）
 > **背景**：provider 深度切换到客户租户后，JWT 的 `tenant_id` 已指向客户租户，但工单仍以
 > `users.id` 作为申请人引用；provider 的 `users.tenant_id` 仍在 provider 租户，导致
 > “权限通过、申请人 404”。
@@ -171,15 +171,15 @@ tickets.assignee_id
 
 ## 7. 验收标准
 
-- [ ] provider 深度态使用客户 `requesterId` 建单成功，返回 200/201；
-- [ ] 未提供 `requesterId` 的 provider 建单返回 400，不再出现 404「申请人不存在或不可用」；
-- [ ] 客户用户不能通过 `requesterId` 伪造他人建单；
-- [ ] 跨租户 requester/assignee membership 被拒绝；
-- [ ] `/auth/me` 返回目标租户 `membershipId/accountKind`；
-- [ ] 工单响应包含 membership 引用，旧 `requesterId/assigneeId` 保持兼容；
-- [ ] 回填 SQL 在 238 demo 执行成功，无不可解释 NULL；
-- [ ] Go 单测、前端 tsc/eslint、demo E2E、文档门禁全绿；
-- [ ] 238 部署后 6/6 容器 healthy，发布证据归档。
+- [x] provider 深度态使用客户 `requesterId` 建单成功，返回 200/201；
+- [x] 未提供 `requesterId` 的 provider 建单返回 400，不再出现 404「申请人不存在或不可用」；
+- [x] 客户用户不能通过 `requesterId` 伪造他人建单；
+- [x] 跨租户 requester membership 被拒绝；
+- [x] `/auth/me` 返回目标租户 `membershipId/accountKind`；
+- [x] 工单响应包含 membership 引用，旧 `requesterId/assigneeId` 保持兼容；
+- [x] 回填 SQL 在 238 demo 执行成功，无不可解释 NULL（active tickets 72/72，mismatch=0）；
+- [x] Go 单测、前端 tsc/eslint、demo E2E、文档门禁全绿；
+- [x] 238 部署后 6/6 容器 healthy，发布证据归档。
 
 ## 8. 风险与决策
 
@@ -193,4 +193,27 @@ tickets.assignee_id
 
 ## 9. 本轮实现状态
 
-本轮先落地 Phase 1 + Phase 2 工单主链路，Phase 3/4 保留为后续迁移计划；实现完成后在本节回填提交、测试和 238 部署证据。
+本轮已落地 Phase 1 + Phase 2 工单主链路，Phase 3/4 保留为后续迁移计划。
+
+```text
+runtime_commit=ad8788051e75e81ecc5085759a5b737566cc267e
+version=1.8.0-dev.ad878805
+deploy_branch=deploy/full-ad878805
+e2e=45/45
+backend=go test ./service ./handlers/ticket ./handlers/auth ./handlers/common ./middleware ./dto ./repository/ticket ./migration
+frontend=npx tsc --noEmit + eslint
+```
+
+实现提交：
+
+- `5c8f32a62` feat(multi-tenant): use membership as tenant identity
+- `49a2ad115` fix(ticket): detect provider switch scope from JWT source
+- `ad8788051` fix(change): return 404 when deleting missing change
+
+发布与运行态证据：
+[2026-11-11-demo-full-deploy-ad878805.md](../../review/evidence/2026-11-11-demo-full-deploy-ad878805.md)。
+
+本轮未完成、保留到 Phase 3：
+
+- 工单分配接口同步更新 `assignee_membership_id`（本轮已完成创建时解析与存量回填）；
+- 工单评论/附件/审批/CC/通知/审计 actor 的 membership 引用迁移。

@@ -8,7 +8,7 @@
 |---|---|
 | 演示入口 | `http://172.18.3.238:8089`（独立栈 `itsm-demo`） |
 | 数据库 | `itsm_demo`（复用宿主 `itsm-postgres-prod` 实例，独立库） |
-| 版本 | 以 `.env.demo` 中 `VERSION` 为准（2026-11-11 全量重部署后 `1.8.0-dev.91eb6e82`） |
+| 版本 | 以 `.env.demo` 中 `VERSION` 为准（2026-11-11 全量重部署后 `1.8.0-dev.ad878805`） |
 | 部署模式 | `saas_msp`（MSP 跨租户能力开启） |
 | 容器组 | `itsm-{backend,worker,frontend,nginx,redis,ai-service}-demo`（6 个常驻，均 healthy）+ `itsm-init-demo` 一次性迁移任务 |
 | 部署文件 | `docker-compose.demo.yml`、`nginx/demo/conf.d/default.conf`、`.env.demo.example` |
@@ -110,7 +110,7 @@
 - 角色配套：每租户新增 `itadmin`（it_admin，L2）与 `secadmin`（security_admin，L3）账号，
   可按层级演示审批权限差异。
 
-**2026-11-10 E2E 验证结果（2026-11-11 已从当前工作区 HEAD 全量发布 `1.8.0-dev.91eb6e82`）**
+**2026-11-10 E2E 验证结果（2026-11-11 已从当前工作区 HEAD 全量发布 `1.8.0-dev.ad878805`）**
 
 | 项 | 原 238 现象 | 当前状态 |
 |---|---|---|
@@ -131,12 +131,16 @@
 | 服务请求删除语义 | 软删后 GET 返回 HTTP 200，仅包体 `code=404` | 已修复；返回 HTTP 404 + 业务码 4004 |
 | 多租户跳转返回入口 | provider 进入客户租户后 Header 不显示“返回工作台” | 已修复；`DeepTenantReturn` 独立渲染，切回 provider 后打开工作台；E2E 通过 |
 | 多租户连续建单 | 租户序列与全局唯一 `ticket_number` 冲突，重试后 500 | 已修复；Redis/DB 发号共用全局探针，跳过他租户占用号；E2E 通过 |
-| 工单附件列表 | `end_user`/`it_admin`/`security_admin`/provider 深度态打开 ticket 74 显示「获取附件列表失败」 | 已修复；授权跟随 `ticket:read` + active 用户；44/44 E2E 通过 |
+| 工单附件列表 | `end_user`/`it_admin`/`security_admin`/provider 深度态打开 ticket 74 显示「获取附件列表失败」 | 已修复；授权跟随 `ticket:read` + active 用户；45/45 E2E 通过 |
 
 > 同轮完成硬编码角色白名单专项审计及穷尽复核补漏：修复 Header AI `isAdmin()` 旁路、
 > AI 通知/审批 fallback 无效角色码、MSP 写权限重复白名单、provider `allowedActions`
 > 行级误判；内部备注 staff 限制复核保留，CC 管理与旧前端角色守卫登记为待产品决策。
 > 详见 [`docs/review/2026-11-11-role-whitelist-audit.md`](../review/2026-11-11-role-whitelist-audit.md)。
+>
+> 同轮落地 C 方案第一阶段：membership 作为租户内身份，工单 requester/creator membership
+> 回填，provider 代客建单要求显式客户 `requesterId`。详见
+> [`membership-tenant-identity-c-plan.md`](./plan/membership-tenant-identity-c-plan.md)。
 
 > 本轮执行/修复详情：`docs/review/2026-11-10-msp-demo-e2e-validation.md`；
 > 测试套件：`itsm-frontend/tests/e2e/demo/`。

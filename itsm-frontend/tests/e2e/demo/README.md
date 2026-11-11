@@ -9,8 +9,8 @@
 cd itsm-frontend
 
 # 默认跑全部 demo 用例（Chrome 系统通道；1 worker 规避登录限流）
-# 注意：Windows 本机内存不足时，Chrome 可能因 44 条上下文累积 OOM；
-# 此时按下方 spec 分组独立进程执行，结果应累计 44/44。
+# 注意：Windows 本机内存不足时，Chrome 可能因 45 条上下文累积 OOM；
+# 此时按下方 spec 分组独立进程执行，结果应累计 45/45。
 PLAYWRIGHT_BASE_URL=http://172.18.3.238:8089 \
 PLAYWRIGHT_DEMO_CHANNEL=chrome \
 npx playwright test -c playwright.demo.config.ts --workers=1
@@ -54,7 +54,7 @@ DEMO_ADMIN_PASSWORD='...' DEMO_USER_PASSWORD='...' ...
 - 租户管理员自 `1.8.0-dev.af3cba9c` 起具备 `service_request:delete`，服务请求通过删除接口清理。
 - **不要**删除或改写 demo 种子数据（`[DEMO]` 前缀记录）。
 
-## 4. 已修复项（238 `1.8.0-dev.91eb6e82` 已验证）
+## 4. 已修复项（238 `1.8.0-dev.ad878805` 已验证）
 
 | 编号 | 现象 | 处理 |
 |---|---|---|
@@ -78,6 +78,9 @@ DEMO_ADMIN_PASSWORD='...' DEMO_USER_PASSWORD='...' ...
 | D18 | 工单附件列表对 end_user / it_admin / security_admin / provider 深度态返回 500 | 已修复并全量发布（跟随 `ticket:read` + active 用户）；`06-attachment-access` 通过 |
 
 > 当前套件无预期失败用例；上述回归均为普通断言。
+>
+> C 方案回归：`MT-4` 覆盖 provider 深度态显式客户 `requesterId` 代客建单；
+> 缺失 `requesterId` 返回 400，`/auth/me` 返回目标租户 membership 身份。
 >
 > 权限补漏回归：`MT-3` 额外断言 provider（`demo.msp.manager`，家租户
 > `users.role=end_user`）读取客户问题详情时 `allowedActions.status.allowed=true`，

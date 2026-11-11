@@ -318,6 +318,7 @@ test.describe('Demo Round 5 · multi-tenant business operations', () => {
     const manager = await getDemoSession('mspManager');
     const mfgAdmin = await getDemoSession('mfgAdmin');
     const mfgUser = await getDemoSession('mfgUser');
+    const medUser = await getDemoSession('medUser');
     const managerHome = Number(manager.user.homeTenantId ?? PROVIDER_TENANT_ID);
     const run = runId('E2E-MT-ONBEHALF');
     let ticketId = 0;
@@ -369,6 +370,18 @@ test.describe('Demo Round 5 · multi-tenant business operations', () => {
         },
       });
       await expectRejected(missingRequester, [400]);
+
+      const crossTenantRequester = await callRaw(manager.api, 'POST', '/api/v1/tickets', {
+        headers: authHeaders(manager),
+        data: {
+          title: title(run, '跨租户申请人'),
+          description: 'provider on-behalf cross-tenant requester E2E; must not create.',
+          priority: 'low',
+          type: 'incident',
+          requesterId: medUser.user.id,
+        },
+      });
+      await expectRejected(crossTenantRequester, [400, 404]);
     } finally {
       if (ticketId > 0) {
         await callRaw(mfgAdmin.api, 'DELETE', `/api/v1/tickets/${ticketId}`, {

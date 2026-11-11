@@ -2,7 +2,7 @@
 
 **Status: current** — 本报告基于 2026-11-10 的 E2E 验证与 2026-11-11 的多轮 238 全量重部署复核。
 
-> **环境**：`itsm-demo`（`saas_msp`），当前部署版本 `1.8.0-dev.91eb6e82`
+> **环境**：`itsm-demo`（`saas_msp`），当前部署版本 `1.8.0-dev.ad878805`
 > **范围**：多用户、多角色、多租户、多单据关联、权限、前端 UI/UX、文档一致性
 > **套件**：`itsm-frontend/tests/e2e/demo/`；配置 `itsm-frontend/playwright.demo.config.ts`
 > **证据**：[`evidence/2026-11-10-msp-demo-e2e/run-summary.md`](./evidence/2026-11-10-msp-demo-e2e/run-summary.md)
@@ -311,26 +311,26 @@ Running 44 tests using 1 worker
 - Windows 测试库清理：服务请求测试统一 `t.Cleanup(client.Close)`，修复 SQLite 文件句柄导致的 TempDir 假红；
   BPMN 桥接夹具补齐 `taskVariables.taskPurpose=approval`。
 
-> 238 已从当前工作区 HEAD `91eb6e82e` 全量发布 `1.8.0-dev.91eb6e82`；所有回归均为普通用例，按 spec 分组复跑累计 44/44 通过。
+> 238 已从当前工作区 HEAD `ad8788051` 全量发布 `1.8.0-dev.ad878805`；所有回归均为普通用例，按 spec 分组复跑累计 45/45 通过。
 
 ### 4.4 238 部署与运行态验证
 
 | 项 | 结果 |
 |---|---|
-| 部署版本 | `1.8.0-dev.91eb6e82`（Git worktree commit `91eb6e82e`） |
-| 部署入口 | `/home/n9e/itsm/repo-e2e-6745c998`（branch `deploy/full-91eb6e82e`，从当前工作区 HEAD 全量构建） |
-| Init/migration | `itsm-init-demo` exit=0；`20261111_service_request_delete_grants` 已应用 |
+| 部署版本 | `1.8.0-dev.ad878805`（Git worktree commit `ad8788051`） |
+| 部署入口 | `/home/n9e/itsm/repo-e2e-6745c998`（branch `deploy/full-ad878805`，从当前工作区 HEAD 全量构建） |
+| Init/migration | `itsm-init-demo` exit=0；`20261111_service_request_delete_grants`、`20261111_membership_tenant_identity` 已应用 |
 | 容器 | backend/worker/frontend/nginx/redis/ai-service 6/6 healthy |
-| 健康 | `/api/v1/healthz` ok、`/api/v1/readyz` ready；`/api/v1/version` 返回 91eb6e82 |
+| 健康 | `/api/v1/healthz` ok、`/api/v1/readyz` ready；`/api/v1/version` 返回 ad878805 |
 | D10 授权 | `admin` / `provider_tenant_admin` 的 `service_request:delete` 已在存量租户落库 |
 | 附件 smoke | 真实评论附件上传/预览/SHA256/删除通过 |
-| 全量 E2E | `44 passed`，0 expected failure |
+| 全量 E2E | `45 passed`，0 expected failure |
 
-> 部署前备份：`/home/n9e/itsm/repo-e2e-6745c998/backups/demo-release-1.8.0-dev.91eb6e82-20261111T092029Z`。
+> 部署前备份：`/home/n9e/itsm/repo-e2e-6745c998/backups/demo-release-1.8.0-dev.ad878805-20261111T114926Z`。
 
-> 本轮全量发布包含硬编码角色白名单审计修复与穷尽复核补漏（Header AI `isAdmin()` 旁路、
-> AI 通知/审批 fallback 无效角色码、工单数据范围/MSP 写权限重复白名单、provider
-> `allowedActions` 行级误判）；详见 [`2026-11-11-role-whitelist-audit.md`](./2026-11-11-role-whitelist-audit.md)。
+> 本轮全量发布包含 C 方案 membership 租户内身份（工单 membership 回填、provider 代客建单、
+> `/auth/me` membership 字段），以及变更重复删除 404 修复；详见
+> [`membership-tenant-identity-c-plan.md`](../multi-tenant/plan/membership-tenant-identity-c-plan.md)。
 
 ---
 
@@ -338,7 +338,7 @@ Running 44 tests using 1 worker
 
 | 文件 | 修正 |
 |---|---|
-| `docs/multi-tenant/demo-environment.md` | 版本号更新为 `1.8.0-dev.91eb6e82`；工作台 34 `[DEMO]` + 31 残留 = 65；SLA `slaDueSoon=0`；review-test 说明；E2E 差异表更新为已发布验证 |
+| `docs/multi-tenant/demo-environment.md` | 版本号更新为 `1.8.0-dev.ad878805`；工作台 34 `[DEMO]` + 31 残留 = 65；SLA `slaDueSoon=0`；review-test 说明；E2E 差异表更新为已发布验证 |
 | `itsm-frontend/tests/e2e/BEST_PRACTICES.md` | 标明 `admin/admin123` 等为历史本地 seeder，不适用于 238；链接 demo README |
 | `docs/multi-tenant/scenarios/README.md` / `00-environment-and-accounts.md` | 增加 238 demo 账号矩阵与本地开发账号的区分提示 |
 | `itsm-frontend/tests/e2e/demo/README.md` | 新增 238 E2E 运行手册、账号、清理与已修复项清单 |
@@ -353,7 +353,8 @@ Running 44 tests using 1 worker
 - 配置：`itsm-frontend/playwright.demo.config.ts`
 - 运行手册：`itsm-frontend/tests/e2e/demo/README.md`
 - 本轮摘要与遗留：`docs/review/evidence/2026-11-10-msp-demo-e2e/run-summary.md`
-- 2026-11-11 当前全量部署证据：`docs/review/evidence/2026-11-11-demo-full-deploy-91eb6e82.md`
+- 2026-11-11 当前全量部署证据：`docs/review/evidence/2026-11-11-demo-full-deploy-ad878805.md`
+- 上一轮全量部署证据（historical）：`docs/review/evidence/2026-11-11-demo-full-deploy-91eb6e82.md`
 - 上一轮全量部署证据（historical）：`docs/review/evidence/2026-11-11-demo-full-deploy-a0d4240a.md`
 - 角色白名单审计：`docs/review/2026-11-11-role-whitelist-audit.md`
 - 上一轮全量部署证据（historical）：`docs/review/evidence/2026-11-11-demo-full-deploy-af3cba9c.md`
@@ -364,8 +365,8 @@ Running 44 tests using 1 worker
 
 **发布后复核已完成**：
 
-1. 238 已发布 `1.8.0-dev.91eb6e82`，6/6 容器 healthy，`/api/v1/readyz` ready；
+1. 238 已发布 `1.8.0-dev.ad878805`，6/6 容器 healthy，`/api/v1/readyz` ready；
 2. 原 12 个预期失败回归已改为普通用例，`/tickets/7` 已并回核心页面 smoke；
-3. demo 套件按 spec 分组累计 `44 passed`，0 expected failure；
+3. demo 套件按 spec 分组累计 `45 passed`，0 expected failure；
 4. 版本/工作台数量/SLA/review-test 事实已回填 `demo-environment.md`；
 5. D10 已按“授予租户管理员删除”决策落库并完成 E2E。

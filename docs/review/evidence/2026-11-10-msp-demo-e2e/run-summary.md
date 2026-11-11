@@ -5,7 +5,7 @@
 | 项 | 值 |
 |---|---|
 | Base URL | `http://172.18.3.238:8089` |
-| Version | `1.8.0-dev.91eb6e82`（部署 worktree commit `91eb6e82e`） |
+| Version | `1.8.0-dev.ad878805`（部署 worktree commit `ad8788051`） |
 | Deployment mode | `saas_msp` |
 | Browser | Chrome（Playwright `channel: chrome`） |
 | Worker | `1`（规避登录限流） |
@@ -22,26 +22,26 @@ npx playwright test -c playwright.demo.config.ts tests/e2e/demo --workers=1
 ## 结果
 
 ```text
-Running 44 tests using 1 worker
-44 passed (2.6m)
+Running 45 tests using 1 worker
+45 passed
 ```
 
 > 0 个 expected failure；D1–D18、多租户跳转/业务操作与附件角色访问的回归断言均为普通用例。
-> `a0d4240a` 起复核改为按 spec 分组独立进程执行，`91eb6e82` 复核累计 44/44 通过；单进程全量在本机 Windows 上曾因 Chrome 内存不足 OOM，非产品失败。
+> `a0d4240a` 起复核改为按 spec 分组独立进程执行，最终 `ad878805` 复核累计 45/45 通过；单进程全量在本机 Windows 上曾因 Chrome 内存不足 OOM，非产品失败。
 
 > 已移除旧的 known-defect 容忍分支：跨租户删除/问题关联不再接受 500，事件转换后必须返回
 > `problemId`，L1/L2/L3 审批必须 200，D10 删除后 GET 必须 404，Dashboard/AI 不再允许 403 白名单。
 
 ## 发布与部署后验证
 
-238 已从当前工作区 HEAD `91eb6e82e` 全量发布 `1.8.0-dev.91eb6e82`：
+238 已从当前工作区 HEAD `ad8788051` 全量发布 `1.8.0-dev.ad878805`：
 
 - 6 个常驻容器（backend/worker/frontend/nginx/redis/ai-service）healthy；`itsm-init-demo` exit=0。
-- `/api/v1/healthz` ok、`/api/v1/readyz` ready；`/api/v1/version` 返回 `91eb6e82`。
-- 部署 worktree：`/home/n9e/itsm/repo-e2e-6745c998`，branch `deploy/full-91eb6e82e`。
-- 备份/回滚证据：`backups/demo-release-1.8.0-dev.91eb6e82-20261111T092029Z`。
-- 镜像：backend `sha256:4eadd5b3d80f574e80f727284a2ac378bf47a52d08a8fa18d02acf980f10171a`；frontend `sha256:e338294088be66b56ece854c51c6022efed78150343655694c146fa7a365055c`；ai-service `sha256:f99367604826ed7fa1541bfa8868dee1eb7492b4307d4e55f050d35b6a2d3301`。
-- demo E2E 分组累计 `44/44 passed`；此前 `f7dd2974` 裁剪部署、`44faf311`、`5699b5a8`、`af3cba9c`、`a0d4240a` 全量部署均已被本结果取代。
+- `/api/v1/healthz` ok、`/api/v1/readyz` ready；`/api/v1/version` 返回 `ad878805`。
+- 部署 worktree：`/home/n9e/itsm/repo-e2e-6745c998`，branch `deploy/full-ad878805`。
+- 备份/回滚证据：`backups/demo-release-1.8.0-dev.ad878805-20261111T114926Z`。
+- 镜像：backend `sha256:a610565d62fc835db698c214f853f44c91f781b9637cb4425e2fe1ee1a018f9f`；frontend `sha256:f22a65fe0675a307ed2f47085eff73e6e6ddad3a8cc242e96a77954b3400fa96`；ai-service `sha256:f99367604826ed7fa1541bfa8868dee1eb7492b4307d4e55f050d35b6a2d3301`。
+- demo E2E 分组累计 `45/45 passed`；此前 `f7dd2974`、`44faf311`、`5699b5a8`、`af3cba9c`、`a0d4240a`、`91eb6e82` 全量部署均已被本结果取代。
 
 > 发布前曾用本地生产构建 + 238 后端验证前端门控与布局修复；最终验证据以部署后的 238 结果为准。此前 `f7dd2974` 是独立部署分支的裁剪版本，未包含当前分支的 DeepTenantReturn 与完整当前代码；本次已纠正。
 
@@ -54,7 +54,7 @@ Running 44 tests using 1 worker
 | Round 2 | 工单↔工单、问题↔工单/事件/变更、事件→问题、变更↔CMDB、变更关联工单、工单↔CI、发布↔变更 | pass |
 | Round 3 | 事件→问题→变更全生命周期、服务请求 L1/L2/L3、工单协作、MSP 指派/回复/改状态、租户 readiness | pass |
 | Round 4 | 客户核心页面、工单详情 BPMN/i18n、MSP 工作台、readiness 向导、360/768/1440 响应式、服务目录统计、无 ai:read 的工单/变更 AI 门控、发布↔变更 UI、provider→customer→返回工作台 | pass |
-| Round 5 | provider 深度切换三客户处理既有工单、客户作用域评论/改状态、跨租户隔离、MSP 工作台指派/回复、provider 员工分配边界、provider 读取客户问题且医疗不可见 | pass |
+| Round 5 | provider 深度切换三客户处理既有工单、客户作用域评论/改状态、跨租户隔离、MSP 工作台指派/回复、provider 员工分配边界、provider 读取客户问题且医疗不可见、provider 代客建单（显式客户 requesterId） | pass |
 | Round 6 | 工单附件上传后 end_user / it_admin / security_admin / provider 深度态列出附件；ticket 74 类场景 | pass |
 
 ## 发现与处理
@@ -99,8 +99,10 @@ Running 44 tests using 1 worker
 
 ## 限制
 
-- 238 已发布本轮修复；E2E 分组累计 44/44 通过，无 expected failure。
+- 238 已发布本轮修复；E2E 分组累计 45/45 通过，无 expected failure。
+- C 方案 membership 租户内身份：membership 上下文、工单 membership 回填、provider 代客建单、`/auth/me` membership 字段；详见 [`../../../multi-tenant/plan/membership-tenant-identity-c-plan.md`](../../../multi-tenant/plan/membership-tenant-identity-c-plan.md)。
 - 硬编码角色白名单审计及穷尽复核补漏：Header AI `isAdmin()` 旁路、AI 通知/审批 fallback 无效角色码、MSP 写权限重复白名单、provider `allowedActions` 行级误判；详见 [`../../2026-11-11-role-whitelist-audit.md`](../../2026-11-11-role-whitelist-audit.md)。
-- 开放缺口：provider 深度切到客户作用域后直接建单仍返回 404「申请人不存在或不可用」；当前主路径为客户建单、provider 处理。修复方向待产品决策（requester 选择器 / 允许 provider requester / 禁用建单）。
+- provider 深度态代客建单已修复：必须显式提交客户 `requesterId`，服务端解析目标租户 membership；
+  缺失 `requesterId` 返回 400（不再落入 404 申请人校验）。
 - 本轮不覆盖性能/并发容量、真实 SMTP/邀请投递、云发现、AI 质量评估。
 - 历史评审文档保持 `Status: historical`，未改写；当前事实已回填 `docs/multi-tenant/demo-environment.md` 与新报告。
