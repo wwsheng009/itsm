@@ -112,6 +112,9 @@ func (m *mockRepository) Update(ctx context.Context, id int, params *UpdateParam
 	if params.DescriptionFormat != nil {
 		t.DescriptionFormat = *params.DescriptionFormat
 	}
+	if params.AssigneeMembershipID != nil {
+		t.AssigneeMembershipID = *params.AssigneeMembershipID
+	}
 	t.Version++
 	t.UpdatedAt = time.Now()
 	return t, nil
@@ -227,6 +230,10 @@ func (m *mockRepository) UpdateStatus(ctx context.Context, id int, status string
 }
 
 func (m *mockRepository) AssignTicket(ctx context.Context, id int, assigneeID int, tenantID int) (*Ticket, error) {
+	return m.AssignTicketWithMembership(ctx, id, assigneeID, 0, tenantID)
+}
+
+func (m *mockRepository) AssignTicketWithMembership(ctx context.Context, id int, assigneeID, assigneeMembershipID, tenantID int) (*Ticket, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	t, ok := m.tickets[id]
@@ -234,6 +241,9 @@ func (m *mockRepository) AssignTicket(ctx context.Context, id int, assigneeID in
 		return nil, errors.New("ticket not found")
 	}
 	t.AssigneeID = &assigneeID
+	if assigneeMembershipID > 0 {
+		t.AssigneeMembershipID = assigneeMembershipID
+	}
 	if t.Status == "new" {
 		t.Status = "open"
 	}

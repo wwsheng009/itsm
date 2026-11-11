@@ -274,10 +274,15 @@ test.describe('Demo Round 3 · multi-user business workflows', () => {
 
     try {
       const agentId = Number(agent.user.id);
-      const assign = await apiPost(admin, `/api/v1/tickets/${ticket.id}/assign`, {
+      const assign = await apiPost<{ assigneeId?: number; assigneeMembershipId?: number }>(
+        admin,
+        `/api/v1/tickets/${ticket.id}/assign`,
+        {
         assigneeId: agentId,
-      });
-      expect((assign as { assigneeId?: number }).assigneeId).toBe(agentId);
+        },
+      );
+      expect(assign.assigneeId).toBe(agentId);
+      expect(assign.assigneeMembershipId).toBeGreaterThan(0);
 
       await apiPost(agent, `/api/v1/tickets/${ticket.id}/comments`, {
         content: '[E2E] 已受理，排查中',

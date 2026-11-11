@@ -392,6 +392,13 @@ func (r *EntRepository) Update(ctx context.Context, id int, params *UpdateParams
 	if params.AssigneeID != nil {
 		builder.SetAssigneeID(*params.AssigneeID)
 	}
+	if params.AssigneeMembershipID != nil {
+		if *params.AssigneeMembershipID <= 0 {
+			builder.ClearAssigneeMembershipID()
+		} else {
+			builder.SetAssigneeMembershipID(*params.AssigneeMembershipID)
+		}
+	}
 	if params.CategoryID != nil {
 		if *params.CategoryID == 0 {
 			builder.ClearCategoryID()
@@ -493,6 +500,13 @@ func (r *EntRepository) UpdateWithTxHook(ctx context.Context, id int, params *Up
 	}
 	if params.AssigneeID != nil {
 		builder.SetAssigneeID(*params.AssigneeID)
+	}
+	if params.AssigneeMembershipID != nil {
+		if *params.AssigneeMembershipID <= 0 {
+			builder.ClearAssigneeMembershipID()
+		} else {
+			builder.SetAssigneeMembershipID(*params.AssigneeMembershipID)
+		}
 	}
 	if params.CategoryID != nil {
 		if *params.CategoryID == 0 {
@@ -1028,6 +1042,12 @@ func (r *EntRepository) UpdateStatus(ctx context.Context, id int, status Status,
 
 // AssignTicket 分配工单
 func (r *EntRepository) AssignTicket(ctx context.Context, id int, assigneeID int, tenantID int) (*Ticket, error) {
+	return r.AssignTicketWithMembership(ctx, id, assigneeID, 0, tenantID)
+}
+
+// AssignTicketWithMembership 分配工单并同步目标租户内的 assignee membership。
+// membershipID<=0 时保持旧行为（仅写 assignee_id），兼容迁移窗口/测试调用。
+func (r *EntRepository) AssignTicketWithMembership(ctx context.Context, id int, assigneeID, assigneeMembershipID, tenantID int) (*Ticket, error) {
 	current, err := r.GetByID(ctx, id, tenantID)
 	if err != nil {
 		return nil, err
@@ -1036,11 +1056,15 @@ func (r *EntRepository) AssignTicket(ctx context.Context, id int, assigneeID int
 		return nil, err
 	}
 	status := current.Status
-	return r.Update(ctx, id, &UpdateParams{
+	params := &UpdateParams{
 		AssigneeID: &assigneeID,
 		Status:     &status,
 		Version:    current.Version,
-	}, tenantID)
+	}
+	if assigneeMembershipID > 0 {
+		params.AssigneeMembershipID = &assigneeMembershipID
+	}
+	return r.Update(ctx, id, params, tenantID)
 }
 
 // UpdateSLADeadlines 更新 SLA 截止时间

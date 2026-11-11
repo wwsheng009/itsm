@@ -9,6 +9,7 @@ import (
 	"itsm-backend/ent"
 	"itsm-backend/ent/ticket"
 	"itsm-backend/ent/user"
+	"itsm-backend/middleware"
 
 	"go.uber.org/zap"
 )
@@ -125,9 +126,10 @@ func (s *TicketAssignmentService) autoAssignTicket(ctx context.Context, req *Ass
 	bestUser := availableUsers[0]
 
 	// 4. 执行分配
-	err = s.client.Ticket.UpdateOneID(req.TicketID).
+	update := s.client.Ticket.UpdateOneID(req.TicketID).
 		SetAssigneeID(bestUser.UserID).
-		Exec(ctx)
+		SetNillableAssigneeMembershipID(s.assigneeMembershipID(ctx, bestUser.UserID, req.TenantID))
+	err = update.Exec(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("分配工单失败: %w", err)
 	}
@@ -421,10 +423,11 @@ func (s *TicketAssignmentService) assignToSpecificUser(ctx context.Context, req 
 	}
 
 	// 执行分配
-	err = s.client.Ticket.UpdateOneID(req.TicketID).
+	update := s.client.Ticket.UpdateOneID(req.TicketID).
 		Where(ticket.TenantIDEQ(req.TenantID), ticket.DeletedAtIsNil()).
 		SetAssigneeID(userID).
-		Exec(ctx)
+		SetNillableAssigneeMembershipID(s.assigneeMembershipID(ctx, userID, req.TenantID))
+	err = update.Exec(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("分配工单失败: %w", err)
 	}
@@ -497,10 +500,11 @@ func (s *TicketAssignmentService) ReassignTicket(ctx context.Context, ticketID i
 	}
 
 	// 更新工单分配人
-	err = s.client.Ticket.UpdateOneID(ticketID).
+	update := s.client.Ticket.UpdateOneID(ticketID).
 		Where(ticket.TenantIDEQ(tk.TenantID)).
 		SetAssigneeID(newAssigneeID).
-		Exec(ctx)
+		SetNillableAssigneeMembershipID(s.assigneeMembershipID(ctx, newAssigneeID, tk.TenantID))
+	err = update.Exec(ctx)
 	if err != nil {
 		return fmt.Errorf("重新分配失败: %w", err)
 	}
@@ -591,11 +595,15 @@ func (s *TicketAssignmentService) AssignTickets(ctx context.Context, tenantID in
 	}
 
 	// 批量更新工单分配人：租户条件收窄，租户不符的工单跳过（不越权改写）。
+	membershipID := s.assigneeMembershipID(ctx, assigneeID, tenantID)
 	for _, ticketID := range ticketIDs {
-		affected, err := s.client.Ticket.Update().
+		update := s.client.Ticket.Update().
 			Where(ticket.IDEQ(ticketID), ticket.TenantIDEQ(tenantID)).
-			SetAssigneeID(assigneeID).
-			Save(ctx)
+			SetAssigneeID(assigneeID)
+		if membershipID != nil {
+			update = update.SetAssigneeMembershipID(*membershipID)
+		}
+		affected, err := update.Save(ctx)
 		if err != nil {
 			s.logger.Errorw("Failed to assign ticket", "ticketID", ticketID, "error", err)
 			continue
@@ -606,4 +614,14 @@ func (s *TicketAssignmentService) AssignTickets(ctx context.Context, tenantID in
 	}
 
 	return nil
+}
+
+// assigneeMembershipID 返回目标租户内处理人的 active membership；无映射时返回 nil，
+// 保持旧调用路径可继续工作（迁移窗口）。生产数据由 migration 补齐 home membership。
+func (s *TicketAssignmentService) assigneeMembershipID(ctx context.Context, userID, tenantID int) *int {
+	membership, err := middleware.ResolveActiveMembership(ctx, s.client, userID, tenantID)
+	if err != nil || membership == nil {
+		return nil
+	}
+	return &membership.ID
 }

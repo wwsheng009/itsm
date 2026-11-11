@@ -34,6 +34,7 @@ type Repository interface {
 	// Status transitions
 	UpdateStatus(ctx context.Context, id int, status string, tenantID int) (*Ticket, error)
 	AssignTicket(ctx context.Context, id int, assigneeID int, tenantID int) (*Ticket, error)
+	AssignTicketWithMembership(ctx context.Context, id int, assigneeID, assigneeMembershipID, tenantID int) (*Ticket, error)
 	ResolveTicket(ctx context.Context, id int, resolution string, tenantID int) (*Ticket, error)
 	CloseTicket(ctx context.Context, id int, tenantID int) (*Ticket, error)
 	EscalateTicket(ctx context.Context, id int, reason string, tenantID int, escalatedBy int) (*Ticket, error)
@@ -85,20 +86,21 @@ type CreateParams struct {
 
 // UpdateParams holds parameters for updating a ticket
 type UpdateParams struct {
-	Title             *string
-	Description       *string
-	DescriptionHTML   *string
-	DescriptionFormat *string
-	Status            *string
-	Priority          *string
-	Type              *string
-	AssigneeID        *int
-	CategoryID        *int
-	DepartmentID      *int
-	CustomerID        *int
-	Resolution        *string
-	FormFields        *map[string]interface{}
-	Version           int
-	ReplaceTags       bool
-	TagIDs            []int
+	Title                *string
+	Description          *string
+	DescriptionHTML      *string
+	DescriptionFormat    *string
+	Status               *string
+	Priority             *string
+	Type                 *string
+	AssigneeID           *int
+	AssigneeMembershipID *int
+	CategoryID           *int
+	DepartmentID         *int
+	CustomerID           *int
+	Resolution           *string
+	FormFields           *map[string]interface{}
+	Version              int
+	ReplaceTags          bool
+	TagIDs               []int
 }

@@ -381,6 +381,14 @@ func (r *EntRepository) AssignTicket(ctx context.Context, id int, assigneeID int
 	return r.toDomain(t), nil
 }
 
+func (r *EntRepository) AssignTicketWithMembership(ctx context.Context, id int, assigneeID, assigneeMembershipID, tenantID int) (*Ticket, error) {
+	t, err := r.repo.AssignTicketWithMembership(ctx, id, assigneeID, assigneeMembershipID, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	return r.toDomain(t), nil
+}
+
 func (r *EntRepository) ResolveTicket(ctx context.Context, id int, resolution string, tenantID int) (*Ticket, error) {
 	current, err := r.repo.GetByID(ctx, id, tenantID)
 	if err != nil {

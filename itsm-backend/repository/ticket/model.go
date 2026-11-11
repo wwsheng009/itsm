@@ -243,21 +243,22 @@ type CreateParams struct {
 
 // UpdateParams 工单更新参数
 type UpdateParams struct {
-	Title             *string
-	Description       *string
-	DescriptionHTML   *string
-	DescriptionFormat *string
-	Status            *Status
-	Type              *Type
-	Priority          *Priority
-	AssigneeID        *int
-	CategoryID        *int
-	DepartmentID      *int
-	CustomerID        *int
-	ReplaceTags       bool
-	TagIDs            []int
-	Resolution        *string
-	FormFields        *map[string]interface{}
+	Title                *string
+	Description          *string
+	DescriptionHTML      *string
+	DescriptionFormat    *string
+	Status               *Status
+	Type                 *Type
+	Priority             *Priority
+	AssigneeID           *int
+	AssigneeMembershipID *int
+	CategoryID           *int
+	DepartmentID         *int
+	CustomerID           *int
+	ReplaceTags          bool
+	TagIDs               []int
+	Resolution           *string
+	FormFields           *map[string]interface{}
 	// MSP 快照（IP-P0-3）：指派/回填时补齐单工单快照，nil = 不修改。
 	IsManagedByMSP  *bool
 	MSPProviderID   *int

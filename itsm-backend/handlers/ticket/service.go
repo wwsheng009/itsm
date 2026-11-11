@@ -262,7 +262,12 @@ func (s *Service) BatchDelete(ctx context.Context, ids []int, tenantID int, acto
 
 // AssignTicket assigns a ticket to a user.
 func (s *Service) AssignTicket(ctx context.Context, ticketID int, assigneeID int, tenantID int) (*Ticket, error) {
-	return s.repo.AssignTicket(ctx, ticketID, assigneeID, tenantID)
+	return s.AssignTicketWithMembership(ctx, ticketID, assigneeID, 0, tenantID)
+}
+
+// AssignTicketWithMembership assigns a ticket and persists the target-tenant membership identity.
+func (s *Service) AssignTicketWithMembership(ctx context.Context, ticketID int, assigneeID, assigneeMembershipID, tenantID int) (*Ticket, error) {
+	return s.repo.AssignTicketWithMembership(ctx, ticketID, assigneeID, assigneeMembershipID, tenantID)
 }
 
 // EscalateTicket escalates a ticket.
@@ -390,8 +395,13 @@ func (s *Service) ImportTickets(ctx context.Context, tenantID int, data []byte, 
 
 // AssignTickets assigns multiple tickets to a user.
 func (s *Service) AssignTickets(ctx context.Context, tenantID int, ticketIDs []int, assigneeID int) error {
+	return s.AssignTicketsWithMembership(ctx, tenantID, ticketIDs, assigneeID, 0)
+}
+
+// AssignTicketsWithMembership assigns multiple tickets with the same target-tenant membership.
+func (s *Service) AssignTicketsWithMembership(ctx context.Context, tenantID int, ticketIDs []int, assigneeID, assigneeMembershipID int) error {
 	for _, id := range ticketIDs {
-		_, err := s.repo.AssignTicket(ctx, id, assigneeID, tenantID)
+		_, err := s.repo.AssignTicketWithMembership(ctx, id, assigneeID, assigneeMembershipID, tenantID)
 		if err != nil {
 			return err
 		}

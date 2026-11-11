@@ -1455,22 +1455,29 @@ func (s *TicketService) AssignTicket(ctx context.Context, ticketID int, assignee
 	if err := current.Assign(assigneeID); err != nil {
 		return nil, err
 	}
+	var assigneeMembershipID *int
 	if s.client != nil {
-		exists, err := s.client.User.Query().
-			Where(user.IDEQ(assigneeID), user.TenantIDEQ(tenantID), user.ActiveEQ(true)).
-			Exist(ctx)
-		if err != nil {
-			return nil, fmt.Errorf("验证处理人失败: %w", err)
-		}
-		if !exists {
-			return nil, fmt.Errorf("处理人不存在或不可用")
+		if membership, mErr := middleware.ResolveActiveMembership(ctx, s.client, assigneeID, tenantID); mErr == nil && membership != nil {
+			assigneeMembershipID = &membership.ID
+		} else {
+			// 迁移窗口兼容：没有 membership 时仍按旧同租户用户校验。
+			exists, err := s.client.User.Query().
+				Where(user.IDEQ(assigneeID), user.TenantIDEQ(tenantID), user.ActiveEQ(true)).
+				Exist(ctx)
+			if err != nil {
+				return nil, fmt.Errorf("验证处理人失败: %w", err)
+			}
+			if !exists {
+				return nil, fmt.Errorf("处理人不存在或不可用")
+			}
 		}
 	}
 	status := current.Status
 	updated, err := s.updateTicketWithFeishuCommand(ctx, ticketID, &ticket.UpdateParams{
-		AssigneeID: &assigneeID,
-		Status:     &status,
-		Version:    current.Version,
+		AssigneeID:           &assigneeID,
+		AssigneeMembershipID: assigneeMembershipID,
+		Status:               &status,
+		Version:              current.Version,
 	}, tenantID, "assigned")
 	if err != nil {
 		return nil, err

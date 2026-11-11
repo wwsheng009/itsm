@@ -604,7 +604,15 @@ func (h *Handler) AssignTicket(c *gin.Context) {
 		return
 	}
 
-	ticket, err := h.service.AssignTicket(c.Request.Context(), id, req.AssigneeID, tenantID)
+	assigneeMembershipID := 0
+	if rawClient, exists := c.Get("client"); exists {
+		if client, ok := rawClient.(*ent.Client); ok && client != nil {
+			if membership, mErr := middleware.ResolveActiveMembership(c.Request.Context(), client, req.AssigneeID, tenantID); mErr == nil && membership != nil {
+				assigneeMembershipID = membership.ID
+			}
+		}
+	}
+	ticket, err := h.service.AssignTicketWithMembership(c.Request.Context(), id, req.AssigneeID, assigneeMembershipID, tenantID)
 	if err != nil {
 		common.FailWithErr(c, err, "操作失败")
 		return
@@ -849,7 +857,15 @@ func (h *Handler) AssignTickets(c *gin.Context) {
 	if !ok {
 		return
 	}
-	if err := h.service.AssignTickets(c.Request.Context(), tenantID, req.TicketIDs, req.AssigneeID); err != nil {
+	assigneeMembershipID := 0
+	if rawClient, exists := c.Get("client"); exists {
+		if client, ok := rawClient.(*ent.Client); ok && client != nil {
+			if membership, mErr := middleware.ResolveActiveMembership(c.Request.Context(), client, req.AssigneeID, tenantID); mErr == nil && membership != nil {
+				assigneeMembershipID = membership.ID
+			}
+		}
+	}
+	if err := h.service.AssignTicketsWithMembership(c.Request.Context(), tenantID, req.TicketIDs, req.AssigneeID, assigneeMembershipID); err != nil {
 		common.FailWithErr(c, err, "操作失败")
 		return
 	}

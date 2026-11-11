@@ -45,6 +45,7 @@ type Repository interface {
 	// 状态变更
 	UpdateStatus(ctx context.Context, id int, status Status, tenantID int) (*Ticket, error)
 	AssignTicket(ctx context.Context, id int, assigneeID int, tenantID int) (*Ticket, error)
+	AssignTicketWithMembership(ctx context.Context, id int, assigneeID, assigneeMembershipID, tenantID int) (*Ticket, error)
 
 	// SLA 相关
 	UpdateSLADeadlines(ctx context.Context, id int, responseDeadline, resolutionDeadline *time.Time, slaDefinitionID *int, matchedLayer string, tenantID int) error
