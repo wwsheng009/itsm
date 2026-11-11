@@ -91,6 +91,8 @@ const ChangeDetail: React.FC = () => {
   const canWriteChange = useCan(['change:write']);
   const canApproveChange = useCan(['change:approve']);
   const canRollbackChange = useCan(['change:rollback']);
+  // 变更 AI 影响分析卡最终调用 /agent/tools/execute（ai:read）；无权限时不展示。
+  const canUseAI = useCan(['ai:read']);
   // V0-03：任务卡直达（D1-02 动作桥）——点击「生成影响分析计划」建议卡时在页内触发 plan 运行。
   const [impactPlanNonce, setImpactPlanNonce] = useState(0);
   const triggerImpactPlan = useCallback(() => setImpactPlanNonce(nonce => nonce + 1), []);
@@ -399,11 +401,13 @@ const ChangeDetail: React.FC = () => {
 
   return (
     <Space orientation="vertical" style={{ width: '100%' }} size="large">
-      <ChangeAIInlinePlanCard
-        changeId={change.id}
-        changeTitle={change.title}
-        triggerNonce={impactPlanNonce}
-      />
+      {canUseAI && (
+        <ChangeAIInlinePlanCard
+          changeId={change.id}
+          changeTitle={change.title}
+          triggerNonce={impactPlanNonce}
+        />
+      )}
       <Card>
         <div style={{ marginBottom: 24 }}>
           <Button

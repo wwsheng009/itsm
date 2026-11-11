@@ -152,6 +152,7 @@ var RolePermissions = map[string][]Permission{
 		{Resource: "service_request", Action: "read"},
 		{Resource: "service_request", Action: "write"},
 		{Resource: "service_request", Action: "approve"},
+		{Resource: "service_request", Action: "delete"},
 		{Resource: "change", Action: "read"},
 		{Resource: "change", Action: "write"},
 		{Resource: "change", Action: "delete"},

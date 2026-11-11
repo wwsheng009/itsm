@@ -18,6 +18,8 @@ type Incident struct {
 	ReporterID          int
 	AssigneeID          *int
 	ConfigurationItemID *int
+	// ProblemID 关联问题（由 incident.problems 反向边加载；用于事件详情跳转问题）。
+	ProblemID *int
 	// ProjectID 创建时挂接的项目（nil=不挂接；随 INSERT 一次写入）。
 	ProjectID             *int
 	DepartmentID          *int

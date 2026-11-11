@@ -87,6 +87,7 @@ func srSetup(t *testing.T) (*gin.Engine, *ent.Client, int, int, int) {
 	t.Helper()
 	dsn := "file:" + filepath.Join(t.TempDir(), "sr_test.db") + "?_fk=1"
 	client := enttest.Open(t, "sqlite3", dsn)
+	t.Cleanup(func() { _ = client.Close() })
 	logger := zaptest.NewLogger(t).Sugar()
 
 	ctx := context.Background()
@@ -236,8 +237,14 @@ func TestServiceRequestHandler_Get_InvalidID(t *testing.T) {
 
 func TestServiceRequestHandler_Get_NotFound(t *testing.T) {
 	r, _, _, _, _ := srSetup(t)
-	resp := srDoReq(t, r, "GET", "/api/v1/service-requests/999999", nil)
-	assert.EqualValues(t, 404, resp.Code, "body=%s", srStr(resp))
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/service-requests/999999", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusNotFound, w.Code)
+	var resp common.Response
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+	assert.EqualValues(t, 4004, resp.Code, "body=%s", w.Body.String())
 }
 
 func TestServiceRequestHandler_ListApprovals(t *testing.T) {
@@ -326,7 +333,12 @@ func TestServiceRequestHandler_Delete(t *testing.T) {
 	require.Equal(t, common.SuccessCode, resp.Code, "body=%s", srStr(resp))
 	// 删除后再查应 404
 	resp2 := srDoReq(t, r, "GET", "/api/v1/service-requests/"+strconv.Itoa(id), nil)
-	assert.EqualValues(t, 404, resp2.Code, "body=%s", srStr(resp2))
+	assert.EqualValues(t, common.NotFoundErrorCode, resp2.Code, "body=%s", srStr(resp2))
+	// 契约：HTTP 状态也必须是 404，而不是 200 仅包体带 404。
+	rawReq := httptest.NewRequest("GET", "/api/v1/service-requests/"+strconv.Itoa(id), nil)
+	rawRec := httptest.NewRecorder()
+	r.ServeHTTP(rawRec, rawReq)
+	assert.Equal(t, http.StatusNotFound, rawRec.Code)
 	stored, err := client.ServiceRequest.Get(context.Background(), id)
 	require.NoError(t, err)
 	require.NotNil(t, stored.DeletedAt)
@@ -370,6 +382,8 @@ func srSetupRole(t *testing.T, role, dept string) (*gin.Engine, int, int, int) {
 	t.Helper()
 	dsn := "file:" + filepath.Join(t.TempDir(), "sr_role_test.db") + "?_fk=1"
 	client := enttest.Open(t, "sqlite3", dsn)
+	// 注册 Close cleanup，让它在 t.TempDir 清理前执行，避免 Windows SQLite 文件句柄阻塞。
+	t.Cleanup(func() { _ = client.Close() })
 	logger := zaptest.NewLogger(t).Sugar()
 	ctx := context.Background()
 	tenant, err := client.Tenant.Create().

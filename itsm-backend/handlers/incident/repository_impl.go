@@ -100,7 +100,18 @@ func (r *EntRepository) toDomain(e *ent.Incident) *Incident {
 		TenantID:              e.TenantID,
 		CreatedAt:             e.CreatedAt,
 		UpdatedAt:             e.UpdatedAt,
+		ProblemID:             firstProblemID(e),
 	}
+}
+
+// firstProblemID 从已加载的 incident.problems 反向边取首个问题 ID。
+// 未预加载/无关联时返回 nil（调用方不显示关联问题入口）。
+func firstProblemID(e *ent.Incident) *int {
+	if e == nil || len(e.Edges.Problems) == 0 {
+		return nil
+	}
+	id := e.Edges.Problems[0].ID
+	return &id
 }
 
 // toDomainEvent converts ent.IncidentEvent to domain IncidentEvent
@@ -212,6 +223,7 @@ func (r *EntRepository) Create(ctx context.Context, i *Incident) (*Incident, err
 func (r *EntRepository) Get(ctx context.Context, id int, tenantID int) (*Incident, error) {
 	i, err := r.client.Incident.Query().
 		Where(incident.IDEQ(id), incident.TenantIDEQ(tenantID)).
+		WithProblems().
 		Only(ctx)
 	if err != nil {
 		return nil, err

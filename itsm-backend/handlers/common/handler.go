@@ -189,6 +189,13 @@ func (h *Handler) GetMe(c *gin.Context) {
 		common.NotFound(c, "User not found")
 		return
 	}
+	// 登录/续签/切换签发的 JWT role 是当前作用域的 effective role
+	// （例如 users.role=end_user + msp_role=provider_admin → msp_manager）。
+	// /auth/me 必须返回同一角色视图，否则刷新页面后前端角色和菜单守卫会漂移。
+	if tokenRole := strings.TrimSpace(c.GetString("role")); tokenRole != "" {
+		u.Role = tokenRole
+		applyRoleFlags(u)
+	}
 	common.Success(c, u)
 }
 

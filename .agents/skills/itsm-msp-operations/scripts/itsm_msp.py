@@ -142,8 +142,16 @@ def cmd_tt_unbind(client, args):
 
 def cmd_workbench_tickets(client, args):
     return _get(client, "/msp/workbench/tickets", {
-        "page": args.page, "pageSize": args.page_size, "status": args.status,
-        "customerTenantId": args.customer_id, "priority": args.priority, "search": args.search,
+        "status": args.status,
+        "customerTenantIds": args.customer_ids or (args.customer_id or None),
+        "priority": args.priority,
+        "q": args.search,
+        "limit": args.limit or args.page_size,
+        "cursor": args.cursor,
+        "sort": args.sort,
+        "routedOnly": "true" if args.routed_only else None,
+        "assigneeId": args.assignee_id or None,
+        "updatedAfter": args.updated_after,
     })
 
 
@@ -403,12 +411,19 @@ def build_parser():
     tun.add_argument("dist_id")
 
     wbt = add("workbench-tickets", "GET /msp/workbench/tickets（跨客户工单）")
-    wbt.add_argument("--page", type=int, default=1)
-    wbt.add_argument("--page-size", type=int, default=20)
+    wbt.add_argument("--page", type=int, default=1, help="兼容旧参数；当前接口使用 cursor")
+    wbt.add_argument("--page-size", type=int, default=20, help="兼容旧参数；映射为 limit")
+    wbt.add_argument("--limit", type=int, default=0, help="每页条数（后端上限 50）")
     wbt.add_argument("--status", default="")
     wbt.add_argument("--customer-id", type=int, default=0)
+    wbt.add_argument("--customer-ids", default="", help="逗号分隔客户租户 ID；all 表示全部")
     wbt.add_argument("--priority", default="")
-    wbt.add_argument("--search", default="")
+    wbt.add_argument("--search", default="", help="标题/工单号模糊搜索（映射为 q）")
+    wbt.add_argument("--cursor", default="")
+    wbt.add_argument("--sort", choices=["updated", "sla"], default="")
+    wbt.add_argument("--routed-only", action="store_true")
+    wbt.add_argument("--assignee-id", type=int, default=0)
+    wbt.add_argument("--updated-after", default="", help="RFC3339 时间下界")
     add("workbench-summary", "GET /msp/workbench/summary")
     wtg = add("workbench-ticket-get", "GET /msp/tickets/:id（跨租户详情，双重校验）")
     wtg.add_argument("id")

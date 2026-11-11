@@ -8,6 +8,7 @@ import (
 	"itsm-backend/common"
 	"itsm-backend/common/handlerctx"
 	"itsm-backend/dto"
+	"itsm-backend/ent"
 	"itsm-backend/handlers/common/projectlink"
 	"itsm-backend/handlers/common/scopectx"
 	"itsm-backend/middleware"
@@ -455,6 +456,12 @@ func (h *Handler) DeleteTicket(c *gin.Context) {
 	actorRole := c.GetString("role")
 
 	if err := h.service.Delete(c.Request.Context(), id, tenantID, actorID, actorRole); err != nil {
+		// 跨租户/不存在：行级校验在目标租户内找不到工单时返回 ent.NotFound。
+		// delete 面必须映射为 404（不泄露资源是否存在），不能落成 500。
+		if ent.IsNotFound(err) {
+			common.NotFound(c, "工单不存在")
+			return
+		}
 		// P1-DataScope：行级权限拒绝（403 AppError）必须按语义响应，不得兑底 500
 		if isForbiddenErr(err) {
 			common.RespondError(c, err, "操作失败")

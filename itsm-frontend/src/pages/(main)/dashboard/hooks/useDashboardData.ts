@@ -5,14 +5,16 @@ import { DashboardAPI } from '@/lib/api/dashboard-api';
 import { ticketService } from '@/lib/services/ticket-service';
 import type { DashboardData } from '../types/dashboard.types';
 
-export function useDashboardData() {
+export function useDashboardData(options: { enabled?: boolean } = {}) {
+  const enabled = options.enabled ?? true;
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [refreshInterval, setRefreshInterval] = useState(30000); // 30秒
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
   // 使用React Query获取Dashboard数据
   const { data, isLoading, error, refetch, isError } = useQuery({
-    queryKey: ['dashboard', 'overview'],
+    queryKey: ['dashboard', 'overview', enabled],
+    enabled,
     queryFn: async () => {
       // 并行请求 Dashboard 概览和真实的工单统计
       const [overviewResult, statsResult] = await Promise.allSettled([

@@ -126,6 +126,7 @@ type IncidentResponse struct {
 	AssignmentGroupID     *int                   `json:"assignmentGroupId,omitempty"`
 	EmailConversationID   *int                   `json:"emailConversationId,omitempty"`
 	ConfigurationItemID   *int                   `json:"configurationItemId,omitempty" example:"3"`
+	ProblemID             *int                   `json:"problemId,omitempty"`
 	DepartmentID          *int                   `json:"departmentId,omitempty"`
 	CustomerID            *int                   `json:"customerId,omitempty"`
 	RelatedCIs            []CIInfo               `json:"relatedCIs"`

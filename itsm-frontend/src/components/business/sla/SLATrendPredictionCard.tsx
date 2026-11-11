@@ -31,6 +31,7 @@ import {
   type TrendPredictionType,
 } from '@/lib/api/ai-api';
 import { useI18n } from '@/lib/i18n/useI18n';
+import { useCan } from '@/components/auth/PermissionGate';
 import { TrendingUp, RefreshCw, Sparkles } from 'lucide-react';
 import dayjs from 'dayjs';
 
@@ -55,6 +56,7 @@ export const SLATrendPredictionCard: React.FC<Props> = ({
   endDate,
 }) => {
   const { t } = useI18n();
+  const canUseAI = useCan(['ai:read']);
   const [type, setType] = useState<TrendPredictionType>('volume');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -84,8 +86,8 @@ export const SLATrendPredictionCard: React.FC<Props> = ({
   }, [type, range]);
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    if (canUseAI) void load();
+  }, [load, canUseAI]);
 
   const points = data?.predictions ?? [];
   const summary = useMemo(() => {
@@ -98,6 +100,9 @@ export const SLATrendPredictionCard: React.FC<Props> = ({
     );
     return { sum, avg, peak };
   }, [points]);
+
+  // /ai/predictions 要求 ai:read；无权限时不渲染卡片，也不在 effect 中发起请求。
+  if (!canUseAI) return null;
 
   return (
     <Card

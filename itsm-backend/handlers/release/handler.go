@@ -76,8 +76,7 @@ func (h *ReleaseHandler) CreateRelease(c *gin.Context) {
 
 	release, err := h.releaseService.CreateRelease(c.Request.Context(), &req, userID, tenantID)
 	if err != nil {
-		h.logger.Errorw("Create release failed", "error", err, "tenant_id", tenantID, "user_id", userID)
-		common.FailWithErr(c, err, "操作失败")
+		common.RespondError(c, err, "操作失败")
 		return
 	}
 
@@ -135,12 +134,7 @@ func (h *ReleaseHandler) UpdateRelease(c *gin.Context) {
 
 	release, err := h.releaseService.UpdateRelease(c.Request.Context(), releaseID, tenantID, &req, c.GetInt("user_id"), c.GetString("role"))
 	if err != nil {
-		if isForbiddenAppErr(err) {
-			common.RespondError(c, err, "操作失败")
-			return
-		}
-		h.logger.Errorw("Update release failed", "error", err, "release_id", releaseID)
-		common.FailWithErr(c, err, "操作失败")
+		common.RespondError(c, err, "操作失败")
 		return
 	}
 

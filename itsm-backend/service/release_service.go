@@ -10,7 +10,10 @@ import (
 	"itsm-backend/common"
 	"itsm-backend/dto"
 	"itsm-backend/ent"
+	"itsm-backend/ent/change"
+	"itsm-backend/ent/department"
 	"itsm-backend/ent/release"
+	"itsm-backend/ent/servicecustomer"
 	"itsm-backend/ent/user"
 	"itsm-backend/handlers/common/datascope"
 
@@ -43,6 +46,9 @@ func NewReleaseService(client *ent.Client, logger *zap.SugaredLogger) *ReleaseSe
 //  2. 两段写（先 Create 再对 JSON 字段二次 Save）包进单个事务，失败回滚，不留半成品。
 func (s *ReleaseService) CreateRelease(ctx context.Context, req *dto.CreateReleaseRequest, createdBy, tenantID int) (*dto.ReleaseResponse, error) {
 	releaseNumber := s.generateReleaseNumber(tenantID)
+	if err := s.validateReleaseReferences(ctx, tenantID, req.ChangeID, req.OwnerID, req.DepartmentID, req.CustomerID); err != nil {
+		return nil, err
+	}
 
 	tx, err := s.client.Tx(ctx)
 	if err != nil {
@@ -124,6 +130,50 @@ func (s *ReleaseService) CreateRelease(ctx context.Context, req *dto.CreateRelea
 
 	s.logger.Infow("Release created successfully", "release_id", releaseEntity.ID, "tenant_id", tenantID, "release_number", releaseNumber)
 	return response, nil
+}
+
+// validateReleaseReferences 校验发布单的跨表引用均属于当前租户。
+// 关联变更/负责人/部门/客户都是纯 ID 字段（无数据库外键），必须在写入前显式校验，
+// 否则调用方可把其他租户的 ID 写进发布单；负责人还会在详情响应中反查出姓名。
+func (s *ReleaseService) validateReleaseReferences(
+	ctx context.Context,
+	tenantID int,
+	changeID, ownerID, departmentID, customerID *int,
+) error {
+	checks := []struct {
+		label  string
+		id     *int
+		exists func(context.Context, int, int) (bool, error)
+	}{
+		{"变更", changeID, func(ctx context.Context, id, tenant int) (bool, error) {
+			return s.client.Change.Query().Where(change.IDEQ(id), change.TenantIDEQ(tenant)).Exist(ctx)
+		}},
+		{"负责人", ownerID, func(ctx context.Context, id, tenant int) (bool, error) {
+			return s.client.User.Query().Where(user.IDEQ(id), user.TenantIDEQ(tenant)).Exist(ctx)
+		}},
+		{"部门", departmentID, func(ctx context.Context, id, tenant int) (bool, error) {
+			return s.client.Department.Query().Where(department.IDEQ(id), department.TenantIDEQ(tenant)).Exist(ctx)
+		}},
+		{"客户", customerID, func(ctx context.Context, id, tenant int) (bool, error) {
+			return s.client.ServiceCustomer.Query().Where(servicecustomer.IDEQ(id), servicecustomer.TenantIDEQ(tenant)).Exist(ctx)
+		}},
+	}
+
+	for _, check := range checks {
+		if check.id == nil || *check.id <= 0 {
+			continue
+		}
+		ok, err := check.exists(ctx, *check.id, tenantID)
+		if err != nil {
+			return fmt.Errorf("validate release %s reference: %w", check.label, err)
+		}
+		if !ok {
+			return common.NewValidationError(
+				fmt.Sprintf("关联%s不存在或不属于当前租户", check.label), nil,
+			)
+		}
+	}
+	return nil
 }
 
 // generateReleaseNumber 服务端生成发布编号（REL-YYYYMMDD-xxxxxx），
@@ -243,6 +293,10 @@ func (s *ReleaseService) UpdateRelease(ctx context.Context, id, tenantID int, re
 		s.logger.Warnw("Release update rejected by row-level guard",
 			"release_id", id, "tenant_id", tenantID, "actor_id", actorID, "actor_role", actorRole)
 		return nil, common.NewForbiddenError("无权限操作该发布单：仅创建人、负责人或管理员可操作")
+	}
+
+	if err := s.validateReleaseReferences(ctx, tenantID, req.ChangeID, req.OwnerID, req.DepartmentID, req.CustomerID); err != nil {
+		return nil, err
 	}
 
 	update := releaseEntity.Update()

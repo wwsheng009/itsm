@@ -13,9 +13,7 @@ export const useServiceCatalogData = () => {
   const [cloudServiceFilter, setCloudServiceFilter] = useState<number | undefined>(undefined);
   const [stats, setStats] = useState({
     total: 0,
-    cloudServices: 0,
-    accountServices: 0,
-    securityServices: 0,
+    categories: [] as Array<{ name: string; count: number }>,
   });
 
   const loadServiceCatalogs = useCallback(async () => {
@@ -58,42 +56,15 @@ export const useServiceCatalogData = () => {
       exactCount.set(category, (exactCount.get(category) || 0) + 1);
     });
 
-    // 分类 → 统计桶（每个分类最多命中一个桶，顺序即优先级）
-    const bucketOf = (category: string): 'cloud' | 'account' | 'security' | null => {
-      const name = category.toLowerCase();
-      if (/云|cloud/.test(name)) return 'cloud';
-      if (/账号|权限|支持|identity|account|support/.test(name)) return 'account';
-      if (/安全|网络|security|network/.test(name)) return 'security';
-      return null;
-    };
+    // 顶部卡片直接展示真实分类（最多前 3 类），不再把「终端支持/网络与访问」
+    // 硬塞进「账号与权限/安全服务」固定桶。每个分类的顶部计数与下方标签页
+    // 使用同一个 category 精确聚合结果，避免同屏数字互相矛盾。
+    const categories = Array.from(exactCount.entries())
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, 'zh-CN'))
+      .slice(0, 3);
 
-    let cloudServices = 0;
-    let accountServices = 0;
-    let securityServices = 0;
-
-    exactCount.forEach((count, category) => {
-      switch (bucketOf(category)) {
-        case 'cloud':
-          cloudServices += count;
-          break;
-        case 'account':
-          accountServices += count;
-          break;
-        case 'security':
-          securityServices += count;
-          break;
-        default:
-          // 未归入三卡的分类只计入 total，不硬塞进任何桶
-          break;
-      }
-    });
-
-    setStats({
-      total: catalogs.length,
-      cloudServices,
-      accountServices,
-      securityServices,
-    });
+    setStats({ total: catalogs.length, categories });
   }, [catalogs]);
 
   return {

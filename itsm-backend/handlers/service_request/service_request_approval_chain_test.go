@@ -25,6 +25,8 @@ func setupApprovalChainTest(t *testing.T) (*Service, *ent.Client, int, int) {
 	t.Helper()
 	dsn := "file:" + filepath.Join(t.TempDir(), "sr_chain_test.db") + "?_fk=1"
 	client := enttest.Open(t, "sqlite3", dsn)
+	// 注册 Close cleanup，让它在 t.TempDir 清理前执行，避免 Windows SQLite 文件句柄阻塞。
+	t.Cleanup(func() { _ = client.Close() })
 	logger := zaptest.NewLogger(t).Sugar()
 	ctx := context.Background()
 

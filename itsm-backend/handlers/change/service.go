@@ -295,9 +295,22 @@ func (s *Service) checkWindowConflict(ctx context.Context, c *Change) error {
 		return nil
 	}
 
+	currentCIIDs, resolveErr := s.resolveAffectedCIIDs(ctx, c.TenantID, c.AffectedCIs)
+	if resolveErr != nil {
+		s.logger.Warnw("checkWindowConflict: 解析当前变更受影响 CI 失败，降级放行",
+			"error", resolveErr, "change_id", c.ID, "tenant_id", c.TenantID)
+		return nil
+	}
+
 	conflicts := make([]string, 0, len(others))
 	for _, o := range others {
-		if hasCIIntersection(c.AffectedCIs, o.AffectedCIs) {
+		otherCIIDs, err := s.resolveAffectedCIIDs(ctx, c.TenantID, o.AffectedCIs)
+		if err != nil {
+			s.logger.Warnw("checkWindowConflict: 解析冲突变更受影响 CI 失败，跳过该条",
+				"error", err, "conflict_change_id", o.ID, "tenant_id", c.TenantID)
+			continue
+		}
+		if hasIntIntersection(currentCIIDs, otherCIIDs) {
 			num := o.ChangeNumber
 			if num == "" {
 				num = fmt.Sprintf("C-%d", o.ID)
@@ -317,6 +330,69 @@ func (s *Service) checkWindowConflict(ctx context.Context, c *Change) error {
 			strings.Join(conflicts, "；")),
 		fmt.Errorf("window conflict: %w", ErrSubmitGateBlocked),
 	)
+}
+
+// resolveAffectedCIIDs 把 AffectedCIs（CI 数字 ID 或 ciNumber）规范化为租户内 CI ID。
+// 这样影响分析、排期冲突检测不会因前端按提示填 ciNumber 而静默漏配。
+func (s *Service) resolveAffectedCIIDs(ctx context.Context, tenantID int, raw []string) ([]int, error) {
+	if len(raw) == 0 {
+		return nil, nil
+	}
+	ids := make([]int, 0, len(raw))
+	numbers := make([]string, 0, len(raw))
+	seen := make(map[int]struct{}, len(raw))
+
+	for _, value := range raw {
+		value = strings.TrimSpace(value)
+		if value == "" {
+			continue
+		}
+		if id, err := strconv.Atoi(value); err == nil && id > 0 {
+			if _, exists := seen[id]; !exists {
+				seen[id] = struct{}{}
+				ids = append(ids, id)
+			}
+			continue
+		}
+		numbers = append(numbers, value)
+	}
+
+	if len(numbers) > 0 && s.entClient != nil {
+		cis, err := s.entClient.ConfigurationItem.Query().
+			Where(
+				configurationitem.TenantID(tenantID),
+				configurationitem.CiNumberIn(numbers...),
+			).
+			All(ctx)
+		if err != nil {
+			return nil, err
+		}
+		for _, ci := range cis {
+			if _, exists := seen[ci.ID]; exists {
+				continue
+			}
+			seen[ci.ID] = struct{}{}
+			ids = append(ids, ci.ID)
+		}
+	}
+	return ids, nil
+}
+
+// hasIntIntersection 判定两个 CI ID 集合是否有交集。
+func hasIntIntersection(a, b []int) bool {
+	if len(a) == 0 || len(b) == 0 {
+		return false
+	}
+	set := make(map[int]struct{}, len(a))
+	for _, id := range a {
+		set[id] = struct{}{}
+	}
+	for _, id := range b {
+		if _, ok := set[id]; ok {
+			return true
+		}
+	}
+	return false
 }
 
 // hasCIIntersection 判定两个 CI 集合是否有交集（字符串精确匹配，
@@ -776,13 +852,9 @@ func (s *Service) GetCMDBImpactSummary(ctx context.Context, changeID, tenantID i
 		return nil, fmt.Errorf("change not found")
 	}
 
-	ciIDs := make([]int, 0, len(changeEntity.AffectedCIs))
-	for _, raw := range changeEntity.AffectedCIs {
-		id, err := strconv.Atoi(raw)
-		if err != nil || id <= 0 {
-			continue
-		}
-		ciIDs = append(ciIDs, id)
+	ciIDs, err := s.resolveAffectedCIIDs(ctx, tenantID, changeEntity.AffectedCIs)
+	if err != nil {
+		return nil, fmt.Errorf("解析受影响CI失败: %w", err)
 	}
 
 	summary := &dto.ChangeCMDBImpactSummary{

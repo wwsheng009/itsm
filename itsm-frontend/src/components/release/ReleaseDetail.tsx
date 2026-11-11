@@ -26,6 +26,7 @@ import dayjs from 'dayjs';
 
 import type { Release } from '@/lib/api/release-api';
 import { ReleaseApi } from '@/lib/api/release-api';
+import { ChangeApi, type Change } from '@/lib/api/change-api';
 import RichTextContent from '@/components/common/rich-text/RichTextContent';
 import { PermissionGate } from '@/components/auth/PermissionGate';
 import { DepartmentName } from '@/components/business/DepartmentSelect';
@@ -67,6 +68,7 @@ const ReleaseDetail: React.FC = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [release, setRelease] = useState<Release | null>(null);
+  const [linkedChange, setLinkedChange] = useState<Change | null>(null);
 
   useEffect(() => {
     if (id) {
@@ -85,6 +87,25 @@ const ReleaseDetail: React.FC = () => {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    const changeId = release?.changeId;
+    if (!changeId) {
+      setLinkedChange(null);
+      return;
+    }
+    let cancelled = false;
+    void ChangeApi.getChange(changeId)
+      .then(change => {
+        if (!cancelled) setLinkedChange(change);
+      })
+      .catch(() => {
+        if (!cancelled) setLinkedChange(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [release?.changeId]);
 
   const requestReason = (action: 'reject' | 'rollback') => {
     let reason = '';
@@ -226,6 +247,23 @@ const ReleaseDetail: React.FC = () => {
           </Descriptions.Item>
           <Descriptions.Item label="所属客户">
             <CustomerName customerId={release.customerId} />
+          </Descriptions.Item>
+          <Descriptions.Item label="关联变更">
+            {release.changeId ? (
+              linkedChange ? (
+                <Button
+                  type="link"
+                  style={{ padding: 0 }}
+                  onClick={() => navigate(`/changes/${release.changeId}`)}
+                >
+                  {linkedChange.title}
+                </Button>
+              ) : (
+                <Text type="secondary">变更 #{release.changeId}（不可见或已删除）</Text>
+              )
+            ) : (
+              '-'
+            )}
           </Descriptions.Item>
           <Descriptions.Item label="计划发布日期">
             {release.plannedReleaseDate

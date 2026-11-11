@@ -131,6 +131,7 @@ func createChangeBridgeProcessFixture(t *testing.T, client *ent.Client, tenantID
 		SetTaskDefinitionKey("Approval_1").
 		SetTaskName("变更审批").
 		SetTaskType("user_task").
+		SetTaskVariables(map[string]interface{}{"taskPurpose": "approval"}).
 		SetProcessDefinitionKey(def.Key).
 		SetProcessInstanceID(instance.ID).
 		SetAssignee(strconv.Itoa(assigneeID)).

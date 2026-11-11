@@ -144,7 +144,7 @@ func (b *BPMNApprovalBridge) advanceBusinessWorkflow(ctx context.Context, client
 
 	handled := false
 	for step := 0; step < maxSteps; step++ {
-		_, task, err := b.findPendingApprovalTaskWithClient(ctx, client, tenantID, businessType, businessID)
+		_, task, err := b.findPendingUserTaskWithClient(ctx, client, tenantID, businessType, businessID)
 		if err != nil {
 			return handled, err
 		}
@@ -179,6 +179,36 @@ func (b *BPMNApprovalBridge) findPendingApprovalTask(ctx context.Context, tenant
 }
 
 func (b *BPMNApprovalBridge) findPendingApprovalTaskWithClient(ctx context.Context, client *ent.Client, tenantID int, businessType string, businessID int) (*ent.ProcessInstance, *ent.ProcessTask, error) {
+	instance, tasks, err := b.findPendingTasksWithClient(ctx, client, tenantID, businessType, businessID)
+	if err != nil || instance == nil {
+		return instance, nil, err
+	}
+	for _, task := range tasks {
+		if taskPurpose(task) == "approval" {
+			return instance, task, nil
+		}
+	}
+	// 运行中的实例可能停留在「请求受理/任务分配/实施」等非审批用户任务；
+	// 审批桥接不得把这类任务当作审批任务完成，否则会以审批人身份误操作
+	// 其他处理人的任务（D2：服务请求 L3 审批 500）。
+	b.logger.Warnw("业务审批桥接：流程实例无审批类待办任务",
+		"businessKey", fmt.Sprintf("%s:%d", strings.ToLower(businessType), businessID),
+		"processInstanceID", instance.ID,
+		"pendingTasks", len(tasks))
+	return instance, nil, nil
+}
+
+// findPendingUserTaskWithClient 查找运行中实例的任意待办用户任务（生命周期推进用）。
+func (b *BPMNApprovalBridge) findPendingUserTaskWithClient(ctx context.Context, client *ent.Client, tenantID int, businessType string, businessID int) (*ent.ProcessInstance, *ent.ProcessTask, error) {
+	instance, tasks, err := b.findPendingTasksWithClient(ctx, client, tenantID, businessType, businessID)
+	if err != nil || instance == nil || len(tasks) == 0 {
+		return instance, nil, err
+	}
+	return instance, tasks[0], nil
+}
+
+// findPendingTasksWithClient 返回业务键对应运行中实例的待办用户任务列表。
+func (b *BPMNApprovalBridge) findPendingTasksWithClient(ctx context.Context, client *ent.Client, tenantID int, businessType string, businessID int) (*ent.ProcessInstance, []*ent.ProcessTask, error) {
 	businessKey := fmt.Sprintf("%s:%d", strings.ToLower(businessType), businessID)
 	instance, err := client.ProcessInstance.Query().
 		Where(
@@ -195,7 +225,7 @@ func (b *BPMNApprovalBridge) findPendingApprovalTaskWithClient(ctx context.Conte
 		return nil, nil, fmt.Errorf("查询业务关联流程实例失败: %w", err)
 	}
 
-	task, err := client.ProcessTask.Query().
+	tasks, err := client.ProcessTask.Query().
 		Where(
 			processtask.ProcessInstanceID(instance.ID),
 			processtask.TenantID(tenantID),
@@ -208,15 +238,28 @@ func (b *BPMNApprovalBridge) findPendingApprovalTaskWithClient(ctx context.Conte
 			),
 		).
 		Order(ent.Asc(processtask.FieldCreatedTime)).
-		First(ctx)
+		All(ctx)
 	if err != nil {
-		if ent.IsNotFound(err) {
-			// 实例在运行但当前无待办用户任务（例如停留在自动节点），不桥接，交由旧逻辑处理
-			b.logger.Warnw("业务审批桥接：流程实例无待办用户任务",
-				"businessKey", businessKey, "processInstanceID", instance.ID)
-			return nil, nil, nil
-		}
 		return nil, nil, fmt.Errorf("查询流程待办任务失败: %w", err)
 	}
-	return instance, task, nil
+	if len(tasks) == 0 {
+		// 实例在运行但当前无待办用户任务（例如停留在自动节点），不桥接，交由旧逻辑处理。
+		b.logger.Warnw("业务审批桥接：流程实例无待办用户任务",
+			"businessKey", businessKey, "processInstanceID", instance.ID)
+		return instance, nil, nil
+	}
+	return instance, tasks, nil
+}
+
+// taskPurpose 读取 taskVariables.taskPurpose（BPMN XML 的 itsm:taskPurpose 落点）。
+func taskPurpose(task *ent.ProcessTask) string {
+	if task == nil || task.TaskVariables == nil {
+		return ""
+	}
+	value, ok := task.TaskVariables["taskPurpose"]
+	if !ok {
+		return ""
+	}
+	purpose, _ := value.(string)
+	return strings.ToLower(strings.TrimSpace(purpose))
 }

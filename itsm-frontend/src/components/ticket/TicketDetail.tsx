@@ -216,6 +216,9 @@ const TicketDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
   const canUpdateTicket = hasPermission('ticket:update');
   const canCcTicket = hasPermission('workflow:write');
   const canDeleteTicket = hasPermission('ticket:delete');
+  // V0-01 AI Inline 面板会立即请求 /ai/triage 与 /ai/rag/search（均要求 ai:read）；
+  // 无权限时必须入口级隐藏，否则每次打开工单详情都会产生 403 和误导性的“AI 暂不可用”。
+  const canUseAI = hasPermission('ai:read');
 
   // 创建基于翻译的状态和优先级映射
   const statusMap = createStatusMap(t);
@@ -1041,7 +1044,7 @@ const TicketDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
       </div>
 
       {/* V0-01 Inline 三件套：答复草稿 + 知识推荐（分诊建议由下方 AISuggestionPanel 承载） */}
-      {ticket && (
+      {ticket && canUseAI && (
         <TicketAIInlineAssistant
           ticketId={ticket.id}
           title={ticket.title}
@@ -1051,7 +1054,7 @@ const TicketDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
       )}
 
       {/* AI Suggestion Panel */}
-      {ticket && (
+      {ticket && canUseAI && (
         <>
           <AISuggestionPanel
             title={ticket.title}

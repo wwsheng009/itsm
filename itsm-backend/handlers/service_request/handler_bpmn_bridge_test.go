@@ -29,6 +29,9 @@ func srSetupBridge(t *testing.T) (*gin.Engine, *ent.Client, int, int, int) {
 	t.Helper()
 	dsn := "file:" + filepath.Join(t.TempDir(), "sr_bridge_test.db") + "?_fk=1"
 	client := enttest.Open(t, "sqlite3", dsn)
+	// Windows 下 SQLite 文件句柄需在 TempDir cleanup 之前释放；enttest 也注册了 close，
+	// 幂等关闭一次可避免 “process cannot access the file” 假红。
+	t.Cleanup(func() { _ = client.Close() })
 	logger := zaptest.NewLogger(t).Sugar()
 	ctx := context.Background()
 	tenant, err := client.Tenant.Create().
@@ -79,7 +82,7 @@ func srSetupBridge(t *testing.T) (*gin.Engine, *ent.Client, int, int, int) {
 // srCreateBPMNFixture 播种 运行中流程实例 + 待办用户任务，
 // businessKey 采用与 ProcessTriggerService 相同的 "service_request:{id}" 约定
 // （与 service 包 createBridgeProcessFixture 保持一致的最小副本，跨包无法复用）。
-func srCreateBPMNFixture(t *testing.T, client *ent.Client, tenantID int, keySuffix string, requestID, assigneeID int) (taskID int) {
+func srCreateBPMNFixture(t *testing.T, client *ent.Client, tenantID int, keySuffix string, requestID, assigneeID int, taskPurpose string) (taskID int) {
 	t.Helper()
 	ctx := context.Background()
 	businessKey := fmt.Sprintf("service_request:%d", requestID)
@@ -124,7 +127,7 @@ func srCreateBPMNFixture(t *testing.T, client *ent.Client, tenantID int, keySuff
 		Save(ctx)
 	require.NoError(t, err)
 
-	task, err := client.ProcessTask.Create().
+	create := client.ProcessTask.Create().
 		SetTaskID("SR-TASK-" + keySuffix).
 		SetTaskDefinitionKey("Approval_1").
 		SetTaskName("审批").
@@ -133,8 +136,11 @@ func srCreateBPMNFixture(t *testing.T, client *ent.Client, tenantID int, keySuff
 		SetProcessInstanceID(instance.ID).
 		SetAssignee(strconv.Itoa(assigneeID)).
 		SetStatus("assigned").
-		SetTenantID(tenantID).
-		Save(ctx)
+		SetTenantID(tenantID)
+	if taskPurpose != "" {
+		create.SetTaskVariables(map[string]interface{}{"taskPurpose": taskPurpose})
+	}
+	task, err := create.Save(ctx)
 	require.NoError(t, err)
 	return task.ID
 }
@@ -142,7 +148,7 @@ func srCreateBPMNFixture(t *testing.T, client *ent.Client, tenantID int, keySuff
 func TestServiceRequestApproval_BridgesBPMNTask(t *testing.T) {
 	r, client, tenantID, uid, catID := srSetupBridge(t)
 	id := srCreateOne(t, r, catID)
-	taskID := srCreateBPMNFixture(t, client, tenantID, "ok1", id, uid)
+	taskID := srCreateBPMNFixture(t, client, tenantID, "ok1", id, uid, "approval")
 
 	resp := srDoReq(t, r, "POST", "/api/v1/service-requests/"+strconv.Itoa(id)+"/approval",
 		dto.ServiceRequestApprovalActionRequest{Action: "approve", Comment: "同意"})
@@ -162,7 +168,7 @@ func TestServiceRequestApproval_BridgeFailClosedForUnauthorizedActor(t *testing.
 	r, client, tenantID, uid, catID := srSetupBridge(t)
 	id := srCreateOne(t, r, catID)
 	// BPMN 任务指派给其他人：当前操作人不是流程任务审批人，必须 fail-closed
-	taskID := srCreateBPMNFixture(t, client, tenantID, "fc1", id, uid+1000)
+	taskID := srCreateBPMNFixture(t, client, tenantID, "fc1", id, uid+1000, "approval")
 
 	resp := srDoReq(t, r, "POST", "/api/v1/service-requests/"+strconv.Itoa(id)+"/approval",
 		dto.ServiceRequestApprovalActionRequest{Action: "approve"})
@@ -177,4 +183,24 @@ func TestServiceRequestApproval_BridgeFailClosedForUnauthorizedActor(t *testing.
 	require.Equal(t, common.SuccessCode, getResp.Code)
 	getData := getResp.Data.(map[string]interface{})
 	assert.Equal(t, "submitted", getData["status"], "fail-closed 时业务状态不得推进")
+}
+
+// TestServiceRequestApproval_SkipsNonApprovalTask 锁定 D2：
+// 运行中的流程可能停留在「请求受理/任务分配」等非审批任务；业务审批不得
+// 以审批人身份完成别人的任务，也不得因此 500。无审批类待办时按旧逻辑推进。
+func TestServiceRequestApproval_SkipsNonApprovalTask(t *testing.T) {
+	r, client, tenantID, uid, catID := srSetupBridge(t)
+	id := srCreateOne(t, r, catID)
+	taskID := srCreateBPMNFixture(t, client, tenantID, "skip1", id, uid, "")
+
+	resp := srDoReq(t, r, "POST", "/api/v1/service-requests/"+strconv.Itoa(id)+"/approval",
+		dto.ServiceRequestApprovalActionRequest{Action: "approve", Comment: "同意"})
+	require.Equal(t, common.SuccessCode, resp.Code, "非审批任务不应阻断业务审批, body=%s", srStr(resp))
+
+	task, err := client.ProcessTask.Get(context.Background(), taskID)
+	require.NoError(t, err)
+	assert.Equal(t, "assigned", task.Status, "非审批任务不得被审批桥接完成")
+
+	data := resp.Data.(map[string]interface{})
+	assert.Equal(t, "manager_approved", data["status"])
 }

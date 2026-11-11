@@ -2,7 +2,9 @@ package problem
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"net/http"
 	"testing"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -194,7 +196,11 @@ func TestProblemAssociationsEnforceTenantBoundary(t *testing.T) {
 
 	require.NoError(t, service.AddAssociations(ctx, tenantA.ID, p.ID, "ticket", []int{localTicket.ID, localTicket.ID}))
 	err = service.AddAssociations(ctx, tenantA.ID, p.ID, "ticket", []int{foreignTicket.ID})
-	require.ErrorContains(t, err, "current tenant")
+	require.Error(t, err)
+	var appErr *common.AppError
+	require.True(t, errors.As(err, &appErr), "cross-tenant association should be a typed AppError: %v", err)
+	assert.Equal(t, common.ErrCodeValidation, appErr.Code)
+	assert.Equal(t, http.StatusBadRequest, appErr.HTTPStatus)
 
 	withAssociations, err := service.GetWithAssociations(ctx, p.ID, tenantA.ID)
 	require.NoError(t, err)

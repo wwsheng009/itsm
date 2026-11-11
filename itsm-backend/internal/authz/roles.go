@@ -248,7 +248,7 @@ func BuiltinRolePermissionCodes() map[string][]string {
 			// 租户管理员不再持有（租户设置路由已挂 L1）。
 			"incident:read", "incident:write", "incident:force-update", "incident:admin",
 			"service_catalog:read", "service_catalog:write", "service_catalog:delete",
-			"service_request:read", "service_request:write",
+			"service_request:read", "service_request:write", "service_request:delete",
 			"change:read", "change:write", "change:delete",
 			"problem:read", "problem:write", "problem:delete",
 			"release:read", "release:write", "release:delete",

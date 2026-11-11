@@ -115,6 +115,68 @@ func TestReleaseService_CreateRelease(t *testing.T) {
 	}
 }
 
+// TestReleaseService_RejectsCrossTenantReferences 锁定发布单的纯 ID 关联字段：
+// 变更/负责人/部门/客户必须属于当前租户；负责人姓名还会随详情响应反查，不能跨租户。
+func TestReleaseService_RejectsCrossTenantReferences(t *testing.T) {
+	client := enttest.Open(t, "sqlite3", testDSN())
+	defer client.Close()
+
+	ctx := context.Background()
+	tenantA := client.Tenant.Create().SetName("Tenant A").SetCode("tenant-a").SetStatus("active").SaveX(ctx)
+	tenantB := client.Tenant.Create().SetName("Tenant B").SetCode("tenant-b").SetStatus("active").SaveX(ctx)
+
+	userA := client.User.Create().
+		SetUsername("release-a").SetEmail("release-a@example.com").SetName("Release A").
+		SetPasswordHash("hash").SetRole("admin").SetActive(true).SetTenantID(tenantA.ID).SaveX(ctx)
+	userB := client.User.Create().
+		SetUsername("release-b").SetEmail("release-b@example.com").SetName("Release B").
+		SetPasswordHash("hash").SetRole("admin").SetActive(true).SetTenantID(tenantB.ID).SaveX(ctx)
+
+	changeA := client.Change.Create().
+		SetTitle("Tenant A change").SetCreatedBy(userA.ID).SetTenantID(tenantA.ID).SaveX(ctx)
+	changeB := client.Change.Create().
+		SetTitle("Tenant B change").SetCreatedBy(userB.ID).SetTenantID(tenantB.ID).SaveX(ctx)
+	departmentB := client.Department.Create().
+		SetName("Tenant B dept").SetCode("dept-b").SetTenantID(tenantB.ID).SaveX(ctx)
+	customerB := client.ServiceCustomer.Create().
+		SetName("Tenant B customer").SetNormalizedName("tenant b customer").SetTenantID(tenantB.ID).SaveX(ctx)
+
+	svc := NewReleaseService(client, zaptest.NewLogger(t).Sugar())
+
+	cases := []struct {
+		name string
+		req  *dto.CreateReleaseRequest
+	}{
+		{"跨租户变更", &dto.CreateReleaseRequest{Title: "cross-tenant change", ChangeID: &changeB.ID}},
+		{"跨租户负责人", &dto.CreateReleaseRequest{Title: "cross-tenant owner", OwnerID: &userB.ID}},
+		{"跨租户部门", &dto.CreateReleaseRequest{Title: "cross-tenant department", DepartmentID: &departmentB.ID}},
+		{"跨租户客户", &dto.CreateReleaseRequest{Title: "cross-tenant customer", CustomerID: &customerB.ID}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			release, err := svc.CreateRelease(ctx, tc.req, userA.ID, tenantA.ID)
+			require.Error(t, err)
+			assert.Nil(t, release)
+			var appErr *common.AppError
+			require.ErrorAs(t, err, &appErr)
+			assert.Equal(t, 400, appErr.HTTPStatus)
+		})
+	}
+
+	t.Run("同租户关联允许", func(t *testing.T) {
+		release, err := svc.CreateRelease(ctx, &dto.CreateReleaseRequest{
+			Title:    "same-tenant references",
+			ChangeID: &changeA.ID,
+			OwnerID:  &userA.ID,
+		}, userA.ID, tenantA.ID)
+		require.NoError(t, err)
+		require.NotNil(t, release)
+		assert.Equal(t, changeA.ID, *release.ChangeID)
+		assert.Equal(t, userA.ID, *release.OwnerID)
+		require.NoError(t, client.Release.DeleteOneID(release.ID).Exec(ctx))
+	})
+}
+
 func TestReleaseService_GetReleaseByID(t *testing.T) {
 	client := enttest.Open(t, "sqlite3", testDSN())
 	defer client.Close()

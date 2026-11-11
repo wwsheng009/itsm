@@ -34,6 +34,7 @@ import { ArticleStatus } from '@/types/knowledge-base';
 import { httpClient } from '@/lib/api/http-client';
 import { useI18n } from '@/lib/i18n/useI18n';
 import { PermissionGate } from '@/components/auth/PermissionGate';
+import { useAuthStore } from '@/lib/store/auth-store';
 
 const { Title, Text } = Typography;
 
@@ -62,6 +63,9 @@ const freshnessLabel = (result: {
 export default function KnowledgePage() {
   const navigate = useNavigate();
   const { t } = useI18n();
+  const hasPermission = useAuthStore(state => state.hasPermission);
+  // 后端 /ai/rag/search 要求 ai:read；无权限时不展示会必然失败的智能搜索框。
+  const canUseAI = hasPermission('ai:read');
   const [activeTab, setActiveTab] = useState('list');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -356,18 +360,20 @@ export default function KnowledgePage() {
           <Text type="secondary">{t('knowledgeBase.pageDescription')}</Text>
         </div>
         <div className="flex items-center gap-2">
-          <Input.Search
-            placeholder={t('knowledgeBase.aiSearchPlaceholder')}
-            value={aiSearchQuery}
-            onChange={e => setAiSearchQuery(e.target.value)}
-            onSearch={handleAISearch}
-            loading={aiSearchLoading}
-            enterButton={
-              <Button type="text" icon={<Sparkles className="w-4 h-4 text-yellow-500" />} />
-            }
-            style={{ width: 300 }}
-            onPressEnter={handleAISearch}
-          />
+          {canUseAI && (
+            <Input.Search
+              placeholder={t('knowledgeBase.aiSearchPlaceholder')}
+              value={aiSearchQuery}
+              onChange={e => setAiSearchQuery(e.target.value)}
+              onSearch={handleAISearch}
+              loading={aiSearchLoading}
+              enterButton={
+                <Button type="text" icon={<Sparkles className="w-4 h-4 text-yellow-500" />} />
+              }
+              style={{ width: 300 }}
+              onPressEnter={handleAISearch}
+            />
+          )}
           {/* 创建文章需 knowledge:write：无权限不渲染入口（路由级门禁兜底直达 URL）。 */}
           <PermissionGate anyOf={['knowledge:write']}>
             <Button

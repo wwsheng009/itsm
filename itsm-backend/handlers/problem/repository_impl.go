@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"itsm-backend/common"
 	"itsm-backend/ent"
 	"itsm-backend/ent/change"
 	"itsm-backend/ent/incident"
@@ -130,7 +131,7 @@ func (r *EntRepository) AddAssociations(ctx context.Context, tenantID, problemID
 			return err
 		}
 		if count != len(relatedIDs) {
-			return fmt.Errorf("one or more tickets do not belong to the current tenant")
+			return common.NewValidationError("关联目标无效", nil)
 		}
 	case "incident":
 		count, err := r.client.Incident.Query().
@@ -140,7 +141,7 @@ func (r *EntRepository) AddAssociations(ctx context.Context, tenantID, problemID
 			return err
 		}
 		if count != len(relatedIDs) {
-			return fmt.Errorf("one or more incidents do not belong to the current tenant")
+			return common.NewValidationError("关联目标无效", nil)
 		}
 	case "change":
 		count, err := r.client.Change.Query().
@@ -150,7 +151,7 @@ func (r *EntRepository) AddAssociations(ctx context.Context, tenantID, problemID
 			return err
 		}
 		if count != len(relatedIDs) {
-			return fmt.Errorf("one or more changes do not belong to the current tenant")
+			return common.NewValidationError("关联目标无效", nil)
 		}
 	default:
 		return fmt.Errorf("unsupported related type: %s", relatedType)

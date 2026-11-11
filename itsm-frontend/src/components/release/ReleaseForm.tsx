@@ -38,6 +38,7 @@ import { AttachmentApi, releaseAttachmentPreviewUrl } from '@/lib/api/attachment
 import type { UploadedImage } from '@/components/common/rich-text/RichTextEditor';
 import DepartmentSelect from '@/components/business/DepartmentSelect';
 import CustomerSelect from '@/components/business/CustomerSelect';
+import ChangeSelect from './ChangeSelect';
 
 const { TextArea } = Input;
 
@@ -425,6 +426,14 @@ const ReleaseForm: React.FC = () => {
           tooltip="用于客户归属、统计与客户维度分析"
         >
           <CustomerSelect />
+        </Form.Item>
+
+        <Form.Item
+          name="changeId"
+          label="关联变更"
+          tooltip="仅可选择当前租户中的变更，用于发布与变更联动"
+        >
+          <ChangeSelect />
         </Form.Item>
 
         <Divider>计划信息</Divider>

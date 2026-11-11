@@ -1250,6 +1250,7 @@ func (h *IncidentHandler) toDTO(i *Incident) *dto.IncidentResponse {
 		AssigneeID:            i.AssigneeID,
 		DepartmentID:          i.DepartmentID,
 		CustomerID:            i.CustomerID,
+		ProblemID:             i.ProblemID,
 		Category:              i.Category,
 		Subcategory:           i.Subcategory,
 		ServiceType:           i.ServiceType,

@@ -22,6 +22,7 @@ import {
   Radio,
   ColorPicker,
   Checkbox,
+  Alert,
 } from 'antd';
 import {
   RefreshCw,
@@ -46,6 +47,7 @@ import { useTheme } from '@/lib/design-system/theme';
 import { userPreferences } from '@/lib/user-preferences';
 import { PermissionGate } from '@/components/auth/PermissionGate';
 import { MspProviderGate } from '@/components/auth/MspProviderGate';
+import { usePermissions } from '@/lib/hooks/use-permissions';
 
 type DashboardUserPreferences = ReturnType<typeof userPreferences.get>;
 
@@ -61,6 +63,8 @@ const PeakHoursChart = lazy(() => import('./components/PeakHoursChart'));
 export default function DashboardPage() {
   const navigate = useNavigate();
   const { message } = App.useApp();
+  const { hasPermission } = usePermissions();
+  const canReadDashboard = hasPermission('dashboard', 'read');
   const {
     data,
     loading,
@@ -72,7 +76,7 @@ export default function DashboardPage() {
     setAutoRefresh,
     setRefreshInterval,
     isConnected,
-  } = useDashboardData();
+  } = useDashboardData({ enabled: canReadDashboard });
 
   const [activeChartTab, setActiveChartTab] = useState('tickets');
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -269,6 +273,16 @@ export default function DashboardPage() {
           </Button>
         </Space>
       </div>
+
+      {!canReadDashboard && (
+        <Alert
+          type='info'
+          showIcon
+          className='mb-6'
+          message='当前账号无仪表盘总览权限'
+          description='已隐藏租户级统计，避免请求无权限的 overview 接口；你仍可使用“我的请求 / 工单 / 知识库 / 服务目录”等功能。'
+        />
+      )}
 
       {loading ? (
         renderSkeletons()

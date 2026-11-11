@@ -21,6 +21,7 @@ import type { Tenant } from '@/lib/api/api-config';
 import { useTheme } from '@/lib/design-system/theme';
 
 const { Content } = Layout;
+const TABLET_BREAKPOINT = 992;
 
 /**
  * 主应用布局
@@ -32,6 +33,12 @@ export default function MainLayout() {
   const [mounted, setMounted] = useState(false);
   const [isMobile, setIsMobile] = useState(
     () => typeof window !== 'undefined' && window.innerWidth < 768
+  );
+  const [isTablet, setIsTablet] = useState(
+    () =>
+      typeof window !== 'undefined' &&
+      window.innerWidth >= 768 &&
+      window.innerWidth < TABLET_BREAKPOINT
   );
   const [sessionStatus, setSessionStatus] = useState<SessionStatus>(() =>
     useAuthStore.getState().isAuthenticated ? 'authenticated' : 'pending'
@@ -78,9 +85,13 @@ export default function MainLayout() {
   // 响应式布局：在移动端自动折叠侧边栏；从移动端拉宽回桌面时恢复展开
   useEffect(() => {
     const handleResize = () => {
-      const mobile = window.innerWidth < 768;
+      const width = window.innerWidth;
+      const mobile = width < 768;
+      const tablet = width >= 768 && width < TABLET_BREAKPOINT;
       setIsMobile(mobile);
-      if (mobile) {
+      setIsTablet(tablet);
+      // 平板（768–991）侧栏默认收起，避免 256px 侧栏 + 内容最小宽度撑破视口。
+      if (mobile || tablet) {
         setCollapsed(true);
       }
     };
@@ -92,9 +103,9 @@ export default function MainLayout() {
 
   // 移动端 → 桌面端切换时恢复初始偏好（URL 参数优先，否则按原行为展开）。
   useEffect(() => {
-    if (!mounted || isMobile) return;
+    if (!mounted || isMobile || isTablet) return;
     setCollapsed(initialSidebarPreference ?? false);
-  }, [initialSidebarPreference, mounted, isMobile, setCollapsed]);
+  }, [initialSidebarPreference, mounted, isMobile, isTablet, setCollapsed]);
 
   // 在移动端，点击内容区域时折叠侧边栏
   const handleContentClick = () => {

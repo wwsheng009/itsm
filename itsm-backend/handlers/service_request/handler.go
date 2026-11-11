@@ -198,7 +198,7 @@ func (h *Handler) Get(c *gin.Context) {
 	req, approvals, err := h.service.Get(c.Request.Context(), id, tenantID)
 	if err != nil {
 		if ent.IsNotFound(err) {
-			common.Fail(c, 404, "Not Found")
+			common.NotFound(c, "服务请求不存在")
 		} else if common.IsAppError(err) {
 			common.FailWithErr(c, err, "操作失败")
 		} else {

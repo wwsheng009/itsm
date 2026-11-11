@@ -337,7 +337,7 @@ func (h *Handler) AddAssociation(c *gin.Context) {
 	}
 
 	if err := h.service.AddAssociations(c.Request.Context(), tenantID, id, req.RelatedType, req.RelatedIDs); err != nil {
-		common.FailWithErr(c, err, "操作失败")
+		common.RespondError(c, err, "操作失败")
 		return
 	}
 
@@ -387,7 +387,7 @@ func (h *Handler) RemoveAssociation(c *gin.Context) {
 	}
 
 	if err := h.service.RemoveAssociation(c.Request.Context(), tenantID, id, req.RelatedType, req.RelatedID); err != nil {
-		common.FailWithErr(c, err, "操作失败")
+		common.RespondError(c, err, "操作失败")
 		return
 	}
 
