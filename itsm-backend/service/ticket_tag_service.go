@@ -168,7 +168,7 @@ func (s *TicketTagService) ListTicketTags(ctx context.Context, ticketID, tenantI
 	if err != nil {
 		return nil, err
 	}
-	tags := append([]*ent.TicketTag(nil), ticketEntity.Edges.Tags...)
+	tags := append([]*ent.TicketTag{}, ticketEntity.Edges.Tags...)
 	sort.Slice(tags, func(i, j int) bool {
 		return strings.ToLower(tags[i].Name) < strings.ToLower(tags[j].Name)
 	})

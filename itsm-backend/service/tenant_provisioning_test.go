@@ -82,10 +82,17 @@ func TestTenantProvisioningProvisionReadinessAndIdempotency(t *testing.T) {
 	assert.Equal(t, tenantID, resp.TenantID)
 	assert.True(t, resp.Ready, "provision 完成后 ready 必须为 true")
 	assert.Equal(t, seeder.CurrentTenantTemplateVersion, resp.TemplateVersion)
-	assert.Len(t, resp.Items, 7)
+	assert.Len(t, resp.Items, 9)
+	required, optional := 0, 0
 	for _, item := range resp.Items {
-		assert.True(t, item.Required)
+		if item.Required {
+			required++
+		} else {
+			optional++
+		}
 	}
+	assert.Equal(t, 7, required, "7 项模板基线必须为必选")
+	assert.Equal(t, 2, optional, "服务目录项 / 工单类型是业务数据提示项")
 	counts := readinessCounts(resp)
 	assert.Positive(t, counts["roles"])
 	assert.Positive(t, counts["menus"])

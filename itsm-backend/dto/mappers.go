@@ -952,9 +952,6 @@ func ToTicketTagResponse(tag *ent.TicketTag) *TicketTagResponse {
 
 // ToTicketTagResponseList converts a slice of ent.TicketTag to TicketTagResponse slice
 func ToTicketTagResponseList(tags []*ent.TicketTag) []*TicketTagResponse {
-	if tags == nil {
-		return nil
-	}
 	responses := make([]*TicketTagResponse, 0, len(tags))
 	for _, tag := range tags {
 		if tag != nil {

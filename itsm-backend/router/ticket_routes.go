@@ -230,6 +230,7 @@ func SetupTicketRoutes(tenant *gin.RouterGroup, config *RouterConfig) {
 		if config.ApprovalHandler != nil {
 			tickets.POST("/approval/submit", middleware.RequirePermission("approval", "write"), config.ApprovalHandler.SubmitApproval)
 			tickets.GET("/approval/records", middleware.RequirePermission("approval", "read"), config.ApprovalHandler.GetApprovalRecords)
+			tickets.GET("/:id/approval/records", middleware.RequirePermission("ticket", "read"), config.ApprovalHandler.GetTicketApprovalRecords)
 
 			// 审批工作流CRUD
 			approvalWorkflows := tenant.Group("/approval-workflows")

@@ -289,6 +289,52 @@ func (h *Handler) GetApprovalRecords(c *gin.Context) {
 	})
 }
 
+// GetTicketApprovalRecords 获取指定工单的审批记录。
+//
+// 详情页只关心当前工单，不应依赖管理级的 approval:read 权限；路由以
+// ticket:read 作为资源读取闸门，并强制用路径中的工单 id 过滤，避免该端点
+// 被扩用为跨工单审批查询。
+func (h *Handler) GetTicketApprovalRecords(c *gin.Context) {
+	ticketID, err := strconv.Atoi(c.Param("id"))
+	if err != nil || ticketID <= 0 {
+		common.Fail(c, common.ParamErrorCode, "无效的工单ID")
+		return
+	}
+
+	tid, ok := tenantID(c)
+	if !ok {
+		return
+	}
+
+	req := &dto.GetApprovalRecordsRequest{
+		TicketID: &ticketID,
+		Page:     1,
+		PageSize: 100,
+	}
+	if page, err := strconv.Atoi(c.Query("page")); err == nil && page > 0 {
+		req.Page = page
+	}
+	if pageSize, err := strconv.Atoi(c.Query("pageSize")); err == nil && pageSize > 0 {
+		if pageSize > 100 {
+			pageSize = 100
+		}
+		req.PageSize = pageSize
+	}
+
+	records, total, err := h.approvalService.GetApprovalRecords(c.Request.Context(), req, tid)
+	if err != nil {
+		common.Fail(c, common.InternalErrorCode, "获取审批记录失败: "+err.Error())
+		return
+	}
+
+	common.Success(c, map[string]interface{}{
+		"items":    records,
+		"total":    total,
+		"page":     req.Page,
+		"pageSize": req.PageSize,
+	})
+}
+
 // SubmitApproval 提交审批
 // Deprecated: This API is deprecated. Use POST /api/v1/bpmn/tasks/:id/decisions instead.
 // Sunset: Sat, 01 Nov 2026 00:00:00 GMT

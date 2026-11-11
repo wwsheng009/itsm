@@ -81,13 +81,16 @@ func ToTicketCommentResponse(comment *ent.TicketComment, user *ent.User) *Ticket
 // ToTicketCommentResponseWithAttachments 在基础响应上追加附件展示元数据（BE-11）。
 func ToTicketCommentResponseWithAttachments(comment *ent.TicketComment, user *ent.User, refs []TicketCommentAttachmentRef) *TicketCommentResponse {
 	resp := &TicketCommentResponse{
-		ID:         comment.ID,
-		TicketID:   comment.TicketID,
-		UserID:     comment.UserID,
-		Content:    comment.Content,
-		IsInternal: comment.IsInternal,
-		CreatedAt:  comment.CreatedAt,
-		UpdatedAt:  comment.UpdatedAt,
+		ID:             comment.ID,
+		TicketID:       comment.TicketID,
+		UserID:         comment.UserID,
+		Content:        comment.Content,
+		IsInternal:     comment.IsInternal,
+		Mentions:       []int{},
+		Attachments:    []int{},
+		AttachmentRefs: []TicketCommentAttachmentRef{},
+		CreatedAt:      comment.CreatedAt,
+		UpdatedAt:      comment.UpdatedAt,
 	}
 
 	// 设置 mentions

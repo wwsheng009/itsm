@@ -10,6 +10,9 @@ import (
 	"time"
 
 	"itsm-backend/ent/enttest"
+	approvalHandler "itsm-backend/handlers/approval"
+	ticketCommentHandler "itsm-backend/handlers/ticket_comment"
+	ticketTagHandler "itsm-backend/handlers/ticket_tag"
 	"itsm-backend/middleware"
 	"itsm-backend/service"
 
@@ -51,6 +54,15 @@ func TestTicketAssociationRoutes_ReadsURLParamNotContext(t *testing.T) {
 		SetActive(true).
 		SetTenantID(tenant.ID).
 		SaveX(ctx)
+	endUser := client.User.Create().
+		SetUsername("assoc-end-user").
+		SetEmail("assoc-end-user@example.com").
+		SetName("Assoc End User").
+		SetPasswordHash("hash").
+		SetRole("end_user").
+		SetActive(true).
+		SetTenantID(tenant.ID).
+		SaveX(ctx)
 	ciType := client.CIType.Create().
 		SetName("server").
 		SetTenantID(tenant.ID).
@@ -85,6 +97,9 @@ func TestTicketAssociationRoutes_ReadsURLParamNotContext(t *testing.T) {
 		Logger:                   logger,
 		Client:                   client,
 		TicketAssociationService: assoc,
+		TicketTagHandler:         ticketTagHandler.NewHandler(service.NewTicketTagService(client), logger),
+		ApprovalHandler:          approvalHandler.NewHandler(service.NewApprovalService(client, logger)),
+		TicketCommentHandler:     ticketCommentHandler.NewHandler(service.NewTicketCommentService(client, logger), logger),
 	}
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
@@ -92,13 +107,18 @@ func TestTicketAssociationRoutes_ReadsURLParamNotContext(t *testing.T) {
 
 	token, err := middleware.GenerateAccessToken(requester.ID, requester.Username, "super_admin", tenant.ID, secret, time.Hour)
 	require.NoError(t, err)
+	endUserToken, err := middleware.GenerateAccessToken(endUser.ID, endUser.Username, "end_user", tenant.ID, secret, time.Hour)
+	require.NoError(t, err)
 
-	do := func(method, path string) *httptest.ResponseRecorder {
+	doAs := func(authToken, method, path string) *httptest.ResponseRecorder {
 		req := httptest.NewRequest(method, path, nil)
-		req.Header.Set("Authorization", "Bearer "+token)
+		req.Header.Set("Authorization", "Bearer "+authToken)
 		w := httptest.NewRecorder()
 		r.ServeHTTP(w, req)
 		return w
+	}
+	do := func(method, path string) *httptest.ResponseRecorder {
+		return doAs(token, method, path)
 	}
 
 	t.Run("configuration-items returns associated CIs", func(t *testing.T) {
@@ -129,16 +149,22 @@ func TestTicketAssociationRoutes_ReadsURLParamNotContext(t *testing.T) {
 		require.Equal(t, http.StatusOK, w.Code, "body=%s", w.Body.String())
 
 		var body struct {
-			Code    int                    `json:"code"`
-			Message string                 `json:"message"`
-			Data    map[string]interface{} `json:"data"`
+			Code    int    `json:"code"`
+			Message string `json:"message"`
+			Data    struct {
+				ParentChain    []interface{} `json:"parentChain"`
+				ChildrenTree   []interface{} `json:"childrenTree"`
+				RelatedTickets []interface{} `json:"relatedTickets"`
+			} `json:"data"`
 		}
 		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &body))
 		assert.Equal(t, 0, body.Code)
-		require.NotNil(t, body.Data, "relations payload must not be null")
-		assert.Contains(t, body.Data, "parentChain")
-		assert.Contains(t, body.Data, "childrenTree")
-		assert.Contains(t, body.Data, "relatedTickets")
+		require.NotNil(t, body.Data.ParentChain, "parentChain must be an array")
+		require.NotNil(t, body.Data.ChildrenTree, "childrenTree must be an array")
+		require.NotNil(t, body.Data.RelatedTickets, "relatedTickets must be an array")
+		assert.Empty(t, body.Data.ParentChain)
+		assert.Empty(t, body.Data.ChildrenTree)
+		assert.Empty(t, body.Data.RelatedTickets)
 	})
 
 	t.Run("relations/stats returns success with non-zero counts", func(t *testing.T) {
@@ -153,5 +179,78 @@ func TestTicketAssociationRoutes_ReadsURLParamNotContext(t *testing.T) {
 		}
 		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &body))
 		assert.Equal(t, 0, body.Code)
+	})
+
+	t.Run("comments never serialize null sequences", func(t *testing.T) {
+		_, err := client.TicketComment.Create().
+			SetTicketID(ticket.ID).
+			SetUserID(requester.ID).
+			SetContent("评论空数组契约").
+			SetTenantID(tenant.ID).
+			Save(ctx)
+		require.NoError(t, err)
+
+		w := do(http.MethodGet, fmt.Sprintf("/api/v1/tickets/%d/comments", ticket.ID))
+		require.Equal(t, http.StatusOK, w.Code, "body=%s", w.Body.String())
+
+		var body struct {
+			Code int `json:"code"`
+			Data struct {
+				Items []struct {
+					Mentions    []interface{} `json:"mentions"`
+					Attachments []interface{} `json:"attachments"`
+				} `json:"items"`
+				Total int `json:"total"`
+			} `json:"data"`
+		}
+		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &body))
+		assert.Equal(t, 0, body.Code)
+		require.Len(t, body.Data.Items, 1)
+		assert.NotNil(t, body.Data.Items[0].Mentions, "mentions must be an array, not null")
+		assert.NotNil(t, body.Data.Items[0].Attachments, "attachments must be an array, not null")
+	})
+
+	t.Run("ticket tags route is registered and returns an array", func(t *testing.T) {
+		w := do(http.MethodGet, fmt.Sprintf("/api/v1/tickets/%d/tags", ticket.ID))
+		require.Equal(t, http.StatusOK, w.Code, "body=%s", w.Body.String())
+
+		var body struct {
+			Code int `json:"code"`
+			Data struct {
+				Items []interface{} `json:"items"`
+				Total int           `json:"total"`
+			} `json:"data"`
+		}
+		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &body))
+		assert.Equal(t, 0, body.Code)
+		assert.NotNil(t, body.Data.Items, "tags items must be an array, not null")
+		assert.Empty(t, body.Data.Items)
+		assert.Equal(t, 0, body.Data.Total)
+	})
+
+	t.Run("ticket approval records are readable with ticket scope", func(t *testing.T) {
+		w := do(http.MethodGet, fmt.Sprintf("/api/v1/tickets/%d/approval/records", ticket.ID))
+		require.Equal(t, http.StatusOK, w.Code, "body=%s", w.Body.String())
+
+		var body struct {
+			Code int `json:"code"`
+			Data struct {
+				Items []interface{} `json:"items"`
+				Total int           `json:"total"`
+			} `json:"data"`
+		}
+		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &body))
+		assert.Equal(t, 0, body.Code)
+		assert.NotNil(t, body.Data.Items, "approval items must be an array, not null")
+		assert.Empty(t, body.Data.Items)
+		assert.Equal(t, 0, body.Data.Total)
+	})
+
+	t.Run("end user can read ticket approvals but not admin approval records", func(t *testing.T) {
+		w := doAs(endUserToken, http.MethodGet, fmt.Sprintf("/api/v1/tickets/%d/approval/records", ticket.ID))
+		require.Equal(t, http.StatusOK, w.Code, "body=%s", w.Body.String())
+
+		admin := doAs(endUserToken, http.MethodGet, "/api/v1/tickets/approval/records")
+		require.Equal(t, http.StatusForbidden, admin.Code, "body=%s", admin.Body.String())
 	})
 }

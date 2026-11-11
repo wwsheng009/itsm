@@ -343,7 +343,7 @@ func uniqueIDs(ids []int) []int {
 
 // getParentChain 获取父工单链
 func (s *TicketAssociationService) getParentChain(ctx context.Context, ticketID int) ([]*TicketResponse, error) {
-	var chain []*TicketResponse
+	chain := make([]*TicketResponse, 0)
 	currentID := ticketID
 
 	for {
@@ -381,7 +381,7 @@ func (s *TicketAssociationService) getChildrenTree(ctx context.Context, ticketID
 		return nil, err
 	}
 
-	var tree []*TicketResponse
+	tree := make([]*TicketResponse, 0, len(children))
 	for _, child := range children {
 		childResponse := s.buildTicketResponse(child)
 
