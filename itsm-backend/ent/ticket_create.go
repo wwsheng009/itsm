@@ -185,6 +185,20 @@ func (_c *TicketCreate) SetRequesterID(v int) *TicketCreate {
 	return _c
 }
 
+// SetRequesterMembershipID sets the "requester_membership_id" field.
+func (_c *TicketCreate) SetRequesterMembershipID(v int) *TicketCreate {
+	_c.mutation.SetRequesterMembershipID(v)
+	return _c
+}
+
+// SetNillableRequesterMembershipID sets the "requester_membership_id" field if the given value is not nil.
+func (_c *TicketCreate) SetNillableRequesterMembershipID(v *int) *TicketCreate {
+	if v != nil {
+		_c.SetRequesterMembershipID(*v)
+	}
+	return _c
+}
+
 // SetAssigneeID sets the "assignee_id" field.
 func (_c *TicketCreate) SetAssigneeID(v int) *TicketCreate {
 	_c.mutation.SetAssigneeID(v)
@@ -195,6 +209,34 @@ func (_c *TicketCreate) SetAssigneeID(v int) *TicketCreate {
 func (_c *TicketCreate) SetNillableAssigneeID(v *int) *TicketCreate {
 	if v != nil {
 		_c.SetAssigneeID(*v)
+	}
+	return _c
+}
+
+// SetAssigneeMembershipID sets the "assignee_membership_id" field.
+func (_c *TicketCreate) SetAssigneeMembershipID(v int) *TicketCreate {
+	_c.mutation.SetAssigneeMembershipID(v)
+	return _c
+}
+
+// SetNillableAssigneeMembershipID sets the "assignee_membership_id" field if the given value is not nil.
+func (_c *TicketCreate) SetNillableAssigneeMembershipID(v *int) *TicketCreate {
+	if v != nil {
+		_c.SetAssigneeMembershipID(*v)
+	}
+	return _c
+}
+
+// SetCreatedByMembershipID sets the "created_by_membership_id" field.
+func (_c *TicketCreate) SetCreatedByMembershipID(v int) *TicketCreate {
+	_c.mutation.SetCreatedByMembershipID(v)
+	return _c
+}
+
+// SetNillableCreatedByMembershipID sets the "created_by_membership_id" field if the given value is not nil.
+func (_c *TicketCreate) SetNillableCreatedByMembershipID(v *int) *TicketCreate {
+	if v != nil {
+		_c.SetCreatedByMembershipID(*v)
 	}
 	return _c
 }
@@ -1121,6 +1163,18 @@ func (_c *TicketCreate) createSpec() (*Ticket, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.TicketNumber(); ok {
 		_spec.SetField(ticket.FieldTicketNumber, field.TypeString, value)
 		_node.TicketNumber = value
+	}
+	if value, ok := _c.mutation.RequesterMembershipID(); ok {
+		_spec.SetField(ticket.FieldRequesterMembershipID, field.TypeInt, value)
+		_node.RequesterMembershipID = value
+	}
+	if value, ok := _c.mutation.AssigneeMembershipID(); ok {
+		_spec.SetField(ticket.FieldAssigneeMembershipID, field.TypeInt, value)
+		_node.AssigneeMembershipID = value
+	}
+	if value, ok := _c.mutation.CreatedByMembershipID(); ok {
+		_spec.SetField(ticket.FieldCreatedByMembershipID, field.TypeInt, value)
+		_node.CreatedByMembershipID = value
 	}
 	if value, ok := _c.mutation.TenantID(); ok {
 		_spec.SetField(ticket.FieldTenantID, field.TypeInt, value)

@@ -20,7 +20,10 @@ type Ticket struct {
 	TicketTypeName        string
 	FormFields            map[string]interface{}
 	RequesterID           int
+	RequesterMembershipID int
 	AssigneeID            *int
+	AssigneeMembershipID  int
+	CreatedByMembershipID int
 	TenantID              int
 	TemplateID            *int
 	CategoryID            *int

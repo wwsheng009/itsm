@@ -27,6 +27,7 @@ import {
 } from '@/lib/api/attachment-api';
 import { useI18n } from '@/lib/i18n';
 import { httpClient } from '@/lib/api/http-client';
+import { useAuthStore } from '@/lib/store/auth-store';
 import { TicketTypeApi } from '@/lib/api/ticketTypeApi';
 import { mapTicketCreateError } from '@/lib/utils/ticket-create-error';
 import type { CustomFieldDefinition } from '@/types/ticket-type';
@@ -136,7 +137,14 @@ export default function CreateTicketPage() {
   const location = useLocation();
   const { message, modal } = App.useApp();
   const { t } = useI18n();
+  const currentUser = useAuthStore(state => state.user);
   const [form] = Form.useForm();
+  const isProviderOnBehalf = Boolean(
+    (currentUser?.accountKind === 'provider' || currentUser?.mspRole) &&
+      currentUser.tenantId &&
+      currentUser.homeTenantId &&
+      currentUser.tenantId !== currentUser.homeTenantId,
+  );
   const projectLinkPermission = useProjectLinkPermission('ticket');
   const richTextEnabled = isRichTextEnabled();
   const handoffPrefill = useMemo(
@@ -472,6 +480,7 @@ export default function CreateTicketPage() {
         projectId: values.projectId ?? undefined,
         departmentId: values.departmentId ?? undefined,
         customerId: values.customerId ?? undefined,
+        requesterId: isProviderOnBehalf ? values.requesterId : undefined,
       });
 
       const createdId = created.id;
@@ -695,6 +704,32 @@ export default function CreateTicketPage() {
                   className="mb-4"
                   message="填写标题与描述即可提交；附件与正文图片会在工单创建成功后自动上传。"
                 />
+                {isProviderOnBehalf && (
+                  <Alert
+                    type="warning"
+                    showIcon
+                    className="mb-4"
+                    message="当前为服务商代客建单"
+                    description="请选择目标客户租户内的申请人；服务商会作为实际建单人记录在审计中。"
+                  />
+                )}
+
+                {isProviderOnBehalf && (
+                  <Form.Item
+                    name="requesterId"
+                    label="客户申请人"
+                    rules={[{ required: true, message: '请选择客户申请人' }]}
+                    extra="只能选择当前客户租户内的有效用户。"
+                  >
+                    <AppSelect
+                      showSearch
+                      optionFilterProp="label"
+                      placeholder="选择客户申请人"
+                      options={referenceOptions.user}
+                      data-testid="ticket-requester-select"
+                    />
+                  </Form.Item>
+                )}
 
                 <Form.Item
                   name="title"

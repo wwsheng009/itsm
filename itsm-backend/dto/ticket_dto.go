@@ -28,8 +28,12 @@ type CreateTicketRequest struct {
 	DepartmentID    *int   `json:"departmentId,omitempty"`          // 所属部门ID（可选）
 	CustomerID      *int   `json:"customerId,omitempty"`            // 所属客户ID（可选）
 	RequesterID     int    `json:"requesterId" binding:"omitempty"` // 从认证上下文中获取，前端可不传
-	AssigneeID      int    `json:"assigneeId"`
-	ParentTicketID  *int   `json:"parentTicketId,omitempty"`
+	// C 方案内部字段：由 handler/服务层解析写入，客户端不能直接指定 membership。
+	RequesterMembershipID int  `json:"-"`
+	AssigneeMembershipID  int  `json:"-"`
+	CreatedByMembershipID int  `json:"-"`
+	AssigneeID            int  `json:"assigneeId"`
+	ParentTicketID        *int `json:"parentTicketId,omitempty"`
 	// ProjectID 创建时挂接的项目（可选；handler 前置校验 project:write + 项目非终态，随 INSERT 一次写入）。
 	ProjectID             *int                   `json:"projectId,omitempty"`
 	TagIDs                []int                  `json:"tagIds,omitempty"` // 标签ID列表
@@ -98,7 +102,10 @@ type TicketResponse struct {
 	FormFields            map[string]interface{} `json:"formFields,omitempty"`
 	TicketNumber          string                 `json:"ticketNumber"`
 	RequesterID           int                    `json:"requesterId"`
+	RequesterMembershipID int                    `json:"requesterMembershipId,omitempty"`
 	AssigneeID            int                    `json:"assigneeId,omitempty"`
+	AssigneeMembershipID  int                    `json:"assigneeMembershipId,omitempty"`
+	CreatedByMembershipID int                    `json:"createdByMembershipId,omitempty"`
 	TenantID              int                    `json:"tenantId"`
 	CategoryID            int                    `json:"categoryId,omitempty"`
 	DepartmentID          int                    `json:"departmentId,omitempty"`

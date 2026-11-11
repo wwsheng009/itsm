@@ -30,6 +30,11 @@ type User struct {
 	// IsElevatedMenuRole 菜单域治理角色标记（词表单一源=middleware.ElevatedMenuRoles；
 	// 与后端菜单过滤「非 elevated 角色剔除受限前缀」同口径）。
 	IsElevatedMenuRole bool `json:"isElevatedMenuRole"`
+	// MembershipID / AccountKind / MembershipSource 是 C 方案租户内身份：
+	// 当前 JWT 作用域租户下的 membership，而不是账号归属租户。
+	MembershipID     int    `json:"membershipId,omitempty"`
+	AccountKind      string `json:"accountKind,omitempty"`
+	MembershipSource string `json:"membershipSource,omitempty"`
 }
 
 // Department represents a spatial or organizational unit

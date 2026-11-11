@@ -138,6 +138,15 @@ func (r *EntRepository) Create(ctx context.Context, params *CreateParams, tenant
 			SetRequesterID(params.RequesterID).
 			SetTenantID(tenantID).
 			SetStatus(string(StatusNew))
+		if params.RequesterMembershipID > 0 {
+			builder.SetRequesterMembershipID(params.RequesterMembershipID)
+		}
+		if params.AssigneeMembershipID > 0 {
+			builder.SetAssigneeMembershipID(params.AssigneeMembershipID)
+		}
+		if params.CreatedByMembershipID > 0 {
+			builder.SetCreatedByMembershipID(params.CreatedByMembershipID)
+		}
 		if params.DescriptionHTML != "" {
 			builder.SetDescriptionHTML(params.DescriptionHTML)
 		}
@@ -225,6 +234,15 @@ func (r *EntRepository) CreateWithTx(ctx context.Context, tx *ent.Tx, params *Cr
 		SetRequesterID(params.RequesterID).
 		SetTenantID(tenantID).
 		SetStatus(string(StatusNew))
+	if params.RequesterMembershipID > 0 {
+		builder.SetRequesterMembershipID(params.RequesterMembershipID)
+	}
+	if params.AssigneeMembershipID > 0 {
+		builder.SetAssigneeMembershipID(params.AssigneeMembershipID)
+	}
+	if params.CreatedByMembershipID > 0 {
+		builder.SetCreatedByMembershipID(params.CreatedByMembershipID)
+	}
 	if params.DescriptionHTML != "" {
 		builder.SetDescriptionHTML(params.DescriptionHTML)
 	}
@@ -1091,25 +1109,28 @@ func toDomainModel(e *ent.Ticket) *Ticket {
 	}
 
 	t := &Ticket{
-		ID:                e.ID,
-		TicketNumber:      e.TicketNumber,
-		Title:             e.Title,
-		Description:       e.Description,
-		DescriptionHTML:   e.DescriptionHTML,
-		DescriptionFormat: e.DescriptionFormat,
-		Status:            Status(e.Status),
-		Type:              Type(e.Type),
-		TicketTypeCode:    e.TicketTypeCodeSnapshot,
-		TicketTypeName:    e.TicketTypeNameSnapshot,
-		FormFields:        e.FormFields,
-		Priority:          Priority(e.Priority),
-		RequesterID:       e.RequesterID,
-		TenantID:          e.TenantID,
-		SLAStatus:         e.SLAStatus,
-		Version:           e.Version,
-		IsManagedByMSP:    e.IsManagedByMsp,
-		CreatedAt:         e.CreatedAt,
-		UpdatedAt:         e.UpdatedAt,
+		ID:                    e.ID,
+		TicketNumber:          e.TicketNumber,
+		Title:                 e.Title,
+		Description:           e.Description,
+		DescriptionHTML:       e.DescriptionHTML,
+		DescriptionFormat:     e.DescriptionFormat,
+		Status:                Status(e.Status),
+		Type:                  Type(e.Type),
+		TicketTypeCode:        e.TicketTypeCodeSnapshot,
+		TicketTypeName:        e.TicketTypeNameSnapshot,
+		FormFields:            e.FormFields,
+		Priority:              Priority(e.Priority),
+		RequesterID:           e.RequesterID,
+		RequesterMembershipID: e.RequesterMembershipID,
+		AssigneeMembershipID:  e.AssigneeMembershipID,
+		CreatedByMembershipID: e.CreatedByMembershipID,
+		TenantID:              e.TenantID,
+		SLAStatus:             e.SLAStatus,
+		Version:               e.Version,
+		IsManagedByMSP:        e.IsManagedByMsp,
+		CreatedAt:             e.CreatedAt,
+		UpdatedAt:             e.UpdatedAt,
 	}
 
 	// 可选字段

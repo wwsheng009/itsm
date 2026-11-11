@@ -27,7 +27,7 @@ type Role struct {
 	IsSystem bool `json:"is_system,omitempty"`
 	// 角色是否启用
 	IsActive bool `json:"is_active,omitempty"`
-	// 数据权限: all-全部, department-本部门, owner-仅自己
+	// 数据权限: all-全部, department-目标租户内全量, owner-仅自己
 	DataScope role.DataScope `json:"data_scope,omitempty"`
 	// 租户ID
 	TenantID int `json:"tenant_id,omitempty"`

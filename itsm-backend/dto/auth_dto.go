@@ -47,6 +47,11 @@ type LoginUserResponse struct {
 	Permissions  []string  `json:"permissions"` // 用户权限列表
 	// HomeTenantID 账号归属租户（MSW-4：切换会话后"返回工作台"切回 provider 作用域的依据）。
 	HomeTenantID int `json:"homeTenantId,omitempty"`
+	// MembershipID / AccountKind / MembershipSource 是 C 方案租户内身份：
+	// 当前租户作用域下的 membership（customer/provider/platform）。
+	MembershipID     int    `json:"membershipId,omitempty"`
+	AccountKind      string `json:"accountKind,omitempty"`
+	MembershipSource string `json:"membershipSource,omitempty"`
 }
 
 type RefreshTokenRequest struct {

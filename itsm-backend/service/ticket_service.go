@@ -18,8 +18,8 @@ import (
 
 	"itsm-backend/common"
 	"itsm-backend/common/tenantctx"
-	"itsm-backend/dto"
 	domainrole "itsm-backend/domain/role"
+	"itsm-backend/dto"
 	"itsm-backend/ent"
 	"itsm-backend/ent/configurationitem"
 	"itsm-backend/ent/department"
@@ -35,6 +35,7 @@ import (
 	"itsm-backend/ent/user"
 	"itsm-backend/internal/commandbus"
 	"itsm-backend/internal/sanitize"
+	"itsm-backend/middleware"
 	"itsm-backend/repository/base"
 	"itsm-backend/repository/ticket"
 
@@ -310,6 +311,9 @@ func (s *TicketService) CreateTicket(ctx context.Context, req *dto.CreateTicketR
 	if err := s.validateCreateTicketReferences(ctx, req, tenantID); err != nil {
 		return nil, err
 	}
+	if err := s.resolveCreateMemberships(ctx, req, tenantID); err != nil {
+		return nil, err
+	}
 	configuredType, err := s.validateConfiguredTicketType(ctx, req, tenantID)
 	if err != nil {
 		return nil, err
@@ -319,6 +323,13 @@ func (s *TicketService) CreateTicket(ctx context.Context, req *dto.CreateTicketR
 	assigneeID := req.AssigneeID
 	if assigneeID == 0 {
 		assigneeID = s.defaultTierOneAssignee(ctx, tenantID)
+	}
+	if assigneeID > 0 && s.client != nil {
+		if membership, mErr := middleware.ResolveActiveMembership(ctx, s.client, assigneeID, tenantID); mErr != nil {
+			return nil, fmt.Errorf("resolve assignee membership: %w", mErr)
+		} else if membership != nil {
+			req.AssigneeMembershipID = membership.ID
+		}
 	}
 	categoryID := req.CategoryID
 	// 若仅传入分类名称（前端下拉选值），按名解析为分类ID，与 UpdateTicket 行为保持一致
@@ -346,18 +357,21 @@ func (s *TicketService) CreateTicket(ctx context.Context, req *dto.CreateTicketR
 
 	// 转换 DTO 到领域参数
 	params := &ticket.CreateParams{
-		Title:          req.Title,
-		Description:    req.Description,
-		Type:           ticketType,
-		FormFields:     req.FormFields,
-		Priority:       ticket.Priority(req.Priority),
-		RequesterID:    req.RequesterID,
-		TemplateID:     req.TemplateID,
-		ParentTicketID: req.ParentTicketID,
-		ProjectID:      req.ProjectID,
-		DepartmentID:   req.DepartmentID,
-		CustomerID:     req.CustomerID,
-		TagIDs:         uniqueIDs(req.TagIDs),
+		Title:                 req.Title,
+		Description:           req.Description,
+		Type:                  ticketType,
+		FormFields:            req.FormFields,
+		Priority:              ticket.Priority(req.Priority),
+		RequesterID:           req.RequesterID,
+		RequesterMembershipID: req.RequesterMembershipID,
+		AssigneeMembershipID:  req.AssigneeMembershipID,
+		CreatedByMembershipID: req.CreatedByMembershipID,
+		TemplateID:            req.TemplateID,
+		ParentTicketID:        req.ParentTicketID,
+		ProjectID:             req.ProjectID,
+		DepartmentID:          req.DepartmentID,
+		CustomerID:            req.CustomerID,
+		TagIDs:                uniqueIDs(req.TagIDs),
 	}
 	// P2 富文本：仅当请求携带且服务端清洗后非空时写入 HTML 列与格式标记；
 	// 纯文本 description 保持双写不变，未携带时 description_format 走 DB 默认 plain。
@@ -857,6 +871,33 @@ func (s *TicketService) validateCreateTicketReferences(ctx context.Context, req 
 		if count != len(tagIDs) {
 			return fmt.Errorf("工单标签不存在或不可用")
 		}
+	}
+	return nil
+}
+
+// resolveCreateMemberships 把工单申请人解析为目标租户内的 membership。
+//
+// C 方案：user_id 是全局账号，membership_id 是租户内身份。handler 在 RBAC 上下文存在时
+// 会写入 created_by_membership_id；此时新写入必须解析 requester membership。
+// 直接调用 service 的旧测试/内部任务没有 membership 上下文时保持兼容，不强制。
+func (s *TicketService) resolveCreateMemberships(ctx context.Context, req *dto.CreateTicketRequest, tenantID int) error {
+	if s.client == nil || req == nil {
+		return nil
+	}
+	requireMembership := req.CreatedByMembershipID > 0 || req.RequesterMembershipID > 0
+	if !requireMembership {
+		return nil
+	}
+	requesterMembership, err := middleware.ResolveActiveMembership(ctx, s.client, req.RequesterID, tenantID)
+	if err != nil {
+		return fmt.Errorf("resolve requester membership: %w", err)
+	}
+	if requesterMembership == nil {
+		return common.NewBusinessError(common.ParamErrorCode, "申请人不是目标租户的有效成员", "")
+	}
+	req.RequesterMembershipID = requesterMembership.ID
+	if req.CreatedByMembershipID <= 0 {
+		req.CreatedByMembershipID = requesterMembership.ID
 	}
 	return nil
 }
@@ -1565,23 +1606,26 @@ func (s *TicketService) GetTicketStats(ctx context.Context, tenantID int) (*dto.
 // toTicketResponse 转换为 DTO 响应
 func (s *TicketService) toTicketResponse(t *ticket.Ticket) *dto.TicketResponse {
 	resp := &dto.TicketResponse{
-		ID:                t.ID,
-		TicketNumber:      t.TicketNumber,
-		Title:             t.Title,
-		Description:       t.Description,
-		DescriptionHTML:   t.DescriptionHTML,
-		DescriptionFormat: t.DescriptionFormat,
-		Status:            string(t.Status),
-		Priority:          string(t.Priority),
-		Type:              string(t.Type),
-		TicketTypeCode:    t.TicketTypeCode,
-		TicketTypeName:    t.TicketTypeName,
-		FormFields:        t.FormFields,
-		RequesterID:       t.RequesterID,
-		TenantID:          t.TenantID,
-		Version:           t.Version,
-		CreatedAt:         t.CreatedAt,
-		UpdatedAt:         t.UpdatedAt,
+		ID:                    t.ID,
+		TicketNumber:          t.TicketNumber,
+		Title:                 t.Title,
+		Description:           t.Description,
+		DescriptionHTML:       t.DescriptionHTML,
+		DescriptionFormat:     t.DescriptionFormat,
+		Status:                string(t.Status),
+		Priority:              string(t.Priority),
+		Type:                  string(t.Type),
+		TicketTypeCode:        t.TicketTypeCode,
+		TicketTypeName:        t.TicketTypeName,
+		FormFields:            t.FormFields,
+		RequesterID:           t.RequesterID,
+		RequesterMembershipID: t.RequesterMembershipID,
+		AssigneeMembershipID:  t.AssigneeMembershipID,
+		CreatedByMembershipID: t.CreatedByMembershipID,
+		TenantID:              t.TenantID,
+		Version:               t.Version,
+		CreatedAt:             t.CreatedAt,
+		UpdatedAt:             t.UpdatedAt,
 	}
 
 	if t.AssigneeID != nil {
@@ -1633,6 +1677,9 @@ func (s *TicketService) toEntTicket(t *ticket.Ticket) *ent.Ticket {
 		FormFields:             t.FormFields,
 		Priority:               string(t.Priority),
 		RequesterID:            t.RequesterID,
+		RequesterMembershipID:  t.RequesterMembershipID,
+		AssigneeMembershipID:   t.AssigneeMembershipID,
+		CreatedByMembershipID:  t.CreatedByMembershipID,
 		TenantID:               t.TenantID,
 		Version:                t.Version,
 		CreatedAt:              t.CreatedAt,

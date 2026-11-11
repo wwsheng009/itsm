@@ -247,6 +247,33 @@ func (_u *TicketUpdate) SetNillableRequesterID(v *int) *TicketUpdate {
 	return _u
 }
 
+// SetRequesterMembershipID sets the "requester_membership_id" field.
+func (_u *TicketUpdate) SetRequesterMembershipID(v int) *TicketUpdate {
+	_u.mutation.ResetRequesterMembershipID()
+	_u.mutation.SetRequesterMembershipID(v)
+	return _u
+}
+
+// SetNillableRequesterMembershipID sets the "requester_membership_id" field if the given value is not nil.
+func (_u *TicketUpdate) SetNillableRequesterMembershipID(v *int) *TicketUpdate {
+	if v != nil {
+		_u.SetRequesterMembershipID(*v)
+	}
+	return _u
+}
+
+// AddRequesterMembershipID adds value to the "requester_membership_id" field.
+func (_u *TicketUpdate) AddRequesterMembershipID(v int) *TicketUpdate {
+	_u.mutation.AddRequesterMembershipID(v)
+	return _u
+}
+
+// ClearRequesterMembershipID clears the value of the "requester_membership_id" field.
+func (_u *TicketUpdate) ClearRequesterMembershipID() *TicketUpdate {
+	_u.mutation.ClearRequesterMembershipID()
+	return _u
+}
+
 // SetAssigneeID sets the "assignee_id" field.
 func (_u *TicketUpdate) SetAssigneeID(v int) *TicketUpdate {
 	_u.mutation.SetAssigneeID(v)
@@ -264,6 +291,60 @@ func (_u *TicketUpdate) SetNillableAssigneeID(v *int) *TicketUpdate {
 // ClearAssigneeID clears the value of the "assignee_id" field.
 func (_u *TicketUpdate) ClearAssigneeID() *TicketUpdate {
 	_u.mutation.ClearAssigneeID()
+	return _u
+}
+
+// SetAssigneeMembershipID sets the "assignee_membership_id" field.
+func (_u *TicketUpdate) SetAssigneeMembershipID(v int) *TicketUpdate {
+	_u.mutation.ResetAssigneeMembershipID()
+	_u.mutation.SetAssigneeMembershipID(v)
+	return _u
+}
+
+// SetNillableAssigneeMembershipID sets the "assignee_membership_id" field if the given value is not nil.
+func (_u *TicketUpdate) SetNillableAssigneeMembershipID(v *int) *TicketUpdate {
+	if v != nil {
+		_u.SetAssigneeMembershipID(*v)
+	}
+	return _u
+}
+
+// AddAssigneeMembershipID adds value to the "assignee_membership_id" field.
+func (_u *TicketUpdate) AddAssigneeMembershipID(v int) *TicketUpdate {
+	_u.mutation.AddAssigneeMembershipID(v)
+	return _u
+}
+
+// ClearAssigneeMembershipID clears the value of the "assignee_membership_id" field.
+func (_u *TicketUpdate) ClearAssigneeMembershipID() *TicketUpdate {
+	_u.mutation.ClearAssigneeMembershipID()
+	return _u
+}
+
+// SetCreatedByMembershipID sets the "created_by_membership_id" field.
+func (_u *TicketUpdate) SetCreatedByMembershipID(v int) *TicketUpdate {
+	_u.mutation.ResetCreatedByMembershipID()
+	_u.mutation.SetCreatedByMembershipID(v)
+	return _u
+}
+
+// SetNillableCreatedByMembershipID sets the "created_by_membership_id" field if the given value is not nil.
+func (_u *TicketUpdate) SetNillableCreatedByMembershipID(v *int) *TicketUpdate {
+	if v != nil {
+		_u.SetCreatedByMembershipID(*v)
+	}
+	return _u
+}
+
+// AddCreatedByMembershipID adds value to the "created_by_membership_id" field.
+func (_u *TicketUpdate) AddCreatedByMembershipID(v int) *TicketUpdate {
+	_u.mutation.AddCreatedByMembershipID(v)
+	return _u
+}
+
+// ClearCreatedByMembershipID clears the value of the "created_by_membership_id" field.
+func (_u *TicketUpdate) ClearCreatedByMembershipID() *TicketUpdate {
+	_u.mutation.ClearCreatedByMembershipID()
 	return _u
 }
 
@@ -1661,6 +1742,33 @@ func (_u *TicketUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if value, ok := _u.mutation.TicketNumber(); ok {
 		_spec.SetField(ticket.FieldTicketNumber, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.RequesterMembershipID(); ok {
+		_spec.SetField(ticket.FieldRequesterMembershipID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedRequesterMembershipID(); ok {
+		_spec.AddField(ticket.FieldRequesterMembershipID, field.TypeInt, value)
+	}
+	if _u.mutation.RequesterMembershipIDCleared() {
+		_spec.ClearField(ticket.FieldRequesterMembershipID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.AssigneeMembershipID(); ok {
+		_spec.SetField(ticket.FieldAssigneeMembershipID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedAssigneeMembershipID(); ok {
+		_spec.AddField(ticket.FieldAssigneeMembershipID, field.TypeInt, value)
+	}
+	if _u.mutation.AssigneeMembershipIDCleared() {
+		_spec.ClearField(ticket.FieldAssigneeMembershipID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.CreatedByMembershipID(); ok {
+		_spec.SetField(ticket.FieldCreatedByMembershipID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedCreatedByMembershipID(); ok {
+		_spec.AddField(ticket.FieldCreatedByMembershipID, field.TypeInt, value)
+	}
+	if _u.mutation.CreatedByMembershipIDCleared() {
+		_spec.ClearField(ticket.FieldCreatedByMembershipID, field.TypeInt)
+	}
 	if value, ok := _u.mutation.TenantID(); ok {
 		_spec.SetField(ticket.FieldTenantID, field.TypeInt, value)
 	}
@@ -2815,6 +2923,33 @@ func (_u *TicketUpdateOne) SetNillableRequesterID(v *int) *TicketUpdateOne {
 	return _u
 }
 
+// SetRequesterMembershipID sets the "requester_membership_id" field.
+func (_u *TicketUpdateOne) SetRequesterMembershipID(v int) *TicketUpdateOne {
+	_u.mutation.ResetRequesterMembershipID()
+	_u.mutation.SetRequesterMembershipID(v)
+	return _u
+}
+
+// SetNillableRequesterMembershipID sets the "requester_membership_id" field if the given value is not nil.
+func (_u *TicketUpdateOne) SetNillableRequesterMembershipID(v *int) *TicketUpdateOne {
+	if v != nil {
+		_u.SetRequesterMembershipID(*v)
+	}
+	return _u
+}
+
+// AddRequesterMembershipID adds value to the "requester_membership_id" field.
+func (_u *TicketUpdateOne) AddRequesterMembershipID(v int) *TicketUpdateOne {
+	_u.mutation.AddRequesterMembershipID(v)
+	return _u
+}
+
+// ClearRequesterMembershipID clears the value of the "requester_membership_id" field.
+func (_u *TicketUpdateOne) ClearRequesterMembershipID() *TicketUpdateOne {
+	_u.mutation.ClearRequesterMembershipID()
+	return _u
+}
+
 // SetAssigneeID sets the "assignee_id" field.
 func (_u *TicketUpdateOne) SetAssigneeID(v int) *TicketUpdateOne {
 	_u.mutation.SetAssigneeID(v)
@@ -2832,6 +2967,60 @@ func (_u *TicketUpdateOne) SetNillableAssigneeID(v *int) *TicketUpdateOne {
 // ClearAssigneeID clears the value of the "assignee_id" field.
 func (_u *TicketUpdateOne) ClearAssigneeID() *TicketUpdateOne {
 	_u.mutation.ClearAssigneeID()
+	return _u
+}
+
+// SetAssigneeMembershipID sets the "assignee_membership_id" field.
+func (_u *TicketUpdateOne) SetAssigneeMembershipID(v int) *TicketUpdateOne {
+	_u.mutation.ResetAssigneeMembershipID()
+	_u.mutation.SetAssigneeMembershipID(v)
+	return _u
+}
+
+// SetNillableAssigneeMembershipID sets the "assignee_membership_id" field if the given value is not nil.
+func (_u *TicketUpdateOne) SetNillableAssigneeMembershipID(v *int) *TicketUpdateOne {
+	if v != nil {
+		_u.SetAssigneeMembershipID(*v)
+	}
+	return _u
+}
+
+// AddAssigneeMembershipID adds value to the "assignee_membership_id" field.
+func (_u *TicketUpdateOne) AddAssigneeMembershipID(v int) *TicketUpdateOne {
+	_u.mutation.AddAssigneeMembershipID(v)
+	return _u
+}
+
+// ClearAssigneeMembershipID clears the value of the "assignee_membership_id" field.
+func (_u *TicketUpdateOne) ClearAssigneeMembershipID() *TicketUpdateOne {
+	_u.mutation.ClearAssigneeMembershipID()
+	return _u
+}
+
+// SetCreatedByMembershipID sets the "created_by_membership_id" field.
+func (_u *TicketUpdateOne) SetCreatedByMembershipID(v int) *TicketUpdateOne {
+	_u.mutation.ResetCreatedByMembershipID()
+	_u.mutation.SetCreatedByMembershipID(v)
+	return _u
+}
+
+// SetNillableCreatedByMembershipID sets the "created_by_membership_id" field if the given value is not nil.
+func (_u *TicketUpdateOne) SetNillableCreatedByMembershipID(v *int) *TicketUpdateOne {
+	if v != nil {
+		_u.SetCreatedByMembershipID(*v)
+	}
+	return _u
+}
+
+// AddCreatedByMembershipID adds value to the "created_by_membership_id" field.
+func (_u *TicketUpdateOne) AddCreatedByMembershipID(v int) *TicketUpdateOne {
+	_u.mutation.AddCreatedByMembershipID(v)
+	return _u
+}
+
+// ClearCreatedByMembershipID clears the value of the "created_by_membership_id" field.
+func (_u *TicketUpdateOne) ClearCreatedByMembershipID() *TicketUpdateOne {
+	_u.mutation.ClearCreatedByMembershipID()
 	return _u
 }
 
@@ -4258,6 +4447,33 @@ func (_u *TicketUpdateOne) sqlSave(ctx context.Context) (_node *Ticket, err erro
 	}
 	if value, ok := _u.mutation.TicketNumber(); ok {
 		_spec.SetField(ticket.FieldTicketNumber, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.RequesterMembershipID(); ok {
+		_spec.SetField(ticket.FieldRequesterMembershipID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedRequesterMembershipID(); ok {
+		_spec.AddField(ticket.FieldRequesterMembershipID, field.TypeInt, value)
+	}
+	if _u.mutation.RequesterMembershipIDCleared() {
+		_spec.ClearField(ticket.FieldRequesterMembershipID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.AssigneeMembershipID(); ok {
+		_spec.SetField(ticket.FieldAssigneeMembershipID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedAssigneeMembershipID(); ok {
+		_spec.AddField(ticket.FieldAssigneeMembershipID, field.TypeInt, value)
+	}
+	if _u.mutation.AssigneeMembershipIDCleared() {
+		_spec.ClearField(ticket.FieldAssigneeMembershipID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.CreatedByMembershipID(); ok {
+		_spec.SetField(ticket.FieldCreatedByMembershipID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedCreatedByMembershipID(); ok {
+		_spec.AddField(ticket.FieldCreatedByMembershipID, field.TypeInt, value)
+	}
+	if _u.mutation.CreatedByMembershipIDCleared() {
+		_spec.ClearField(ticket.FieldCreatedByMembershipID, field.TypeInt)
 	}
 	if value, ok := _u.mutation.TenantID(); ok {
 		_spec.SetField(ticket.FieldTenantID, field.TypeInt, value)

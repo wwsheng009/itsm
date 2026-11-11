@@ -283,6 +283,7 @@ func (s *Service) Login(ctx context.Context, username, password string, tenantID
 
 	// 获取用户权限（IP-P1-2：按 home 租户经 membership → role_permissions 计算）
 	u.Permissions = s.resolvePermissions(ctx, entUser.ID, u.TenantID)
+	s.applyMembershipView(tenantctx.WithTenantID(ctx, u.TenantID), u, u.TenantID)
 	middleware.RecordAuthAudit(ctx, s.client, middleware.AuthAuditEntry{
 		UserID: entUser.ID, TenantID: entUser.TenantID, TargetTenantID: u.TenantID, ActorAccount: username,
 		Source: middleware.AuditSourceLogin, Action: "auth.login",
@@ -422,6 +423,7 @@ func (s *Service) RefreshToken(ctx context.Context, refreshToken string) (*AuthR
 	// IP-P1-2：刷新响应权限按当前 token 作用域（目标租户）重算，
 	// 保证切换租户后续签不会把权限解析回 home 租户。
 	user.Permissions = s.resolvePermissions(ctx, user.ID, scopeTenantID)
+	s.applyMembershipView(tenantctx.WithTenantID(ctx, scopeTenantID), user, scopeTenantID)
 	applyRoleFlags(user)
 
 	return &AuthResult{
@@ -509,10 +511,31 @@ func (s *Service) GetUserScoped(ctx context.Context, id, tenantID int) (*User, e
 		tenantID = homeTenantID
 	}
 	u.Permissions = s.resolvePermissions(tenantctx.WithTenantID(ctx, tenantID), u.ID, tenantID)
+	s.applyMembershipView(tenantctx.WithTenantID(ctx, tenantID), u, tenantID)
 	u.HomeTenantID = homeTenantID
 	u.TenantID = tenantID
 	applyRoleFlags(u)
 	return u, nil
+}
+
+// applyMembershipView 把当前作用域租户的 membership 身份投影到用户响应。
+// 这是 C 方案的展示面：user_id 是全局账号，membership_id 是租户内身份。
+func (s *Service) applyMembershipView(ctx context.Context, u *User, tenantID int) {
+	if s == nil || s.client == nil || u == nil || tenantID <= 0 {
+		return
+	}
+	membership, err := middleware.ResolveActiveMembership(ctx, s.client, u.ID, tenantID)
+	if err != nil {
+		s.logger.Warnw("resolve membership view failed",
+			"user_id", u.ID, "tenant_id", tenantID, "error", err)
+		return
+	}
+	if membership == nil {
+		return
+	}
+	u.MembershipID = membership.ID
+	u.AccountKind = string(membership.AccountKind)
+	u.MembershipSource = string(membership.Source)
 }
 
 func (s *Service) ListUsers(ctx context.Context, tenantID int) ([]*User, error) {

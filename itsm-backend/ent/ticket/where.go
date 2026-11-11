@@ -115,9 +115,24 @@ func RequesterID(v int) predicate.Ticket {
 	return predicate.Ticket(sql.FieldEQ(FieldRequesterID, v))
 }
 
+// RequesterMembershipID applies equality check predicate on the "requester_membership_id" field. It's identical to RequesterMembershipIDEQ.
+func RequesterMembershipID(v int) predicate.Ticket {
+	return predicate.Ticket(sql.FieldEQ(FieldRequesterMembershipID, v))
+}
+
 // AssigneeID applies equality check predicate on the "assignee_id" field. It's identical to AssigneeIDEQ.
 func AssigneeID(v int) predicate.Ticket {
 	return predicate.Ticket(sql.FieldEQ(FieldAssigneeID, v))
+}
+
+// AssigneeMembershipID applies equality check predicate on the "assignee_membership_id" field. It's identical to AssigneeMembershipIDEQ.
+func AssigneeMembershipID(v int) predicate.Ticket {
+	return predicate.Ticket(sql.FieldEQ(FieldAssigneeMembershipID, v))
+}
+
+// CreatedByMembershipID applies equality check predicate on the "created_by_membership_id" field. It's identical to CreatedByMembershipIDEQ.
+func CreatedByMembershipID(v int) predicate.Ticket {
+	return predicate.Ticket(sql.FieldEQ(FieldCreatedByMembershipID, v))
 }
 
 // TenantID applies equality check predicate on the "tenant_id" field. It's identical to TenantIDEQ.
@@ -1020,6 +1035,56 @@ func RequesterIDNotIn(vs ...int) predicate.Ticket {
 	return predicate.Ticket(sql.FieldNotIn(FieldRequesterID, vs...))
 }
 
+// RequesterMembershipIDEQ applies the EQ predicate on the "requester_membership_id" field.
+func RequesterMembershipIDEQ(v int) predicate.Ticket {
+	return predicate.Ticket(sql.FieldEQ(FieldRequesterMembershipID, v))
+}
+
+// RequesterMembershipIDNEQ applies the NEQ predicate on the "requester_membership_id" field.
+func RequesterMembershipIDNEQ(v int) predicate.Ticket {
+	return predicate.Ticket(sql.FieldNEQ(FieldRequesterMembershipID, v))
+}
+
+// RequesterMembershipIDIn applies the In predicate on the "requester_membership_id" field.
+func RequesterMembershipIDIn(vs ...int) predicate.Ticket {
+	return predicate.Ticket(sql.FieldIn(FieldRequesterMembershipID, vs...))
+}
+
+// RequesterMembershipIDNotIn applies the NotIn predicate on the "requester_membership_id" field.
+func RequesterMembershipIDNotIn(vs ...int) predicate.Ticket {
+	return predicate.Ticket(sql.FieldNotIn(FieldRequesterMembershipID, vs...))
+}
+
+// RequesterMembershipIDGT applies the GT predicate on the "requester_membership_id" field.
+func RequesterMembershipIDGT(v int) predicate.Ticket {
+	return predicate.Ticket(sql.FieldGT(FieldRequesterMembershipID, v))
+}
+
+// RequesterMembershipIDGTE applies the GTE predicate on the "requester_membership_id" field.
+func RequesterMembershipIDGTE(v int) predicate.Ticket {
+	return predicate.Ticket(sql.FieldGTE(FieldRequesterMembershipID, v))
+}
+
+// RequesterMembershipIDLT applies the LT predicate on the "requester_membership_id" field.
+func RequesterMembershipIDLT(v int) predicate.Ticket {
+	return predicate.Ticket(sql.FieldLT(FieldRequesterMembershipID, v))
+}
+
+// RequesterMembershipIDLTE applies the LTE predicate on the "requester_membership_id" field.
+func RequesterMembershipIDLTE(v int) predicate.Ticket {
+	return predicate.Ticket(sql.FieldLTE(FieldRequesterMembershipID, v))
+}
+
+// RequesterMembershipIDIsNil applies the IsNil predicate on the "requester_membership_id" field.
+func RequesterMembershipIDIsNil() predicate.Ticket {
+	return predicate.Ticket(sql.FieldIsNull(FieldRequesterMembershipID))
+}
+
+// RequesterMembershipIDNotNil applies the NotNil predicate on the "requester_membership_id" field.
+func RequesterMembershipIDNotNil() predicate.Ticket {
+	return predicate.Ticket(sql.FieldNotNull(FieldRequesterMembershipID))
+}
+
 // AssigneeIDEQ applies the EQ predicate on the "assignee_id" field.
 func AssigneeIDEQ(v int) predicate.Ticket {
 	return predicate.Ticket(sql.FieldEQ(FieldAssigneeID, v))
@@ -1048,6 +1113,106 @@ func AssigneeIDIsNil() predicate.Ticket {
 // AssigneeIDNotNil applies the NotNil predicate on the "assignee_id" field.
 func AssigneeIDNotNil() predicate.Ticket {
 	return predicate.Ticket(sql.FieldNotNull(FieldAssigneeID))
+}
+
+// AssigneeMembershipIDEQ applies the EQ predicate on the "assignee_membership_id" field.
+func AssigneeMembershipIDEQ(v int) predicate.Ticket {
+	return predicate.Ticket(sql.FieldEQ(FieldAssigneeMembershipID, v))
+}
+
+// AssigneeMembershipIDNEQ applies the NEQ predicate on the "assignee_membership_id" field.
+func AssigneeMembershipIDNEQ(v int) predicate.Ticket {
+	return predicate.Ticket(sql.FieldNEQ(FieldAssigneeMembershipID, v))
+}
+
+// AssigneeMembershipIDIn applies the In predicate on the "assignee_membership_id" field.
+func AssigneeMembershipIDIn(vs ...int) predicate.Ticket {
+	return predicate.Ticket(sql.FieldIn(FieldAssigneeMembershipID, vs...))
+}
+
+// AssigneeMembershipIDNotIn applies the NotIn predicate on the "assignee_membership_id" field.
+func AssigneeMembershipIDNotIn(vs ...int) predicate.Ticket {
+	return predicate.Ticket(sql.FieldNotIn(FieldAssigneeMembershipID, vs...))
+}
+
+// AssigneeMembershipIDGT applies the GT predicate on the "assignee_membership_id" field.
+func AssigneeMembershipIDGT(v int) predicate.Ticket {
+	return predicate.Ticket(sql.FieldGT(FieldAssigneeMembershipID, v))
+}
+
+// AssigneeMembershipIDGTE applies the GTE predicate on the "assignee_membership_id" field.
+func AssigneeMembershipIDGTE(v int) predicate.Ticket {
+	return predicate.Ticket(sql.FieldGTE(FieldAssigneeMembershipID, v))
+}
+
+// AssigneeMembershipIDLT applies the LT predicate on the "assignee_membership_id" field.
+func AssigneeMembershipIDLT(v int) predicate.Ticket {
+	return predicate.Ticket(sql.FieldLT(FieldAssigneeMembershipID, v))
+}
+
+// AssigneeMembershipIDLTE applies the LTE predicate on the "assignee_membership_id" field.
+func AssigneeMembershipIDLTE(v int) predicate.Ticket {
+	return predicate.Ticket(sql.FieldLTE(FieldAssigneeMembershipID, v))
+}
+
+// AssigneeMembershipIDIsNil applies the IsNil predicate on the "assignee_membership_id" field.
+func AssigneeMembershipIDIsNil() predicate.Ticket {
+	return predicate.Ticket(sql.FieldIsNull(FieldAssigneeMembershipID))
+}
+
+// AssigneeMembershipIDNotNil applies the NotNil predicate on the "assignee_membership_id" field.
+func AssigneeMembershipIDNotNil() predicate.Ticket {
+	return predicate.Ticket(sql.FieldNotNull(FieldAssigneeMembershipID))
+}
+
+// CreatedByMembershipIDEQ applies the EQ predicate on the "created_by_membership_id" field.
+func CreatedByMembershipIDEQ(v int) predicate.Ticket {
+	return predicate.Ticket(sql.FieldEQ(FieldCreatedByMembershipID, v))
+}
+
+// CreatedByMembershipIDNEQ applies the NEQ predicate on the "created_by_membership_id" field.
+func CreatedByMembershipIDNEQ(v int) predicate.Ticket {
+	return predicate.Ticket(sql.FieldNEQ(FieldCreatedByMembershipID, v))
+}
+
+// CreatedByMembershipIDIn applies the In predicate on the "created_by_membership_id" field.
+func CreatedByMembershipIDIn(vs ...int) predicate.Ticket {
+	return predicate.Ticket(sql.FieldIn(FieldCreatedByMembershipID, vs...))
+}
+
+// CreatedByMembershipIDNotIn applies the NotIn predicate on the "created_by_membership_id" field.
+func CreatedByMembershipIDNotIn(vs ...int) predicate.Ticket {
+	return predicate.Ticket(sql.FieldNotIn(FieldCreatedByMembershipID, vs...))
+}
+
+// CreatedByMembershipIDGT applies the GT predicate on the "created_by_membership_id" field.
+func CreatedByMembershipIDGT(v int) predicate.Ticket {
+	return predicate.Ticket(sql.FieldGT(FieldCreatedByMembershipID, v))
+}
+
+// CreatedByMembershipIDGTE applies the GTE predicate on the "created_by_membership_id" field.
+func CreatedByMembershipIDGTE(v int) predicate.Ticket {
+	return predicate.Ticket(sql.FieldGTE(FieldCreatedByMembershipID, v))
+}
+
+// CreatedByMembershipIDLT applies the LT predicate on the "created_by_membership_id" field.
+func CreatedByMembershipIDLT(v int) predicate.Ticket {
+	return predicate.Ticket(sql.FieldLT(FieldCreatedByMembershipID, v))
+}
+
+// CreatedByMembershipIDLTE applies the LTE predicate on the "created_by_membership_id" field.
+func CreatedByMembershipIDLTE(v int) predicate.Ticket {
+	return predicate.Ticket(sql.FieldLTE(FieldCreatedByMembershipID, v))
+}
+
+// CreatedByMembershipIDIsNil applies the IsNil predicate on the "created_by_membership_id" field.
+func CreatedByMembershipIDIsNil() predicate.Ticket {
+	return predicate.Ticket(sql.FieldIsNull(FieldCreatedByMembershipID))
+}
+
+// CreatedByMembershipIDNotNil applies the NotNil predicate on the "created_by_membership_id" field.
+func CreatedByMembershipIDNotNil() predicate.Ticket {
+	return predicate.Ticket(sql.FieldNotNull(FieldCreatedByMembershipID))
 }
 
 // TenantIDEQ applies the EQ predicate on the "tenant_id" field.

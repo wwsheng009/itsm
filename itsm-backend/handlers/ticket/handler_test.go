@@ -46,21 +46,24 @@ func (m *mockRepository) Create(ctx context.Context, params *CreateParams, tenan
 	defer m.mu.Unlock()
 	m.nextID++
 	t := &Ticket{
-		ID:                m.nextID,
-		TicketNumber:      "TKT-" + time.Now().Format("20060102") + "-001",
-		Title:             params.Title,
-		Description:       params.Description,
-		DescriptionHTML:   params.DescriptionHTML,
-		DescriptionFormat: params.DescriptionFormat,
-		Status:            "new",
-		Priority:          params.Priority,
-		Type:              params.Type,
-		RequesterID:       params.RequesterID,
-		AssigneeID:        params.AssigneeID,
-		TenantID:          tenantID,
-		Version:           1,
-		CreatedAt:         time.Now(),
-		UpdatedAt:         time.Now(),
+		ID:                    m.nextID,
+		TicketNumber:          "TKT-" + time.Now().Format("20060102") + "-001",
+		Title:                 params.Title,
+		Description:           params.Description,
+		DescriptionHTML:       params.DescriptionHTML,
+		DescriptionFormat:     params.DescriptionFormat,
+		Status:                "new",
+		Priority:              params.Priority,
+		Type:                  params.Type,
+		RequesterID:           params.RequesterID,
+		RequesterMembershipID: params.RequesterMembershipID,
+		AssigneeID:            params.AssigneeID,
+		AssigneeMembershipID:  params.AssigneeMembershipID,
+		CreatedByMembershipID: params.CreatedByMembershipID,
+		TenantID:              tenantID,
+		Version:               1,
+		CreatedAt:             time.Now(),
+		UpdatedAt:             time.Now(),
 	}
 	m.tickets[t.ID] = t
 	return t, nil
@@ -341,6 +344,17 @@ func newTestHarness(t *testing.T) (*gin.Engine, *mockRepository) {
 		if v := c.GetHeader("X-Test-Roles"); v != "" {
 			c.Set("roles", strings.Split(v, ","))
 		}
+		if v := c.GetHeader("X-Test-Membership-ID"); v != "" {
+			if n, err := strconv.Atoi(v); err == nil {
+				c.Set(middleware.CtxKeyMembershipID, n)
+			}
+		}
+		if v := c.GetHeader("X-Test-Account-Kind"); v != "" {
+			c.Set(middleware.CtxKeyMembershipAccountKind, v)
+		}
+		if v := c.GetHeader("X-Test-Tenant-Source"); v != "" {
+			c.Set("tenant_source", v)
+		}
 		c.Next()
 	}
 
@@ -438,6 +452,72 @@ func TestHandler_Create_TableDriven(t *testing.T) {
 			assert.Equal(t, tc.wantCode, w.Code, "body=%s", w.Body.String())
 		})
 	}
+}
+
+// TestHandler_CreateTicket_MembershipOnBehalf 锁定 C 方案 handler 契约：
+//   - provider 深度态必须显式 requesterId，并以当前 provider membership 记录 created_by；
+//   - 普通客户即使伪造 requesterId，也必须回落为当前用户；
+//   - provider 深度态缺少 requesterId 返回 400，不再落入 404 申请人校验。
+func TestHandler_CreateTicket_MembershipOnBehalf(t *testing.T) {
+	t.Run("provider on-behalf uses customer requester", func(t *testing.T) {
+		r, repo := newTestHarness(t)
+		resp := doJSON(t, r, http.MethodPost, "/api/v1/tickets",
+			dto.CreateTicketRequest{Title: "provider on behalf", Priority: "low", RequesterID: 42},
+			map[string]string{
+				"X-Test-TenantID":      "3",
+				"X-Test-UserID":        "99",
+				"X-Test-Membership-ID": "501",
+				"X-Test-Account-Kind":  "provider",
+				"X-Test-Tenant-Source": "switch",
+			},
+		)
+		assert.Equal(t, 200, resp.Code, resp.Body.String())
+		var created *Ticket
+		for _, row := range repo.tickets {
+			created = row
+		}
+		require.NotNil(t, created)
+		assert.Equal(t, 42, created.RequesterID, "provider 代客建单必须使用客户 requesterId")
+		assert.Equal(t, 501, created.CreatedByMembershipID, "必须记录 provider 在客户租户的 membership")
+	})
+
+	t.Run("provider on-behalf requires requester", func(t *testing.T) {
+		r, _ := newTestHarness(t)
+		resp := doJSON(t, r, http.MethodPost, "/api/v1/tickets",
+			dto.CreateTicketRequest{Title: "missing requester", Priority: "low"},
+			map[string]string{
+				"X-Test-TenantID":      "3",
+				"X-Test-UserID":        "99",
+				"X-Test-Membership-ID": "501",
+				"X-Test-Account-Kind":  "provider",
+				"X-Test-Tenant-Source": "switch",
+			},
+		)
+		assert.Equal(t, 400, resp.Code, resp.Body.String())
+		assert.Contains(t, resp.Body.String(), "requesterId")
+	})
+
+	t.Run("customer requester cannot impersonate", func(t *testing.T) {
+		r, repo := newTestHarness(t)
+		resp := doJSON(t, r, http.MethodPost, "/api/v1/tickets",
+			dto.CreateTicketRequest{Title: "customer self", Priority: "low", RequesterID: 42},
+			map[string]string{
+				"X-Test-TenantID":      "3",
+				"X-Test-UserID":        "99",
+				"X-Test-Membership-ID": "502",
+				"X-Test-Account-Kind":  "customer",
+				"X-Test-Tenant-Source": "switch",
+			},
+		)
+		assert.Equal(t, 200, resp.Code, resp.Body.String())
+		var created *Ticket
+		for _, row := range repo.tickets {
+			created = row
+		}
+		require.NotNil(t, created)
+		assert.Equal(t, 99, created.RequesterID, "普通客户必须回落为当前用户")
+		assert.Equal(t, 502, created.CreatedByMembershipID)
+	})
 }
 
 func TestHandler_Get_NotFoundTable(t *testing.T) {

@@ -243,12 +243,49 @@ func (s *Service) SwitchTenantWithRevoke(ctx context.Context, userID, tenantID i
 		s.logger.Warnw("failed to resolve permissions for tenant switch",
 			"user_id", userID, "target_tenant_id", tenantID, "source", source, "error", permErr)
 	}
+	// C 方案：切换响应同时返回目标租户的 membership 身份。
+	membershipID := 0
+	accountKind := ""
+	membershipSource := ""
+	if membership, mErr := middleware.ResolveActiveMembership(ctx, s.client, userID, tenantID); mErr != nil {
+		s.logger.Warnw("failed to resolve membership for tenant switch",
+			"user_id", userID, "target_tenant_id", tenantID, "error", mErr)
+	} else if membership != nil {
+		membershipID = membership.ID
+		accountKind = string(membership.AccountKind)
+		membershipSource = string(membership.Source)
+	}
 	mspRole := string(userEntity.MspRole)
 	var mspRolePtr *string
 	if mspRole != "" {
 		mspRolePtr = &mspRole
 	}
-	return &dto.LoginResponse{AccessToken: accessToken, RefreshToken: refreshToken, User: &dto.LoginUserResponse{ID: userEntity.ID, Username: userEntity.Username, Email: userEntity.Email, Name: userEntity.Name, Role: tokenRole, MSPRole: mspRolePtr, Department: userEntity.Department, DepartmentID: userEntity.DepartmentID, Phone: userEntity.Phone, Active: userEntity.Active, TenantID: tenantID, HomeTenantID: userEntity.TenantID, CreatedAt: userEntity.CreatedAt, UpdatedAt: userEntity.UpdatedAt, Permissions: permissions}, Tenant: tenantEntity, TenantSelection: &dto.TenantSelection{Mode: switchTenantMode(userEntity, tenantEntity)}}, nil
+	return &dto.LoginResponse{
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+		User: &dto.LoginUserResponse{
+			ID:               userEntity.ID,
+			Username:         userEntity.Username,
+			Email:            userEntity.Email,
+			Name:             userEntity.Name,
+			Role:             tokenRole,
+			MSPRole:          mspRolePtr,
+			Department:       userEntity.Department,
+			DepartmentID:     userEntity.DepartmentID,
+			Phone:            userEntity.Phone,
+			Active:           userEntity.Active,
+			TenantID:         tenantID,
+			HomeTenantID:     userEntity.TenantID,
+			CreatedAt:        userEntity.CreatedAt,
+			UpdatedAt:        userEntity.UpdatedAt,
+			Permissions:      permissions,
+			MembershipID:     membershipID,
+			AccountKind:      accountKind,
+			MembershipSource: membershipSource,
+		},
+		Tenant:          tenantEntity,
+		TenantSelection: &dto.TenantSelection{Mode: switchTenantMode(userEntity, tenantEntity)},
+	}, nil
 }
 
 // switchDenyMessage 切换拒绝的用户可见文案（保持既有口径；机器码走审计 reasonCode）。

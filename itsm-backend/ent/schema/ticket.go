@@ -50,8 +50,17 @@ func (Ticket) Fields() []ent.Field {
 		field.Int("requester_id").
 			Comment("申请人ID").
 			Positive(),
+		field.Int("requester_membership_id").
+			Comment("申请人租户内身份ID（C 方案；user_tenant_memberships.id，过渡期可空）").
+			Optional(),
 		field.Int("assignee_id").
 			Comment("处理人ID").
+			Optional(),
+		field.Int("assignee_membership_id").
+			Comment("处理人租户内身份ID（C 方案；user_tenant_memberships.id，过渡期可空）").
+			Optional(),
+		field.Int("created_by_membership_id").
+			Comment("实际建单人租户内身份ID（C 方案；provider 代客建单时为客户租户内 provider membership）").
 			Optional(),
 		field.Int("tenant_id").
 			Comment("租户ID").
@@ -206,6 +215,9 @@ func (Ticket) Indexes() []ent.Index {
 		index.Fields("tenant_id"),
 		index.Fields("tenant_id", "status"),
 		index.Fields("tenant_id", "requester_id"),
+		index.Fields("tenant_id", "requester_membership_id"),
+		index.Fields("tenant_id", "assignee_membership_id"),
+		index.Fields("tenant_id", "created_by_membership_id"),
 		index.Fields("tenant_id", "ticket_type_id"),
 		index.Fields("tenant_id", "department_id"),
 		index.Fields("tenant_id", "customer_id"),

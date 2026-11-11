@@ -569,6 +569,14 @@ func TestService_SwitchTenant_MSPProviderScope(t *testing.T) {
 		SetMspUserID(mspUser.ID).SetCustomerTenantID(customer.ID).SetRole("provider_agent").
 		SetProviderTenantID(provider.ID).
 		SaveX(fx.ctx)
+	membership := fx.client.UserTenantMembership.Create().
+		SetUserID(mspUser.ID).
+		SetTenantID(customer.ID).
+		SetAccountKind(usertenantmembership.AccountKindProvider).
+		SetSource(usertenantmembership.SourceAllocation).
+		SetStatus(usertenantmembership.StatusActive).
+		SetIsDefault(false).
+		SaveX(fx.ctx)
 
 	resp, err := fx.service.SwitchTenant(fx.ctx, mspUser.ID, customer.ID)
 	require.NoError(t, err)
@@ -576,6 +584,8 @@ func TestService_SwitchTenant_MSPProviderScope(t *testing.T) {
 
 	// 响应作用域 = 目标租户（修复前这里回带 userEntity.TenantID=provider）。
 	assert.Equal(t, customer.ID, resp.User.TenantID)
+	assert.Equal(t, membership.ID, resp.User.MembershipID)
+	assert.Equal(t, string(usertenantmembership.AccountKindProvider), resp.User.AccountKind)
 	require.NotNil(t, resp.Tenant)
 	assert.Equal(t, customer.ID, resp.Tenant.ID)
 

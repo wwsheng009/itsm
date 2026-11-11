@@ -40,8 +40,14 @@ const (
 	FieldTicketNumber = "ticket_number"
 	// FieldRequesterID holds the string denoting the requester_id field in the database.
 	FieldRequesterID = "requester_id"
+	// FieldRequesterMembershipID holds the string denoting the requester_membership_id field in the database.
+	FieldRequesterMembershipID = "requester_membership_id"
 	// FieldAssigneeID holds the string denoting the assignee_id field in the database.
 	FieldAssigneeID = "assignee_id"
+	// FieldAssigneeMembershipID holds the string denoting the assignee_membership_id field in the database.
+	FieldAssigneeMembershipID = "assignee_membership_id"
+	// FieldCreatedByMembershipID holds the string denoting the created_by_membership_id field in the database.
+	FieldCreatedByMembershipID = "created_by_membership_id"
 	// FieldTenantID holds the string denoting the tenant_id field in the database.
 	FieldTenantID = "tenant_id"
 	// FieldTemplateID holds the string denoting the template_id field in the database.
@@ -272,7 +278,10 @@ var Columns = []string{
 	FieldPriority,
 	FieldTicketNumber,
 	FieldRequesterID,
+	FieldRequesterMembershipID,
 	FieldAssigneeID,
+	FieldAssigneeMembershipID,
+	FieldCreatedByMembershipID,
 	FieldTenantID,
 	FieldTemplateID,
 	FieldCategoryID,
@@ -456,9 +465,24 @@ func ByRequesterID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldRequesterID, opts...).ToFunc()
 }
 
+// ByRequesterMembershipID orders the results by the requester_membership_id field.
+func ByRequesterMembershipID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldRequesterMembershipID, opts...).ToFunc()
+}
+
 // ByAssigneeID orders the results by the assignee_id field.
 func ByAssigneeID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldAssigneeID, opts...).ToFunc()
+}
+
+// ByAssigneeMembershipID orders the results by the assignee_membership_id field.
+func ByAssigneeMembershipID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldAssigneeMembershipID, opts...).ToFunc()
+}
+
+// ByCreatedByMembershipID orders the results by the created_by_membership_id field.
+func ByCreatedByMembershipID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCreatedByMembershipID, opts...).ToFunc()
 }
 
 // ByTenantID orders the results by the tenant_id field.

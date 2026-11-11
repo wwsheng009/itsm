@@ -12,6 +12,7 @@ import (
 	"itsm-backend/handlers/common/projectlink"
 	"itsm-backend/handlers/common/scopectx"
 	"itsm-backend/middleware"
+	"itsm-backend/pkg/tenantmode"
 	"itsm-backend/pkg/tenantquota"
 	"itsm-backend/service"
 
@@ -48,26 +49,29 @@ func ticketToResponse(t *Ticket) *dto.TicketResponse {
 		return nil
 	}
 	resp := &dto.TicketResponse{
-		ID:                t.ID,
-		TicketNumber:      t.TicketNumber,
-		Title:             t.Title,
-		Description:       t.Description,
-		DescriptionHTML:   t.DescriptionHTML,
-		DescriptionFormat: t.DescriptionFormat,
-		Status:            t.Status,
-		Priority:          t.Priority,
-		Type:              t.Type,
-		TicketTypeID:      0,
-		TicketTypeCode:    t.TicketTypeCode,
-		TicketTypeName:    t.TicketTypeName,
-		FormFields:        t.FormFields,
-		RequesterID:       t.RequesterID,
-		TenantID:          t.TenantID,
-		SLAStatus:         t.SLAStatus,
-		SLAPauseReason:    t.SLAPauseReason,
-		Version:           t.Version,
-		CreatedAt:         t.CreatedAt,
-		UpdatedAt:         t.UpdatedAt,
+		ID:                    t.ID,
+		TicketNumber:          t.TicketNumber,
+		Title:                 t.Title,
+		Description:           t.Description,
+		DescriptionHTML:       t.DescriptionHTML,
+		DescriptionFormat:     t.DescriptionFormat,
+		Status:                t.Status,
+		Priority:              t.Priority,
+		Type:                  t.Type,
+		TicketTypeID:          0,
+		TicketTypeCode:        t.TicketTypeCode,
+		TicketTypeName:        t.TicketTypeName,
+		FormFields:            t.FormFields,
+		RequesterID:           t.RequesterID,
+		RequesterMembershipID: t.RequesterMembershipID,
+		TenantID:              t.TenantID,
+		AssigneeMembershipID:  t.AssigneeMembershipID,
+		CreatedByMembershipID: t.CreatedByMembershipID,
+		SLAStatus:             t.SLAStatus,
+		SLAPauseReason:        t.SLAPauseReason,
+		Version:               t.Version,
+		CreatedAt:             t.CreatedAt,
+		UpdatedAt:             t.UpdatedAt,
 	}
 	if t.AssigneeID != nil {
 		resp.AssigneeID = *t.AssigneeID
@@ -167,6 +171,24 @@ func (h *Handler) CreateTicket(c *gin.Context) {
 		common.Fail(c, common.AuthErrorCode, "User ID missing")
 		return
 	}
+	actorMembershipID := middleware.GetMembershipID(c)
+	targetIsCustomer := c.GetString("tenant_source") == "switch"
+	if tenantCtx, ok := middleware.GetTenantContext(c); ok && tenantCtx.Tenant != nil {
+		targetIsCustomer = tenantmode.IsCustomerTenantType(string(tenantCtx.Tenant.Type))
+	}
+	providerOnBehalf := middleware.IsProviderMembership(c) && c.GetString("tenant_source") == "switch" && targetIsCustomer
+	requesterID := userID
+	if providerOnBehalf {
+		if actorMembershipID <= 0 {
+			common.Fail(c, common.ForbiddenCode, "当前服务商身份缺少客户租户成员映射")
+			return
+		}
+		if req.RequesterID <= 0 {
+			common.Fail(c, common.ParamErrorCode, "服务商代客建单必须指定客户申请人 requesterId")
+			return
+		}
+		requesterID = req.RequesterID
+	}
 
 	// PE-5：创建时挂接项目——前置校验 project:write + 项目存在且非终态（未装配端口 → 503 fail-closed）。
 	if err := projectlink.GuardCreate(c.Request.Context(), h.projectLink, tenantID, req.ProjectID, middleware.GetContextRoles(c)); err != nil {
@@ -175,15 +197,16 @@ func (h *Handler) CreateTicket(c *gin.Context) {
 	}
 
 	params := &CreateParams{
-		Title:        req.Title,
-		Description:  req.Description,
-		Type:         req.Type,
-		Priority:     req.Priority,
-		RequesterID:  userID,
-		FormFields:   req.FormFields,
-		ProjectID:    req.ProjectID,
-		DepartmentID: req.DepartmentID,
-		CustomerID:   req.CustomerID,
+		Title:                 req.Title,
+		Description:           req.Description,
+		Type:                  req.Type,
+		Priority:              req.Priority,
+		RequesterID:           requesterID,
+		CreatedByMembershipID: actorMembershipID,
+		FormFields:            req.FormFields,
+		ProjectID:             req.ProjectID,
+		DepartmentID:          req.DepartmentID,
+		CustomerID:            req.CustomerID,
 
 		WorkflowDefinitionKey: req.WorkflowDefinitionKey,
 		// P2 富文本：透传原始 HTML，由服务层 sanitize 后决定写入与 format=html 标记。
@@ -1102,14 +1125,21 @@ func (h *Handler) CreateSubtask(c *gin.Context) {
 		return
 	}
 	userID := c.GetInt("user_id")
+	requesterID := userID
+	if middleware.IsProviderMembership(c) {
+		if parent, getErr := h.service.Get(c.Request.Context(), parentID, tenantID); getErr == nil && parent != nil {
+			requesterID = parent.RequesterID
+		}
+	}
 
 	params := &CreateParams{
-		Title:       req.Title,
-		Description: req.Description,
-		Priority:    req.Priority,
-		Type:        req.Type,
-		RequesterID: userID,
-		FormFields:  req.FormFields,
+		Title:                 req.Title,
+		Description:           req.Description,
+		Priority:              req.Priority,
+		Type:                  req.Type,
+		RequesterID:           requesterID,
+		CreatedByMembershipID: middleware.GetMembershipID(c),
+		FormFields:            req.FormFields,
 	}
 	if req.AssigneeID > 0 {
 		params.AssigneeID = &req.AssigneeID

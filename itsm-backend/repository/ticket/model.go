@@ -58,7 +58,10 @@ type Ticket struct {
 	FormFields            map[string]interface{}
 	Priority              Priority
 	RequesterID           int
+	RequesterMembershipID int
 	AssigneeID            *int
+	AssigneeMembershipID  int
+	CreatedByMembershipID int
 	TenantID              int
 	TemplateID            *int
 	CategoryID            *int
@@ -214,12 +217,16 @@ type CreateParams struct {
 	FormFields        map[string]interface{}
 	Priority          Priority
 	RequesterID       int
-	AssigneeID        *int
-	CategoryID        *int
-	DepartmentID      *int
-	CustomerID        *int
-	TemplateID        *int
-	ParentTicketID    *int
+	// C 方案：租户内身份引用；0=过渡期未解析，读路径回退 requester_id。
+	RequesterMembershipID int
+	AssigneeID            *int
+	AssigneeMembershipID  int
+	CreatedByMembershipID int
+	CategoryID            *int
+	DepartmentID          *int
+	CustomerID            *int
+	TemplateID            *int
+	ParentTicketID        *int
 	// ProjectID 创建时挂接的项目（nil=不挂接；随 INSERT 一次写入）。
 	ProjectID *int
 	TagIDs    []int

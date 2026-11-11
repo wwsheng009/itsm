@@ -313,4 +313,51 @@ test.describe('Demo Round 5 · multi-tenant business operations', () => {
       }).catch(() => undefined);
     }
   });
+
+  test('MT-4 provider 代客建单：显式客户 requesterId 成功，缺失 requesterId 返回 400', async () => {
+    const manager = await getDemoSession('mspManager');
+    const mfgAdmin = await getDemoSession('mfgAdmin');
+    const mfgUser = await getDemoSession('mfgUser');
+    const managerHome = Number(manager.user.homeTenantId ?? PROVIDER_TENANT_ID);
+    const run = runId('E2E-MT-ONBEHALF');
+    let ticketId = 0;
+
+    try {
+      await switchDemoTenant(manager, 3);
+      const created = await apiPost<{
+        id: number;
+        requesterId: number;
+        requesterMembershipId?: number;
+        createdByMembershipId?: number;
+      }>(manager, '/api/v1/tickets', {
+        title: title(run, 'provider 代客建单'),
+        description: 'provider on-behalf create E2E; safe to delete.',
+        priority: 'low',
+        type: 'incident',
+        requesterId: mfgUser.user.id,
+      });
+      ticketId = created.id;
+      expect(created.requesterId).toBe(mfgUser.user.id);
+      expect(created.requesterMembershipId).toBeGreaterThan(0);
+      expect(created.createdByMembershipId).toBeGreaterThan(0);
+
+      const missingRequester = await callRaw(manager.api, 'POST', '/api/v1/tickets', {
+        headers: authHeaders(manager),
+        data: {
+          title: title(run, '缺少客户申请人'),
+          description: 'provider on-behalf without requester E2E; must not create.',
+          priority: 'low',
+          type: 'incident',
+        },
+      });
+      await expectRejected(missingRequester, [400]);
+    } finally {
+      if (ticketId > 0) {
+        await callRaw(mfgAdmin.api, 'DELETE', `/api/v1/tickets/${ticketId}`, {
+          headers: authHeaders(mfgAdmin),
+        }).catch(() => undefined);
+      }
+      await switchDemoTenant(manager, managerHome).catch(() => undefined);
+    }
+  });
 });

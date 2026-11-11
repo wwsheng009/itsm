@@ -214,6 +214,10 @@ export interface Ticket extends BaseTicket {
   descriptionHtml?: string;
   /** 描述格式：plain / html，用于灰度回退与兼容旧数据 */
   descriptionFormat?: string;
+  /** C 方案：租户内身份引用（响应新增字段；旧 requesterId/assigneeId 仍保留）。 */
+  requesterMembershipId?: number;
+  assigneeMembershipId?: number;
+  createdByMembershipId?: number;
   // 扩展字段
   subcategory?: string;
   impact?: string;
@@ -300,6 +304,11 @@ export interface User {
   tenantId?: number;
   /** MSW-4：账号归属租户（深度切换后 /auth/me 下发；"返回工作台"据此切回 provider 作用域）。 */
   homeTenantId?: number;
+  /** C 方案：当前作用域租户内的成员身份。 */
+  membershipId?: number;
+  /** customer / provider / platform */
+  accountKind?: 'customer' | 'provider' | 'platform' | string;
+  membershipSource?: string;
   role?: string;
   /** MSP 身份角色（provider_admin/provider_agent；客户账号为空）。 */
   mspRole?: string;
@@ -338,6 +347,8 @@ export interface CreateTicketRequest {
 	ticketTypeId?: number;
   category?: string;
   categoryId?: number;
+  /** C 方案：provider 代客建单时必填的目标客户申请人 users.id；普通客户忽略。 */
+  requesterId?: number;
   departmentId?: number;
   customerId?: number;
   formFields?: Record<string, unknown>;

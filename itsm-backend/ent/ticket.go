@@ -46,8 +46,14 @@ type Ticket struct {
 	TicketNumber string `json:"ticket_number,omitempty"`
 	// 申请人ID
 	RequesterID int `json:"requester_id,omitempty"`
+	// 申请人租户内身份ID（C 方案；user_tenant_memberships.id，过渡期可空）
+	RequesterMembershipID int `json:"requester_membership_id,omitempty"`
 	// 处理人ID
 	AssigneeID int `json:"assignee_id,omitempty"`
+	// 处理人租户内身份ID（C 方案；user_tenant_memberships.id，过渡期可空）
+	AssigneeMembershipID int `json:"assignee_membership_id,omitempty"`
+	// 实际建单人租户内身份ID（C 方案；provider 代客建单时为客户租户内 provider membership）
+	CreatedByMembershipID int `json:"created_by_membership_id,omitempty"`
 	// 租户ID
 	TenantID int `json:"tenant_id,omitempty"`
 	// 模板ID
@@ -334,7 +340,7 @@ func (*Ticket) scanValues(columns []string) ([]any, error) {
 			values[i] = new([]byte)
 		case ticket.FieldIsManagedByMsp:
 			values[i] = new(sql.NullBool)
-		case ticket.FieldID, ticket.FieldTicketTypeID, ticket.FieldRequesterID, ticket.FieldAssigneeID, ticket.FieldTenantID, ticket.FieldTemplateID, ticket.FieldCategoryID, ticket.FieldDepartmentID, ticket.FieldCustomerID, ticket.FieldProjectID, ticket.FieldParentTicketID, ticket.FieldSLADefinitionID, ticket.FieldRating, ticket.FieldRatedBy, ticket.FieldVersion, ticket.FieldMspProviderID, ticket.FieldManagedByUserID:
+		case ticket.FieldID, ticket.FieldTicketTypeID, ticket.FieldRequesterID, ticket.FieldRequesterMembershipID, ticket.FieldAssigneeID, ticket.FieldAssigneeMembershipID, ticket.FieldCreatedByMembershipID, ticket.FieldTenantID, ticket.FieldTemplateID, ticket.FieldCategoryID, ticket.FieldDepartmentID, ticket.FieldCustomerID, ticket.FieldProjectID, ticket.FieldParentTicketID, ticket.FieldSLADefinitionID, ticket.FieldRating, ticket.FieldRatedBy, ticket.FieldVersion, ticket.FieldMspProviderID, ticket.FieldManagedByUserID:
 			values[i] = new(sql.NullInt64)
 		case ticket.FieldTitle, ticket.FieldDescription, ticket.FieldDescriptionHTML, ticket.FieldDescriptionFormat, ticket.FieldStatus, ticket.FieldType, ticket.FieldTicketTypeCodeSnapshot, ticket.FieldTicketTypeNameSnapshot, ticket.FieldPriority, ticket.FieldTicketNumber, ticket.FieldSLAStatus, ticket.FieldSLAPauseReason, ticket.FieldSLAMatchedLayer, ticket.FieldResolution, ticket.FieldResolutionCategory, ticket.FieldRatingComment, ticket.FieldMspTicketID:
 			values[i] = new(sql.NullString)
@@ -455,11 +461,29 @@ func (_m *Ticket) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.RequesterID = int(value.Int64)
 			}
+		case ticket.FieldRequesterMembershipID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field requester_membership_id", values[i])
+			} else if value.Valid {
+				_m.RequesterMembershipID = int(value.Int64)
+			}
 		case ticket.FieldAssigneeID:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
 				return fmt.Errorf("unexpected type %T for field assignee_id", values[i])
 			} else if value.Valid {
 				_m.AssigneeID = int(value.Int64)
+			}
+		case ticket.FieldAssigneeMembershipID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field assignee_membership_id", values[i])
+			} else if value.Valid {
+				_m.AssigneeMembershipID = int(value.Int64)
+			}
+		case ticket.FieldCreatedByMembershipID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field created_by_membership_id", values[i])
+			} else if value.Valid {
+				_m.CreatedByMembershipID = int(value.Int64)
 			}
 		case ticket.FieldTenantID:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -865,8 +889,17 @@ func (_m *Ticket) String() string {
 	builder.WriteString("requester_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.RequesterID))
 	builder.WriteString(", ")
+	builder.WriteString("requester_membership_id=")
+	builder.WriteString(fmt.Sprintf("%v", _m.RequesterMembershipID))
+	builder.WriteString(", ")
 	builder.WriteString("assignee_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.AssigneeID))
+	builder.WriteString(", ")
+	builder.WriteString("assignee_membership_id=")
+	builder.WriteString(fmt.Sprintf("%v", _m.AssigneeMembershipID))
+	builder.WriteString(", ")
+	builder.WriteString("created_by_membership_id=")
+	builder.WriteString(fmt.Sprintf("%v", _m.CreatedByMembershipID))
 	builder.WriteString(", ")
 	builder.WriteString("tenant_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.TenantID))

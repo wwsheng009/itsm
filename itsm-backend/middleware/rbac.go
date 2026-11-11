@@ -1082,12 +1082,20 @@ func RBACMiddleware(client *ent.Client) gin.HandlerFunc {
 			}
 		}
 
-		// 请求期单源收敛（IP-P1-2 遗留项）：并入目标租户 membership 指向的角色 code。
-		// 此前请求期判定仅看 JWT 主角色 + m2m 附加角色，深切换进客户租户的 MSP 员工
-		// （JWT 角色保持 users.role，如 end_user）与展示面（/auth/me 经 ResolvePermissions
-		// 读 membership → C2 基线）口径分叉，/api/v1/cmdb/cis 等读面 403。
-		// 无 membership / 角色行缺失时返回 nil，fail-closed，不影响既有判定。
-		if membershipRoles := ResolveMembershipRoleCodes(c.Request.Context(), client, userID, tenantID); len(membershipRoles) > 0 {
+		// C 方案：membership 是租户内身份。一次解析同时完成：
+		//   1) membership_id/account_kind 写入请求上下文，供业务层做租户内引用；
+		//   2) 并入目标租户 membership 指向的角色 code（IP-P1-2 请求期单源收敛）。
+		// 无 membership / 角色行缺失时 fail-closed，不影响既有主角色与 m2m 判定。
+		membership, membershipErr := ResolveActiveMembership(c.Request.Context(), client, userID, tenantID)
+		if membershipErr != nil {
+			zap.S().Warnw("RBACMiddleware: resolve active membership failed",
+				"path", c.Request.URL.Path, "user_id", userID, "tenant_id", tenantID,
+				"error", membershipErr)
+		} else if membership != nil {
+			SetMembershipContext(c, membership)
+		}
+		if membership != nil {
+			membershipRoles := MembershipRoleCodes(c.Request.Context(), client, tenantID, membership)
 			existing, _ := c.Get("roles")
 			roleCodes, _ := existing.([]string)
 			merged := make([]string, 0, len(roleCodes)+len(membershipRoles))

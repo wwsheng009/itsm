@@ -269,32 +269,28 @@ func ResolvePermissions(ctx context.Context, client *ent.Client, userID, tenantI
 // RBACMiddleware 物化生效角色时并入本函数结果即可与展示面同源；无 membership /
 // 角色行缺失时返回 nil（fail-closed，不影响既有主角色与 m2m 判定）。
 func ResolveMembershipRoleCodes(ctx context.Context, client *ent.Client, userID, tenantID int) []string {
-	if client == nil || userID <= 0 || tenantID <= 0 {
+	membership, err := ResolveActiveMembership(ctx, client, userID, tenantID)
+	if err != nil || membership == nil {
 		return nil
 	}
-	ctx = tenantctx.WithTenantID(ctx, tenantID)
+	return MembershipRoleCodes(ctx, client, tenantID, membership)
+}
 
-	membership, err := client.UserTenantMembership.Query().
-		Where(
-			usertenantmembership.UserID(userID),
-			usertenantmembership.TenantID(tenantID),
-			usertenantmembership.DeletedAtIsNil(),
-			usertenantmembership.StatusEQ(usertenantmembership.StatusActive),
-			// IP-P2-9 惰性判定：expires_at 已过视为不存在（fail-closed）。
-			MembershipNotExpired(),
-		).
-		Only(ctx)
-	if err != nil {
-		// NotFound=无 membership 属业务态；其他错误记 Warn 后同样 fail-closed。
-		if !ent.IsNotFound(err) {
-			zap.S().Warnw("ResolveMembershipRoleCodes: membership lookup failed",
-				"user_id", userID, "tenant_id", tenantID, "error", err)
-		}
+// MembershipRoleCodes 根据已解析的 membership 返回其 role code。
+// RBACMiddleware 在一次请求内已解析 membership 时使用本函数，避免重复查询。
+func MembershipRoleCodes(
+	ctx context.Context,
+	client *ent.Client,
+	tenantID int,
+	membership *ent.UserTenantMembership,
+) []string {
+	if client == nil || tenantID <= 0 || membership == nil {
 		return nil
 	}
 	if membership.RoleID == nil {
 		return nil
 	}
+	ctx = tenantctx.WithTenantID(ctx, tenantID)
 	roleEntity, err := client.Role.Query().
 		Where(
 			role.IDEQ(*membership.RoleID),
@@ -303,8 +299,8 @@ func ResolveMembershipRoleCodes(ctx context.Context, client *ent.Client, userID,
 		Only(ctx)
 	if err != nil {
 		if !ent.IsNotFound(err) {
-			zap.S().Warnw("ResolveMembershipRoleCodes: role lookup failed",
-				"user_id", userID, "tenant_id", tenantID, "role_id", *membership.RoleID, "error", err)
+			zap.S().Warnw("MembershipRoleCodes: role lookup failed",
+				"user_id", membership.UserID, "tenant_id", tenantID, "role_id", *membership.RoleID, "error", err)
 		}
 		return nil
 	}

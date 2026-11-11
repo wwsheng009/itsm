@@ -54,22 +54,25 @@ type Repository interface {
 
 // CreateParams holds parameters for creating a ticket
 type CreateParams struct {
-	Title             string
-	Description       string
-	DescriptionHTML   string
-	DescriptionFormat string
-	Type              string
-	Priority          string
-	RequesterID       int
-	AssigneeID        *int
-	TicketTypeID      *int
-	TicketTypeCode    string
-	TicketTypeName    string
-	CategoryID        *int
-	DepartmentID      *int
-	CustomerID        *int
-	TemplateID        *int
-	ParentTicketID    *int
+	Title                 string
+	Description           string
+	DescriptionHTML       string
+	DescriptionFormat     string
+	Type                  string
+	Priority              string
+	RequesterID           int
+	RequesterMembershipID int
+	AssigneeID            *int
+	AssigneeMembershipID  int
+	CreatedByMembershipID int
+	TicketTypeID          *int
+	TicketTypeCode        string
+	TicketTypeName        string
+	CategoryID            *int
+	DepartmentID          *int
+	CustomerID            *int
+	TemplateID            *int
+	ParentTicketID        *int
 	// ProjectID 创建时挂接的项目（随 INSERT 一次写入；前置校验由 handler 调 projectlink.GuardCreate）。
 	ProjectID  *int
 	FormFields map[string]interface{}

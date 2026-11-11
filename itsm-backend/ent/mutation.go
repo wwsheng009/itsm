@@ -212754,117 +212754,123 @@ func (m *TenantInstallationMutation) ResetEdge(name string) error {
 // TicketMutation represents an operation that mutates the Ticket nodes in the graph.
 type TicketMutation struct {
 	config
-	op                         Op
-	typ                        string
-	id                         *int
-	title                      *string
-	description                *string
-	description_html           *string
-	description_format         *string
-	status                     *string
-	_type                      *string
-	ticket_type_code_snapshot  *string
-	ticket_type_name_snapshot  *string
-	form_fields                *map[string]interface{}
-	priority                   *string
-	ticket_number              *string
-	tenant_id                  *int
-	addtenant_id               *int
-	template_id                *int
-	addtemplate_id             *int
-	category_id                *int
-	addcategory_id             *int
-	department_id              *int
-	adddepartment_id           *int
-	customer_id                *int
-	addcustomer_id             *int
-	project_id                 *int
-	addproject_id              *int
-	parent_ticket_id           *int
-	addparent_ticket_id        *int
-	sla_definition_id          *int
-	addsla_definition_id       *int
-	sla_response_deadline      *time.Time
-	sla_resolution_deadline    *time.Time
-	sla_status                 *string
-	sla_paused_at              *time.Time
-	sla_pause_reason           *string
-	sla_matched_layer          *string
-	first_response_at          *time.Time
-	resolved_at                *time.Time
-	resolution                 *string
-	resolution_category        *string
-	closed_at                  *time.Time
-	rating                     *int
-	addrating                  *int
-	rating_comment             *string
-	rated_at                   *time.Time
-	rated_by                   *int
-	addrated_by                *int
-	version                    *int
-	addversion                 *int
-	created_at                 *time.Time
-	updated_at                 *time.Time
-	is_managed_by_msp          *bool
-	msp_provider_id            *int
-	addmsp_provider_id         *int
-	managed_by_user_id         *int
-	addmanaged_by_user_id      *int
-	msp_ticket_id              *string
-	msp_routed_at              *time.Time
-	deleted_at                 *time.Time
-	clearedFields              map[string]struct{}
-	comments                   map[int]struct{}
-	removedcomments            map[int]struct{}
-	clearedcomments            bool
-	attachments                map[int]struct{}
-	removedattachments         map[int]struct{}
-	clearedattachments         bool
-	tags                       map[int]struct{}
-	removedtags                map[int]struct{}
-	clearedtags                bool
-	related_tickets            map[int]struct{}
-	removedrelated_tickets     map[int]struct{}
-	clearedrelated_tickets     bool
-	approval_records           map[int]struct{}
-	removedapproval_records    map[int]struct{}
-	clearedapproval_records    bool
-	approvals                  map[int]struct{}
-	removedapprovals           map[int]struct{}
-	clearedapprovals           bool
-	workflow_records           map[int]struct{}
-	removedworkflow_records    map[int]struct{}
-	clearedworkflow_records    bool
-	notifications              map[int]struct{}
-	removednotifications       map[int]struct{}
-	clearednotifications       bool
-	cc_users                   map[int]struct{}
-	removedcc_users            map[int]struct{}
-	clearedcc_users            bool
-	sla_violations             map[int]struct{}
-	removedsla_violations      map[int]struct{}
-	clearedsla_violations      bool
-	sla_alert_history          map[int]struct{}
-	removedsla_alert_history   map[int]struct{}
-	clearedsla_alert_history   bool
-	root_cause_analyses        map[int]struct{}
-	removedroot_cause_analyses map[int]struct{}
-	clearedroot_cause_analyses bool
-	feishu_syncs               map[int]struct{}
-	removedfeishu_syncs        map[int]struct{}
-	clearedfeishu_syncs        bool
-	requester                  *int
-	clearedrequester           bool
-	assignee                   *int
-	clearedassignee            bool
-	category                   map[int]struct{}
-	removedcategory            map[int]struct{}
-	clearedcategory            bool
-	configured_type            *int
-	clearedconfigured_type     bool
-	done                       bool
-	oldValue                   func(context.Context) (*Ticket, error)
-	predicates                 []predicate.Ticket
+	op                          Op
+	typ                         string
+	id                          *int
+	title                       *string
+	description                 *string
+	description_html            *string
+	description_format          *string
+	status                      *string
+	_type                       *string
+	ticket_type_code_snapshot   *string
+	ticket_type_name_snapshot   *string
+	form_fields                 *map[string]interface{}
+	priority                    *string
+	ticket_number               *string
+	requester_membership_id     *int
+	addrequester_membership_id  *int
+	assignee_membership_id      *int
+	addassignee_membership_id   *int
+	created_by_membership_id    *int
+	addcreated_by_membership_id *int
+	tenant_id                   *int
+	addtenant_id                *int
+	template_id                 *int
+	addtemplate_id              *int
+	category_id                 *int
+	addcategory_id              *int
+	department_id               *int
+	adddepartment_id            *int
+	customer_id                 *int
+	addcustomer_id              *int
+	project_id                  *int
+	addproject_id               *int
+	parent_ticket_id            *int
+	addparent_ticket_id         *int
+	sla_definition_id           *int
+	addsla_definition_id        *int
+	sla_response_deadline       *time.Time
+	sla_resolution_deadline     *time.Time
+	sla_status                  *string
+	sla_paused_at               *time.Time
+	sla_pause_reason            *string
+	sla_matched_layer           *string
+	first_response_at           *time.Time
+	resolved_at                 *time.Time
+	resolution                  *string
+	resolution_category         *string
+	closed_at                   *time.Time
+	rating                      *int
+	addrating                   *int
+	rating_comment              *string
+	rated_at                    *time.Time
+	rated_by                    *int
+	addrated_by                 *int
+	version                     *int
+	addversion                  *int
+	created_at                  *time.Time
+	updated_at                  *time.Time
+	is_managed_by_msp           *bool
+	msp_provider_id             *int
+	addmsp_provider_id          *int
+	managed_by_user_id          *int
+	addmanaged_by_user_id       *int
+	msp_ticket_id               *string
+	msp_routed_at               *time.Time
+	deleted_at                  *time.Time
+	clearedFields               map[string]struct{}
+	comments                    map[int]struct{}
+	removedcomments             map[int]struct{}
+	clearedcomments             bool
+	attachments                 map[int]struct{}
+	removedattachments          map[int]struct{}
+	clearedattachments          bool
+	tags                        map[int]struct{}
+	removedtags                 map[int]struct{}
+	clearedtags                 bool
+	related_tickets             map[int]struct{}
+	removedrelated_tickets      map[int]struct{}
+	clearedrelated_tickets      bool
+	approval_records            map[int]struct{}
+	removedapproval_records     map[int]struct{}
+	clearedapproval_records     bool
+	approvals                   map[int]struct{}
+	removedapprovals            map[int]struct{}
+	clearedapprovals            bool
+	workflow_records            map[int]struct{}
+	removedworkflow_records     map[int]struct{}
+	clearedworkflow_records     bool
+	notifications               map[int]struct{}
+	removednotifications        map[int]struct{}
+	clearednotifications        bool
+	cc_users                    map[int]struct{}
+	removedcc_users             map[int]struct{}
+	clearedcc_users             bool
+	sla_violations              map[int]struct{}
+	removedsla_violations       map[int]struct{}
+	clearedsla_violations       bool
+	sla_alert_history           map[int]struct{}
+	removedsla_alert_history    map[int]struct{}
+	clearedsla_alert_history    bool
+	root_cause_analyses         map[int]struct{}
+	removedroot_cause_analyses  map[int]struct{}
+	clearedroot_cause_analyses  bool
+	feishu_syncs                map[int]struct{}
+	removedfeishu_syncs         map[int]struct{}
+	clearedfeishu_syncs         bool
+	requester                   *int
+	clearedrequester            bool
+	assignee                    *int
+	clearedassignee             bool
+	category                    map[int]struct{}
+	removedcategory             map[int]struct{}
+	clearedcategory             bool
+	configured_type             *int
+	clearedconfigured_type      bool
+	done                        bool
+	oldValue                    func(context.Context) (*Ticket, error)
+	predicates                  []predicate.Ticket
 }
 
 var _ ent.Mutation = (*TicketMutation)(nil)
@@ -213498,6 +213504,76 @@ func (m *TicketMutation) ResetRequesterID() {
 	m.requester = nil
 }
 
+// SetRequesterMembershipID sets the "requester_membership_id" field.
+func (m *TicketMutation) SetRequesterMembershipID(i int) {
+	m.requester_membership_id = &i
+	m.addrequester_membership_id = nil
+}
+
+// RequesterMembershipID returns the value of the "requester_membership_id" field in the mutation.
+func (m *TicketMutation) RequesterMembershipID() (r int, exists bool) {
+	v := m.requester_membership_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRequesterMembershipID returns the old "requester_membership_id" field's value of the Ticket entity.
+// If the Ticket object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TicketMutation) OldRequesterMembershipID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRequesterMembershipID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRequesterMembershipID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRequesterMembershipID: %w", err)
+	}
+	return oldValue.RequesterMembershipID, nil
+}
+
+// AddRequesterMembershipID adds i to the "requester_membership_id" field.
+func (m *TicketMutation) AddRequesterMembershipID(i int) {
+	if m.addrequester_membership_id != nil {
+		*m.addrequester_membership_id += i
+	} else {
+		m.addrequester_membership_id = &i
+	}
+}
+
+// AddedRequesterMembershipID returns the value that was added to the "requester_membership_id" field in this mutation.
+func (m *TicketMutation) AddedRequesterMembershipID() (r int, exists bool) {
+	v := m.addrequester_membership_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearRequesterMembershipID clears the value of the "requester_membership_id" field.
+func (m *TicketMutation) ClearRequesterMembershipID() {
+	m.requester_membership_id = nil
+	m.addrequester_membership_id = nil
+	m.clearedFields[ticket.FieldRequesterMembershipID] = struct{}{}
+}
+
+// RequesterMembershipIDCleared returns if the "requester_membership_id" field was cleared in this mutation.
+func (m *TicketMutation) RequesterMembershipIDCleared() bool {
+	_, ok := m.clearedFields[ticket.FieldRequesterMembershipID]
+	return ok
+}
+
+// ResetRequesterMembershipID resets all changes to the "requester_membership_id" field.
+func (m *TicketMutation) ResetRequesterMembershipID() {
+	m.requester_membership_id = nil
+	m.addrequester_membership_id = nil
+	delete(m.clearedFields, ticket.FieldRequesterMembershipID)
+}
+
 // SetAssigneeID sets the "assignee_id" field.
 func (m *TicketMutation) SetAssigneeID(i int) {
 	m.assignee = &i
@@ -213545,6 +213621,146 @@ func (m *TicketMutation) AssigneeIDCleared() bool {
 func (m *TicketMutation) ResetAssigneeID() {
 	m.assignee = nil
 	delete(m.clearedFields, ticket.FieldAssigneeID)
+}
+
+// SetAssigneeMembershipID sets the "assignee_membership_id" field.
+func (m *TicketMutation) SetAssigneeMembershipID(i int) {
+	m.assignee_membership_id = &i
+	m.addassignee_membership_id = nil
+}
+
+// AssigneeMembershipID returns the value of the "assignee_membership_id" field in the mutation.
+func (m *TicketMutation) AssigneeMembershipID() (r int, exists bool) {
+	v := m.assignee_membership_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAssigneeMembershipID returns the old "assignee_membership_id" field's value of the Ticket entity.
+// If the Ticket object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TicketMutation) OldAssigneeMembershipID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAssigneeMembershipID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAssigneeMembershipID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAssigneeMembershipID: %w", err)
+	}
+	return oldValue.AssigneeMembershipID, nil
+}
+
+// AddAssigneeMembershipID adds i to the "assignee_membership_id" field.
+func (m *TicketMutation) AddAssigneeMembershipID(i int) {
+	if m.addassignee_membership_id != nil {
+		*m.addassignee_membership_id += i
+	} else {
+		m.addassignee_membership_id = &i
+	}
+}
+
+// AddedAssigneeMembershipID returns the value that was added to the "assignee_membership_id" field in this mutation.
+func (m *TicketMutation) AddedAssigneeMembershipID() (r int, exists bool) {
+	v := m.addassignee_membership_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearAssigneeMembershipID clears the value of the "assignee_membership_id" field.
+func (m *TicketMutation) ClearAssigneeMembershipID() {
+	m.assignee_membership_id = nil
+	m.addassignee_membership_id = nil
+	m.clearedFields[ticket.FieldAssigneeMembershipID] = struct{}{}
+}
+
+// AssigneeMembershipIDCleared returns if the "assignee_membership_id" field was cleared in this mutation.
+func (m *TicketMutation) AssigneeMembershipIDCleared() bool {
+	_, ok := m.clearedFields[ticket.FieldAssigneeMembershipID]
+	return ok
+}
+
+// ResetAssigneeMembershipID resets all changes to the "assignee_membership_id" field.
+func (m *TicketMutation) ResetAssigneeMembershipID() {
+	m.assignee_membership_id = nil
+	m.addassignee_membership_id = nil
+	delete(m.clearedFields, ticket.FieldAssigneeMembershipID)
+}
+
+// SetCreatedByMembershipID sets the "created_by_membership_id" field.
+func (m *TicketMutation) SetCreatedByMembershipID(i int) {
+	m.created_by_membership_id = &i
+	m.addcreated_by_membership_id = nil
+}
+
+// CreatedByMembershipID returns the value of the "created_by_membership_id" field in the mutation.
+func (m *TicketMutation) CreatedByMembershipID() (r int, exists bool) {
+	v := m.created_by_membership_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedByMembershipID returns the old "created_by_membership_id" field's value of the Ticket entity.
+// If the Ticket object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TicketMutation) OldCreatedByMembershipID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedByMembershipID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedByMembershipID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedByMembershipID: %w", err)
+	}
+	return oldValue.CreatedByMembershipID, nil
+}
+
+// AddCreatedByMembershipID adds i to the "created_by_membership_id" field.
+func (m *TicketMutation) AddCreatedByMembershipID(i int) {
+	if m.addcreated_by_membership_id != nil {
+		*m.addcreated_by_membership_id += i
+	} else {
+		m.addcreated_by_membership_id = &i
+	}
+}
+
+// AddedCreatedByMembershipID returns the value that was added to the "created_by_membership_id" field in this mutation.
+func (m *TicketMutation) AddedCreatedByMembershipID() (r int, exists bool) {
+	v := m.addcreated_by_membership_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearCreatedByMembershipID clears the value of the "created_by_membership_id" field.
+func (m *TicketMutation) ClearCreatedByMembershipID() {
+	m.created_by_membership_id = nil
+	m.addcreated_by_membership_id = nil
+	m.clearedFields[ticket.FieldCreatedByMembershipID] = struct{}{}
+}
+
+// CreatedByMembershipIDCleared returns if the "created_by_membership_id" field was cleared in this mutation.
+func (m *TicketMutation) CreatedByMembershipIDCleared() bool {
+	_, ok := m.clearedFields[ticket.FieldCreatedByMembershipID]
+	return ok
+}
+
+// ResetCreatedByMembershipID resets all changes to the "created_by_membership_id" field.
+func (m *TicketMutation) ResetCreatedByMembershipID() {
+	m.created_by_membership_id = nil
+	m.addcreated_by_membership_id = nil
+	delete(m.clearedFields, ticket.FieldCreatedByMembershipID)
 }
 
 // SetTenantID sets the "tenant_id" field.
@@ -216192,7 +216408,7 @@ func (m *TicketMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *TicketMutation) Fields() []string {
-	fields := make([]string, 0, 46)
+	fields := make([]string, 0, 49)
 	if m.title != nil {
 		fields = append(fields, ticket.FieldTitle)
 	}
@@ -216232,8 +216448,17 @@ func (m *TicketMutation) Fields() []string {
 	if m.requester != nil {
 		fields = append(fields, ticket.FieldRequesterID)
 	}
+	if m.requester_membership_id != nil {
+		fields = append(fields, ticket.FieldRequesterMembershipID)
+	}
 	if m.assignee != nil {
 		fields = append(fields, ticket.FieldAssigneeID)
+	}
+	if m.assignee_membership_id != nil {
+		fields = append(fields, ticket.FieldAssigneeMembershipID)
+	}
+	if m.created_by_membership_id != nil {
+		fields = append(fields, ticket.FieldCreatedByMembershipID)
 	}
 	if m.tenant_id != nil {
 		fields = append(fields, ticket.FieldTenantID)
@@ -216365,8 +216590,14 @@ func (m *TicketMutation) Field(name string) (ent.Value, bool) {
 		return m.TicketNumber()
 	case ticket.FieldRequesterID:
 		return m.RequesterID()
+	case ticket.FieldRequesterMembershipID:
+		return m.RequesterMembershipID()
 	case ticket.FieldAssigneeID:
 		return m.AssigneeID()
+	case ticket.FieldAssigneeMembershipID:
+		return m.AssigneeMembershipID()
+	case ticket.FieldCreatedByMembershipID:
+		return m.CreatedByMembershipID()
 	case ticket.FieldTenantID:
 		return m.TenantID()
 	case ticket.FieldTemplateID:
@@ -216466,8 +216697,14 @@ func (m *TicketMutation) OldField(ctx context.Context, name string) (ent.Value, 
 		return m.OldTicketNumber(ctx)
 	case ticket.FieldRequesterID:
 		return m.OldRequesterID(ctx)
+	case ticket.FieldRequesterMembershipID:
+		return m.OldRequesterMembershipID(ctx)
 	case ticket.FieldAssigneeID:
 		return m.OldAssigneeID(ctx)
+	case ticket.FieldAssigneeMembershipID:
+		return m.OldAssigneeMembershipID(ctx)
+	case ticket.FieldCreatedByMembershipID:
+		return m.OldCreatedByMembershipID(ctx)
 	case ticket.FieldTenantID:
 		return m.OldTenantID(ctx)
 	case ticket.FieldTemplateID:
@@ -216632,12 +216869,33 @@ func (m *TicketMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetRequesterID(v)
 		return nil
+	case ticket.FieldRequesterMembershipID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRequesterMembershipID(v)
+		return nil
 	case ticket.FieldAssigneeID:
 		v, ok := value.(int)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetAssigneeID(v)
+		return nil
+	case ticket.FieldAssigneeMembershipID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAssigneeMembershipID(v)
+		return nil
+	case ticket.FieldCreatedByMembershipID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedByMembershipID(v)
 		return nil
 	case ticket.FieldTenantID:
 		v, ok := value.(int)
@@ -216871,6 +217129,15 @@ func (m *TicketMutation) SetField(name string, value ent.Value) error {
 // this mutation.
 func (m *TicketMutation) AddedFields() []string {
 	var fields []string
+	if m.addrequester_membership_id != nil {
+		fields = append(fields, ticket.FieldRequesterMembershipID)
+	}
+	if m.addassignee_membership_id != nil {
+		fields = append(fields, ticket.FieldAssigneeMembershipID)
+	}
+	if m.addcreated_by_membership_id != nil {
+		fields = append(fields, ticket.FieldCreatedByMembershipID)
+	}
 	if m.addtenant_id != nil {
 		fields = append(fields, ticket.FieldTenantID)
 	}
@@ -216918,6 +217185,12 @@ func (m *TicketMutation) AddedFields() []string {
 // was not set, or was not defined in the schema.
 func (m *TicketMutation) AddedField(name string) (ent.Value, bool) {
 	switch name {
+	case ticket.FieldRequesterMembershipID:
+		return m.AddedRequesterMembershipID()
+	case ticket.FieldAssigneeMembershipID:
+		return m.AddedAssigneeMembershipID()
+	case ticket.FieldCreatedByMembershipID:
+		return m.AddedCreatedByMembershipID()
 	case ticket.FieldTenantID:
 		return m.AddedTenantID()
 	case ticket.FieldTemplateID:
@@ -216953,6 +217226,27 @@ func (m *TicketMutation) AddedField(name string) (ent.Value, bool) {
 // type.
 func (m *TicketMutation) AddField(name string, value ent.Value) error {
 	switch name {
+	case ticket.FieldRequesterMembershipID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddRequesterMembershipID(v)
+		return nil
+	case ticket.FieldAssigneeMembershipID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddAssigneeMembershipID(v)
+		return nil
+	case ticket.FieldCreatedByMembershipID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddCreatedByMembershipID(v)
+		return nil
 	case ticket.FieldTenantID:
 		v, ok := value.(int)
 		if !ok {
@@ -217067,8 +217361,17 @@ func (m *TicketMutation) ClearedFields() []string {
 	if m.FieldCleared(ticket.FieldTicketTypeNameSnapshot) {
 		fields = append(fields, ticket.FieldTicketTypeNameSnapshot)
 	}
+	if m.FieldCleared(ticket.FieldRequesterMembershipID) {
+		fields = append(fields, ticket.FieldRequesterMembershipID)
+	}
 	if m.FieldCleared(ticket.FieldAssigneeID) {
 		fields = append(fields, ticket.FieldAssigneeID)
+	}
+	if m.FieldCleared(ticket.FieldAssigneeMembershipID) {
+		fields = append(fields, ticket.FieldAssigneeMembershipID)
+	}
+	if m.FieldCleared(ticket.FieldCreatedByMembershipID) {
+		fields = append(fields, ticket.FieldCreatedByMembershipID)
 	}
 	if m.FieldCleared(ticket.FieldTemplateID) {
 		fields = append(fields, ticket.FieldTemplateID)
@@ -217177,8 +217480,17 @@ func (m *TicketMutation) ClearField(name string) error {
 	case ticket.FieldTicketTypeNameSnapshot:
 		m.ClearTicketTypeNameSnapshot()
 		return nil
+	case ticket.FieldRequesterMembershipID:
+		m.ClearRequesterMembershipID()
+		return nil
 	case ticket.FieldAssigneeID:
 		m.ClearAssigneeID()
+		return nil
+	case ticket.FieldAssigneeMembershipID:
+		m.ClearAssigneeMembershipID()
+		return nil
+	case ticket.FieldCreatedByMembershipID:
+		m.ClearCreatedByMembershipID()
 		return nil
 	case ticket.FieldTemplateID:
 		m.ClearTemplateID()
@@ -217305,8 +217617,17 @@ func (m *TicketMutation) ResetField(name string) error {
 	case ticket.FieldRequesterID:
 		m.ResetRequesterID()
 		return nil
+	case ticket.FieldRequesterMembershipID:
+		m.ResetRequesterMembershipID()
+		return nil
 	case ticket.FieldAssigneeID:
 		m.ResetAssigneeID()
+		return nil
+	case ticket.FieldAssigneeMembershipID:
+		m.ResetAssigneeMembershipID()
+		return nil
+	case ticket.FieldCreatedByMembershipID:
+		m.ResetCreatedByMembershipID()
 		return nil
 	case ticket.FieldTenantID:
 		m.ResetTenantID()
