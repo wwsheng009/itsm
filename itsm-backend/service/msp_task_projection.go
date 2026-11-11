@@ -23,8 +23,8 @@ import (
 	"itsm-backend/dto"
 	"itsm-backend/ent"
 	"itsm-backend/ent/mspallocation"
-	entTenant "itsm-backend/ent/tenant"
 	"itsm-backend/ent/processtask"
+	entTenant "itsm-backend/ent/tenant"
 	"itsm-backend/middleware"
 	"itsm-backend/service/bpmn"
 
@@ -393,7 +393,7 @@ func (s *MSPTaskProjectionService) recordTaskAudit(ctx context.Context, actor MS
 	}
 	auditCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
 	defer cancel()
-	if _, err := s.client.AuditLog.Create().
+	create := s.client.AuditLog.Create().
 		SetCreatedAt(time.Now()).
 		SetTenantID(rowTenant).
 		SetUserID(actor.UserID).
@@ -405,8 +405,11 @@ func (s *MSPTaskProjectionService) recordTaskAudit(ctx context.Context, actor MS
 		SetPath("/api/v1/msp/workbench/tasks").
 		SetMethod(method).
 		SetStatusCode(map[bool]int{true: 200, false: 403}[outcome == "success"]).
-		SetRequestBody(string(payload)).
-		Save(auditCtx); err != nil && s.logger != nil {
+		SetRequestBody(string(payload))
+	if membershipID := resolveAuditMembershipID(auditCtx, s.client, actor.UserID, rowTenant); membershipID > 0 {
+		create = create.SetMembershipID(membershipID)
+	}
+	if _, err := create.Save(auditCtx); err != nil && s.logger != nil {
 		s.logger.Warnw("task projection audit write failed", "error", err, "op", op, "task_id", taskID)
 	}
 }
@@ -430,7 +433,7 @@ func (s *MSPTaskProjectionService) recordScopeDenied(ctx context.Context, actor 
 		if allowed[id] {
 			continue
 		}
-		if _, err := s.client.AuditLog.Create().
+		create := s.client.AuditLog.Create().
 			SetCreatedAt(time.Now()).
 			SetTenantID(rowTenant).
 			SetUserID(actor.UserID).
@@ -441,8 +444,11 @@ func (s *MSPTaskProjectionService) recordScopeDenied(ctx context.Context, actor 
 			SetAction("tenant.scope_denied").
 			SetPath("/api/v1/msp/workbench/tasks").
 			SetMethod(method).
-			SetStatusCode(403).
-			Save(auditCtx); err != nil && s.logger != nil {
+			SetStatusCode(403)
+		if membershipID := resolveAuditMembershipID(auditCtx, s.client, actor.UserID, rowTenant); membershipID > 0 {
+			create = create.SetMembershipID(membershipID)
+		}
+		if _, err := create.Save(auditCtx); err != nil && s.logger != nil {
 			s.logger.Warnw("task projection scope-denied audit write failed", "error", err, "target_tenant_id", id)
 		}
 	}

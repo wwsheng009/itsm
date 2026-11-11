@@ -37,9 +37,15 @@ test.describe('Demo Round 6 · attachment access', () => {
       });
       const uploadText = await upload.text();
       expect(upload.status(), uploadText).toBe(200);
-      const uploadBody = JSON.parse(uploadText) as { data?: { id?: number } };
+      const uploadBody = JSON.parse(uploadText) as {
+        data?: { id?: number; uploadedByMembershipId?: number };
+      };
       attachmentId = Number(uploadBody.data?.id ?? 0);
       expect(attachmentId).toBeGreaterThan(0);
+      expect(
+        uploadBody.data?.uploadedByMembershipId,
+        'attachment uploader must carry tenant membership',
+      ).toBeGreaterThan(0);
 
       for (const [label, session] of [
         ['end_user', user],

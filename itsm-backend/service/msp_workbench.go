@@ -881,7 +881,7 @@ func (s *MSPWorkbenchService) recordWorkbenchAudit(ctx context.Context, actor MS
 	}
 	auditCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
 	defer cancel()
-	if _, err := s.client.AuditLog.Create().
+	create := s.client.AuditLog.Create().
 		SetCreatedAt(time.Now()).
 		SetTenantID(rowTenant).
 		SetUserID(actor.UserID).
@@ -893,8 +893,11 @@ func (s *MSPWorkbenchService) recordWorkbenchAudit(ctx context.Context, actor MS
 		SetPath("/api/v1/msp/workbench/tickets").
 		SetMethod("POST").
 		SetStatusCode(map[bool]int{true: 200, false: 403}[outcome == "success"]).
-		SetRequestBody(string(payload)).
-		Save(auditCtx); err != nil && s.logger != nil {
+		SetRequestBody(string(payload))
+	if membershipID := resolveAuditMembershipID(auditCtx, s.client, actor.UserID, rowTenant); membershipID > 0 {
+		create = create.SetMembershipID(membershipID)
+	}
+	if _, err := create.Save(auditCtx); err != nil && s.logger != nil {
 		s.logger.Warnw("workbench audit write failed", "error", err, "op", op, "ticket_id", ticketID)
 	}
 }
@@ -921,7 +924,7 @@ func (s *MSPWorkbenchService) recordScopeDenied(ctx context.Context, actor MSPWo
 			"target_tenant_id":     tid,
 		})
 		auditCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
-		_, err := s.client.AuditLog.Create().
+		create := s.client.AuditLog.Create().
 			SetCreatedAt(time.Now()).
 			SetTenantID(actor.HomeTenantID).
 			SetUserID(actor.UserID).
@@ -933,8 +936,11 @@ func (s *MSPWorkbenchService) recordScopeDenied(ctx context.Context, actor MSPWo
 			SetPath("/api/v1/msp/workbench/tickets").
 			SetMethod("GET").
 			SetStatusCode(403).
-			SetRequestBody(string(payload)).
-			Save(auditCtx)
+			SetRequestBody(string(payload))
+		if membershipID := resolveAuditMembershipID(auditCtx, s.client, actor.UserID, actor.HomeTenantID); membershipID > 0 {
+			create = create.SetMembershipID(membershipID)
+		}
+		_, err := create.Save(auditCtx)
 		cancel()
 		if err != nil && s.logger != nil {
 			s.logger.Warnw("workbench scope-denied audit write failed", "error", err, "target_tenant_id", tid)

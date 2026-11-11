@@ -518,10 +518,14 @@ func (s *TicketTypeService) recordTicketTypeAudit(ctx context.Context, tenantID,
 	if err != nil {
 		return fmt.Errorf("序列化工单类型审计详情失败: %w", err)
 	}
-	_, err = s.client.AuditLog.Create().SetTenantID(tenantID).SetUserID(userID).
+	create := s.client.AuditLog.Create().SetTenantID(tenantID).SetUserID(userID).
 		SetResource(fmt.Sprintf("ticket_type:%d", ticketTypeID)).SetAction(action).
 		SetPath(fmt.Sprintf("service://ticket-types/%d", ticketTypeID)).SetMethod("DOMAIN").SetStatusCode(0).
-		SetNillableRequestBody(auditStringPtr(string(body))).Save(ctx)
+		SetNillableRequestBody(auditStringPtr(string(body)))
+	if membershipID := resolveAuditMembershipID(ctx, s.client, userID, tenantID); membershipID > 0 {
+		create = create.SetMembershipID(membershipID)
+	}
+	_, err = create.Save(ctx)
 	if err != nil {
 		return fmt.Errorf("记录工单类型审计失败: %w", err)
 	}

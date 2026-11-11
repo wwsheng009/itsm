@@ -268,6 +268,7 @@ test.describe('Demo Round 3 · multi-user business workflows', () => {
   test('B3 工单协作：用户提单 → 指派 → 处理/解决/关闭 + 非法流转拒绝', async () => {
     const user = await getDemoSession('mfgUser');
     const agent = await getDemoSession('mfgAgent');
+    const itadmin = await getDemoSession('mfgItAdmin');
     const admin = await getDemoSession('mfgAdmin');
     const run = runId('E2E-TKT');
     const ticket = await createTicket(user, run, '工单协作闭环');
@@ -288,6 +289,17 @@ test.describe('Demo Round 3 · multi-user business workflows', () => {
         content: '[E2E] 已受理，排查中',
         isInternal: false,
       });
+
+      await apiPost(admin, '/api/v1/tickets/workflow/cc', {
+        ticketId: ticket.id,
+        ccUsers: [Number(itadmin.user.id)],
+        notifyChannels: [],
+      });
+      const cc = await apiGet<{ records?: Array<{ user?: { id?: number } }> }>(
+        admin,
+        `/api/v1/tickets/${ticket.id}/cc`,
+      );
+      expect(cc.records?.some(record => Number(record.user?.id) === Number(itadmin.user.id))).toBe(true);
 
       const illegal = await callRaw(agent.api, 'PUT', `/api/v1/tickets/${ticket.id}/status`, {
         headers: authHeaders(agent),
@@ -310,12 +322,18 @@ test.describe('Demo Round 3 · multi-user business workflows', () => {
       });
       expect(closed.status).toBe('closed');
 
-      const comments = await apiGet<{ comments?: Array<{ content: string }>; items?: Array<{ content: string }> }>(
+      const comments = await apiGet<{
+        comments?: Array<{ content: string; userMembershipId?: number }>;
+        items?: Array<{ content: string; userMembershipId?: number }>;
+      }>(
         admin,
         `/api/v1/tickets/${ticket.id}/comments`,
       );
       const commentList = comments.comments ?? comments.items ?? [];
-      expect(commentList.some(item => item.content.includes('[E2E] 已受理'))).toBe(true);
+      const staffComment = commentList.find(item => item.content.includes('[E2E] 已受理'));
+      expect(staffComment, 'agent comment should be visible').toBeTruthy();
+      expect(staffComment!.userMembershipId, 'agent comment must carry tenant membership').toBeGreaterThan(0);
+
     } finally {
       await safeDelete(admin, `/api/v1/tickets/${ticket.id}`);
     }
@@ -351,13 +369,15 @@ test.describe('Demo Round 3 · multi-user business workflows', () => {
         content: replyContent,
       });
       const comments = await apiGet<{
-        comments?: Array<{ content: string }>;
-        items?: Array<{ content: string }>;
+        comments?: Array<{ content: string; userMembershipId?: number }>;
+        items?: Array<{ content: string; userMembershipId?: number }>;
       }>(agent, `/api/v1/msp/tickets/${ticket.id}/comments`, {
         params: { customerTenantId: 3 },
       });
       const commentList = comments.comments ?? comments.items ?? [];
-      expect(commentList.some(item => item.content.includes(replyContent))).toBe(true);
+      const providerReply = commentList.find(item => item.content.includes(replyContent));
+      expect(providerReply, 'provider reply should be visible in workbench').toBeTruthy();
+      expect(providerReply!.userMembershipId, 'provider reply must carry customer-tenant membership').toBeGreaterThan(0);
 
       const updated = await apiPost<{ Status?: string; status?: string }>(
         agent,

@@ -673,7 +673,7 @@ func (s *MSPHelpSpaceService) recordHelpAudit(
 	}
 	auditCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
 	defer cancel()
-	if _, err := s.client.AuditLog.Create().
+	create := s.client.AuditLog.Create().
 		SetCreatedAt(time.Now()).
 		SetTenantID(rowTenant).
 		SetUserID(actor.UserID).
@@ -685,8 +685,11 @@ func (s *MSPHelpSpaceService) recordHelpAudit(
 		SetPath("/api/v1/msp/help").
 		SetMethod("POST").
 		SetStatusCode(map[bool]int{true: 200, false: 403}[outcome == "success"]).
-		SetRequestBody(string(payload)).
-		Save(auditCtx); err != nil && s.logger != nil {
+		SetRequestBody(string(payload))
+	if membershipID := resolveAuditMembershipID(auditCtx, s.client, actor.UserID, rowTenant); membershipID > 0 {
+		create = create.SetMembershipID(membershipID)
+	}
+	if _, err := create.Save(auditCtx); err != nil && s.logger != nil {
 		s.logger.Warnw("msp help audit write failed", "error", err, "op", op, "slug", slug, "customer_tenant_id", customerTenantID)
 	}
 }

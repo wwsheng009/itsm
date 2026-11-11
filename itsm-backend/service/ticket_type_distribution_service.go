@@ -820,7 +820,7 @@ func (s *TicketTypeDistributionService) recordDistributionAudit(ctx context.Cont
 	}
 	actx, cancel := context.WithTimeout(ctx, 2*time.Second)
 	defer cancel()
-	if _, err := s.client.AuditLog.Create().
+	create := s.client.AuditLog.Create().
 		SetCreatedAt(time.Now()).
 		SetTenantID(rowTenant).
 		SetUserID(actor.UserID).
@@ -832,8 +832,11 @@ func (s *TicketTypeDistributionService) recordDistributionAudit(ctx context.Cont
 		SetPath("/api/v1/msp/customers/:customer_tenant_id/ticket-types").
 		SetMethod("POST").
 		SetStatusCode(200).
-		SetRequestBody(string(body)).
-		Save(actx); err != nil {
+		SetRequestBody(string(body))
+	if membershipID := resolveAuditMembershipID(actx, s.client, actor.UserID, rowTenant); membershipID > 0 {
+		create = create.SetMembershipID(membershipID)
+	}
+	if _, err := create.Save(actx); err != nil {
 		s.logger.Warnw("ticket type distribution audit write failed", "error", err, "op", op, "customer_tenant_id", customerTenantID)
 	}
 }

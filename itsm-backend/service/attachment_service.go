@@ -642,6 +642,9 @@ func (s *AttachmentService) auditAttachment(ctx context.Context, tenantID, userI
 	if userID > 0 {
 		create = create.SetUserID(userID)
 	}
+	if membershipID := resolveAuditMembershipID(ctx, s.client, userID, tenantID); membershipID > 0 {
+		create = create.SetMembershipID(membershipID)
+	}
 	if body != "" {
 		if len(body) > 512 {
 			body = body[:512]

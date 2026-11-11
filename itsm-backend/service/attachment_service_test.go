@@ -151,6 +151,7 @@ func TestAttachmentUploadStoresFileAndRecord(t *testing.T) {
 	require.Len(t, logs, 1)
 	assert.Equal(t, "attachment", logs[0].Resource)
 	assert.Equal(t, "upload", logs[0].Action)
+	assert.Equal(t, membership.ID, logs[0].MembershipID)
 }
 
 func TestAttachmentUploadRejectsCrossTenantHost(t *testing.T) {
