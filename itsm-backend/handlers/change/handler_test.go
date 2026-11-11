@@ -102,7 +102,7 @@ func (m *mockRepository) Get(ctx context.Context, id int, tenantID int) (*Change
 	defer m.mu.Unlock()
 	c, ok := m.changes[id]
 	if !ok || c.TenantID != tenantID {
-		return nil, http.ErrMissingFile
+		return nil, ErrChangeNotFound
 	}
 	// P1-2：返回深拷贝，确保调用方对返回实体的修改不会污染仓储当前持久化状态。
 	// 这样 Service.UpdateChange 中"读取当前状态 vs 传入请求状态"的差异对比才有意义。
@@ -835,10 +835,10 @@ func TestChangeController_DeleteChange(t *testing.T) {
 			expectedCode:   common.SuccessCode,
 		},
 		{
-			name:           "删除不存在的变更应返回500",
+			name:           "删除不存在的变更应返回404",
 			changeID:       "999",
-			expectedStatus: http.StatusInternalServerError,
-			expectedCode:   common.InternalErrorCode,
+			expectedStatus: http.StatusNotFound,
+			expectedCode:   common.NotFoundCode,
 		},
 		{
 			name:           "无效ID应返回400",

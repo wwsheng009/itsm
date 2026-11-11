@@ -167,10 +167,11 @@ func governanceFieldDiffs(existing, requested *Change) []string {
 func (s *Service) DeleteChange(ctx context.Context, id int, tenantID int, actorID int, actorRole string) error {
 	existing, err := s.repo.Get(ctx, id, tenantID)
 	if err != nil || existing == nil {
-		if err != nil && !ent.IsNotFound(err) {
+		if err != nil && !ent.IsNotFound(err) && !errors.Is(err, ErrChangeNotFound) {
 			return err
 		}
-		return fmt.Errorf("change not found")
+		// DELETE 重复执行/已被其他会话删除必须是 404，而不是兜底 500。
+		return common.NewNotFoundError("变更")
 	}
 	if !datascope.CanWriteResourceFromContext(ctx, actorID, actorRole, existing.CreatedBy, existing.AssigneeID) {
 		return common.NewForbiddenError("无权限删除该变更单：仅创建人、受理人或管理员可操作")
