@@ -1,6 +1,6 @@
 # ITSM 多租户演示环境（独立演示栈）
 
-> 状态：当前（2026-11-06 更新）｜定位：面向**学习 / 演示 / 培训**的全量多租户数据集与独立环境；与主站（`8088`）**完全隔离**，可随时重建重置。
+> 状态：当前（2026-11-11 更新）｜定位：面向**学习 / 演示 / 培训**的全量多租户数据集与独立环境；与主站（`8088`）**完全隔离**，可随时重建重置。
 
 ## 1. 入口与形态
 
@@ -8,9 +8,9 @@
 |---|---|
 | 演示入口 | `http://172.18.3.238:8089`（独立栈 `itsm-demo`） |
 | 数据库 | `itsm_demo`（复用宿主 `itsm-postgres-prod` 实例，独立库） |
-| 版本 | 以 `.env.demo` 中 `VERSION` 为准（当前 `1.8.0-dev.6e33fe2ff`） |
+| 版本 | 以 `.env.demo` 中 `VERSION` 为准（2026-11-11 实测 `1.8.0-dev.f7dd2974`） |
 | 部署模式 | `saas_msp`（MSP 跨租户能力开启） |
-| 容器组 | `itsm-{backend,worker,frontend,nginx,redis,ai-service,init}-demo`（7 个） |
+| 容器组 | `itsm-{backend,worker,frontend,nginx,redis,ai-service}-demo`（6 个常驻，均 healthy）+ `itsm-init-demo` 一次性迁移任务 |
 | 部署文件 | `docker-compose.demo.yml`、`nginx/demo/conf.d/default.conf`、`.env.demo.example` |
 
 与主站的关系：仅共享宿主 PostgreSQL 实例与镜像（`*-demo` 容器、独立 Redis、独立端口），
@@ -89,10 +89,14 @@
 
 **跨租户协同（工作台）**
 
-- 服务商经理可跨 3 客户查看 34 张工单（含状态、优先级、负责人、SLA 截止）；
-- 「SLA 风险」看板含「临近」样本（窗口 24h）；
+- 服务商经理可跨 3 客户查看 **34 张 `[DEMO]` 工单**（含状态、优先级、负责人、SLA 截止）；
+  当前演示库另有 31 张历史验收/E2E 残留，工作台实际 65 张；演示时建议用 `[DEMO]` 关键字筛选。
+- 「SLA 风险」看板支持 24h 临近窗口；**当前演示库 `slaDueSoon=0`**，未关闭样本均已超期
+  （种子基准时间较早），不再是“含临近样本”；如需临近样本请重跑 SLA 回填/调整种子。
 - 「客户用量」看板按客户展示成员/未关闭/新增；
 - 工作台行内可对 MSP 托管单执行 **回复 / 改状态 / 指派**（演示数据中已产生真实协同记录）。
+- `review-test`（tenant id=6）为 2026-10-28 评审遗留测试租户：`provider_admin` 管理面可见，
+  但无 MSP 分配、不进入工作台汇总，不属于 demo 种子数据。
 
 **服务请求与审批（每客户租户）**
 
@@ -105,6 +109,29 @@
   工单流程任务（ticket_general_flow，含批准/拒绝入口），演示「我的待办」体验。
 - 角色配套：每租户新增 `itadmin`（it_admin，L2）与 `secadmin`（security_admin，L3）账号，
   可按层级演示审批权限差异。
+
+**2026-11-10 E2E 验证结果（已在 `1.8.0-dev.f7dd2974` 修复并验证）**
+
+| 项 | 原 238 现象 | 当前状态 |
+|---|---|---|
+| 变更受影响 CI | `affectedCis` 填 CI 编号时 CMDB 影响分析为 0（数字 ID 正常） | 已修复；编号与数字 ID 均正常，E2E 通过 |
+| 服务请求审批 | BPMN 停在“请求受理/任务分配”时，L2/L3 间歇 500「同步流程审批任务失败」 | 已修复；审批桥接仅匹配审批任务，L1/L2/L3 通过 |
+| 跨租户删除 | `DELETE /tickets/:id` 跨租户返回 500 | 已修复；返回 404，不泄露资源存在性 |
+| 跨租户问题关联 | 关联其他租户工单/事件/变更返回 500 | 已修复；返回 400 校验错误 |
+| 事件转问题 | 事件详情不返回 `problemId`，“查看问题”入口不显示 | 已修复；详情返回 `problemId`，入口可用 |
+| 服务目录顶部统计 | 固定桶与标签页计数矛盾 | 已修复；按真实分类动态聚合 |
+| 平板 768 布局 | Dashboard body 横向溢出 | 已修复；768–991 默认收起侧栏 |
+| 终端用户 Dashboard | 无 `dashboard:read` 却请求 overview，产生 403/console error | 已修复；按权限门控并显示受限提示 |
+| MSP 经理角色契约 | 登录 `role=msp_manager`，刷新后 `/auth/me` 返回 `role=end_user` | 已修复；`/auth/me` 与 JWT effective role 对齐 |
+| 工单详情 AI 权限 | 无 `ai:read` 仍渲染 AI 面板并请求 `/ai/rag/search`、`/ai/triage` | 已修复；入口级隐藏，E2E 断言无 AI 请求 |
+| 变更详情 AI 权限 | 无 `ai:read` 仍展示 AI 影响分析入口 | 已修复；变更 AI 计划卡按 `ai:read` 门控 |
+| 发布单跨租户引用 | 创建发布单可写入其他租户的 `changeId`/`ownerId`/`departmentId`/`customerId` | 已修复；非法引用返回 400 |
+| 发布↔变更 UI 关联 | 表单无“关联变更”入口，详情不展示 `changeId` | 已修复；新增 `ChangeSelect` 与详情跳转 |
+| 服务请求删除权限 | 租户管理员无 `service_request:delete`，无法清理 | 已修复；租户管理员可删除，存量租户迁移已应用 |
+| 服务请求删除语义 | 软删后 GET 返回 HTTP 200，仅包体 `code=404` | 已修复；返回 HTTP 404 + 业务码 4004 |
+
+> 本轮执行/修复详情：`docs/review/2026-11-10-msp-demo-e2e-validation.md`；
+> 测试套件：`itsm-frontend/tests/e2e/demo/`。
 
 **SLA 超时样本（可选，仅演示库）**
 

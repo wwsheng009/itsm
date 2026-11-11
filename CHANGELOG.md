@@ -31,6 +31,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **工单详情契约修复：空数组、标签空列表与工单级审批读取（后端，2026-11-10）** —
+  ① `GET /api/v1/tickets/:id/tags` 在无绑定标签时返回 `items: []`（DTO 映射与服务层均
+  不再返回 `nil`），路由回归测试覆盖租户/工单过滤与空数组；② 评论响应初始化
+  `mentions/attachments/attachmentRefs`，关联视图初始化 `parentChain/childrenTree/relatedTickets`，
+  避免 Go 空切片序列化为 `null` 导致桌面端反序列化失败；③ 新增
+  `GET /api/v1/tickets/:id/approval/records`，以 `ticket:read` 放行详情页读取当前工单审批，
+  强制租户 + 工单过滤，保留原管理级 `/tickets/approval/records`（`approval:read`）不变；
+  ④ 同步 `authz-gen` 预检映射，并修正租户 readiness 测试对“7 个必选项 + 2 个业务提示项”
+  的过期断言。验证：`go build` 相关包、`go test -p 1 ./router ./dto ./service ./middleware`
+  全绿。
+
 - **MSP 租户列表补 invite membership（后端，2026-11-10）** — `GET /api/v1/auth/tenants`
   在 home + 有效 `MSPAllocation` 基础上补充 `source=invite`、`status=active`、
   `invited_by` 非空且未过期的客户租户，使租户切换器与
@@ -76,6 +87,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Bot 能力改平台级运行时开关、免重启（后端 + 前端迁移，2026-10-18）** — Bot 管理组件与路由改为常驻装配（去掉 bootstrap 对 `cfg.Bot.Enabled` 的短路），静态 `bot.enabled` 仅作默认值，生效由 `system_configs` **请求期求值**：管理写端 403（文案指引「系统配置 → AI 配置」）、读端保留（页面可展示关闭态）、聊天不落运行档案（与未注入 RunStore 的兼容态逐字节一致）。管理员打开开关后无需重启即可用。**238 demo 验证**：`PUT {"botEnabled":false}` 后 `POST /admin/bots` → 403 + 新文案、`GET /admin/bots` → 200；恢复后写端 400（校验层，门禁放行）；开关切换全程 backend 容器 `StartedAt` 不变（免重启）；`ai-capability` / `mcp-capabilities-moved` 均进入前端镜像产物。证据：[DEMO-CAPSW-20261018-fd7514a9-EVIDENCE](.dev/deploy/DEMO-CAPSW-20261018-fd7514a9-EVIDENCE.md)。
 
 ### Fixed
+
+- **MSP demo 多轮 E2E 修复与回归（D1–D15，后端 + 前端，2026-11-11）** — 基于 `172.18.3.238:8089`
+  真实多租户 demo 完成 39 条 Playwright E2E，并修复：① 关联/契约——变更 `affectedCis`
+  接受 CI 编号、跨租户工单删除返回 404、跨租户问题关联返回 400、事件转换后回填
+  `problemId`、发布单创建/更新校验 `changeId/ownerId/departmentId/customerId` 租户归属、
+  发布表单/详情补齐关联变更选择与展示；② 权限/流程——BPMN 审批桥接仅完成
+  `taskPurpose=approval` 任务，租户管理员补授 `service_request:delete`（新增存量租户
+  幂等迁移），软删后 GET 统一 HTTP 404 + 业务码 4004，`/auth/me` 返回 JWT effective role，
+  end_user Dashboard 按 `dashboard:read` 门控，工单/变更/知识库 AI 入口按 `ai:read` 门控；
+  ③ UI——768 平板默认收起侧栏，服务目录顶部按真实分类统计。回归：`go build ./...`、
+  相关 Go 单测、`npx tsc --noEmit`、`npx eslint tests/e2e/demo`、全量 demo E2E
+  `39 passed`（0 预期失败）；238 部署版本 `1.8.0-dev.f7dd2974`。证据：
+  [2026-11-10-msp-demo-e2e-validation.md](docs/review/2026-11-10-msp-demo-e2e-validation.md)。
 
 - **菜单树层级修复**：修复 demo/存量租户菜单同步及新租户菜单克隆丢失 `parent_id` 的问题。按菜单 `path` 重映射目标租户父节点，保留租户自定义名称、排序和可见性；重复初始化可修复历史扁平菜单且不重复插入。
 

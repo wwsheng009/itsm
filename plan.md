@@ -108,3 +108,29 @@
 ## 备注
 - P1-2 的确切根因需在 demo（`RLS_MODE`）下确认；计划采用"system-bypass 跨租户计数"修复，对任意 RLS 模式都成立，并保留列表可用性优先的降级语义。
 - P1-1 的"开通落引子"涉及供给器写入租户作用域业务数据，需对齐现有克隆口径与 RLS（供给通道 `tenantctx.WithProvisioningBypass`），改动后补供给单测。
+---
+
+## 2026-11-10 · MSP Demo 多轮多用户 E2E 验证与修复计划（新增）
+
+> 本节不替代上面的 2026-10-28 修复计划；新增任务已拆到
+> [`docs/multi-tenant/plan/e2e-demo-validation-and-remediation-plan.md`](docs/multi-tenant/plan/e2e-demo-validation-and-remediation-plan.md)。
+
+**范围与顺序**
+
+1. **Round 0**：238 环境/版本/账号/Playwright 远端运行设施校准（新增 `playwright.demo.config.ts` 与 `tests/e2e/demo/`，不再依赖本地 3000/webServer）。
+2. **Round 1**：只读权限与租户隔离基线（平台/服务商经理/两服务商工程师/客户六角色）。
+3. **Round 2**：跨单据关联矩阵（工单↔工单、问题↔工单/事件/变更、事件→问题、变更↔CMDB、服务请求↔目录/开通、项目关联、知识库↔工单）。
+4. **Round 3**：多用户业务流程（事件→问题→变更、服务请求多级审批/开通、工单协作、MSP 跨租户工作台、平台治理）。
+5. **Round 4**：UI/UX/响应式/可访问性（无裸 i18n key/角色 code/BPMN 原始 id；空态/错误态/加载态；360–1440 宽度）。
+6. **Round 5**：确认缺陷的最小修复 + 回归（先有失败用例）。
+7. **Round 6**：校正当前文档事实、产出运行手册与证据报告。
+
+**优先候选缺陷**
+
+- `D1`：变更 `affectedCis` 允许 CI 编号输入，但后端 CMDB 影响分析只解析数字 ID。
+- `D2`：服务请求 L2/L3 审批桥接可能仍失败（种子报告已出现 `同步流程审批任务失败`）。
+- `D3`：现有 Playwright auth-utils/fixtures 不适用于 238（端口被剥、旧账号、webServer 强依赖）。
+- `D4`：`itsm_msp.py workbench-tickets` 参数与当前后端 `customerTenantIds/q/limit/cursor` 不一致。
+- `D5`：`demo-environment.md` 的版本号、工作台数量、SLA 样本表述需按实测校正。
+
+**执行原则**：不覆盖本文件上方历史计划；只改本任务相关文件；测试数据统一 `[E2E-<runId>]` 前缀并清理；历史评审文档保留 `Status: historical`，不复写历史结论。**执行进展（2026-11-11）**：Round 0–4 已完成；238 已发布 `1.8.0-dev.f7dd2974`，全量 demo E2E **39 passed / 0 预期失败**；D1–D15 均已修复并完成运行态回归。报告见 `docs/review/2026-11-10-msp-demo-e2e-validation.md`，运行摘要见 `docs/review/evidence/2026-11-10-msp-demo-e2e/run-summary.md`。

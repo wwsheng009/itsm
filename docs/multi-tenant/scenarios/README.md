@@ -5,6 +5,10 @@
 > **上位口径**：[canon（概念权威）](../plan/msp-concept-model-and-architecture-canon.md) ｜**设计与契约**：[实施方案](../plan/msp-implementation-plan.md) ｜**验收设计**：[业务验收设计](../plan/msp-multi-tenant-business-acceptance-design.md)
 > **前置**：先读 [00 环境与账号](./00-environment-and-accounts.md)，再按本页顺序执行
 
+> **238 演示环境**：本目录 01–11 的账号矩阵针对本地开发/演练库（`admin/admin123`、`MSPB2C/B2CCUST` 等）；
+> 若面向 `http://172.18.3.238:8089`，请先以 [demo-environment.md](../demo-environment.md) 的演示账号矩阵为准
+> （平台 `admin / Demo@2026!Admin`、租户 `Demo@2026!`）。
+
 ---
 
 ## 1. 本目录是什么（与其它文档的分工）
