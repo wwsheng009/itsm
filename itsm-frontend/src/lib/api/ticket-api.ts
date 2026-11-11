@@ -470,7 +470,9 @@ export class TicketApi {
       status: string;
       priority: string;
       user: { id: number; name: string; username: string; email: string };
+      userMembershipId?: number;
       addedBy: { id: number; name: string; username: string; email: string };
+      addedByMembershipId?: number;
       addedAt: string;
       isActive: boolean;
     }>;
@@ -488,7 +490,9 @@ export class TicketApi {
       status: string;
       priority: string;
       user: { id: number; name: string; username: string; email: string };
+      userMembershipId?: number;
       addedBy: { id: number; name: string; username: string; email: string };
+      addedByMembershipId?: number;
       addedAt: string;
       isActive: boolean;
     }>;

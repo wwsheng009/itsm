@@ -56,6 +56,9 @@ func (h *CCTaskHandler) Execute(ctx context.Context, task *ent.ProcessTask, vari
 	notifyChannels := parseNotifyChannels(GetStringFromVars(variables, "notifyChannels"))
 	addedBy := GetIntFromVars(variables, "addedBy")
 	tenantID := GetIntFromVars(variables, "tenant_id")
+	if addedBy <= 0 {
+		addedBy, _ = ctx.Value(BPMNUserIDContextKey).(int)
+	}
 
 	if ticketID == 0 {
 		return nil, fmt.Errorf("工单ID不能为空")
@@ -97,10 +100,18 @@ func (h *CCTaskHandler) Execute(ctx context.Context, task *ent.ProcessTask, vari
 		}, nil
 	}
 
-	// 添加抄送人
+	ccMemberships, err := h.validateCCRecipients(ctx, tenantID, ccUsers)
+	if err != nil {
+		return nil, err
+	}
+
+	// 添加抄送人。home tenant 用户沿用兼容窗口；跨租户账号必须有
+	// 当前租户 active membership，否则 fail-closed。
 	addedByMembershipID := 0
-	if membership, mErr := middleware.ResolveActiveMembership(ctx, h.client, addedBy, tenantID); mErr != nil {
-		h.logger.Warnw("Failed to resolve BPMN CC adder membership", "error", mErr, "user_id", addedBy, "tenant_id", tenantID)
+	if addedBy <= 0 {
+		h.logger.Warnw("BPMN CC task missing addedBy; audit attribution will be empty", "ticket_id", ticketID, "tenant_id", tenantID)
+	} else if membership, mErr := h.resolveTenantMemberMembership(ctx, tenantID, addedBy); mErr != nil {
+		return nil, fmt.Errorf("抄送操作人校验失败: %w", mErr)
 	} else if membership != nil {
 		addedByMembershipID = membership.ID
 	}
@@ -128,9 +139,7 @@ func (h *CCTaskHandler) Execute(ctx context.Context, task *ent.ProcessTask, vari
 			if addedByMembershipID > 0 {
 				create = create.SetAddedByMembershipID(addedByMembershipID)
 			}
-			if membership, mErr := middleware.ResolveActiveMembership(ctx, h.client, ccUserID, tenantID); mErr != nil {
-				h.logger.Warnw("Failed to resolve BPMN CC recipient membership", "error", mErr, "user_id", ccUserID, "tenant_id", tenantID)
-			} else if membership != nil {
+			if membership := ccMemberships[ccUserID]; membership != nil {
 				create = create.SetUserMembershipID(membership.ID)
 			}
 			err = create.Exec(ctx)
@@ -154,6 +163,51 @@ func (h *CCTaskHandler) Execute(ctx context.Context, task *ent.ProcessTask, vari
 			"added_cc_users": addedUsers,
 		},
 	}, nil
+}
+
+// resolveTenantMemberMembership 校验账号可作为当前租户抄送参与人。
+// home tenant 用户允许在迁移窗口内无 membership；跨租户账号必须持有 active membership。
+func (h *CCTaskHandler) resolveTenantMemberMembership(ctx context.Context, tenantID, userID int) (*ent.UserTenantMembership, error) {
+	if tenantID <= 0 || userID <= 0 {
+		return nil, fmt.Errorf("用户和租户不能为空")
+	}
+	u, err := h.client.User.Query().
+		Where(user.IDEQ(userID), user.ActiveEQ(true)).
+		Only(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return nil, fmt.Errorf("用户不存在或已停用")
+		}
+		return nil, fmt.Errorf("查询用户失败: %w", err)
+	}
+	membership, err := middleware.ResolveActiveMembership(ctx, h.client, userID, tenantID)
+	if err != nil {
+		return nil, fmt.Errorf("校验租户身份失败: %w", err)
+	}
+	if membership == nil && u.TenantID != tenantID {
+		return nil, fmt.Errorf("用户不属于当前租户")
+	}
+	return membership, nil
+}
+
+// validateCCRecipients 对全部抄送人做 fail-closed 租户身份校验。
+// 返回 userID -> membership（home tenant 兼容窗口下可能为 nil）。
+func (h *CCTaskHandler) validateCCRecipients(ctx context.Context, tenantID int, userIDs []int) (map[int]*ent.UserTenantMembership, error) {
+	memberships := make(map[int]*ent.UserTenantMembership, len(userIDs))
+	for _, userID := range userIDs {
+		if userID <= 0 {
+			continue
+		}
+		if _, exists := memberships[userID]; exists {
+			continue
+		}
+		membership, err := h.resolveTenantMemberMembership(ctx, tenantID, userID)
+		if err != nil {
+			return nil, fmt.Errorf("抄送用户 %d 校验失败: %w", userID, err)
+		}
+		memberships[userID] = membership
+	}
+	return memberships, nil
 }
 
 // resolveCCUsers 解析抄送人ID列表

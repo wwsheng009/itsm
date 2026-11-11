@@ -345,8 +345,8 @@ func (s *bpmnTaskService) AssignTask(ctx context.Context, taskID string, assigne
 		return fmt.Errorf("任务不属于当前租户")
 	}
 
-	// 操作人校验：操作人必须存在于当前租户
-	if _, err := s.client.User.Query().Where(user.IDEQ(actorID), user.TenantIDEQ(tenantID)).Only(ctx); err != nil {
+	// 操作人校验：home tenant 或当前租户 active membership 均可。
+	if _, err := s.resolveTenantMemberUser(ctx, s.client, tenantID, actorID); err != nil {
 		return fmt.Errorf("操作人不存在或不属于当前租户")
 	}
 
@@ -393,15 +393,11 @@ func (s *bpmnTaskService) ReassignTask(ctx context.Context, taskID string, newAs
 	if task.Status != common.ProcessTaskStatusCreated && task.Status != common.ProcessTaskStatusAssigned && task.Status != common.ProcessTaskStatusStarted && task.Status != "running" {
 		return fmt.Errorf("任务状态 %s 不允许重新分配", task.Status)
 	}
-	assignee, err := tx.User.Query().Where(
-		user.IDEQ(newAssigneeID),
-		user.TenantIDEQ(tenantID),
-		user.ActiveEQ(true),
-	).Only(ctx)
+	assignee, err := s.resolveTenantMemberUser(ctx, tx.Client(), tenantID, newAssigneeID)
 	if err != nil {
 		return fmt.Errorf("目标处理人不存在、已停用或不属于当前租户")
 	}
-	actor, err := tx.User.Query().Where(user.IDEQ(actorID), user.TenantIDEQ(tenantID), user.ActiveEQ(true)).Only(ctx)
+	actor, err := s.resolveTenantMemberUser(ctx, tx.Client(), tenantID, actorID)
 	if err != nil {
 		return fmt.Errorf("操作人不存在、已停用或不属于当前租户")
 	}
@@ -473,7 +469,7 @@ func (s *bpmnTaskService) TerminateTask(ctx context.Context, taskID string, reas
 	if instance.Status == "completed" || instance.Status == "terminated" {
 		return fmt.Errorf("流程实例已处于终态 %s", instance.Status)
 	}
-	actor, err := tx.User.Query().Where(user.IDEQ(actorID), user.TenantIDEQ(tenantID), user.ActiveEQ(true)).Only(ctx)
+	actor, err := s.resolveTenantMemberUser(ctx, tx.Client(), tenantID, actorID)
 	if err != nil {
 		return fmt.Errorf("操作人不存在、已停用或不属于当前租户")
 	}
@@ -729,8 +725,8 @@ func (s *bpmnTaskService) DelegateTask(ctx context.Context, taskID string, newAs
 		return fmt.Errorf("任务不属于当前租户")
 	}
 
-	// 操作人校验：只有当前 assignee 才能委托
-	actor, err := s.client.User.Query().Where(user.IDEQ(actorID), user.TenantIDEQ(tenantID)).Only(ctx)
+	// 操作人校验：只有当前 assignee 才能委托；provider 客户租户身份亦可。
+	actor, err := s.resolveTenantMemberUser(ctx, s.client, tenantID, actorID)
 	if err != nil {
 		return fmt.Errorf("操作人不存在或不属于当前租户")
 	}
@@ -821,8 +817,8 @@ func (s *bpmnTaskService) AddApproverTask(ctx context.Context, taskID string, ne
 		return fmt.Errorf("任务不属于当前租户")
 	}
 
-	// 操作人校验：只有当前 assignee 才能加签
-	actor, err := s.client.User.Query().Where(user.IDEQ(actorID), user.TenantIDEQ(tenantID)).Only(ctx)
+	// 操作人校验：只有当前 assignee 才能加签；provider 客户租户身份亦可。
+	actor, err := s.resolveTenantMemberUser(ctx, s.client, tenantID, actorID)
 	if err != nil {
 		return fmt.Errorf("操作人不存在或不属于当前租户")
 	}
@@ -924,38 +920,86 @@ func matchesAssignee(assignee string, userID int, username string) bool {
 	return false
 }
 
-// validateTargetUser 校验目标用户是否存在于同一租户且处于活跃状态。
-// target 可能是用户 ID（数字字符串）或用户名。
+// resolveTenantMemberUser 返回当前租户可用的活跃账号。
+//
+// 兼容窗口内，账号 home tenant 等于当前租户时直接放行；跨租户账号必须存在
+// 当前租户的 active membership（C 方案：provider 客户租户身份不复制 users 行）。
+// membership 查询错误按 fail-closed 处理，避免基础设施异常时误放行。
+func (s *bpmnTaskService) resolveTenantMemberUser(ctx context.Context, client *ent.Client, tenantID, userID int) (*ent.User, error) {
+	if tenantID <= 0 || userID <= 0 {
+		return nil, fmt.Errorf("目标用户不能为空")
+	}
+	if client == nil {
+		return nil, fmt.Errorf("数据库客户端未初始化")
+	}
+
+	u, err := client.User.Query().
+		Where(user.IDEQ(userID), user.ActiveEQ(true)).
+		Only(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return nil, fmt.Errorf("目标用户不存在或已停用")
+		}
+		return nil, fmt.Errorf("查询目标用户失败: %w", err)
+	}
+	if u.TenantID == tenantID {
+		return u, nil
+	}
+
+	membership, err := middleware.ResolveActiveMembership(ctx, client, userID, tenantID)
+	if err != nil {
+		return nil, fmt.Errorf("校验目标用户租户身份失败: %w", err)
+	}
+	if membership == nil {
+		return nil, fmt.Errorf("目标用户不属于当前租户")
+	}
+	return u, nil
+}
+
+// validateTargetUser 校验目标用户是否活跃且属于当前租户。
+// target 可能是用户 ID（数字字符串）或用户名；跨租户目标必须持有 active membership。
 func (s *bpmnTaskService) validateTargetUser(ctx context.Context, tenantID int, target string) error {
 	target = strings.TrimSpace(target)
 	if target == "" {
 		return fmt.Errorf("目标用户不能为空")
 	}
 
-	// 尝试按 ID 查找
 	if id, err := strconv.Atoi(target); err == nil && id > 0 {
-		exists, err := s.client.User.Query().
-			Where(user.IDEQ(id), user.TenantIDEQ(tenantID), user.ActiveEQ(true)).
-			Exist(ctx)
-		if err != nil {
-			return fmt.Errorf("查询目标用户失败: %w", err)
-		}
-		if exists {
+		if _, err := s.resolveTenantMemberUser(ctx, s.client, tenantID, id); err == nil {
 			return nil
+		} else if !strings.Contains(err.Error(), "不存在或已停用") {
+			return err
 		}
 	}
 
-	// 尝试按用户名查找
-	exists, err := s.client.User.Query().
-		Where(user.UsernameEQ(target), user.TenantIDEQ(tenantID), user.ActiveEQ(true)).
-		Exist(ctx)
+	candidates, err := s.client.User.Query().
+		Where(user.UsernameEQ(target), user.ActiveEQ(true)).
+		All(ctx)
 	if err != nil {
 		return fmt.Errorf("查询目标用户失败: %w", err)
 	}
-	if !exists {
+	if len(candidates) == 0 {
 		return fmt.Errorf("目标用户不存在、已停用或不属于当前租户")
 	}
-	return nil
+
+	var membershipErr error
+	for _, candidate := range candidates {
+		if candidate.TenantID == tenantID {
+			return nil
+		}
+		membership, err := middleware.ResolveActiveMembership(ctx, s.client, candidate.ID, tenantID)
+		if err != nil {
+			membershipErr = err
+			continue
+		}
+		if membership != nil {
+			return nil
+		}
+	}
+	if membershipErr != nil {
+		return fmt.Errorf("校验目标用户租户身份失败: %w", membershipErr)
+	}
+	return fmt.Errorf("目标用户不存在、已停用或不属于当前租户")
 }
 
 func (s *bpmnTaskService) EscalateTask(ctx context.Context, taskID string, reason string) error {

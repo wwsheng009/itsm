@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { getDemoSession, type DemoSession } from './fixtures/demo-auth';
+import { getDemoSession, switchDemoTenant, type DemoSession } from './fixtures/demo-auth';
 import {
   apiDelete,
   apiGet,
@@ -396,6 +396,67 @@ test.describe('Demo Round 3 · multi-user business workflows', () => {
       const customerCommentList = customerComments.comments ?? customerComments.items ?? [];
       expect(customerCommentList.some(item => item.content.includes(replyContent))).toBe(true);
     } finally {
+      await safeDelete(admin, `/api/v1/tickets/${ticket.id}`);
+    }
+  });
+
+  test('B4b MSP 深切后抄送目标必须属于客户租户', async () => {
+    const user = await getDemoSession('mfgUser');
+    const agent = await getDemoSession('mspAgent1');
+    const itadmin = await getDemoSession('mfgItAdmin');
+    const otherTenantUser = await getDemoSession('medUser');
+    const admin = await getDemoSession('mfgAdmin');
+    const run = runId('E2E-MSP-CC');
+    const ticket = await createTicket(user, run, 'MSP 抄送租户边界');
+    const providerTenantId = Number(agent.user.tenantId || 2);
+    let switched = false;
+
+    try {
+      const assigned = await apiPost<{ ID?: number; id?: number }>(
+        agent,
+        `/api/v1/msp/tickets/${ticket.id}/assign`,
+        { customerTenantId: 3 },
+      );
+      expect(Number(assigned.ID ?? assigned.id)).toBe(ticket.id);
+
+      await switchDemoTenant(agent, 3);
+      switched = true;
+
+      await apiPost(agent, `/api/v1/tickets/${ticket.id}/cc`, {
+        ticketId: ticket.id,
+        ccUsers: [Number(itadmin.user.id)],
+        comment: 'E2E provider 合法抄送',
+      });
+      const records = await apiGet<{
+        records: Array<{ user?: { id: number }; userMembershipId?: number }>;
+      }>(agent, `/api/v1/tickets/${ticket.id}/cc`);
+      const valid = records.records.find(record => Number(record.user?.id) === Number(itadmin.user.id));
+      expect(valid, '合法抄送记录应存在').toBeTruthy();
+      expect(valid!.userMembershipId, '抄送接收人必须携带客户租户 membership').toBeGreaterThan(0);
+
+      const invalid = await callRaw(agent.api, 'POST', `/api/v1/tickets/${ticket.id}/cc`, {
+        headers: authHeaders(agent),
+        data: {
+          ticketId: ticket.id,
+          ccUsers: [Number(otherTenantUser.user.id)],
+          comment: 'E2E provider 非法跨租户抄送',
+        },
+      });
+      expect([400, 403, 422], `跨租户抄送应失败，实际 HTTP ${invalid.status()}`).toContain(
+        invalid.status(),
+      );
+
+      const after = await apiGet<{
+        records: Array<{ user?: { id: number } }>;
+      }>(agent, `/api/v1/tickets/${ticket.id}/cc`);
+      expect(
+        after.records.some(record => Number(record.user?.id) === Number(otherTenantUser.user.id)),
+        '非法跨租户用户不得出现在抄送记录中',
+      ).toBe(false);
+    } finally {
+      if (switched) {
+        await switchDemoTenant(agent, providerTenantId).catch(() => undefined);
+      }
       await safeDelete(admin, `/api/v1/tickets/${ticket.id}`);
     }
   });

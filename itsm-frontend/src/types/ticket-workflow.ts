@@ -195,7 +195,9 @@ export interface TicketCC {
   id: number;
   ticketId: number;
   user: TicketUser;
+  userMembershipId?: number;
   addedBy: TicketUser;
+  addedByMembershipId?: number;
   addedAt: string;
   isActive: boolean;
 }

@@ -12,6 +12,7 @@ import (
 	"itsm-backend/connector"
 	"itsm-backend/dto"
 	"itsm-backend/ent"
+	"itsm-backend/ent/predicate"
 	"itsm-backend/ent/processdefinition"
 	"itsm-backend/ent/processinstance"
 	"itsm-backend/ent/processtask"
@@ -270,25 +271,41 @@ func (s *TicketWorkflowService) CCTicket(ctx context.Context, req *dto.CCTicketR
 	}
 
 	targetUsers, err := s.client.User.Query().
-		Where(user.IDIn(req.CCUsers...), user.TenantID(tenantID), user.Active(true)).
-		Select(user.FieldID).
-		Ints(ctx)
+		Where(user.IDIn(req.CCUsers...), user.Active(true)).
+		All(ctx)
 	if err != nil {
 		return fmt.Errorf("校验抄送用户失败: %w", err)
 	}
 	if len(targetUsers) != len(uniqueInts(req.CCUsers)) {
-		return fmt.Errorf("抄送用户不存在、未激活或不属于当前租户")
+		return fmt.Errorf("抄送用户不存在或未激活")
 	}
 
-	// 添加抄送人
+	// C 方案：home tenant 用户沿用兼容窗口；跨租户用户必须存在当前租户
+	// active membership（provider 在客户租户内不复制 users 行）。
+	ccMemberships := make(map[int]*ent.UserTenantMembership, len(targetUsers))
+	for _, target := range targetUsers {
+		membership, mErr := middleware.ResolveActiveMembership(ctx, s.client, target.ID, tenantID)
+		if mErr != nil {
+			return fmt.Errorf("校验抄送用户租户身份失败: %w", mErr)
+		}
+		if membership == nil && target.TenantID != tenantID {
+			return fmt.Errorf("抄送用户 %d 不属于当前租户", target.ID)
+		}
+		ccMemberships[target.ID] = membership
+	}
+
+	// 添加抄送人：跨租户添加人必须有当前租户 active membership。
+	_, adderMembership, err := s.resolveTenantActor(ctx, userID, tenantID)
+	if err != nil {
+		return fmt.Errorf("校验抄送操作人失败: %w", err)
+	}
 	addedByMembershipID := 0
-	if membership, mErr := middleware.ResolveActiveMembership(ctx, s.client, userID, tenantID); mErr != nil {
-		s.logger.Warnw("Failed to resolve CC adder membership", "error", mErr, "user_id", userID, "tenant_id", tenantID)
-	} else if membership != nil {
-		addedByMembershipID = membership.ID
+	if adderMembership != nil {
+		addedByMembershipID = adderMembership.ID
 	}
 	addedUserIDs := make([]int, 0, len(targetUsers))
-	for _, ccUserID := range targetUsers {
+	for _, target := range targetUsers {
+		ccUserID := target.ID
 		// 检查是否已存在抄送记录
 		exists, err := s.client.TicketCC.Query().
 			Where(ticketcc.TicketID(req.TicketID),
@@ -311,9 +328,7 @@ func (s *TicketWorkflowService) CCTicket(ctx context.Context, req *dto.CCTicketR
 			if addedByMembershipID > 0 {
 				create = create.SetAddedByMembershipID(addedByMembershipID)
 			}
-			if membership, mErr := middleware.ResolveActiveMembership(ctx, s.client, ccUserID, tenantID); mErr != nil {
-				s.logger.Warnw("Failed to resolve CC recipient membership", "error", mErr, "user_id", ccUserID, "tenant_id", tenantID)
-			} else if membership != nil {
+			if membership := ccMemberships[ccUserID]; membership != nil {
 				create = create.SetUserMembershipID(membership.ID)
 			}
 			err = create.Exec(ctx)
@@ -331,7 +346,9 @@ func (s *TicketWorkflowService) CCTicket(ctx context.Context, req *dto.CCTicketR
 
 	// 记录流转记录
 	ccUserIDs := make([]int, len(targetUsers))
-	copy(ccUserIDs, targetUsers)
+	for i, target := range targetUsers {
+		ccUserIDs[i] = target.ID
+	}
 
 	err = s.createWorkflowRecord(ctx, &dto.TicketWorkflowRecord{
 		TicketID:  req.TicketID,
@@ -437,8 +454,36 @@ func (s *TicketWorkflowService) ApproveTicket(ctx context.Context, req *dto.Appr
 	if approval.ApproverID != userID {
 		return fmt.Errorf("无权限审批该记录")
 	}
+	_, actorMembership, err := s.resolveTenantActor(ctx, userID, tenantID)
+	if err != nil {
+		return fmt.Errorf("校验审批人租户身份失败: %w", err)
+	}
+	if approval.ApproverMembershipID > 0 {
+		if actorMembership == nil || actorMembership.ID != approval.ApproverMembershipID {
+			return fmt.Errorf("无权限审批该记录")
+		}
+	}
 
 	approvalLevel := approval.Level
+
+	delegateUserID := 0
+	delegateMembershipID := 0
+	if req.Action == "delegate" {
+		if req.DelegateToUserID == nil {
+			return fmt.Errorf("委派时必须指定委派人")
+		}
+		delegateUserID = *req.DelegateToUserID
+		if delegateUserID == userID {
+			return fmt.Errorf("不能委派给自己")
+		}
+		_, targetMembership, targetErr := s.resolveTenantActor(ctx, delegateUserID, tenantID)
+		if targetErr != nil {
+			return fmt.Errorf("委派目标校验失败: %w", targetErr)
+		}
+		if targetMembership != nil {
+			delegateMembershipID = targetMembership.ID
+		}
+	}
 
 	// P0-1：审批先桥接完成对应的 BPMN 待办任务（以流程任务为权威审批来源）。
 	// 无关联运行中流程实例时回退为纯业务审批，兼容未绑定流程的历史工单；
@@ -474,7 +519,7 @@ func (s *TicketWorkflowService) ApproveTicket(ctx context.Context, req *dto.Appr
 	// 同步失败时中止业务侧委派，避免流程任务仍停留在原审批人造成双轨分叉。
 	if req.Action == "delegate" && s.approvalBridge != nil {
 		handled, bridgeErr := s.approvalBridge.DelegateBusinessApprovalTask(
-			ctx, tenantID, userID, string(dto.BusinessTypeTicket), req.TicketID, *req.DelegateToUserID,
+			ctx, tenantID, userID, string(dto.BusinessTypeTicket), req.TicketID, delegateUserID,
 		)
 		if bridgeErr != nil {
 			return fmt.Errorf("同步流程委派任务失败: %w", bridgeErr)
@@ -503,12 +548,10 @@ func (s *TicketWorkflowService) ApproveTicket(ctx context.Context, req *dto.Appr
 		SetComment(req.Comment).
 		SetProcessedAt(time.Now())
 
-	if req.DelegateToUserID != nil {
-		updateBuilder.SetDelegateToUserID(*req.DelegateToUserID)
-		if membership, mErr := middleware.ResolveActiveMembership(ctx, s.client, *req.DelegateToUserID, tenantID); mErr != nil {
-			s.logger.Warnw("Failed to resolve ticket approval delegate membership", "error", mErr, "user_id", *req.DelegateToUserID, "tenant_id", tenantID)
-		} else if membership != nil {
-			updateBuilder.SetDelegateToMembershipID(membership.ID)
+	if delegateUserID > 0 {
+		updateBuilder.SetDelegateToUserID(delegateUserID)
+		if delegateMembershipID > 0 {
+			updateBuilder.SetDelegateToMembershipID(delegateMembershipID)
 		}
 	}
 
@@ -519,18 +562,16 @@ func (s *TicketWorkflowService) ApproveTicket(ctx context.Context, req *dto.Appr
 	}
 
 	// 如果是委派，创建新的审批记录
-	if req.Action == "delegate" && req.DelegateToUserID != nil {
+	if req.Action == "delegate" && delegateUserID > 0 {
 		create := txClient.TicketApproval.Create().
 			SetTicketID(req.TicketID).
 			SetLevel(approval.Level).
 			SetLevelName(approval.LevelName).
-			SetApproverID(*req.DelegateToUserID).
+			SetApproverID(delegateUserID).
 			SetStatus(string(dto.ApprovalStatusPending)).
 			SetTenantID(tenantID)
-		if membership, mErr := middleware.ResolveActiveMembership(ctx, s.client, *req.DelegateToUserID, tenantID); mErr != nil {
-			s.logger.Warnw("Failed to resolve delegated ticket approver membership", "error", mErr, "user_id", *req.DelegateToUserID, "tenant_id", tenantID)
-		} else if membership != nil {
-			create = create.SetApproverMembershipID(membership.ID)
+		if delegateMembershipID > 0 {
+			create = create.SetApproverMembershipID(delegateMembershipID)
 		}
 		_, err = create.Save(ctx)
 		if err != nil {
@@ -1507,6 +1548,74 @@ func parseBpmnProcessGraph(xmlBytes []byte) (*bpmnProcessGraph, error) {
 	return g, nil
 }
 
+// resolveTenantActor 解析当前租户内的活跃操作人。
+// home tenant 用户保留兼容窗口；跨租户账号必须有当前租户 active membership。
+func (s *TicketWorkflowService) resolveTenantActor(ctx context.Context, userID, tenantID int) (*ent.User, *ent.UserTenantMembership, error) {
+	if userID <= 0 || tenantID <= 0 {
+		return nil, nil, fmt.Errorf("用户或租户不能为空")
+	}
+	currentUser, err := s.client.User.Query().
+		Where(user.ID(userID), user.Active(true)).
+		Only(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return nil, nil, fmt.Errorf("用户不存在或已停用")
+		}
+		return nil, nil, fmt.Errorf("查询用户失败: %w", err)
+	}
+
+	membership, err := middleware.ResolveActiveMembership(ctx, s.client, userID, tenantID)
+	if err != nil {
+		return nil, nil, fmt.Errorf("校验租户身份失败: %w", err)
+	}
+	if membership == nil && currentUser.TenantID != tenantID {
+		return nil, nil, fmt.Errorf("用户不属于当前租户")
+	}
+	return currentUser, membership, nil
+}
+
+// canManageTenantScope 判断操作人在当前租户是否具备管理型角色。
+// 客户方使用 users.role；provider 使用 membership.msp_role 或作用域 role_id，
+// 避免把 provider 家租户的全局角色误用于客户租户。
+func (s *TicketWorkflowService) canManageTenantScope(ctx context.Context, membership *ent.UserTenantMembership, currentUser *ent.User, tenantID int) bool {
+	if currentUser == nil {
+		return false
+	}
+	if currentUser.TenantID == tenantID {
+		switch currentUser.Role {
+		case "super_admin", "admin", "manager", "technician":
+			return true
+		}
+		return false
+	}
+	if membership == nil {
+		return false
+	}
+	switch s.membershipRoleCode(ctx, membership) {
+	case "admin", "manager", "technician", "msp_admin", "msp_manager", "msp_tech", "msp_specialist":
+		return true
+	default:
+		return false
+	}
+}
+
+func (s *TicketWorkflowService) membershipRoleCode(ctx context.Context, membership *ent.UserTenantMembership) string {
+	if membership == nil {
+		return ""
+	}
+	if membership.MspRole != nil {
+		if role := strings.TrimSpace(*membership.MspRole); role != "" {
+			return role
+		}
+	}
+	if membership.RoleID != nil {
+		if roleEntity, err := s.client.Role.Get(ctx, *membership.RoleID); err == nil {
+			return strings.TrimSpace(roleEntity.Code)
+		}
+	}
+	return ""
+}
+
 func (s *TicketWorkflowService) ensureCanCCTicket(ctx context.Context, tk *ent.Ticket, userID, tenantID int) error {
 	if tk == nil {
 		return fmt.Errorf("工单不存在")
@@ -1525,19 +1634,27 @@ func (s *TicketWorkflowService) ensureCanViewTicketCC(ctx context.Context, tk *e
 		return nil
 	}
 
-	currentUser, err := s.client.User.Query().
-		Where(user.ID(userID), user.TenantID(tenantID), user.Active(true)).
-		Only(ctx)
+	currentUser, membership, err := s.resolveTenantActor(ctx, userID, tenantID)
 	if err != nil {
 		return fmt.Errorf("用户不存在或无权限")
 	}
-	switch currentUser.Role {
-	case "super_admin", "admin", "manager", "technician":
+	if s.canManageTenantScope(ctx, membership, currentUser, tenantID) {
 		return nil
 	}
 
+	approverPredicates := []predicate.TicketApproval{ticketapproval.ApproverID(userID)}
+	ccPredicates := []predicate.TicketCC{ticketcc.UserID(userID)}
+	if membership != nil {
+		approverPredicates = append(approverPredicates, ticketapproval.ApproverMembershipID(membership.ID))
+		ccPredicates = append(ccPredicates, ticketcc.UserMembershipID(membership.ID))
+	}
+
 	isApprover, err := s.client.TicketApproval.Query().
-		Where(ticketapproval.TicketID(tk.ID), ticketapproval.TenantID(tenantID), ticketapproval.ApproverID(userID)).
+		Where(
+			ticketapproval.TicketID(tk.ID),
+			ticketapproval.TenantID(tenantID),
+			ticketapproval.Or(approverPredicates...),
+		).
 		Exist(ctx)
 	if err != nil {
 		return fmt.Errorf("校验审批权限失败: %w", err)
@@ -1547,7 +1664,12 @@ func (s *TicketWorkflowService) ensureCanViewTicketCC(ctx context.Context, tk *e
 	}
 
 	isCCUser, err := s.client.TicketCC.Query().
-		Where(ticketcc.TicketID(tk.ID), ticketcc.TenantID(tenantID), ticketcc.UserID(userID), ticketcc.IsActive(true)).
+		Where(
+			ticketcc.TicketID(tk.ID),
+			ticketcc.TenantID(tenantID),
+			ticketcc.IsActive(true),
+			ticketcc.Or(ccPredicates...),
+		).
 		Exist(ctx)
 	if err != nil {
 		return fmt.Errorf("校验抄送权限失败: %w", err)
@@ -1566,18 +1688,14 @@ func (s *TicketWorkflowService) ensureCanManageTicketCC(ctx context.Context, tk 
 	if tk.RequesterID == userID || (tk.AssigneeID != 0 && tk.AssigneeID == userID) {
 		return nil
 	}
-	currentUser, err := s.client.User.Query().
-		Where(user.ID(userID), user.TenantID(tenantID), user.Active(true)).
-		Only(ctx)
+	currentUser, membership, err := s.resolveTenantActor(ctx, userID, tenantID)
 	if err != nil {
 		return fmt.Errorf("用户不存在或无权限")
 	}
-	switch currentUser.Role {
-	case "super_admin", "admin", "manager", "technician":
+	if s.canManageTenantScope(ctx, membership, currentUser, tenantID) {
 		return nil
-	default:
-		return fmt.Errorf("无权管理该工单抄送信息")
 	}
+	return fmt.Errorf("无权管理该工单抄送信息")
 }
 
 func normalizeNotifyChannels(channels []string) []string {
@@ -1661,12 +1779,14 @@ func (s *TicketWorkflowService) buildCCListResponse(ctx context.Context, records
 	for _, record := range records {
 		tk := ticketByID[record.TicketID]
 		row := dto.TicketCCRecordResponse{
-			ID:       record.ID,
-			TicketID: record.TicketID,
-			User:     workflowUserInfoFromEnt(userByID[record.UserID]),
-			AddedBy:  workflowUserInfoFromEnt(userByID[record.AddedBy]),
-			AddedAt:  record.AddedAt,
-			IsActive: record.IsActive,
+			ID:                  record.ID,
+			TicketID:            record.TicketID,
+			User:                workflowUserInfoFromEnt(userByID[record.UserID]),
+			UserMembershipID:    record.UserMembershipID,
+			AddedBy:             workflowUserInfoFromEnt(userByID[record.AddedBy]),
+			AddedByMembershipID: record.AddedByMembershipID,
+			AddedAt:             record.AddedAt,
+			IsActive:            record.IsActive,
 		}
 		if tk != nil {
 			row.TicketNumber = tk.TicketNumber

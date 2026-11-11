@@ -6,6 +6,8 @@ import (
 
 	"itsm-backend/ent/enttest"
 	"itsm-backend/ent/processapprovaldecision"
+	"itsm-backend/ent/processtask"
+	"itsm-backend/ent/usertenantmembership"
 	"itsm-backend/service/bpmn"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -107,6 +109,79 @@ func TestDelegateTask_Allowed_WritesAuditRecord(t *testing.T) {
 	require.Len(t, decisions, 1)
 	assert.Equal(t, "delegate", decisions[0].Action)
 	assert.Equal(t, "delegated", decisions[0].Decision)
+}
+
+// TestDelegateTask_AllowsProviderMembershipTarget 锁定 provider 客户租户身份：
+// 目标账号 home tenant 不同，但持有当前租户 active membership 时必须允许委派。
+func TestDelegateTask_AllowsProviderMembershipTarget(t *testing.T) {
+	engine, workflowCtx, tenantID := setupDelegationFixture(t, true)
+	ctx := context.Background()
+
+	providerTenant, err := engine.client.Tenant.Create().
+		SetName("Provider Tenant").SetCode("delegate-provider").SetDomain("delegate-provider.test").SetStatus("active").
+		Save(ctx)
+	require.NoError(t, err)
+	provider, err := engine.client.User.Create().
+		SetUsername("provider-delegatee").SetEmail("provider-delegatee@test.com").SetName("Provider Delegatee").
+		SetPasswordHash("hash").SetRole("agent").SetActive(true).SetTenantID(providerTenant.ID).
+		Save(ctx)
+	require.NoError(t, err)
+	_, err = engine.client.UserTenantMembership.Create().
+		SetUserID(provider.ID).SetTenantID(tenantID).
+		SetAccountKind(usertenantmembership.AccountKindProvider).
+		SetSource(usertenantmembership.SourceAllocation).
+		SetMspRole("msp_tech").
+		SetStatus(usertenantmembership.StatusActive).
+		Save(ctx)
+	require.NoError(t, err)
+
+	err = engine.TaskService().DelegateTask(workflowCtx, "TASK-DELEGATE-1", provider.Username)
+	require.NoError(t, err)
+
+	task, err := engine.TaskService().GetTask(workflowCtx, "TASK-DELEGATE-1")
+	require.NoError(t, err)
+	assert.Equal(t, provider.Username, task.Assignee)
+	assert.Equal(t, "assigned", task.Status)
+}
+
+// TestDelegateTask_AllowsProviderMembershipActor 锁定 provider 作为客户租户审批人时
+// 可以发起委托；不能再以 users.tenant_id 判定操作人资格。
+func TestDelegateTask_AllowsProviderMembershipActor(t *testing.T) {
+	engine, workflowCtx, tenantID := setupDelegationFixture(t, true)
+	ctx := context.Background()
+
+	providerTenant, err := engine.client.Tenant.Create().
+		SetName("Provider Actor Tenant").SetCode("delegate-provider-actor").SetDomain("delegate-provider-actor.test").SetStatus("active").
+		Save(ctx)
+	require.NoError(t, err)
+	provider, err := engine.client.User.Create().
+		SetUsername("provider-approver").SetEmail("provider-approver@test.com").SetName("Provider Approver").
+		SetPasswordHash("hash").SetRole("agent").SetActive(true).SetTenantID(providerTenant.ID).
+		Save(ctx)
+	require.NoError(t, err)
+	_, err = engine.client.UserTenantMembership.Create().
+		SetUserID(provider.ID).SetTenantID(tenantID).
+		SetAccountKind(usertenantmembership.AccountKindProvider).
+		SetSource(usertenantmembership.SourceAllocation).
+		SetMspRole("msp_tech").
+		SetStatus(usertenantmembership.StatusActive).
+		Save(ctx)
+	require.NoError(t, err)
+
+	_, err = engine.client.ProcessTask.Update().
+		Where(processtask.TaskID("TASK-DELEGATE-1"), processtask.TenantID(tenantID)).
+		SetAssignee(provider.Username).
+		Save(ctx)
+	require.NoError(t, err)
+
+	workflowCtx = context.WithValue(workflowCtx, bpmn.BPMNUserIDContextKey, provider.ID)
+	err = engine.TaskService().DelegateTask(workflowCtx, "TASK-DELEGATE-1", "delegatee")
+	require.NoError(t, err)
+
+	task, err := engine.TaskService().GetTask(workflowCtx, "TASK-DELEGATE-1")
+	require.NoError(t, err)
+	assert.Equal(t, "delegatee", task.Assignee)
+	assert.Equal(t, "assigned", task.Status)
 }
 
 func TestDelegateTask_NotAllowed_ReturnsError(t *testing.T) {

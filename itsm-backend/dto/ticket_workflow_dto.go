@@ -215,16 +215,18 @@ type TicketCC struct {
 
 // TicketCCRecordResponse 抄送记录响应
 type TicketCCRecordResponse struct {
-	ID           int              `json:"id"`
-	TicketID     int              `json:"ticketId"`
-	TicketNumber string           `json:"ticketNumber"`
-	Title        string           `json:"title"`
-	Status       string           `json:"status"`
-	Priority     string           `json:"priority"`
-	User         WorkflowUserInfo `json:"user"`
-	AddedBy      WorkflowUserInfo `json:"addedBy"`
-	AddedAt      time.Time        `json:"addedAt"`
-	IsActive     bool             `json:"isActive"`
+	ID                  int              `json:"id"`
+	TicketID            int              `json:"ticketId"`
+	TicketNumber        string           `json:"ticketNumber"`
+	Title               string           `json:"title"`
+	Status              string           `json:"status"`
+	Priority            string           `json:"priority"`
+	User                WorkflowUserInfo `json:"user"`
+	UserMembershipID    int              `json:"userMembershipId,omitempty"`
+	AddedBy             WorkflowUserInfo `json:"addedBy"`
+	AddedByMembershipID int              `json:"addedByMembershipId,omitempty"`
+	AddedAt             time.Time        `json:"addedAt"`
+	IsActive            bool             `json:"isActive"`
 }
 
 // TicketCCListResponse 抄送记录列表响应
