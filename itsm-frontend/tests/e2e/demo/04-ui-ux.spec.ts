@@ -1,5 +1,9 @@
 import { expect, test, type Response } from '@playwright/test';
-import { getDemoSession, newAuthenticatedContext } from './fixtures/demo-auth';
+import {
+  getDemoSession,
+  newAuthenticatedContext,
+  switchDemoTenant,
+} from './fixtures/demo-auth';
 import { apiDelete, apiGet, apiPost, runId, title } from './support/api';
 import { deleteChangeAsPlatformAdmin, deleteReleaseAsPlatformAdmin } from './support/cleanup';
 import {
@@ -330,6 +334,32 @@ test.describe('Demo Round 4 · frontend UI/UX', () => {
       }
     } finally {
       await context.close();
+    }
+  });
+
+  test('多租户跳转：provider 进入客户后 Header 保留返回工作台入口', async ({ browser }) => {
+    const session = await getDemoSession('mspManager');
+    const homeTenantId = Number(session.user.homeTenantId ?? session.user.tenantId ?? 0);
+    expect(homeTenantId, 'mspManager 必须有归属 provider 租户').toBeGreaterThan(0);
+
+    let context: Awaited<ReturnType<typeof newAuthenticatedContext>>['context'] | undefined;
+    try {
+      await switchDemoTenant(session, 3);
+      const authenticated = await newAuthenticatedContext(browser, 'mspManager');
+      context = authenticated.context;
+      const { page } = authenticated;
+
+      await gotoAndReady(page, '/dashboard');
+      await expect(page.getByTestId('deep-tenant-indicator')).toContainText('华辰智能制造');
+      const backButton = page.getByTestId('back-to-workbench');
+      await expect(backButton, '客户作用域下必须保留返回工作台入口').toBeVisible();
+
+      await backButton.click();
+      await expect(page).toHaveURL(/\/msp\/workbench/);
+      await expect(page.getByTestId('deep-tenant-indicator')).toHaveCount(0);
+    } finally {
+      await context?.close();
+      await switchDemoTenant(session, homeTenantId).catch(() => undefined);
     }
   });
 });

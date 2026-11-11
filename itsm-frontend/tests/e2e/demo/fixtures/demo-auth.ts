@@ -140,6 +140,48 @@ export async function closeDemoSessions(): Promise<void> {
   );
 }
 
+/**
+ * 深度切换 demo 账号作用域，并同步更新 session 缓存的 cookie/token/user。
+ *
+ * 注意：切换后必须重新读取 cookie jar，否则后续 `authHeaders(session)` 仍会
+ * 带旧租户的 Bearer token；浏览器 context 也必须使用更新后的 storageState。
+ */
+export async function switchDemoTenant(
+  session: DemoSession,
+  tenantId: number,
+): Promise<void> {
+  const response = await session.api.post('/api/v1/auth/switch-tenant', {
+    data: { tenantId },
+  });
+  if (!response.ok()) {
+    throw new Error(
+      `switch tenant ${tenantId} failed for ${session.account.username}: HTTP ${response.status()} ${(await response.text()).slice(0, 300)}`,
+    );
+  }
+
+  const storageState = await session.api.storageState();
+  const access = storageState.cookies.find(cookie => cookie.name === 'access_token');
+  if (!access?.value) {
+    throw new Error(`switch tenant ${tenantId} missing access_token cookie`);
+  }
+
+  const headers = { Authorization: `Bearer ${access.value}` };
+  const meResponse = await session.api.get('/api/v1/auth/me', { headers });
+  if (!meResponse.ok()) {
+    throw new Error(`/auth/me after switch failed: HTTP ${meResponse.status()}`);
+  }
+  const meBody = await meResponse.json();
+  if (meBody?.code !== 0) {
+    throw new Error(
+      `/auth/me after switch envelope failed: ${JSON.stringify(meBody).slice(0, 300)}`,
+    );
+  }
+
+  session.token = access.value;
+  session.storageState = storageState;
+  session.user = meBody.data as Record<string, unknown>;
+}
+
 /** 创建一个已登录的浏览器上下文（UI 测试用）。 */
 export async function newAuthenticatedContext(
   browser: Browser,
