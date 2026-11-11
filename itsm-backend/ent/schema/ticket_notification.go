@@ -22,6 +22,9 @@ func (TicketNotification) Fields() []ent.Field {
 		field.Int("user_id").
 			Comment("接收人ID").
 			Positive(),
+		field.Int("user_membership_id").
+			Comment("接收人在租户内的 membership ID").
+			Optional(),
 		field.String("type").
 			Comment("通知类型: created, assigned, status_changed, commented, sla_warning, resolved, closed").
 			NotEmpty(),

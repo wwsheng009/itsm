@@ -86,6 +86,20 @@ func (_c *TicketAttachmentCreate) SetUploadedBy(v int) *TicketAttachmentCreate {
 	return _c
 }
 
+// SetUploadedByMembershipID sets the "uploaded_by_membership_id" field.
+func (_c *TicketAttachmentCreate) SetUploadedByMembershipID(v int) *TicketAttachmentCreate {
+	_c.mutation.SetUploadedByMembershipID(v)
+	return _c
+}
+
+// SetNillableUploadedByMembershipID sets the "uploaded_by_membership_id" field if the given value is not nil.
+func (_c *TicketAttachmentCreate) SetNillableUploadedByMembershipID(v *int) *TicketAttachmentCreate {
+	if v != nil {
+		_c.SetUploadedByMembershipID(*v)
+	}
+	return _c
+}
+
 // SetTenantID sets the "tenant_id" field.
 func (_c *TicketAttachmentCreate) SetTenantID(v int) *TicketAttachmentCreate {
 	_c.mutation.SetTenantID(v)
@@ -279,6 +293,10 @@ func (_c *TicketAttachmentCreate) createSpec() (*TicketAttachment, *sqlgraph.Cre
 	if value, ok := _c.mutation.MimeType(); ok {
 		_spec.SetField(ticketattachment.FieldMimeType, field.TypeString, value)
 		_node.MimeType = value
+	}
+	if value, ok := _c.mutation.UploadedByMembershipID(); ok {
+		_spec.SetField(ticketattachment.FieldUploadedByMembershipID, field.TypeInt, value)
+		_node.UploadedByMembershipID = value
 	}
 	if value, ok := _c.mutation.TenantID(); ok {
 		_spec.SetField(ticketattachment.FieldTenantID, field.TypeInt, value)

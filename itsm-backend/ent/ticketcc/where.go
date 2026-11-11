@@ -65,9 +65,19 @@ func UserID(v int) predicate.TicketCC {
 	return predicate.TicketCC(sql.FieldEQ(FieldUserID, v))
 }
 
+// UserMembershipID applies equality check predicate on the "user_membership_id" field. It's identical to UserMembershipIDEQ.
+func UserMembershipID(v int) predicate.TicketCC {
+	return predicate.TicketCC(sql.FieldEQ(FieldUserMembershipID, v))
+}
+
 // AddedBy applies equality check predicate on the "added_by" field. It's identical to AddedByEQ.
 func AddedBy(v int) predicate.TicketCC {
 	return predicate.TicketCC(sql.FieldEQ(FieldAddedBy, v))
+}
+
+// AddedByMembershipID applies equality check predicate on the "added_by_membership_id" field. It's identical to AddedByMembershipIDEQ.
+func AddedByMembershipID(v int) predicate.TicketCC {
+	return predicate.TicketCC(sql.FieldEQ(FieldAddedByMembershipID, v))
 }
 
 // TenantID applies equality check predicate on the "tenant_id" field. It's identical to TenantIDEQ.
@@ -145,6 +155,56 @@ func UserIDLTE(v int) predicate.TicketCC {
 	return predicate.TicketCC(sql.FieldLTE(FieldUserID, v))
 }
 
+// UserMembershipIDEQ applies the EQ predicate on the "user_membership_id" field.
+func UserMembershipIDEQ(v int) predicate.TicketCC {
+	return predicate.TicketCC(sql.FieldEQ(FieldUserMembershipID, v))
+}
+
+// UserMembershipIDNEQ applies the NEQ predicate on the "user_membership_id" field.
+func UserMembershipIDNEQ(v int) predicate.TicketCC {
+	return predicate.TicketCC(sql.FieldNEQ(FieldUserMembershipID, v))
+}
+
+// UserMembershipIDIn applies the In predicate on the "user_membership_id" field.
+func UserMembershipIDIn(vs ...int) predicate.TicketCC {
+	return predicate.TicketCC(sql.FieldIn(FieldUserMembershipID, vs...))
+}
+
+// UserMembershipIDNotIn applies the NotIn predicate on the "user_membership_id" field.
+func UserMembershipIDNotIn(vs ...int) predicate.TicketCC {
+	return predicate.TicketCC(sql.FieldNotIn(FieldUserMembershipID, vs...))
+}
+
+// UserMembershipIDGT applies the GT predicate on the "user_membership_id" field.
+func UserMembershipIDGT(v int) predicate.TicketCC {
+	return predicate.TicketCC(sql.FieldGT(FieldUserMembershipID, v))
+}
+
+// UserMembershipIDGTE applies the GTE predicate on the "user_membership_id" field.
+func UserMembershipIDGTE(v int) predicate.TicketCC {
+	return predicate.TicketCC(sql.FieldGTE(FieldUserMembershipID, v))
+}
+
+// UserMembershipIDLT applies the LT predicate on the "user_membership_id" field.
+func UserMembershipIDLT(v int) predicate.TicketCC {
+	return predicate.TicketCC(sql.FieldLT(FieldUserMembershipID, v))
+}
+
+// UserMembershipIDLTE applies the LTE predicate on the "user_membership_id" field.
+func UserMembershipIDLTE(v int) predicate.TicketCC {
+	return predicate.TicketCC(sql.FieldLTE(FieldUserMembershipID, v))
+}
+
+// UserMembershipIDIsNil applies the IsNil predicate on the "user_membership_id" field.
+func UserMembershipIDIsNil() predicate.TicketCC {
+	return predicate.TicketCC(sql.FieldIsNull(FieldUserMembershipID))
+}
+
+// UserMembershipIDNotNil applies the NotNil predicate on the "user_membership_id" field.
+func UserMembershipIDNotNil() predicate.TicketCC {
+	return predicate.TicketCC(sql.FieldNotNull(FieldUserMembershipID))
+}
+
 // AddedByEQ applies the EQ predicate on the "added_by" field.
 func AddedByEQ(v int) predicate.TicketCC {
 	return predicate.TicketCC(sql.FieldEQ(FieldAddedBy, v))
@@ -183,6 +243,56 @@ func AddedByLT(v int) predicate.TicketCC {
 // AddedByLTE applies the LTE predicate on the "added_by" field.
 func AddedByLTE(v int) predicate.TicketCC {
 	return predicate.TicketCC(sql.FieldLTE(FieldAddedBy, v))
+}
+
+// AddedByMembershipIDEQ applies the EQ predicate on the "added_by_membership_id" field.
+func AddedByMembershipIDEQ(v int) predicate.TicketCC {
+	return predicate.TicketCC(sql.FieldEQ(FieldAddedByMembershipID, v))
+}
+
+// AddedByMembershipIDNEQ applies the NEQ predicate on the "added_by_membership_id" field.
+func AddedByMembershipIDNEQ(v int) predicate.TicketCC {
+	return predicate.TicketCC(sql.FieldNEQ(FieldAddedByMembershipID, v))
+}
+
+// AddedByMembershipIDIn applies the In predicate on the "added_by_membership_id" field.
+func AddedByMembershipIDIn(vs ...int) predicate.TicketCC {
+	return predicate.TicketCC(sql.FieldIn(FieldAddedByMembershipID, vs...))
+}
+
+// AddedByMembershipIDNotIn applies the NotIn predicate on the "added_by_membership_id" field.
+func AddedByMembershipIDNotIn(vs ...int) predicate.TicketCC {
+	return predicate.TicketCC(sql.FieldNotIn(FieldAddedByMembershipID, vs...))
+}
+
+// AddedByMembershipIDGT applies the GT predicate on the "added_by_membership_id" field.
+func AddedByMembershipIDGT(v int) predicate.TicketCC {
+	return predicate.TicketCC(sql.FieldGT(FieldAddedByMembershipID, v))
+}
+
+// AddedByMembershipIDGTE applies the GTE predicate on the "added_by_membership_id" field.
+func AddedByMembershipIDGTE(v int) predicate.TicketCC {
+	return predicate.TicketCC(sql.FieldGTE(FieldAddedByMembershipID, v))
+}
+
+// AddedByMembershipIDLT applies the LT predicate on the "added_by_membership_id" field.
+func AddedByMembershipIDLT(v int) predicate.TicketCC {
+	return predicate.TicketCC(sql.FieldLT(FieldAddedByMembershipID, v))
+}
+
+// AddedByMembershipIDLTE applies the LTE predicate on the "added_by_membership_id" field.
+func AddedByMembershipIDLTE(v int) predicate.TicketCC {
+	return predicate.TicketCC(sql.FieldLTE(FieldAddedByMembershipID, v))
+}
+
+// AddedByMembershipIDIsNil applies the IsNil predicate on the "added_by_membership_id" field.
+func AddedByMembershipIDIsNil() predicate.TicketCC {
+	return predicate.TicketCC(sql.FieldIsNull(FieldAddedByMembershipID))
+}
+
+// AddedByMembershipIDNotNil applies the NotNil predicate on the "added_by_membership_id" field.
+func AddedByMembershipIDNotNil() predicate.TicketCC {
+	return predicate.TicketCC(sql.FieldNotNull(FieldAddedByMembershipID))
 }
 
 // TenantIDEQ applies the EQ predicate on the "tenant_id" field.

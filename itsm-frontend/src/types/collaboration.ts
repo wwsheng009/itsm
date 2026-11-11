@@ -141,6 +141,8 @@ export interface Notification {
   // 接收者
   recipientId: number;
   recipientName: string;
+  /** 接收人在当前租户内的 membership 身份（C 方案；历史数据可缺省）。 */
+  recipientMembershipId?: number;
 
   // 发送者
   senderId?: number;

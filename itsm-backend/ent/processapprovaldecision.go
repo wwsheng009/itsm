@@ -36,6 +36,8 @@ type ProcessApprovalDecision struct {
 	BusinessID string `json:"business_id,omitempty"`
 	// ActorID holds the value of the "actor_id" field.
 	ActorID int `json:"actor_id,omitempty"`
+	// 人工决策 actor 在租户内的 membership ID；系统决策为 NULL
+	ActorMembershipID int `json:"actor_membership_id,omitempty"`
 	// 系统决策时固定为 system
 	ActorName string `json:"actor_name,omitempty"`
 	// approve, reject, delegate, transfer, add_approver, withdraw, timeout, system_decision
@@ -66,7 +68,7 @@ func (*ProcessApprovalDecision) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case processapprovaldecision.FieldVariablesSnapshot:
 			values[i] = new([]byte)
-		case processapprovaldecision.FieldID, processapprovaldecision.FieldProcessInstanceID, processapprovaldecision.FieldProcessTaskID, processapprovaldecision.FieldActorID, processapprovaldecision.FieldDelegatedFrom, processapprovaldecision.FieldTenantID:
+		case processapprovaldecision.FieldID, processapprovaldecision.FieldProcessInstanceID, processapprovaldecision.FieldProcessTaskID, processapprovaldecision.FieldActorID, processapprovaldecision.FieldActorMembershipID, processapprovaldecision.FieldDelegatedFrom, processapprovaldecision.FieldTenantID:
 			values[i] = new(sql.NullInt64)
 		case processapprovaldecision.FieldProcessInstanceKey, processapprovaldecision.FieldTaskID, processapprovaldecision.FieldProcessDefinitionKey, processapprovaldecision.FieldNodeKey, processapprovaldecision.FieldBusinessType, processapprovaldecision.FieldBusinessID, processapprovaldecision.FieldActorName, processapprovaldecision.FieldAction, processapprovaldecision.FieldDecision, processapprovaldecision.FieldComment, processapprovaldecision.FieldClientIP, processapprovaldecision.FieldUserAgent:
 			values[i] = new(sql.NullString)
@@ -146,6 +148,12 @@ func (_m *ProcessApprovalDecision) assignValues(columns []string, values []any) 
 				return fmt.Errorf("unexpected type %T for field actor_id", values[i])
 			} else if value.Valid {
 				_m.ActorID = int(value.Int64)
+			}
+		case processapprovaldecision.FieldActorMembershipID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field actor_membership_id", values[i])
+			} else if value.Valid {
+				_m.ActorMembershipID = int(value.Int64)
 			}
 		case processapprovaldecision.FieldActorName:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -272,6 +280,9 @@ func (_m *ProcessApprovalDecision) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("actor_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.ActorID))
+	builder.WriteString(", ")
+	builder.WriteString("actor_membership_id=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ActorMembershipID))
 	builder.WriteString(", ")
 	builder.WriteString("actor_name=")
 	builder.WriteString(_m.ActorName)

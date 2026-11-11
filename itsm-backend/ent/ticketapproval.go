@@ -26,6 +26,8 @@ type TicketApproval struct {
 	LevelName string `json:"level_name,omitempty"`
 	// 审批人ID
 	ApproverID int `json:"approver_id,omitempty"`
+	// 审批人在租户内的 membership ID
+	ApproverMembershipID int `json:"approver_membership_id,omitempty"`
 	// 审批状态: pending/approved/rejected/cancelled
 	Status string `json:"status,omitempty"`
 	// 审批动作: approve/reject/delegate
@@ -34,6 +36,8 @@ type TicketApproval struct {
 	Comment string `json:"comment,omitempty"`
 	// 委派目标用户ID
 	DelegateToUserID int `json:"delegate_to_user_id,omitempty"`
+	// 委派目标在租户内的 membership ID
+	DelegateToMembershipID int `json:"delegate_to_membership_id,omitempty"`
 	// 租户ID
 	TenantID int `json:"tenant_id,omitempty"`
 	// 创建时间
@@ -73,7 +77,7 @@ func (*TicketApproval) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case ticketapproval.FieldID, ticketapproval.FieldTicketID, ticketapproval.FieldLevel, ticketapproval.FieldApproverID, ticketapproval.FieldDelegateToUserID, ticketapproval.FieldTenantID:
+		case ticketapproval.FieldID, ticketapproval.FieldTicketID, ticketapproval.FieldLevel, ticketapproval.FieldApproverID, ticketapproval.FieldApproverMembershipID, ticketapproval.FieldDelegateToUserID, ticketapproval.FieldDelegateToMembershipID, ticketapproval.FieldTenantID:
 			values[i] = new(sql.NullInt64)
 		case ticketapproval.FieldLevelName, ticketapproval.FieldStatus, ticketapproval.FieldAction, ticketapproval.FieldComment:
 			values[i] = new(sql.NullString)
@@ -124,6 +128,12 @@ func (_m *TicketApproval) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.ApproverID = int(value.Int64)
 			}
+		case ticketapproval.FieldApproverMembershipID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field approver_membership_id", values[i])
+			} else if value.Valid {
+				_m.ApproverMembershipID = int(value.Int64)
+			}
 		case ticketapproval.FieldStatus:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field status", values[i])
@@ -147,6 +157,12 @@ func (_m *TicketApproval) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field delegate_to_user_id", values[i])
 			} else if value.Valid {
 				_m.DelegateToUserID = int(value.Int64)
+			}
+		case ticketapproval.FieldDelegateToMembershipID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field delegate_to_membership_id", values[i])
+			} else if value.Valid {
+				_m.DelegateToMembershipID = int(value.Int64)
 			}
 		case ticketapproval.FieldTenantID:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -226,6 +242,9 @@ func (_m *TicketApproval) String() string {
 	builder.WriteString("approver_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.ApproverID))
 	builder.WriteString(", ")
+	builder.WriteString("approver_membership_id=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ApproverMembershipID))
+	builder.WriteString(", ")
 	builder.WriteString("status=")
 	builder.WriteString(_m.Status)
 	builder.WriteString(", ")
@@ -237,6 +256,9 @@ func (_m *TicketApproval) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("delegate_to_user_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.DelegateToUserID))
+	builder.WriteString(", ")
+	builder.WriteString("delegate_to_membership_id=")
+	builder.WriteString(fmt.Sprintf("%v", _m.DelegateToMembershipID))
 	builder.WriteString(", ")
 	builder.WriteString("tenant_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.TenantID))

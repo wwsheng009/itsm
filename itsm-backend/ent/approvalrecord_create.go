@@ -86,6 +86,20 @@ func (_c *ApprovalRecordCreate) SetApproverID(v int) *ApprovalRecordCreate {
 	return _c
 }
 
+// SetApproverMembershipID sets the "approver_membership_id" field.
+func (_c *ApprovalRecordCreate) SetApproverMembershipID(v int) *ApprovalRecordCreate {
+	_c.mutation.SetApproverMembershipID(v)
+	return _c
+}
+
+// SetNillableApproverMembershipID sets the "approver_membership_id" field if the given value is not nil.
+func (_c *ApprovalRecordCreate) SetNillableApproverMembershipID(v *int) *ApprovalRecordCreate {
+	if v != nil {
+		_c.SetApproverMembershipID(*v)
+	}
+	return _c
+}
+
 // SetApproverName sets the "approver_name" field.
 func (_c *ApprovalRecordCreate) SetApproverName(v string) *ApprovalRecordCreate {
 	_c.mutation.SetApproverName(v)
@@ -399,6 +413,10 @@ func (_c *ApprovalRecordCreate) createSpec() (*ApprovalRecord, *sqlgraph.CreateS
 	if value, ok := _c.mutation.ApproverID(); ok {
 		_spec.SetField(approvalrecord.FieldApproverID, field.TypeInt, value)
 		_node.ApproverID = value
+	}
+	if value, ok := _c.mutation.ApproverMembershipID(); ok {
+		_spec.SetField(approvalrecord.FieldApproverMembershipID, field.TypeInt, value)
+		_node.ApproverMembershipID = value
 	}
 	if value, ok := _c.mutation.ApproverName(); ok {
 		_spec.SetField(approvalrecord.FieldApproverName, field.TypeString, value)

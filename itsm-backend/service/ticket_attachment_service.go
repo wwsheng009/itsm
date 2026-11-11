@@ -18,6 +18,7 @@ import (
 	"itsm-backend/ent/ticket"
 	"itsm-backend/ent/ticketattachment"
 	"itsm-backend/ent/user"
+	"itsm-backend/middleware"
 
 	"go.uber.org/zap"
 )
@@ -114,16 +115,17 @@ func legacyTicketAttachmentResponse(view *AttachmentView, uploader *ent.User) *d
 		return nil
 	}
 	resp := &dto.TicketAttachmentResponse{
-		ID:         view.ID,
-		TicketID:   view.BizID,
-		FileName:   view.FileName,
-		FilePath:   view.StorageKey,
-		FileURL:    legacyTicketAttachmentURL(view.BizID, view.ID),
-		FileSize:   view.FileSize,
-		FileType:   view.FileType,
-		MimeType:   view.MimeType,
-		UploadedBy: view.UploadedBy,
-		CreatedAt:  view.CreatedAt,
+		ID:                     view.ID,
+		TicketID:               view.BizID,
+		FileName:               view.FileName,
+		FilePath:               view.StorageKey,
+		FileURL:                legacyTicketAttachmentURL(view.BizID, view.ID),
+		FileSize:               view.FileSize,
+		FileType:               view.FileType,
+		MimeType:               view.MimeType,
+		UploadedBy:             view.UploadedBy,
+		UploadedByMembershipID: view.UploadedByMembershipID,
+		CreatedAt:              view.CreatedAt,
 	}
 	if uploader != nil {
 		resp.Uploader = &dto.UserInfo{
@@ -343,7 +345,7 @@ func (s *TicketAttachmentService) UploadAttachment(
 	}
 
 	// 创建附件记录（file_url 需等自增 ID 生成后再回写规范地址，见下方）
-	attachment, err := s.client.TicketAttachment.Create().
+	attachmentCreate := s.client.TicketAttachment.Create().
 		SetTicketID(ticketID).
 		SetFileName(safeName).
 		SetFilePath(filePath).
@@ -351,8 +353,13 @@ func (s *TicketAttachmentService) UploadAttachment(
 		SetFileType(mimeType).
 		SetMimeType(mimeType).
 		SetUploadedBy(userID).
-		SetTenantID(tenantID).
-		Save(ctx)
+		SetTenantID(tenantID)
+	if membership, mErr := middleware.ResolveActiveMembership(ctx, s.client, userID, tenantID); mErr != nil {
+		s.logger.Warnw("Failed to resolve ticket attachment uploader membership", "error", mErr, "user_id", userID, "tenant_id", tenantID)
+	} else if membership != nil {
+		attachmentCreate = attachmentCreate.SetUploadedByMembershipID(membership.ID)
+	}
+	attachment, err := attachmentCreate.Save(ctx)
 	if err != nil {
 		// 如果数据库保存失败，删除已上传的文件
 		os.Remove(filePath)

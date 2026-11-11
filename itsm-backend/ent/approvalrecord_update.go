@@ -163,6 +163,33 @@ func (_u *ApprovalRecordUpdate) AddApproverID(v int) *ApprovalRecordUpdate {
 	return _u
 }
 
+// SetApproverMembershipID sets the "approver_membership_id" field.
+func (_u *ApprovalRecordUpdate) SetApproverMembershipID(v int) *ApprovalRecordUpdate {
+	_u.mutation.ResetApproverMembershipID()
+	_u.mutation.SetApproverMembershipID(v)
+	return _u
+}
+
+// SetNillableApproverMembershipID sets the "approver_membership_id" field if the given value is not nil.
+func (_u *ApprovalRecordUpdate) SetNillableApproverMembershipID(v *int) *ApprovalRecordUpdate {
+	if v != nil {
+		_u.SetApproverMembershipID(*v)
+	}
+	return _u
+}
+
+// AddApproverMembershipID adds value to the "approver_membership_id" field.
+func (_u *ApprovalRecordUpdate) AddApproverMembershipID(v int) *ApprovalRecordUpdate {
+	_u.mutation.AddApproverMembershipID(v)
+	return _u
+}
+
+// ClearApproverMembershipID clears the value of the "approver_membership_id" field.
+func (_u *ApprovalRecordUpdate) ClearApproverMembershipID() *ApprovalRecordUpdate {
+	_u.mutation.ClearApproverMembershipID()
+	return _u
+}
+
 // SetApproverName sets the "approver_name" field.
 func (_u *ApprovalRecordUpdate) SetApproverName(v string) *ApprovalRecordUpdate {
 	_u.mutation.SetApproverName(v)
@@ -471,6 +498,15 @@ func (_u *ApprovalRecordUpdate) sqlSave(ctx context.Context) (_node int, err err
 	if value, ok := _u.mutation.AddedApproverID(); ok {
 		_spec.AddField(approvalrecord.FieldApproverID, field.TypeInt, value)
 	}
+	if value, ok := _u.mutation.ApproverMembershipID(); ok {
+		_spec.SetField(approvalrecord.FieldApproverMembershipID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedApproverMembershipID(); ok {
+		_spec.AddField(approvalrecord.FieldApproverMembershipID, field.TypeInt, value)
+	}
+	if _u.mutation.ApproverMembershipIDCleared() {
+		_spec.ClearField(approvalrecord.FieldApproverMembershipID, field.TypeInt)
+	}
 	if value, ok := _u.mutation.ApproverName(); ok {
 		_spec.SetField(approvalrecord.FieldApproverName, field.TypeString, value)
 	}
@@ -724,6 +760,33 @@ func (_u *ApprovalRecordUpdateOne) SetNillableApproverID(v *int) *ApprovalRecord
 // AddApproverID adds value to the "approver_id" field.
 func (_u *ApprovalRecordUpdateOne) AddApproverID(v int) *ApprovalRecordUpdateOne {
 	_u.mutation.AddApproverID(v)
+	return _u
+}
+
+// SetApproverMembershipID sets the "approver_membership_id" field.
+func (_u *ApprovalRecordUpdateOne) SetApproverMembershipID(v int) *ApprovalRecordUpdateOne {
+	_u.mutation.ResetApproverMembershipID()
+	_u.mutation.SetApproverMembershipID(v)
+	return _u
+}
+
+// SetNillableApproverMembershipID sets the "approver_membership_id" field if the given value is not nil.
+func (_u *ApprovalRecordUpdateOne) SetNillableApproverMembershipID(v *int) *ApprovalRecordUpdateOne {
+	if v != nil {
+		_u.SetApproverMembershipID(*v)
+	}
+	return _u
+}
+
+// AddApproverMembershipID adds value to the "approver_membership_id" field.
+func (_u *ApprovalRecordUpdateOne) AddApproverMembershipID(v int) *ApprovalRecordUpdateOne {
+	_u.mutation.AddApproverMembershipID(v)
+	return _u
+}
+
+// ClearApproverMembershipID clears the value of the "approver_membership_id" field.
+func (_u *ApprovalRecordUpdateOne) ClearApproverMembershipID() *ApprovalRecordUpdateOne {
+	_u.mutation.ClearApproverMembershipID()
 	return _u
 }
 
@@ -1064,6 +1127,15 @@ func (_u *ApprovalRecordUpdateOne) sqlSave(ctx context.Context) (_node *Approval
 	}
 	if value, ok := _u.mutation.AddedApproverID(); ok {
 		_spec.AddField(approvalrecord.FieldApproverID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.ApproverMembershipID(); ok {
+		_spec.SetField(approvalrecord.FieldApproverMembershipID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedApproverMembershipID(); ok {
+		_spec.AddField(approvalrecord.FieldApproverMembershipID, field.TypeInt, value)
+	}
+	if _u.mutation.ApproverMembershipIDCleared() {
+		_spec.ClearField(approvalrecord.FieldApproverMembershipID, field.TypeInt)
 	}
 	if value, ok := _u.mutation.ApproverName(); ok {
 		_spec.SetField(approvalrecord.FieldApproverName, field.TypeString, value)

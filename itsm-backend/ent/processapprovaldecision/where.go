@@ -99,6 +99,11 @@ func ActorID(v int) predicate.ProcessApprovalDecision {
 	return predicate.ProcessApprovalDecision(sql.FieldEQ(FieldActorID, v))
 }
 
+// ActorMembershipID applies equality check predicate on the "actor_membership_id" field. It's identical to ActorMembershipIDEQ.
+func ActorMembershipID(v int) predicate.ProcessApprovalDecision {
+	return predicate.ProcessApprovalDecision(sql.FieldEQ(FieldActorMembershipID, v))
+}
+
 // ActorName applies equality check predicate on the "actor_name" field. It's identical to ActorNameEQ.
 func ActorName(v string) predicate.ProcessApprovalDecision {
 	return predicate.ProcessApprovalDecision(sql.FieldEQ(FieldActorName, v))
@@ -672,6 +677,56 @@ func ActorIDLT(v int) predicate.ProcessApprovalDecision {
 // ActorIDLTE applies the LTE predicate on the "actor_id" field.
 func ActorIDLTE(v int) predicate.ProcessApprovalDecision {
 	return predicate.ProcessApprovalDecision(sql.FieldLTE(FieldActorID, v))
+}
+
+// ActorMembershipIDEQ applies the EQ predicate on the "actor_membership_id" field.
+func ActorMembershipIDEQ(v int) predicate.ProcessApprovalDecision {
+	return predicate.ProcessApprovalDecision(sql.FieldEQ(FieldActorMembershipID, v))
+}
+
+// ActorMembershipIDNEQ applies the NEQ predicate on the "actor_membership_id" field.
+func ActorMembershipIDNEQ(v int) predicate.ProcessApprovalDecision {
+	return predicate.ProcessApprovalDecision(sql.FieldNEQ(FieldActorMembershipID, v))
+}
+
+// ActorMembershipIDIn applies the In predicate on the "actor_membership_id" field.
+func ActorMembershipIDIn(vs ...int) predicate.ProcessApprovalDecision {
+	return predicate.ProcessApprovalDecision(sql.FieldIn(FieldActorMembershipID, vs...))
+}
+
+// ActorMembershipIDNotIn applies the NotIn predicate on the "actor_membership_id" field.
+func ActorMembershipIDNotIn(vs ...int) predicate.ProcessApprovalDecision {
+	return predicate.ProcessApprovalDecision(sql.FieldNotIn(FieldActorMembershipID, vs...))
+}
+
+// ActorMembershipIDGT applies the GT predicate on the "actor_membership_id" field.
+func ActorMembershipIDGT(v int) predicate.ProcessApprovalDecision {
+	return predicate.ProcessApprovalDecision(sql.FieldGT(FieldActorMembershipID, v))
+}
+
+// ActorMembershipIDGTE applies the GTE predicate on the "actor_membership_id" field.
+func ActorMembershipIDGTE(v int) predicate.ProcessApprovalDecision {
+	return predicate.ProcessApprovalDecision(sql.FieldGTE(FieldActorMembershipID, v))
+}
+
+// ActorMembershipIDLT applies the LT predicate on the "actor_membership_id" field.
+func ActorMembershipIDLT(v int) predicate.ProcessApprovalDecision {
+	return predicate.ProcessApprovalDecision(sql.FieldLT(FieldActorMembershipID, v))
+}
+
+// ActorMembershipIDLTE applies the LTE predicate on the "actor_membership_id" field.
+func ActorMembershipIDLTE(v int) predicate.ProcessApprovalDecision {
+	return predicate.ProcessApprovalDecision(sql.FieldLTE(FieldActorMembershipID, v))
+}
+
+// ActorMembershipIDIsNil applies the IsNil predicate on the "actor_membership_id" field.
+func ActorMembershipIDIsNil() predicate.ProcessApprovalDecision {
+	return predicate.ProcessApprovalDecision(sql.FieldIsNull(FieldActorMembershipID))
+}
+
+// ActorMembershipIDNotNil applies the NotNil predicate on the "actor_membership_id" field.
+func ActorMembershipIDNotNil() predicate.ProcessApprovalDecision {
+	return predicate.ProcessApprovalDecision(sql.FieldNotNull(FieldActorMembershipID))
 }
 
 // ActorNameEQ applies the EQ predicate on the "actor_name" field.

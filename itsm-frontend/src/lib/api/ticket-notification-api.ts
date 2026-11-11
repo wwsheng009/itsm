@@ -5,6 +5,7 @@ export interface TicketNotification {
   id: number;
   ticketId: number;
   userId: number;
+  userMembershipId?: number;
   type:
     | 'created'
     | 'assigned'

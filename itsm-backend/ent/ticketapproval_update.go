@@ -99,6 +99,33 @@ func (_u *TicketApprovalUpdate) AddApproverID(v int) *TicketApprovalUpdate {
 	return _u
 }
 
+// SetApproverMembershipID sets the "approver_membership_id" field.
+func (_u *TicketApprovalUpdate) SetApproverMembershipID(v int) *TicketApprovalUpdate {
+	_u.mutation.ResetApproverMembershipID()
+	_u.mutation.SetApproverMembershipID(v)
+	return _u
+}
+
+// SetNillableApproverMembershipID sets the "approver_membership_id" field if the given value is not nil.
+func (_u *TicketApprovalUpdate) SetNillableApproverMembershipID(v *int) *TicketApprovalUpdate {
+	if v != nil {
+		_u.SetApproverMembershipID(*v)
+	}
+	return _u
+}
+
+// AddApproverMembershipID adds value to the "approver_membership_id" field.
+func (_u *TicketApprovalUpdate) AddApproverMembershipID(v int) *TicketApprovalUpdate {
+	_u.mutation.AddApproverMembershipID(v)
+	return _u
+}
+
+// ClearApproverMembershipID clears the value of the "approver_membership_id" field.
+func (_u *TicketApprovalUpdate) ClearApproverMembershipID() *TicketApprovalUpdate {
+	_u.mutation.ClearApproverMembershipID()
+	return _u
+}
+
 // SetStatus sets the "status" field.
 func (_u *TicketApprovalUpdate) SetStatus(v string) *TicketApprovalUpdate {
 	_u.mutation.SetStatus(v)
@@ -177,6 +204,33 @@ func (_u *TicketApprovalUpdate) AddDelegateToUserID(v int) *TicketApprovalUpdate
 // ClearDelegateToUserID clears the value of the "delegate_to_user_id" field.
 func (_u *TicketApprovalUpdate) ClearDelegateToUserID() *TicketApprovalUpdate {
 	_u.mutation.ClearDelegateToUserID()
+	return _u
+}
+
+// SetDelegateToMembershipID sets the "delegate_to_membership_id" field.
+func (_u *TicketApprovalUpdate) SetDelegateToMembershipID(v int) *TicketApprovalUpdate {
+	_u.mutation.ResetDelegateToMembershipID()
+	_u.mutation.SetDelegateToMembershipID(v)
+	return _u
+}
+
+// SetNillableDelegateToMembershipID sets the "delegate_to_membership_id" field if the given value is not nil.
+func (_u *TicketApprovalUpdate) SetNillableDelegateToMembershipID(v *int) *TicketApprovalUpdate {
+	if v != nil {
+		_u.SetDelegateToMembershipID(*v)
+	}
+	return _u
+}
+
+// AddDelegateToMembershipID adds value to the "delegate_to_membership_id" field.
+func (_u *TicketApprovalUpdate) AddDelegateToMembershipID(v int) *TicketApprovalUpdate {
+	_u.mutation.AddDelegateToMembershipID(v)
+	return _u
+}
+
+// ClearDelegateToMembershipID clears the value of the "delegate_to_membership_id" field.
+func (_u *TicketApprovalUpdate) ClearDelegateToMembershipID() *TicketApprovalUpdate {
+	_u.mutation.ClearDelegateToMembershipID()
 	return _u
 }
 
@@ -314,6 +368,15 @@ func (_u *TicketApprovalUpdate) sqlSave(ctx context.Context) (_node int, err err
 	if value, ok := _u.mutation.AddedApproverID(); ok {
 		_spec.AddField(ticketapproval.FieldApproverID, field.TypeInt, value)
 	}
+	if value, ok := _u.mutation.ApproverMembershipID(); ok {
+		_spec.SetField(ticketapproval.FieldApproverMembershipID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedApproverMembershipID(); ok {
+		_spec.AddField(ticketapproval.FieldApproverMembershipID, field.TypeInt, value)
+	}
+	if _u.mutation.ApproverMembershipIDCleared() {
+		_spec.ClearField(ticketapproval.FieldApproverMembershipID, field.TypeInt)
+	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(ticketapproval.FieldStatus, field.TypeString, value)
 	}
@@ -337,6 +400,15 @@ func (_u *TicketApprovalUpdate) sqlSave(ctx context.Context) (_node int, err err
 	}
 	if _u.mutation.DelegateToUserIDCleared() {
 		_spec.ClearField(ticketapproval.FieldDelegateToUserID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.DelegateToMembershipID(); ok {
+		_spec.SetField(ticketapproval.FieldDelegateToMembershipID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedDelegateToMembershipID(); ok {
+		_spec.AddField(ticketapproval.FieldDelegateToMembershipID, field.TypeInt, value)
+	}
+	if _u.mutation.DelegateToMembershipIDCleared() {
+		_spec.ClearField(ticketapproval.FieldDelegateToMembershipID, field.TypeInt)
 	}
 	if value, ok := _u.mutation.TenantID(); ok {
 		_spec.SetField(ticketapproval.FieldTenantID, field.TypeInt, value)
@@ -472,6 +544,33 @@ func (_u *TicketApprovalUpdateOne) AddApproverID(v int) *TicketApprovalUpdateOne
 	return _u
 }
 
+// SetApproverMembershipID sets the "approver_membership_id" field.
+func (_u *TicketApprovalUpdateOne) SetApproverMembershipID(v int) *TicketApprovalUpdateOne {
+	_u.mutation.ResetApproverMembershipID()
+	_u.mutation.SetApproverMembershipID(v)
+	return _u
+}
+
+// SetNillableApproverMembershipID sets the "approver_membership_id" field if the given value is not nil.
+func (_u *TicketApprovalUpdateOne) SetNillableApproverMembershipID(v *int) *TicketApprovalUpdateOne {
+	if v != nil {
+		_u.SetApproverMembershipID(*v)
+	}
+	return _u
+}
+
+// AddApproverMembershipID adds value to the "approver_membership_id" field.
+func (_u *TicketApprovalUpdateOne) AddApproverMembershipID(v int) *TicketApprovalUpdateOne {
+	_u.mutation.AddApproverMembershipID(v)
+	return _u
+}
+
+// ClearApproverMembershipID clears the value of the "approver_membership_id" field.
+func (_u *TicketApprovalUpdateOne) ClearApproverMembershipID() *TicketApprovalUpdateOne {
+	_u.mutation.ClearApproverMembershipID()
+	return _u
+}
+
 // SetStatus sets the "status" field.
 func (_u *TicketApprovalUpdateOne) SetStatus(v string) *TicketApprovalUpdateOne {
 	_u.mutation.SetStatus(v)
@@ -550,6 +649,33 @@ func (_u *TicketApprovalUpdateOne) AddDelegateToUserID(v int) *TicketApprovalUpd
 // ClearDelegateToUserID clears the value of the "delegate_to_user_id" field.
 func (_u *TicketApprovalUpdateOne) ClearDelegateToUserID() *TicketApprovalUpdateOne {
 	_u.mutation.ClearDelegateToUserID()
+	return _u
+}
+
+// SetDelegateToMembershipID sets the "delegate_to_membership_id" field.
+func (_u *TicketApprovalUpdateOne) SetDelegateToMembershipID(v int) *TicketApprovalUpdateOne {
+	_u.mutation.ResetDelegateToMembershipID()
+	_u.mutation.SetDelegateToMembershipID(v)
+	return _u
+}
+
+// SetNillableDelegateToMembershipID sets the "delegate_to_membership_id" field if the given value is not nil.
+func (_u *TicketApprovalUpdateOne) SetNillableDelegateToMembershipID(v *int) *TicketApprovalUpdateOne {
+	if v != nil {
+		_u.SetDelegateToMembershipID(*v)
+	}
+	return _u
+}
+
+// AddDelegateToMembershipID adds value to the "delegate_to_membership_id" field.
+func (_u *TicketApprovalUpdateOne) AddDelegateToMembershipID(v int) *TicketApprovalUpdateOne {
+	_u.mutation.AddDelegateToMembershipID(v)
+	return _u
+}
+
+// ClearDelegateToMembershipID clears the value of the "delegate_to_membership_id" field.
+func (_u *TicketApprovalUpdateOne) ClearDelegateToMembershipID() *TicketApprovalUpdateOne {
+	_u.mutation.ClearDelegateToMembershipID()
 	return _u
 }
 
@@ -717,6 +843,15 @@ func (_u *TicketApprovalUpdateOne) sqlSave(ctx context.Context) (_node *TicketAp
 	if value, ok := _u.mutation.AddedApproverID(); ok {
 		_spec.AddField(ticketapproval.FieldApproverID, field.TypeInt, value)
 	}
+	if value, ok := _u.mutation.ApproverMembershipID(); ok {
+		_spec.SetField(ticketapproval.FieldApproverMembershipID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedApproverMembershipID(); ok {
+		_spec.AddField(ticketapproval.FieldApproverMembershipID, field.TypeInt, value)
+	}
+	if _u.mutation.ApproverMembershipIDCleared() {
+		_spec.ClearField(ticketapproval.FieldApproverMembershipID, field.TypeInt)
+	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(ticketapproval.FieldStatus, field.TypeString, value)
 	}
@@ -740,6 +875,15 @@ func (_u *TicketApprovalUpdateOne) sqlSave(ctx context.Context) (_node *TicketAp
 	}
 	if _u.mutation.DelegateToUserIDCleared() {
 		_spec.ClearField(ticketapproval.FieldDelegateToUserID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.DelegateToMembershipID(); ok {
+		_spec.SetField(ticketapproval.FieldDelegateToMembershipID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedDelegateToMembershipID(); ok {
+		_spec.AddField(ticketapproval.FieldDelegateToMembershipID, field.TypeInt, value)
+	}
+	if _u.mutation.DelegateToMembershipIDCleared() {
+		_spec.ClearField(ticketapproval.FieldDelegateToMembershipID, field.TypeInt)
 	}
 	if value, ok := _u.mutation.TenantID(); ok {
 		_spec.SetField(ticketapproval.FieldTenantID, field.TypeInt, value)

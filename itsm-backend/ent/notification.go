@@ -31,6 +31,8 @@ type Notification struct {
 	ActionText string `json:"action_text,omitempty"`
 	// 用户ID
 	UserID int `json:"user_id,omitempty"`
+	// 接收人在租户内的 membership ID
+	UserMembershipID int `json:"user_membership_id,omitempty"`
 	// 租户ID
 	TenantID int `json:"tenant_id,omitempty"`
 	// 创建时间
@@ -47,7 +49,7 @@ func (*Notification) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case notification.FieldRead:
 			values[i] = new(sql.NullBool)
-		case notification.FieldID, notification.FieldUserID, notification.FieldTenantID:
+		case notification.FieldID, notification.FieldUserID, notification.FieldUserMembershipID, notification.FieldTenantID:
 			values[i] = new(sql.NullInt64)
 		case notification.FieldTitle, notification.FieldMessage, notification.FieldType, notification.FieldActionURL, notification.FieldActionText:
 			values[i] = new(sql.NullString)
@@ -115,6 +117,12 @@ func (_m *Notification) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field user_id", values[i])
 			} else if value.Valid {
 				_m.UserID = int(value.Int64)
+			}
+		case notification.FieldUserMembershipID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field user_membership_id", values[i])
+			} else if value.Valid {
+				_m.UserMembershipID = int(value.Int64)
 			}
 		case notification.FieldTenantID:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -190,6 +198,9 @@ func (_m *Notification) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("user_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.UserID))
+	builder.WriteString(", ")
+	builder.WriteString("user_membership_id=")
+	builder.WriteString(fmt.Sprintf("%v", _m.UserMembershipID))
 	builder.WriteString(", ")
 	builder.WriteString("tenant_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.TenantID))

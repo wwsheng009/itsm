@@ -161,6 +161,33 @@ func (_u *TicketAttachmentUpdate) SetNillableUploadedBy(v *int) *TicketAttachmen
 	return _u
 }
 
+// SetUploadedByMembershipID sets the "uploaded_by_membership_id" field.
+func (_u *TicketAttachmentUpdate) SetUploadedByMembershipID(v int) *TicketAttachmentUpdate {
+	_u.mutation.ResetUploadedByMembershipID()
+	_u.mutation.SetUploadedByMembershipID(v)
+	return _u
+}
+
+// SetNillableUploadedByMembershipID sets the "uploaded_by_membership_id" field if the given value is not nil.
+func (_u *TicketAttachmentUpdate) SetNillableUploadedByMembershipID(v *int) *TicketAttachmentUpdate {
+	if v != nil {
+		_u.SetUploadedByMembershipID(*v)
+	}
+	return _u
+}
+
+// AddUploadedByMembershipID adds value to the "uploaded_by_membership_id" field.
+func (_u *TicketAttachmentUpdate) AddUploadedByMembershipID(v int) *TicketAttachmentUpdate {
+	_u.mutation.AddUploadedByMembershipID(v)
+	return _u
+}
+
+// ClearUploadedByMembershipID clears the value of the "uploaded_by_membership_id" field.
+func (_u *TicketAttachmentUpdate) ClearUploadedByMembershipID() *TicketAttachmentUpdate {
+	_u.mutation.ClearUploadedByMembershipID()
+	return _u
+}
+
 // SetTenantID sets the "tenant_id" field.
 func (_u *TicketAttachmentUpdate) SetTenantID(v int) *TicketAttachmentUpdate {
 	_u.mutation.ResetTenantID()
@@ -340,6 +367,15 @@ func (_u *TicketAttachmentUpdate) sqlSave(ctx context.Context) (_node int, err e
 	}
 	if _u.mutation.MimeTypeCleared() {
 		_spec.ClearField(ticketattachment.FieldMimeType, field.TypeString)
+	}
+	if value, ok := _u.mutation.UploadedByMembershipID(); ok {
+		_spec.SetField(ticketattachment.FieldUploadedByMembershipID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedUploadedByMembershipID(); ok {
+		_spec.AddField(ticketattachment.FieldUploadedByMembershipID, field.TypeInt, value)
+	}
+	if _u.mutation.UploadedByMembershipIDCleared() {
+		_spec.ClearField(ticketattachment.FieldUploadedByMembershipID, field.TypeInt)
 	}
 	if value, ok := _u.mutation.TenantID(); ok {
 		_spec.SetField(ticketattachment.FieldTenantID, field.TypeInt, value)
@@ -559,6 +595,33 @@ func (_u *TicketAttachmentUpdateOne) SetNillableUploadedBy(v *int) *TicketAttach
 	return _u
 }
 
+// SetUploadedByMembershipID sets the "uploaded_by_membership_id" field.
+func (_u *TicketAttachmentUpdateOne) SetUploadedByMembershipID(v int) *TicketAttachmentUpdateOne {
+	_u.mutation.ResetUploadedByMembershipID()
+	_u.mutation.SetUploadedByMembershipID(v)
+	return _u
+}
+
+// SetNillableUploadedByMembershipID sets the "uploaded_by_membership_id" field if the given value is not nil.
+func (_u *TicketAttachmentUpdateOne) SetNillableUploadedByMembershipID(v *int) *TicketAttachmentUpdateOne {
+	if v != nil {
+		_u.SetUploadedByMembershipID(*v)
+	}
+	return _u
+}
+
+// AddUploadedByMembershipID adds value to the "uploaded_by_membership_id" field.
+func (_u *TicketAttachmentUpdateOne) AddUploadedByMembershipID(v int) *TicketAttachmentUpdateOne {
+	_u.mutation.AddUploadedByMembershipID(v)
+	return _u
+}
+
+// ClearUploadedByMembershipID clears the value of the "uploaded_by_membership_id" field.
+func (_u *TicketAttachmentUpdateOne) ClearUploadedByMembershipID() *TicketAttachmentUpdateOne {
+	_u.mutation.ClearUploadedByMembershipID()
+	return _u
+}
+
 // SetTenantID sets the "tenant_id" field.
 func (_u *TicketAttachmentUpdateOne) SetTenantID(v int) *TicketAttachmentUpdateOne {
 	_u.mutation.ResetTenantID()
@@ -768,6 +831,15 @@ func (_u *TicketAttachmentUpdateOne) sqlSave(ctx context.Context) (_node *Ticket
 	}
 	if _u.mutation.MimeTypeCleared() {
 		_spec.ClearField(ticketattachment.FieldMimeType, field.TypeString)
+	}
+	if value, ok := _u.mutation.UploadedByMembershipID(); ok {
+		_spec.SetField(ticketattachment.FieldUploadedByMembershipID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedUploadedByMembershipID(); ok {
+		_spec.AddField(ticketattachment.FieldUploadedByMembershipID, field.TypeInt, value)
+	}
+	if _u.mutation.UploadedByMembershipIDCleared() {
+		_spec.ClearField(ticketattachment.FieldUploadedByMembershipID, field.TypeInt)
 	}
 	if value, ok := _u.mutation.TenantID(); ok {
 		_spec.SetField(ticketattachment.FieldTenantID, field.TypeInt, value)

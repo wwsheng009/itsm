@@ -78,18 +78,19 @@ type Tag struct {
 
 // AuditLog represents a system activity record
 type AuditLog struct {
-	ID          int       `json:"id"`
-	CreatedAt   time.Time `json:"createdAt"`
-	TenantID    int       `json:"tenantId"`
-	UserID      int       `json:"userId"`
-	RequestID   string    `json:"requestId"`
-	IP          string    `json:"ip"`
-	Resource    string    `json:"resource"`
-	Action      string    `json:"action"`
-	Path        string    `json:"path"`
-	Method      string    `json:"method"`
-	StatusCode  int       `json:"statusCode"`
-	RequestBody string    `json:"requestBody"`
+	ID           int       `json:"id"`
+	CreatedAt    time.Time `json:"createdAt"`
+	TenantID     int       `json:"tenantId"`
+	UserID       int       `json:"userId"`
+	MembershipID int       `json:"membershipId,omitempty"`
+	RequestID    string    `json:"requestId"`
+	IP           string    `json:"ip"`
+	Resource     string    `json:"resource"`
+	Action       string    `json:"action"`
+	Path         string    `json:"path"`
+	Method       string    `json:"method"`
+	StatusCode   int       `json:"statusCode"`
+	RequestBody  string    `json:"requestBody"`
 }
 
 // AuthResult contains tokens and user context

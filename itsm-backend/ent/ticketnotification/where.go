@@ -65,6 +65,11 @@ func UserID(v int) predicate.TicketNotification {
 	return predicate.TicketNotification(sql.FieldEQ(FieldUserID, v))
 }
 
+// UserMembershipID applies equality check predicate on the "user_membership_id" field. It's identical to UserMembershipIDEQ.
+func UserMembershipID(v int) predicate.TicketNotification {
+	return predicate.TicketNotification(sql.FieldEQ(FieldUserMembershipID, v))
+}
+
 // Type applies equality check predicate on the "type" field. It's identical to TypeEQ.
 func Type(v string) predicate.TicketNotification {
 	return predicate.TicketNotification(sql.FieldEQ(FieldType, v))
@@ -143,6 +148,56 @@ func UserIDIn(vs ...int) predicate.TicketNotification {
 // UserIDNotIn applies the NotIn predicate on the "user_id" field.
 func UserIDNotIn(vs ...int) predicate.TicketNotification {
 	return predicate.TicketNotification(sql.FieldNotIn(FieldUserID, vs...))
+}
+
+// UserMembershipIDEQ applies the EQ predicate on the "user_membership_id" field.
+func UserMembershipIDEQ(v int) predicate.TicketNotification {
+	return predicate.TicketNotification(sql.FieldEQ(FieldUserMembershipID, v))
+}
+
+// UserMembershipIDNEQ applies the NEQ predicate on the "user_membership_id" field.
+func UserMembershipIDNEQ(v int) predicate.TicketNotification {
+	return predicate.TicketNotification(sql.FieldNEQ(FieldUserMembershipID, v))
+}
+
+// UserMembershipIDIn applies the In predicate on the "user_membership_id" field.
+func UserMembershipIDIn(vs ...int) predicate.TicketNotification {
+	return predicate.TicketNotification(sql.FieldIn(FieldUserMembershipID, vs...))
+}
+
+// UserMembershipIDNotIn applies the NotIn predicate on the "user_membership_id" field.
+func UserMembershipIDNotIn(vs ...int) predicate.TicketNotification {
+	return predicate.TicketNotification(sql.FieldNotIn(FieldUserMembershipID, vs...))
+}
+
+// UserMembershipIDGT applies the GT predicate on the "user_membership_id" field.
+func UserMembershipIDGT(v int) predicate.TicketNotification {
+	return predicate.TicketNotification(sql.FieldGT(FieldUserMembershipID, v))
+}
+
+// UserMembershipIDGTE applies the GTE predicate on the "user_membership_id" field.
+func UserMembershipIDGTE(v int) predicate.TicketNotification {
+	return predicate.TicketNotification(sql.FieldGTE(FieldUserMembershipID, v))
+}
+
+// UserMembershipIDLT applies the LT predicate on the "user_membership_id" field.
+func UserMembershipIDLT(v int) predicate.TicketNotification {
+	return predicate.TicketNotification(sql.FieldLT(FieldUserMembershipID, v))
+}
+
+// UserMembershipIDLTE applies the LTE predicate on the "user_membership_id" field.
+func UserMembershipIDLTE(v int) predicate.TicketNotification {
+	return predicate.TicketNotification(sql.FieldLTE(FieldUserMembershipID, v))
+}
+
+// UserMembershipIDIsNil applies the IsNil predicate on the "user_membership_id" field.
+func UserMembershipIDIsNil() predicate.TicketNotification {
+	return predicate.TicketNotification(sql.FieldIsNull(FieldUserMembershipID))
+}
+
+// UserMembershipIDNotNil applies the NotNil predicate on the "user_membership_id" field.
+func UserMembershipIDNotNil() predicate.TicketNotification {
+	return predicate.TicketNotification(sql.FieldNotNull(FieldUserMembershipID))
 }
 
 // TypeEQ applies the EQ predicate on the "type" field.

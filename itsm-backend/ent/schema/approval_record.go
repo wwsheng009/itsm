@@ -40,6 +40,9 @@ func (ApprovalRecord) Fields() []ent.Field {
 		field.Int("approver_id").
 			Comment("审批人ID").
 			Positive(),
+		field.Int("approver_membership_id").
+			Comment("审批人在租户内的 membership ID").
+			Optional(),
 		field.String("approver_name").
 			Comment("审批人姓名").
 			NotEmpty(),

@@ -29,16 +29,17 @@ type UpdateTicketCommentRequest struct {
 
 // TicketCommentResponse 工单评论响应
 type TicketCommentResponse struct {
-	ID          int       `json:"id"`
-	TicketID    int       `json:"ticketId"`
-	UserID      int       `json:"userId"`
-	Content     string    `json:"content"`
-	IsInternal  bool      `json:"isInternal"`
-	Mentions    []int     `json:"mentions"`
-	Attachments []int     `json:"attachments"`
-	User        *UserInfo `json:"user,omitempty"` // 评论人信息
-	CreatedAt   time.Time `json:"createdAt"`
-	UpdatedAt   time.Time `json:"updatedAt"`
+	ID               int       `json:"id"`
+	TicketID         int       `json:"ticketId"`
+	UserID           int       `json:"userId"`
+	UserMembershipID int       `json:"userMembershipId,omitempty"`
+	Content          string    `json:"content"`
+	IsInternal       bool      `json:"isInternal"`
+	Mentions         []int     `json:"mentions"`
+	Attachments      []int     `json:"attachments"`
+	User             *UserInfo `json:"user,omitempty"` // 评论人信息
+	CreatedAt        time.Time `json:"createdAt"`
+	UpdatedAt        time.Time `json:"updatedAt"`
 	// AttachmentRefs 评论附件的展示元数据（BE-11）。`attachments` 仍是 BE-9 冻结的
 	// ID 绑定契约；元数据独立下发，供普通用户（不持有兜底码 attachment:read，
 	// 无法经通用 A3/A6 反查）在评论列表直接渲染文件名 / 大小 / 下载地址。
@@ -81,16 +82,17 @@ func ToTicketCommentResponse(comment *ent.TicketComment, user *ent.User) *Ticket
 // ToTicketCommentResponseWithAttachments 在基础响应上追加附件展示元数据（BE-11）。
 func ToTicketCommentResponseWithAttachments(comment *ent.TicketComment, user *ent.User, refs []TicketCommentAttachmentRef) *TicketCommentResponse {
 	resp := &TicketCommentResponse{
-		ID:             comment.ID,
-		TicketID:       comment.TicketID,
-		UserID:         comment.UserID,
-		Content:        comment.Content,
-		IsInternal:     comment.IsInternal,
-		Mentions:       []int{},
-		Attachments:    []int{},
-		AttachmentRefs: []TicketCommentAttachmentRef{},
-		CreatedAt:      comment.CreatedAt,
-		UpdatedAt:      comment.UpdatedAt,
+		ID:               comment.ID,
+		TicketID:         comment.TicketID,
+		UserID:           comment.UserID,
+		UserMembershipID: comment.UserMembershipID,
+		Content:          comment.Content,
+		IsInternal:       comment.IsInternal,
+		Mentions:         []int{},
+		Attachments:      []int{},
+		AttachmentRefs:   []TicketCommentAttachmentRef{},
+		CreatedAt:        comment.CreatedAt,
+		UpdatedAt:        comment.UpdatedAt,
 	}
 
 	// 设置 mentions

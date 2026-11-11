@@ -11,6 +11,7 @@ import (
 	"itsm-backend/ent/ticket"
 	"itsm-backend/ent/ticketcomment"
 	"itsm-backend/ent/user"
+	"itsm-backend/middleware"
 
 	"go.uber.org/zap"
 )
@@ -67,15 +68,20 @@ func (s *TicketCommentService) CreateTicketComment(ctx context.Context, ticketID
 	}
 
 	// 创建评论
-	comment, err := s.client.TicketComment.Create().
+	commentCreate := s.client.TicketComment.Create().
 		SetTicketID(ticketID).
 		SetUserID(userID).
 		SetContent(req.Content).
 		SetIsInternal(req.IsInternal).
 		SetTenantID(tenantID).
 		SetMentions(req.Mentions).
-		SetAttachments(normalizeCommentAttachmentIDs(req.Attachments)).
-		Save(ctx)
+		SetAttachments(normalizeCommentAttachmentIDs(req.Attachments))
+	if membership, mErr := middleware.ResolveActiveMembership(ctx, s.client, userID, tenantID); mErr != nil {
+		s.logger.Warnw("Failed to resolve comment author membership", "error", mErr, "user_id", userID, "tenant_id", tenantID)
+	} else if membership != nil {
+		commentCreate = commentCreate.SetUserMembershipID(membership.ID)
+	}
+	comment, err := commentCreate.Save(ctx)
 	if err != nil {
 		s.logger.Errorw("Failed to create ticket comment", "error", err)
 		return nil, fmt.Errorf("failed to create ticket comment: %w", err)

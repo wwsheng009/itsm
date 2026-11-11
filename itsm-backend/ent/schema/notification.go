@@ -36,6 +36,9 @@ func (Notification) Fields() []ent.Field {
 		field.Int("user_id").
 			Comment("用户ID").
 			Positive(),
+		field.Int("user_membership_id").
+			Comment("接收人在租户内的 membership ID").
+			Optional(),
 		field.Int("tenant_id").
 			Comment("租户ID").
 			Positive(),

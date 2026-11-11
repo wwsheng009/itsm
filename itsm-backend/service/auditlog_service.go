@@ -39,6 +39,9 @@ func (s *AuditLogService) ListAuditLogs(ctx context.Context, req *dto.ListAuditL
 	if req.UserID != nil {
 		q = q.Where(auditlog.UserIDEQ(*req.UserID))
 	}
+	if req.MembershipID != nil {
+		q = q.Where(auditlog.MembershipIDEQ(*req.MembershipID))
+	}
 	if req.Resource != "" {
 		q = q.Where(auditlog.ResourceEQ(req.Resource))
 	}
@@ -145,6 +148,7 @@ func (s *AuditLogService) ListAuditLogs(ctx context.Context, req *dto.ListAuditL
 			CreatedAt:    it.CreatedAt,
 			TenantID:     it.TenantID,
 			UserID:       it.UserID,
+			MembershipID: it.MembershipID,
 			RequestID:    it.RequestID,
 			IP:           it.IP,
 			Resource:     it.Resource,
@@ -249,6 +253,7 @@ func (s *AuditLogService) GetCIAuditLogs(ctx context.Context, tenantID, ciID, pa
 			CreatedAt:    it.CreatedAt,
 			TenantID:     it.TenantID,
 			UserID:       it.UserID,
+			MembershipID: it.MembershipID,
 			RequestID:    it.RequestID,
 			IP:           it.IP,
 			Resource:     it.Resource,

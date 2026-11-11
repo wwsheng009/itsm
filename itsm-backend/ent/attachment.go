@@ -43,6 +43,8 @@ type Attachment struct {
 	ClientToken string `json:"client_token,omitempty"`
 	// 上传人ID
 	UploadedBy int `json:"uploaded_by,omitempty"`
+	// 上传人在租户内的 membership ID
+	UploadedByMembershipID int `json:"uploaded_by_membership_id,omitempty"`
 	// 状态：active | deleted（软删；被引用时删除返回 409）
 	Status string `json:"status,omitempty"`
 	// 创建时间
@@ -57,7 +59,7 @@ func (*Attachment) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case attachment.FieldID, attachment.FieldTenantID, attachment.FieldBizID, attachment.FieldFileSize, attachment.FieldUploadedBy:
+		case attachment.FieldID, attachment.FieldTenantID, attachment.FieldBizID, attachment.FieldFileSize, attachment.FieldUploadedBy, attachment.FieldUploadedByMembershipID:
 			values[i] = new(sql.NullInt64)
 		case attachment.FieldBizType, attachment.FieldUsage, attachment.FieldFileName, attachment.FieldFilePath, attachment.FieldFileURL, attachment.FieldFileType, attachment.FieldMimeType, attachment.FieldSha256, attachment.FieldClientToken, attachment.FieldStatus:
 			values[i] = new(sql.NullString)
@@ -162,6 +164,12 @@ func (_m *Attachment) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.UploadedBy = int(value.Int64)
 			}
+		case attachment.FieldUploadedByMembershipID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field uploaded_by_membership_id", values[i])
+			} else if value.Valid {
+				_m.UploadedByMembershipID = int(value.Int64)
+			}
 		case attachment.FieldStatus:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field status", values[i])
@@ -255,6 +263,9 @@ func (_m *Attachment) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("uploaded_by=")
 	builder.WriteString(fmt.Sprintf("%v", _m.UploadedBy))
+	builder.WriteString(", ")
+	builder.WriteString("uploaded_by_membership_id=")
+	builder.WriteString(fmt.Sprintf("%v", _m.UploadedByMembershipID))
 	builder.WriteString(", ")
 	builder.WriteString("status=")
 	builder.WriteString(_m.Status)

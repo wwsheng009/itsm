@@ -24,6 +24,8 @@ type TicketComment struct {
 	TicketID int `json:"ticket_id,omitempty"`
 	// 评论人ID
 	UserID int `json:"user_id,omitempty"`
+	// 评论人在租户内的 membership ID
+	UserMembershipID int `json:"user_membership_id,omitempty"`
 	// 评论内容
 	Content string `json:"content,omitempty"`
 	// 是否内部备注
@@ -86,7 +88,7 @@ func (*TicketComment) scanValues(columns []string) ([]any, error) {
 			values[i] = new([]byte)
 		case ticketcomment.FieldIsInternal:
 			values[i] = new(sql.NullBool)
-		case ticketcomment.FieldID, ticketcomment.FieldTicketID, ticketcomment.FieldUserID, ticketcomment.FieldTenantID:
+		case ticketcomment.FieldID, ticketcomment.FieldTicketID, ticketcomment.FieldUserID, ticketcomment.FieldUserMembershipID, ticketcomment.FieldTenantID:
 			values[i] = new(sql.NullInt64)
 		case ticketcomment.FieldContent:
 			values[i] = new(sql.NullString)
@@ -124,6 +126,12 @@ func (_m *TicketComment) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field user_id", values[i])
 			} else if value.Valid {
 				_m.UserID = int(value.Int64)
+			}
+		case ticketcomment.FieldUserMembershipID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field user_membership_id", values[i])
+			} else if value.Valid {
+				_m.UserMembershipID = int(value.Int64)
 			}
 		case ticketcomment.FieldContent:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -222,6 +230,9 @@ func (_m *TicketComment) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("user_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.UserID))
+	builder.WriteString(", ")
+	builder.WriteString("user_membership_id=")
+	builder.WriteString(fmt.Sprintf("%v", _m.UserMembershipID))
 	builder.WriteString(", ")
 	builder.WriteString("content=")
 	builder.WriteString(_m.Content)

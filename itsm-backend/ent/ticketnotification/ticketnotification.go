@@ -18,6 +18,8 @@ const (
 	FieldTicketID = "ticket_id"
 	// FieldUserID holds the string denoting the user_id field in the database.
 	FieldUserID = "user_id"
+	// FieldUserMembershipID holds the string denoting the user_membership_id field in the database.
+	FieldUserMembershipID = "user_membership_id"
 	// FieldType holds the string denoting the type field in the database.
 	FieldType = "type"
 	// FieldChannel holds the string denoting the channel field in the database.
@@ -61,6 +63,7 @@ var Columns = []string{
 	FieldID,
 	FieldTicketID,
 	FieldUserID,
+	FieldUserMembershipID,
 	FieldType,
 	FieldChannel,
 	FieldContent,
@@ -116,6 +119,11 @@ func ByTicketID(opts ...sql.OrderTermOption) OrderOption {
 // ByUserID orders the results by the user_id field.
 func ByUserID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldUserID, opts...).ToFunc()
+}
+
+// ByUserMembershipID orders the results by the user_membership_id field.
+func ByUserMembershipID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldUserMembershipID, opts...).ToFunc()
 }
 
 // ByType orders the results by the type field.

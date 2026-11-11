@@ -262,6 +262,33 @@ func (_u *AttachmentUpdate) AddUploadedBy(v int) *AttachmentUpdate {
 	return _u
 }
 
+// SetUploadedByMembershipID sets the "uploaded_by_membership_id" field.
+func (_u *AttachmentUpdate) SetUploadedByMembershipID(v int) *AttachmentUpdate {
+	_u.mutation.ResetUploadedByMembershipID()
+	_u.mutation.SetUploadedByMembershipID(v)
+	return _u
+}
+
+// SetNillableUploadedByMembershipID sets the "uploaded_by_membership_id" field if the given value is not nil.
+func (_u *AttachmentUpdate) SetNillableUploadedByMembershipID(v *int) *AttachmentUpdate {
+	if v != nil {
+		_u.SetUploadedByMembershipID(*v)
+	}
+	return _u
+}
+
+// AddUploadedByMembershipID adds value to the "uploaded_by_membership_id" field.
+func (_u *AttachmentUpdate) AddUploadedByMembershipID(v int) *AttachmentUpdate {
+	_u.mutation.AddUploadedByMembershipID(v)
+	return _u
+}
+
+// ClearUploadedByMembershipID clears the value of the "uploaded_by_membership_id" field.
+func (_u *AttachmentUpdate) ClearUploadedByMembershipID() *AttachmentUpdate {
+	_u.mutation.ClearUploadedByMembershipID()
+	return _u
+}
+
 // SetStatus sets the "status" field.
 func (_u *AttachmentUpdate) SetStatus(v string) *AttachmentUpdate {
 	_u.mutation.SetStatus(v)
@@ -491,6 +518,15 @@ func (_u *AttachmentUpdate) sqlSave(ctx context.Context) (_node int, err error) 
 	}
 	if value, ok := _u.mutation.AddedUploadedBy(); ok {
 		_spec.AddField(attachment.FieldUploadedBy, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.UploadedByMembershipID(); ok {
+		_spec.SetField(attachment.FieldUploadedByMembershipID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedUploadedByMembershipID(); ok {
+		_spec.AddField(attachment.FieldUploadedByMembershipID, field.TypeInt, value)
+	}
+	if _u.mutation.UploadedByMembershipIDCleared() {
+		_spec.ClearField(attachment.FieldUploadedByMembershipID, field.TypeInt)
 	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(attachment.FieldStatus, field.TypeString, value)
@@ -758,6 +794,33 @@ func (_u *AttachmentUpdateOne) AddUploadedBy(v int) *AttachmentUpdateOne {
 	return _u
 }
 
+// SetUploadedByMembershipID sets the "uploaded_by_membership_id" field.
+func (_u *AttachmentUpdateOne) SetUploadedByMembershipID(v int) *AttachmentUpdateOne {
+	_u.mutation.ResetUploadedByMembershipID()
+	_u.mutation.SetUploadedByMembershipID(v)
+	return _u
+}
+
+// SetNillableUploadedByMembershipID sets the "uploaded_by_membership_id" field if the given value is not nil.
+func (_u *AttachmentUpdateOne) SetNillableUploadedByMembershipID(v *int) *AttachmentUpdateOne {
+	if v != nil {
+		_u.SetUploadedByMembershipID(*v)
+	}
+	return _u
+}
+
+// AddUploadedByMembershipID adds value to the "uploaded_by_membership_id" field.
+func (_u *AttachmentUpdateOne) AddUploadedByMembershipID(v int) *AttachmentUpdateOne {
+	_u.mutation.AddUploadedByMembershipID(v)
+	return _u
+}
+
+// ClearUploadedByMembershipID clears the value of the "uploaded_by_membership_id" field.
+func (_u *AttachmentUpdateOne) ClearUploadedByMembershipID() *AttachmentUpdateOne {
+	_u.mutation.ClearUploadedByMembershipID()
+	return _u
+}
+
 // SetStatus sets the "status" field.
 func (_u *AttachmentUpdateOne) SetStatus(v string) *AttachmentUpdateOne {
 	_u.mutation.SetStatus(v)
@@ -1017,6 +1080,15 @@ func (_u *AttachmentUpdateOne) sqlSave(ctx context.Context) (_node *Attachment, 
 	}
 	if value, ok := _u.mutation.AddedUploadedBy(); ok {
 		_spec.AddField(attachment.FieldUploadedBy, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.UploadedByMembershipID(); ok {
+		_spec.SetField(attachment.FieldUploadedByMembershipID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedUploadedByMembershipID(); ok {
+		_spec.AddField(attachment.FieldUploadedByMembershipID, field.TypeInt, value)
+	}
+	if _u.mutation.UploadedByMembershipIDCleared() {
+		_spec.ClearField(attachment.FieldUploadedByMembershipID, field.TypeInt)
 	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(attachment.FieldStatus, field.TypeString, value)

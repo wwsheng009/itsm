@@ -75,14 +75,15 @@ type WorkbenchTicketDetailResponse struct {
 
 // WorkbenchTicketCommentItem 跨租户评论只读项（P2；XFD8 可见性：公开评论双向互通）。
 type WorkbenchTicketCommentItem struct {
-	ID         int       `json:"id"`
-	UserID     int       `json:"userId"`
-	AuthorName string    `json:"authorName,omitempty"`
-	AuthorSide string    `json:"authorSide"` // customer | provider（按作者归属租户判定）
-	Content    string    `json:"content"`
-	IsInternal bool      `json:"isInternal"` // 本通道恒 false（内部备注租户内隔离，不下发）
-	CreatedAt  time.Time `json:"createdAt"`
-	UpdatedAt  time.Time `json:"updatedAt"`
+	ID               int       `json:"id"`
+	UserID           int       `json:"userId"`
+	UserMembershipID int       `json:"userMembershipId,omitempty"`
+	AuthorName       string    `json:"authorName,omitempty"`
+	AuthorSide       string    `json:"authorSide"` // customer | provider（按作者归属租户判定）
+	Content          string    `json:"content"`
+	IsInternal       bool      `json:"isInternal"` // 本通道恒 false（内部备注租户内隔离，不下发）
+	CreatedAt        time.Time `json:"createdAt"`
+	UpdatedAt        time.Time `json:"updatedAt"`
 }
 
 // WorkbenchTicketCommentsResponse 评论列表响应（时间正序；total 为可见评论全量计数）。

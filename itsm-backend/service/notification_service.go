@@ -9,6 +9,7 @@ import (
 	"itsm-backend/ent"
 	"itsm-backend/ent/notification"
 	"itsm-backend/ent/user"
+	"itsm-backend/middleware"
 
 	"github.com/gin-gonic/gin"
 )
@@ -38,15 +39,19 @@ func (s *NotificationService) CreateNotification(ctx context.Context, req *dto.C
 	}
 
 	// 创建通知
-	notification, err := s.client.Notification.Create().
+	create := s.client.Notification.Create().
 		SetTitle(req.Title).
 		SetMessage(req.Message).
 		SetType(req.Type).
 		SetUserID(req.UserID).
 		SetTenantID(req.TenantID).
 		SetNillableActionURL(req.ActionURL).
-		SetNillableActionText(req.ActionText).
-		Save(ctx)
+		SetNillableActionText(req.ActionText)
+	// membership 解析失败不影响通知主链路；仅在可解析时写入租户内身份。
+	if membership, mErr := middleware.ResolveActiveMembership(ctx, s.client, req.UserID, req.TenantID); mErr == nil && membership != nil {
+		create = create.SetUserMembershipID(membership.ID)
+	}
+	notification, err := create.Save(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("创建通知失败: %w", err)
 	}
@@ -253,15 +258,16 @@ func uniquePositiveIDs(ids []int) []int {
 // convertToDTO 转换为DTO
 func (s *NotificationService) convertToDTO(n *ent.Notification) *dto.Notification {
 	notification := &dto.Notification{
-		ID:        n.ID,
-		Title:     n.Title,
-		Message:   n.Message,
-		Type:      n.Type,
-		Read:      n.Read,
-		UserID:    n.UserID,
-		TenantID:  n.TenantID,
-		CreatedAt: n.CreatedAt,
-		UpdatedAt: n.UpdatedAt,
+		ID:               n.ID,
+		Title:            n.Title,
+		Message:          n.Message,
+		Type:             n.Type,
+		Read:             n.Read,
+		UserID:           n.UserID,
+		UserMembershipID: n.UserMembershipID,
+		TenantID:         n.TenantID,
+		CreatedAt:        n.CreatedAt,
+		UpdatedAt:        n.UpdatedAt,
 	}
 
 	// 处理可选字段

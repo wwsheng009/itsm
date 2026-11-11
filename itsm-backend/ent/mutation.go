@@ -5597,37 +5597,39 @@ func (m *ApprovalChainMutation) ResetEdge(name string) error {
 // ApprovalRecordMutation represents an operation that mutates the ApprovalRecord nodes in the graph.
 type ApprovalRecordMutation struct {
 	config
-	op               Op
-	typ              string
-	id               *int
-	ticket_number    *string
-	ticket_title     *string
-	workflow_name    *string
-	current_level    *int
-	addcurrent_level *int
-	total_levels     *int
-	addtotal_levels  *int
-	approver_id      *int
-	addapprover_id   *int
-	approver_name    *string
-	step_order       *int
-	addstep_order    *int
-	due_date         *time.Time
-	status           *string
-	action           *string
-	comment          *string
-	tenant_id        *int
-	addtenant_id     *int
-	created_at       *time.Time
-	processed_at     *time.Time
-	clearedFields    map[string]struct{}
-	ticket           *int
-	clearedticket    bool
-	workflow         *int
-	clearedworkflow  bool
-	done             bool
-	oldValue         func(context.Context) (*ApprovalRecord, error)
-	predicates       []predicate.ApprovalRecord
+	op                        Op
+	typ                       string
+	id                        *int
+	ticket_number             *string
+	ticket_title              *string
+	workflow_name             *string
+	current_level             *int
+	addcurrent_level          *int
+	total_levels              *int
+	addtotal_levels           *int
+	approver_id               *int
+	addapprover_id            *int
+	approver_membership_id    *int
+	addapprover_membership_id *int
+	approver_name             *string
+	step_order                *int
+	addstep_order             *int
+	due_date                  *time.Time
+	status                    *string
+	action                    *string
+	comment                   *string
+	tenant_id                 *int
+	addtenant_id              *int
+	created_at                *time.Time
+	processed_at              *time.Time
+	clearedFields             map[string]struct{}
+	ticket                    *int
+	clearedticket             bool
+	workflow                  *int
+	clearedworkflow           bool
+	done                      bool
+	oldValue                  func(context.Context) (*ApprovalRecord, error)
+	predicates                []predicate.ApprovalRecord
 }
 
 var _ ent.Mutation = (*ApprovalRecordMutation)(nil)
@@ -6074,6 +6076,76 @@ func (m *ApprovalRecordMutation) AddedApproverID() (r int, exists bool) {
 func (m *ApprovalRecordMutation) ResetApproverID() {
 	m.approver_id = nil
 	m.addapprover_id = nil
+}
+
+// SetApproverMembershipID sets the "approver_membership_id" field.
+func (m *ApprovalRecordMutation) SetApproverMembershipID(i int) {
+	m.approver_membership_id = &i
+	m.addapprover_membership_id = nil
+}
+
+// ApproverMembershipID returns the value of the "approver_membership_id" field in the mutation.
+func (m *ApprovalRecordMutation) ApproverMembershipID() (r int, exists bool) {
+	v := m.approver_membership_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldApproverMembershipID returns the old "approver_membership_id" field's value of the ApprovalRecord entity.
+// If the ApprovalRecord object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ApprovalRecordMutation) OldApproverMembershipID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldApproverMembershipID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldApproverMembershipID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldApproverMembershipID: %w", err)
+	}
+	return oldValue.ApproverMembershipID, nil
+}
+
+// AddApproverMembershipID adds i to the "approver_membership_id" field.
+func (m *ApprovalRecordMutation) AddApproverMembershipID(i int) {
+	if m.addapprover_membership_id != nil {
+		*m.addapprover_membership_id += i
+	} else {
+		m.addapprover_membership_id = &i
+	}
+}
+
+// AddedApproverMembershipID returns the value that was added to the "approver_membership_id" field in this mutation.
+func (m *ApprovalRecordMutation) AddedApproverMembershipID() (r int, exists bool) {
+	v := m.addapprover_membership_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearApproverMembershipID clears the value of the "approver_membership_id" field.
+func (m *ApprovalRecordMutation) ClearApproverMembershipID() {
+	m.approver_membership_id = nil
+	m.addapprover_membership_id = nil
+	m.clearedFields[approvalrecord.FieldApproverMembershipID] = struct{}{}
+}
+
+// ApproverMembershipIDCleared returns if the "approver_membership_id" field was cleared in this mutation.
+func (m *ApprovalRecordMutation) ApproverMembershipIDCleared() bool {
+	_, ok := m.clearedFields[approvalrecord.FieldApproverMembershipID]
+	return ok
+}
+
+// ResetApproverMembershipID resets all changes to the "approver_membership_id" field.
+func (m *ApprovalRecordMutation) ResetApproverMembershipID() {
+	m.approver_membership_id = nil
+	m.addapprover_membership_id = nil
+	delete(m.clearedFields, approvalrecord.FieldApproverMembershipID)
 }
 
 // SetApproverName sets the "approver_name" field.
@@ -6580,7 +6652,7 @@ func (m *ApprovalRecordMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *ApprovalRecordMutation) Fields() []string {
-	fields := make([]string, 0, 17)
+	fields := make([]string, 0, 18)
 	if m.ticket != nil {
 		fields = append(fields, approvalrecord.FieldTicketID)
 	}
@@ -6604,6 +6676,9 @@ func (m *ApprovalRecordMutation) Fields() []string {
 	}
 	if m.approver_id != nil {
 		fields = append(fields, approvalrecord.FieldApproverID)
+	}
+	if m.approver_membership_id != nil {
+		fields = append(fields, approvalrecord.FieldApproverMembershipID)
 	}
 	if m.approver_name != nil {
 		fields = append(fields, approvalrecord.FieldApproverName)
@@ -6656,6 +6731,8 @@ func (m *ApprovalRecordMutation) Field(name string) (ent.Value, bool) {
 		return m.TotalLevels()
 	case approvalrecord.FieldApproverID:
 		return m.ApproverID()
+	case approvalrecord.FieldApproverMembershipID:
+		return m.ApproverMembershipID()
 	case approvalrecord.FieldApproverName:
 		return m.ApproverName()
 	case approvalrecord.FieldStepOrder:
@@ -6699,6 +6776,8 @@ func (m *ApprovalRecordMutation) OldField(ctx context.Context, name string) (ent
 		return m.OldTotalLevels(ctx)
 	case approvalrecord.FieldApproverID:
 		return m.OldApproverID(ctx)
+	case approvalrecord.FieldApproverMembershipID:
+		return m.OldApproverMembershipID(ctx)
 	case approvalrecord.FieldApproverName:
 		return m.OldApproverName(ctx)
 	case approvalrecord.FieldStepOrder:
@@ -6782,6 +6861,13 @@ func (m *ApprovalRecordMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetApproverID(v)
 		return nil
+	case approvalrecord.FieldApproverMembershipID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetApproverMembershipID(v)
+		return nil
 	case approvalrecord.FieldApproverName:
 		v, ok := value.(string)
 		if !ok {
@@ -6862,6 +6948,9 @@ func (m *ApprovalRecordMutation) AddedFields() []string {
 	if m.addapprover_id != nil {
 		fields = append(fields, approvalrecord.FieldApproverID)
 	}
+	if m.addapprover_membership_id != nil {
+		fields = append(fields, approvalrecord.FieldApproverMembershipID)
+	}
 	if m.addstep_order != nil {
 		fields = append(fields, approvalrecord.FieldStepOrder)
 	}
@@ -6882,6 +6971,8 @@ func (m *ApprovalRecordMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedTotalLevels()
 	case approvalrecord.FieldApproverID:
 		return m.AddedApproverID()
+	case approvalrecord.FieldApproverMembershipID:
+		return m.AddedApproverMembershipID()
 	case approvalrecord.FieldStepOrder:
 		return m.AddedStepOrder()
 	case approvalrecord.FieldTenantID:
@@ -6916,6 +7007,13 @@ func (m *ApprovalRecordMutation) AddField(name string, value ent.Value) error {
 		}
 		m.AddApproverID(v)
 		return nil
+	case approvalrecord.FieldApproverMembershipID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddApproverMembershipID(v)
+		return nil
 	case approvalrecord.FieldStepOrder:
 		v, ok := value.(int)
 		if !ok {
@@ -6938,6 +7036,9 @@ func (m *ApprovalRecordMutation) AddField(name string, value ent.Value) error {
 // mutation.
 func (m *ApprovalRecordMutation) ClearedFields() []string {
 	var fields []string
+	if m.FieldCleared(approvalrecord.FieldApproverMembershipID) {
+		fields = append(fields, approvalrecord.FieldApproverMembershipID)
+	}
 	if m.FieldCleared(approvalrecord.FieldDueDate) {
 		fields = append(fields, approvalrecord.FieldDueDate)
 	}
@@ -6964,6 +7065,9 @@ func (m *ApprovalRecordMutation) FieldCleared(name string) bool {
 // error if the field is not defined in the schema.
 func (m *ApprovalRecordMutation) ClearField(name string) error {
 	switch name {
+	case approvalrecord.FieldApproverMembershipID:
+		m.ClearApproverMembershipID()
+		return nil
 	case approvalrecord.FieldDueDate:
 		m.ClearDueDate()
 		return nil
@@ -7007,6 +7111,9 @@ func (m *ApprovalRecordMutation) ResetField(name string) error {
 		return nil
 	case approvalrecord.FieldApproverID:
 		m.ResetApproverID()
+		return nil
+	case approvalrecord.FieldApproverMembershipID:
+		m.ResetApproverMembershipID()
 		return nil
 	case approvalrecord.FieldApproverName:
 		m.ResetApproverName()
@@ -12596,33 +12703,35 @@ func (m *AssetLicenseMutation) ResetEdge(name string) error {
 // AttachmentMutation represents an operation that mutates the Attachment nodes in the graph.
 type AttachmentMutation struct {
 	config
-	op             Op
-	typ            string
-	id             *int
-	tenant_id      *int
-	addtenant_id   *int
-	biz_type       *string
-	biz_id         *int
-	addbiz_id      *int
-	usage          *string
-	file_name      *string
-	file_path      *string
-	file_url       *string
-	file_size      *int
-	addfile_size   *int
-	file_type      *string
-	mime_type      *string
-	sha256         *string
-	client_token   *string
-	uploaded_by    *int
-	adduploaded_by *int
-	status         *string
-	created_at     *time.Time
-	deleted_at     *time.Time
-	clearedFields  map[string]struct{}
-	done           bool
-	oldValue       func(context.Context) (*Attachment, error)
-	predicates     []predicate.Attachment
+	op                           Op
+	typ                          string
+	id                           *int
+	tenant_id                    *int
+	addtenant_id                 *int
+	biz_type                     *string
+	biz_id                       *int
+	addbiz_id                    *int
+	usage                        *string
+	file_name                    *string
+	file_path                    *string
+	file_url                     *string
+	file_size                    *int
+	addfile_size                 *int
+	file_type                    *string
+	mime_type                    *string
+	sha256                       *string
+	client_token                 *string
+	uploaded_by                  *int
+	adduploaded_by               *int
+	uploaded_by_membership_id    *int
+	adduploaded_by_membership_id *int
+	status                       *string
+	created_at                   *time.Time
+	deleted_at                   *time.Time
+	clearedFields                map[string]struct{}
+	done                         bool
+	oldValue                     func(context.Context) (*Attachment, error)
+	predicates                   []predicate.Attachment
 }
 
 var _ ent.Mutation = (*AttachmentMutation)(nil)
@@ -13323,6 +13432,76 @@ func (m *AttachmentMutation) ResetUploadedBy() {
 	m.adduploaded_by = nil
 }
 
+// SetUploadedByMembershipID sets the "uploaded_by_membership_id" field.
+func (m *AttachmentMutation) SetUploadedByMembershipID(i int) {
+	m.uploaded_by_membership_id = &i
+	m.adduploaded_by_membership_id = nil
+}
+
+// UploadedByMembershipID returns the value of the "uploaded_by_membership_id" field in the mutation.
+func (m *AttachmentMutation) UploadedByMembershipID() (r int, exists bool) {
+	v := m.uploaded_by_membership_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUploadedByMembershipID returns the old "uploaded_by_membership_id" field's value of the Attachment entity.
+// If the Attachment object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AttachmentMutation) OldUploadedByMembershipID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUploadedByMembershipID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUploadedByMembershipID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUploadedByMembershipID: %w", err)
+	}
+	return oldValue.UploadedByMembershipID, nil
+}
+
+// AddUploadedByMembershipID adds i to the "uploaded_by_membership_id" field.
+func (m *AttachmentMutation) AddUploadedByMembershipID(i int) {
+	if m.adduploaded_by_membership_id != nil {
+		*m.adduploaded_by_membership_id += i
+	} else {
+		m.adduploaded_by_membership_id = &i
+	}
+}
+
+// AddedUploadedByMembershipID returns the value that was added to the "uploaded_by_membership_id" field in this mutation.
+func (m *AttachmentMutation) AddedUploadedByMembershipID() (r int, exists bool) {
+	v := m.adduploaded_by_membership_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearUploadedByMembershipID clears the value of the "uploaded_by_membership_id" field.
+func (m *AttachmentMutation) ClearUploadedByMembershipID() {
+	m.uploaded_by_membership_id = nil
+	m.adduploaded_by_membership_id = nil
+	m.clearedFields[attachment.FieldUploadedByMembershipID] = struct{}{}
+}
+
+// UploadedByMembershipIDCleared returns if the "uploaded_by_membership_id" field was cleared in this mutation.
+func (m *AttachmentMutation) UploadedByMembershipIDCleared() bool {
+	_, ok := m.clearedFields[attachment.FieldUploadedByMembershipID]
+	return ok
+}
+
+// ResetUploadedByMembershipID resets all changes to the "uploaded_by_membership_id" field.
+func (m *AttachmentMutation) ResetUploadedByMembershipID() {
+	m.uploaded_by_membership_id = nil
+	m.adduploaded_by_membership_id = nil
+	delete(m.clearedFields, attachment.FieldUploadedByMembershipID)
+}
+
 // SetStatus sets the "status" field.
 func (m *AttachmentMutation) SetStatus(s string) {
 	m.status = &s
@@ -13478,7 +13657,7 @@ func (m *AttachmentMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *AttachmentMutation) Fields() []string {
-	fields := make([]string, 0, 16)
+	fields := make([]string, 0, 17)
 	if m.tenant_id != nil {
 		fields = append(fields, attachment.FieldTenantID)
 	}
@@ -13517,6 +13696,9 @@ func (m *AttachmentMutation) Fields() []string {
 	}
 	if m.uploaded_by != nil {
 		fields = append(fields, attachment.FieldUploadedBy)
+	}
+	if m.uploaded_by_membership_id != nil {
+		fields = append(fields, attachment.FieldUploadedByMembershipID)
 	}
 	if m.status != nil {
 		fields = append(fields, attachment.FieldStatus)
@@ -13561,6 +13743,8 @@ func (m *AttachmentMutation) Field(name string) (ent.Value, bool) {
 		return m.ClientToken()
 	case attachment.FieldUploadedBy:
 		return m.UploadedBy()
+	case attachment.FieldUploadedByMembershipID:
+		return m.UploadedByMembershipID()
 	case attachment.FieldStatus:
 		return m.Status()
 	case attachment.FieldCreatedAt:
@@ -13602,6 +13786,8 @@ func (m *AttachmentMutation) OldField(ctx context.Context, name string) (ent.Val
 		return m.OldClientToken(ctx)
 	case attachment.FieldUploadedBy:
 		return m.OldUploadedBy(ctx)
+	case attachment.FieldUploadedByMembershipID:
+		return m.OldUploadedByMembershipID(ctx)
 	case attachment.FieldStatus:
 		return m.OldStatus(ctx)
 	case attachment.FieldCreatedAt:
@@ -13708,6 +13894,13 @@ func (m *AttachmentMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetUploadedBy(v)
 		return nil
+	case attachment.FieldUploadedByMembershipID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUploadedByMembershipID(v)
+		return nil
 	case attachment.FieldStatus:
 		v, ok := value.(string)
 		if !ok {
@@ -13749,6 +13942,9 @@ func (m *AttachmentMutation) AddedFields() []string {
 	if m.adduploaded_by != nil {
 		fields = append(fields, attachment.FieldUploadedBy)
 	}
+	if m.adduploaded_by_membership_id != nil {
+		fields = append(fields, attachment.FieldUploadedByMembershipID)
+	}
 	return fields
 }
 
@@ -13765,6 +13961,8 @@ func (m *AttachmentMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedFileSize()
 	case attachment.FieldUploadedBy:
 		return m.AddedUploadedBy()
+	case attachment.FieldUploadedByMembershipID:
+		return m.AddedUploadedByMembershipID()
 	}
 	return nil, false
 }
@@ -13802,6 +14000,13 @@ func (m *AttachmentMutation) AddField(name string, value ent.Value) error {
 		}
 		m.AddUploadedBy(v)
 		return nil
+	case attachment.FieldUploadedByMembershipID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddUploadedByMembershipID(v)
+		return nil
 	}
 	return fmt.Errorf("unknown Attachment numeric field %s", name)
 }
@@ -13821,6 +14026,9 @@ func (m *AttachmentMutation) ClearedFields() []string {
 	}
 	if m.FieldCleared(attachment.FieldClientToken) {
 		fields = append(fields, attachment.FieldClientToken)
+	}
+	if m.FieldCleared(attachment.FieldUploadedByMembershipID) {
+		fields = append(fields, attachment.FieldUploadedByMembershipID)
 	}
 	if m.FieldCleared(attachment.FieldDeletedAt) {
 		fields = append(fields, attachment.FieldDeletedAt)
@@ -13850,6 +14058,9 @@ func (m *AttachmentMutation) ClearField(name string) error {
 		return nil
 	case attachment.FieldClientToken:
 		m.ClearClientToken()
+		return nil
+	case attachment.FieldUploadedByMembershipID:
+		m.ClearUploadedByMembershipID()
 		return nil
 	case attachment.FieldDeletedAt:
 		m.ClearDeletedAt()
@@ -13900,6 +14111,9 @@ func (m *AttachmentMutation) ResetField(name string) error {
 		return nil
 	case attachment.FieldUploadedBy:
 		m.ResetUploadedBy()
+		return nil
+	case attachment.FieldUploadedByMembershipID:
+		m.ResetUploadedByMembershipID()
 		return nil
 	case attachment.FieldStatus:
 		m.ResetStatus()
@@ -119210,25 +119424,27 @@ func (m *MicroserviceMutation) ResetEdge(name string) error {
 // NotificationMutation represents an operation that mutates the Notification nodes in the graph.
 type NotificationMutation struct {
 	config
-	op            Op
-	typ           string
-	id            *int
-	title         *string
-	message       *string
-	_type         *string
-	read          *bool
-	action_url    *string
-	action_text   *string
-	user_id       *int
-	adduser_id    *int
-	tenant_id     *int
-	addtenant_id  *int
-	created_at    *time.Time
-	updated_at    *time.Time
-	clearedFields map[string]struct{}
-	done          bool
-	oldValue      func(context.Context) (*Notification, error)
-	predicates    []predicate.Notification
+	op                    Op
+	typ                   string
+	id                    *int
+	title                 *string
+	message               *string
+	_type                 *string
+	read                  *bool
+	action_url            *string
+	action_text           *string
+	user_id               *int
+	adduser_id            *int
+	user_membership_id    *int
+	adduser_membership_id *int
+	tenant_id             *int
+	addtenant_id          *int
+	created_at            *time.Time
+	updated_at            *time.Time
+	clearedFields         map[string]struct{}
+	done                  bool
+	oldValue              func(context.Context) (*Notification, error)
+	predicates            []predicate.Notification
 }
 
 var _ ent.Mutation = (*NotificationMutation)(nil)
@@ -119627,6 +119843,76 @@ func (m *NotificationMutation) ResetUserID() {
 	m.adduser_id = nil
 }
 
+// SetUserMembershipID sets the "user_membership_id" field.
+func (m *NotificationMutation) SetUserMembershipID(i int) {
+	m.user_membership_id = &i
+	m.adduser_membership_id = nil
+}
+
+// UserMembershipID returns the value of the "user_membership_id" field in the mutation.
+func (m *NotificationMutation) UserMembershipID() (r int, exists bool) {
+	v := m.user_membership_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUserMembershipID returns the old "user_membership_id" field's value of the Notification entity.
+// If the Notification object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *NotificationMutation) OldUserMembershipID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUserMembershipID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUserMembershipID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUserMembershipID: %w", err)
+	}
+	return oldValue.UserMembershipID, nil
+}
+
+// AddUserMembershipID adds i to the "user_membership_id" field.
+func (m *NotificationMutation) AddUserMembershipID(i int) {
+	if m.adduser_membership_id != nil {
+		*m.adduser_membership_id += i
+	} else {
+		m.adduser_membership_id = &i
+	}
+}
+
+// AddedUserMembershipID returns the value that was added to the "user_membership_id" field in this mutation.
+func (m *NotificationMutation) AddedUserMembershipID() (r int, exists bool) {
+	v := m.adduser_membership_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearUserMembershipID clears the value of the "user_membership_id" field.
+func (m *NotificationMutation) ClearUserMembershipID() {
+	m.user_membership_id = nil
+	m.adduser_membership_id = nil
+	m.clearedFields[notification.FieldUserMembershipID] = struct{}{}
+}
+
+// UserMembershipIDCleared returns if the "user_membership_id" field was cleared in this mutation.
+func (m *NotificationMutation) UserMembershipIDCleared() bool {
+	_, ok := m.clearedFields[notification.FieldUserMembershipID]
+	return ok
+}
+
+// ResetUserMembershipID resets all changes to the "user_membership_id" field.
+func (m *NotificationMutation) ResetUserMembershipID() {
+	m.user_membership_id = nil
+	m.adduser_membership_id = nil
+	delete(m.clearedFields, notification.FieldUserMembershipID)
+}
+
 // SetTenantID sets the "tenant_id" field.
 func (m *NotificationMutation) SetTenantID(i int) {
 	m.tenant_id = &i
@@ -119789,7 +120075,7 @@ func (m *NotificationMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *NotificationMutation) Fields() []string {
-	fields := make([]string, 0, 10)
+	fields := make([]string, 0, 11)
 	if m.title != nil {
 		fields = append(fields, notification.FieldTitle)
 	}
@@ -119810,6 +120096,9 @@ func (m *NotificationMutation) Fields() []string {
 	}
 	if m.user_id != nil {
 		fields = append(fields, notification.FieldUserID)
+	}
+	if m.user_membership_id != nil {
+		fields = append(fields, notification.FieldUserMembershipID)
 	}
 	if m.tenant_id != nil {
 		fields = append(fields, notification.FieldTenantID)
@@ -119842,6 +120131,8 @@ func (m *NotificationMutation) Field(name string) (ent.Value, bool) {
 		return m.ActionText()
 	case notification.FieldUserID:
 		return m.UserID()
+	case notification.FieldUserMembershipID:
+		return m.UserMembershipID()
 	case notification.FieldTenantID:
 		return m.TenantID()
 	case notification.FieldCreatedAt:
@@ -119871,6 +120162,8 @@ func (m *NotificationMutation) OldField(ctx context.Context, name string) (ent.V
 		return m.OldActionText(ctx)
 	case notification.FieldUserID:
 		return m.OldUserID(ctx)
+	case notification.FieldUserMembershipID:
+		return m.OldUserMembershipID(ctx)
 	case notification.FieldTenantID:
 		return m.OldTenantID(ctx)
 	case notification.FieldCreatedAt:
@@ -119935,6 +120228,13 @@ func (m *NotificationMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetUserID(v)
 		return nil
+	case notification.FieldUserMembershipID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUserMembershipID(v)
+		return nil
 	case notification.FieldTenantID:
 		v, ok := value.(int)
 		if !ok {
@@ -119967,6 +120267,9 @@ func (m *NotificationMutation) AddedFields() []string {
 	if m.adduser_id != nil {
 		fields = append(fields, notification.FieldUserID)
 	}
+	if m.adduser_membership_id != nil {
+		fields = append(fields, notification.FieldUserMembershipID)
+	}
 	if m.addtenant_id != nil {
 		fields = append(fields, notification.FieldTenantID)
 	}
@@ -119980,6 +120283,8 @@ func (m *NotificationMutation) AddedField(name string) (ent.Value, bool) {
 	switch name {
 	case notification.FieldUserID:
 		return m.AddedUserID()
+	case notification.FieldUserMembershipID:
+		return m.AddedUserMembershipID()
 	case notification.FieldTenantID:
 		return m.AddedTenantID()
 	}
@@ -119997,6 +120302,13 @@ func (m *NotificationMutation) AddField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddUserID(v)
+		return nil
+	case notification.FieldUserMembershipID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddUserMembershipID(v)
 		return nil
 	case notification.FieldTenantID:
 		v, ok := value.(int)
@@ -120019,6 +120331,9 @@ func (m *NotificationMutation) ClearedFields() []string {
 	if m.FieldCleared(notification.FieldActionText) {
 		fields = append(fields, notification.FieldActionText)
 	}
+	if m.FieldCleared(notification.FieldUserMembershipID) {
+		fields = append(fields, notification.FieldUserMembershipID)
+	}
 	return fields
 }
 
@@ -120038,6 +120353,9 @@ func (m *NotificationMutation) ClearField(name string) error {
 		return nil
 	case notification.FieldActionText:
 		m.ClearActionText()
+		return nil
+	case notification.FieldUserMembershipID:
+		m.ClearUserMembershipID()
 		return nil
 	}
 	return fmt.Errorf("unknown Notification nullable field %s", name)
@@ -120067,6 +120385,9 @@ func (m *NotificationMutation) ResetField(name string) error {
 		return nil
 	case notification.FieldUserID:
 		m.ResetUserID()
+		return nil
+	case notification.FieldUserMembershipID:
+		m.ResetUserMembershipID()
 		return nil
 	case notification.FieldTenantID:
 		m.ResetTenantID()
@@ -131540,6 +131861,8 @@ type ProcessApprovalDecisionMutation struct {
 	business_id            *string
 	actor_id               *int
 	addactor_id            *int
+	actor_membership_id    *int
+	addactor_membership_id *int
 	actor_name             *string
 	action                 *string
 	decision               *string
@@ -132066,6 +132389,76 @@ func (m *ProcessApprovalDecisionMutation) ResetActorID() {
 	m.addactor_id = nil
 }
 
+// SetActorMembershipID sets the "actor_membership_id" field.
+func (m *ProcessApprovalDecisionMutation) SetActorMembershipID(i int) {
+	m.actor_membership_id = &i
+	m.addactor_membership_id = nil
+}
+
+// ActorMembershipID returns the value of the "actor_membership_id" field in the mutation.
+func (m *ProcessApprovalDecisionMutation) ActorMembershipID() (r int, exists bool) {
+	v := m.actor_membership_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldActorMembershipID returns the old "actor_membership_id" field's value of the ProcessApprovalDecision entity.
+// If the ProcessApprovalDecision object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ProcessApprovalDecisionMutation) OldActorMembershipID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldActorMembershipID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldActorMembershipID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldActorMembershipID: %w", err)
+	}
+	return oldValue.ActorMembershipID, nil
+}
+
+// AddActorMembershipID adds i to the "actor_membership_id" field.
+func (m *ProcessApprovalDecisionMutation) AddActorMembershipID(i int) {
+	if m.addactor_membership_id != nil {
+		*m.addactor_membership_id += i
+	} else {
+		m.addactor_membership_id = &i
+	}
+}
+
+// AddedActorMembershipID returns the value that was added to the "actor_membership_id" field in this mutation.
+func (m *ProcessApprovalDecisionMutation) AddedActorMembershipID() (r int, exists bool) {
+	v := m.addactor_membership_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearActorMembershipID clears the value of the "actor_membership_id" field.
+func (m *ProcessApprovalDecisionMutation) ClearActorMembershipID() {
+	m.actor_membership_id = nil
+	m.addactor_membership_id = nil
+	m.clearedFields[processapprovaldecision.FieldActorMembershipID] = struct{}{}
+}
+
+// ActorMembershipIDCleared returns if the "actor_membership_id" field was cleared in this mutation.
+func (m *ProcessApprovalDecisionMutation) ActorMembershipIDCleared() bool {
+	_, ok := m.clearedFields[processapprovaldecision.FieldActorMembershipID]
+	return ok
+}
+
+// ResetActorMembershipID resets all changes to the "actor_membership_id" field.
+func (m *ProcessApprovalDecisionMutation) ResetActorMembershipID() {
+	m.actor_membership_id = nil
+	m.addactor_membership_id = nil
+	delete(m.clearedFields, processapprovaldecision.FieldActorMembershipID)
+}
+
 // SetActorName sets the "actor_name" field.
 func (m *ProcessApprovalDecisionMutation) SetActorName(s string) {
 	m.actor_name = &s
@@ -132579,7 +132972,7 @@ func (m *ProcessApprovalDecisionMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *ProcessApprovalDecisionMutation) Fields() []string {
-	fields := make([]string, 0, 19)
+	fields := make([]string, 0, 20)
 	if m.process_instance_id != nil {
 		fields = append(fields, processapprovaldecision.FieldProcessInstanceID)
 	}
@@ -132606,6 +132999,9 @@ func (m *ProcessApprovalDecisionMutation) Fields() []string {
 	}
 	if m.actor_id != nil {
 		fields = append(fields, processapprovaldecision.FieldActorID)
+	}
+	if m.actor_membership_id != nil {
+		fields = append(fields, processapprovaldecision.FieldActorMembershipID)
 	}
 	if m.actor_name != nil {
 		fields = append(fields, processapprovaldecision.FieldActorName)
@@ -132663,6 +133059,8 @@ func (m *ProcessApprovalDecisionMutation) Field(name string) (ent.Value, bool) {
 		return m.BusinessID()
 	case processapprovaldecision.FieldActorID:
 		return m.ActorID()
+	case processapprovaldecision.FieldActorMembershipID:
+		return m.ActorMembershipID()
 	case processapprovaldecision.FieldActorName:
 		return m.ActorName()
 	case processapprovaldecision.FieldAction:
@@ -132710,6 +133108,8 @@ func (m *ProcessApprovalDecisionMutation) OldField(ctx context.Context, name str
 		return m.OldBusinessID(ctx)
 	case processapprovaldecision.FieldActorID:
 		return m.OldActorID(ctx)
+	case processapprovaldecision.FieldActorMembershipID:
+		return m.OldActorMembershipID(ctx)
 	case processapprovaldecision.FieldActorName:
 		return m.OldActorName(ctx)
 	case processapprovaldecision.FieldAction:
@@ -132802,6 +133202,13 @@ func (m *ProcessApprovalDecisionMutation) SetField(name string, value ent.Value)
 		}
 		m.SetActorID(v)
 		return nil
+	case processapprovaldecision.FieldActorMembershipID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetActorMembershipID(v)
+		return nil
 	case processapprovaldecision.FieldActorName:
 		v, ok := value.(string)
 		if !ok {
@@ -132889,6 +133296,9 @@ func (m *ProcessApprovalDecisionMutation) AddedFields() []string {
 	if m.addactor_id != nil {
 		fields = append(fields, processapprovaldecision.FieldActorID)
 	}
+	if m.addactor_membership_id != nil {
+		fields = append(fields, processapprovaldecision.FieldActorMembershipID)
+	}
 	if m.adddelegated_from != nil {
 		fields = append(fields, processapprovaldecision.FieldDelegatedFrom)
 	}
@@ -132909,6 +133319,8 @@ func (m *ProcessApprovalDecisionMutation) AddedField(name string) (ent.Value, bo
 		return m.AddedProcessTaskID()
 	case processapprovaldecision.FieldActorID:
 		return m.AddedActorID()
+	case processapprovaldecision.FieldActorMembershipID:
+		return m.AddedActorMembershipID()
 	case processapprovaldecision.FieldDelegatedFrom:
 		return m.AddedDelegatedFrom()
 	case processapprovaldecision.FieldTenantID:
@@ -132943,6 +133355,13 @@ func (m *ProcessApprovalDecisionMutation) AddField(name string, value ent.Value)
 		}
 		m.AddActorID(v)
 		return nil
+	case processapprovaldecision.FieldActorMembershipID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddActorMembershipID(v)
+		return nil
 	case processapprovaldecision.FieldDelegatedFrom:
 		v, ok := value.(int)
 		if !ok {
@@ -132970,6 +133389,9 @@ func (m *ProcessApprovalDecisionMutation) ClearedFields() []string {
 	}
 	if m.FieldCleared(processapprovaldecision.FieldBusinessID) {
 		fields = append(fields, processapprovaldecision.FieldBusinessID)
+	}
+	if m.FieldCleared(processapprovaldecision.FieldActorMembershipID) {
+		fields = append(fields, processapprovaldecision.FieldActorMembershipID)
 	}
 	if m.FieldCleared(processapprovaldecision.FieldActorName) {
 		fields = append(fields, processapprovaldecision.FieldActorName)
@@ -133008,6 +133430,9 @@ func (m *ProcessApprovalDecisionMutation) ClearField(name string) error {
 		return nil
 	case processapprovaldecision.FieldBusinessID:
 		m.ClearBusinessID()
+		return nil
+	case processapprovaldecision.FieldActorMembershipID:
+		m.ClearActorMembershipID()
 		return nil
 	case processapprovaldecision.FieldActorName:
 		m.ClearActorName()
@@ -133061,6 +133486,9 @@ func (m *ProcessApprovalDecisionMutation) ResetField(name string) error {
 		return nil
 	case processapprovaldecision.FieldActorID:
 		m.ResetActorID()
+		return nil
+	case processapprovaldecision.FieldActorMembershipID:
+		m.ResetActorMembershipID()
 		return nil
 	case processapprovaldecision.FieldActorName:
 		m.ResetActorName()
@@ -218208,30 +218636,34 @@ func (m *TicketMutation) ResetEdge(name string) error {
 // TicketApprovalMutation represents an operation that mutates the TicketApproval nodes in the graph.
 type TicketApprovalMutation struct {
 	config
-	op                     Op
-	typ                    string
-	id                     *int
-	level                  *int
-	addlevel               *int
-	level_name             *string
-	approver_id            *int
-	addapprover_id         *int
-	status                 *string
-	action                 *string
-	comment                *string
-	delegate_to_user_id    *int
-	adddelegate_to_user_id *int
-	tenant_id              *int
-	addtenant_id           *int
-	created_at             *time.Time
-	updated_at             *time.Time
-	processed_at           *time.Time
-	clearedFields          map[string]struct{}
-	ticket                 *int
-	clearedticket          bool
-	done                   bool
-	oldValue               func(context.Context) (*TicketApproval, error)
-	predicates             []predicate.TicketApproval
+	op                           Op
+	typ                          string
+	id                           *int
+	level                        *int
+	addlevel                     *int
+	level_name                   *string
+	approver_id                  *int
+	addapprover_id               *int
+	approver_membership_id       *int
+	addapprover_membership_id    *int
+	status                       *string
+	action                       *string
+	comment                      *string
+	delegate_to_user_id          *int
+	adddelegate_to_user_id       *int
+	delegate_to_membership_id    *int
+	adddelegate_to_membership_id *int
+	tenant_id                    *int
+	addtenant_id                 *int
+	created_at                   *time.Time
+	updated_at                   *time.Time
+	processed_at                 *time.Time
+	clearedFields                map[string]struct{}
+	ticket                       *int
+	clearedticket                bool
+	done                         bool
+	oldValue                     func(context.Context) (*TicketApproval, error)
+	predicates                   []predicate.TicketApproval
 }
 
 var _ ent.Mutation = (*TicketApprovalMutation)(nil)
@@ -218516,6 +218948,76 @@ func (m *TicketApprovalMutation) ResetApproverID() {
 	m.addapprover_id = nil
 }
 
+// SetApproverMembershipID sets the "approver_membership_id" field.
+func (m *TicketApprovalMutation) SetApproverMembershipID(i int) {
+	m.approver_membership_id = &i
+	m.addapprover_membership_id = nil
+}
+
+// ApproverMembershipID returns the value of the "approver_membership_id" field in the mutation.
+func (m *TicketApprovalMutation) ApproverMembershipID() (r int, exists bool) {
+	v := m.approver_membership_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldApproverMembershipID returns the old "approver_membership_id" field's value of the TicketApproval entity.
+// If the TicketApproval object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TicketApprovalMutation) OldApproverMembershipID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldApproverMembershipID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldApproverMembershipID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldApproverMembershipID: %w", err)
+	}
+	return oldValue.ApproverMembershipID, nil
+}
+
+// AddApproverMembershipID adds i to the "approver_membership_id" field.
+func (m *TicketApprovalMutation) AddApproverMembershipID(i int) {
+	if m.addapprover_membership_id != nil {
+		*m.addapprover_membership_id += i
+	} else {
+		m.addapprover_membership_id = &i
+	}
+}
+
+// AddedApproverMembershipID returns the value that was added to the "approver_membership_id" field in this mutation.
+func (m *TicketApprovalMutation) AddedApproverMembershipID() (r int, exists bool) {
+	v := m.addapprover_membership_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearApproverMembershipID clears the value of the "approver_membership_id" field.
+func (m *TicketApprovalMutation) ClearApproverMembershipID() {
+	m.approver_membership_id = nil
+	m.addapprover_membership_id = nil
+	m.clearedFields[ticketapproval.FieldApproverMembershipID] = struct{}{}
+}
+
+// ApproverMembershipIDCleared returns if the "approver_membership_id" field was cleared in this mutation.
+func (m *TicketApprovalMutation) ApproverMembershipIDCleared() bool {
+	_, ok := m.clearedFields[ticketapproval.FieldApproverMembershipID]
+	return ok
+}
+
+// ResetApproverMembershipID resets all changes to the "approver_membership_id" field.
+func (m *TicketApprovalMutation) ResetApproverMembershipID() {
+	m.approver_membership_id = nil
+	m.addapprover_membership_id = nil
+	delete(m.clearedFields, ticketapproval.FieldApproverMembershipID)
+}
+
 // SetStatus sets the "status" field.
 func (m *TicketApprovalMutation) SetStatus(s string) {
 	m.status = &s
@@ -218718,6 +219220,76 @@ func (m *TicketApprovalMutation) ResetDelegateToUserID() {
 	m.delegate_to_user_id = nil
 	m.adddelegate_to_user_id = nil
 	delete(m.clearedFields, ticketapproval.FieldDelegateToUserID)
+}
+
+// SetDelegateToMembershipID sets the "delegate_to_membership_id" field.
+func (m *TicketApprovalMutation) SetDelegateToMembershipID(i int) {
+	m.delegate_to_membership_id = &i
+	m.adddelegate_to_membership_id = nil
+}
+
+// DelegateToMembershipID returns the value of the "delegate_to_membership_id" field in the mutation.
+func (m *TicketApprovalMutation) DelegateToMembershipID() (r int, exists bool) {
+	v := m.delegate_to_membership_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDelegateToMembershipID returns the old "delegate_to_membership_id" field's value of the TicketApproval entity.
+// If the TicketApproval object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TicketApprovalMutation) OldDelegateToMembershipID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDelegateToMembershipID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDelegateToMembershipID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDelegateToMembershipID: %w", err)
+	}
+	return oldValue.DelegateToMembershipID, nil
+}
+
+// AddDelegateToMembershipID adds i to the "delegate_to_membership_id" field.
+func (m *TicketApprovalMutation) AddDelegateToMembershipID(i int) {
+	if m.adddelegate_to_membership_id != nil {
+		*m.adddelegate_to_membership_id += i
+	} else {
+		m.adddelegate_to_membership_id = &i
+	}
+}
+
+// AddedDelegateToMembershipID returns the value that was added to the "delegate_to_membership_id" field in this mutation.
+func (m *TicketApprovalMutation) AddedDelegateToMembershipID() (r int, exists bool) {
+	v := m.adddelegate_to_membership_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearDelegateToMembershipID clears the value of the "delegate_to_membership_id" field.
+func (m *TicketApprovalMutation) ClearDelegateToMembershipID() {
+	m.delegate_to_membership_id = nil
+	m.adddelegate_to_membership_id = nil
+	m.clearedFields[ticketapproval.FieldDelegateToMembershipID] = struct{}{}
+}
+
+// DelegateToMembershipIDCleared returns if the "delegate_to_membership_id" field was cleared in this mutation.
+func (m *TicketApprovalMutation) DelegateToMembershipIDCleared() bool {
+	_, ok := m.clearedFields[ticketapproval.FieldDelegateToMembershipID]
+	return ok
+}
+
+// ResetDelegateToMembershipID resets all changes to the "delegate_to_membership_id" field.
+func (m *TicketApprovalMutation) ResetDelegateToMembershipID() {
+	m.delegate_to_membership_id = nil
+	m.adddelegate_to_membership_id = nil
+	delete(m.clearedFields, ticketapproval.FieldDelegateToMembershipID)
 }
 
 // SetTenantID sets the "tenant_id" field.
@@ -218958,7 +219530,7 @@ func (m *TicketApprovalMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *TicketApprovalMutation) Fields() []string {
-	fields := make([]string, 0, 12)
+	fields := make([]string, 0, 14)
 	if m.ticket != nil {
 		fields = append(fields, ticketapproval.FieldTicketID)
 	}
@@ -218971,6 +219543,9 @@ func (m *TicketApprovalMutation) Fields() []string {
 	if m.approver_id != nil {
 		fields = append(fields, ticketapproval.FieldApproverID)
 	}
+	if m.approver_membership_id != nil {
+		fields = append(fields, ticketapproval.FieldApproverMembershipID)
+	}
 	if m.status != nil {
 		fields = append(fields, ticketapproval.FieldStatus)
 	}
@@ -218982,6 +219557,9 @@ func (m *TicketApprovalMutation) Fields() []string {
 	}
 	if m.delegate_to_user_id != nil {
 		fields = append(fields, ticketapproval.FieldDelegateToUserID)
+	}
+	if m.delegate_to_membership_id != nil {
+		fields = append(fields, ticketapproval.FieldDelegateToMembershipID)
 	}
 	if m.tenant_id != nil {
 		fields = append(fields, ticketapproval.FieldTenantID)
@@ -219011,6 +219589,8 @@ func (m *TicketApprovalMutation) Field(name string) (ent.Value, bool) {
 		return m.LevelName()
 	case ticketapproval.FieldApproverID:
 		return m.ApproverID()
+	case ticketapproval.FieldApproverMembershipID:
+		return m.ApproverMembershipID()
 	case ticketapproval.FieldStatus:
 		return m.Status()
 	case ticketapproval.FieldAction:
@@ -219019,6 +219599,8 @@ func (m *TicketApprovalMutation) Field(name string) (ent.Value, bool) {
 		return m.Comment()
 	case ticketapproval.FieldDelegateToUserID:
 		return m.DelegateToUserID()
+	case ticketapproval.FieldDelegateToMembershipID:
+		return m.DelegateToMembershipID()
 	case ticketapproval.FieldTenantID:
 		return m.TenantID()
 	case ticketapproval.FieldCreatedAt:
@@ -219044,6 +219626,8 @@ func (m *TicketApprovalMutation) OldField(ctx context.Context, name string) (ent
 		return m.OldLevelName(ctx)
 	case ticketapproval.FieldApproverID:
 		return m.OldApproverID(ctx)
+	case ticketapproval.FieldApproverMembershipID:
+		return m.OldApproverMembershipID(ctx)
 	case ticketapproval.FieldStatus:
 		return m.OldStatus(ctx)
 	case ticketapproval.FieldAction:
@@ -219052,6 +219636,8 @@ func (m *TicketApprovalMutation) OldField(ctx context.Context, name string) (ent
 		return m.OldComment(ctx)
 	case ticketapproval.FieldDelegateToUserID:
 		return m.OldDelegateToUserID(ctx)
+	case ticketapproval.FieldDelegateToMembershipID:
+		return m.OldDelegateToMembershipID(ctx)
 	case ticketapproval.FieldTenantID:
 		return m.OldTenantID(ctx)
 	case ticketapproval.FieldCreatedAt:
@@ -219097,6 +219683,13 @@ func (m *TicketApprovalMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetApproverID(v)
 		return nil
+	case ticketapproval.FieldApproverMembershipID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetApproverMembershipID(v)
+		return nil
 	case ticketapproval.FieldStatus:
 		v, ok := value.(string)
 		if !ok {
@@ -219124,6 +219717,13 @@ func (m *TicketApprovalMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetDelegateToUserID(v)
+		return nil
+	case ticketapproval.FieldDelegateToMembershipID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDelegateToMembershipID(v)
 		return nil
 	case ticketapproval.FieldTenantID:
 		v, ok := value.(int)
@@ -219167,8 +219767,14 @@ func (m *TicketApprovalMutation) AddedFields() []string {
 	if m.addapprover_id != nil {
 		fields = append(fields, ticketapproval.FieldApproverID)
 	}
+	if m.addapprover_membership_id != nil {
+		fields = append(fields, ticketapproval.FieldApproverMembershipID)
+	}
 	if m.adddelegate_to_user_id != nil {
 		fields = append(fields, ticketapproval.FieldDelegateToUserID)
+	}
+	if m.adddelegate_to_membership_id != nil {
+		fields = append(fields, ticketapproval.FieldDelegateToMembershipID)
 	}
 	if m.addtenant_id != nil {
 		fields = append(fields, ticketapproval.FieldTenantID)
@@ -219185,8 +219791,12 @@ func (m *TicketApprovalMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedLevel()
 	case ticketapproval.FieldApproverID:
 		return m.AddedApproverID()
+	case ticketapproval.FieldApproverMembershipID:
+		return m.AddedApproverMembershipID()
 	case ticketapproval.FieldDelegateToUserID:
 		return m.AddedDelegateToUserID()
+	case ticketapproval.FieldDelegateToMembershipID:
+		return m.AddedDelegateToMembershipID()
 	case ticketapproval.FieldTenantID:
 		return m.AddedTenantID()
 	}
@@ -219212,12 +219822,26 @@ func (m *TicketApprovalMutation) AddField(name string, value ent.Value) error {
 		}
 		m.AddApproverID(v)
 		return nil
+	case ticketapproval.FieldApproverMembershipID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddApproverMembershipID(v)
+		return nil
 	case ticketapproval.FieldDelegateToUserID:
 		v, ok := value.(int)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddDelegateToUserID(v)
+		return nil
+	case ticketapproval.FieldDelegateToMembershipID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddDelegateToMembershipID(v)
 		return nil
 	case ticketapproval.FieldTenantID:
 		v, ok := value.(int)
@@ -219234,6 +219858,9 @@ func (m *TicketApprovalMutation) AddField(name string, value ent.Value) error {
 // mutation.
 func (m *TicketApprovalMutation) ClearedFields() []string {
 	var fields []string
+	if m.FieldCleared(ticketapproval.FieldApproverMembershipID) {
+		fields = append(fields, ticketapproval.FieldApproverMembershipID)
+	}
 	if m.FieldCleared(ticketapproval.FieldAction) {
 		fields = append(fields, ticketapproval.FieldAction)
 	}
@@ -219242,6 +219869,9 @@ func (m *TicketApprovalMutation) ClearedFields() []string {
 	}
 	if m.FieldCleared(ticketapproval.FieldDelegateToUserID) {
 		fields = append(fields, ticketapproval.FieldDelegateToUserID)
+	}
+	if m.FieldCleared(ticketapproval.FieldDelegateToMembershipID) {
+		fields = append(fields, ticketapproval.FieldDelegateToMembershipID)
 	}
 	if m.FieldCleared(ticketapproval.FieldProcessedAt) {
 		fields = append(fields, ticketapproval.FieldProcessedAt)
@@ -219260,6 +219890,9 @@ func (m *TicketApprovalMutation) FieldCleared(name string) bool {
 // error if the field is not defined in the schema.
 func (m *TicketApprovalMutation) ClearField(name string) error {
 	switch name {
+	case ticketapproval.FieldApproverMembershipID:
+		m.ClearApproverMembershipID()
+		return nil
 	case ticketapproval.FieldAction:
 		m.ClearAction()
 		return nil
@@ -219268,6 +219901,9 @@ func (m *TicketApprovalMutation) ClearField(name string) error {
 		return nil
 	case ticketapproval.FieldDelegateToUserID:
 		m.ClearDelegateToUserID()
+		return nil
+	case ticketapproval.FieldDelegateToMembershipID:
+		m.ClearDelegateToMembershipID()
 		return nil
 	case ticketapproval.FieldProcessedAt:
 		m.ClearProcessedAt()
@@ -219292,6 +219928,9 @@ func (m *TicketApprovalMutation) ResetField(name string) error {
 	case ticketapproval.FieldApproverID:
 		m.ResetApproverID()
 		return nil
+	case ticketapproval.FieldApproverMembershipID:
+		m.ResetApproverMembershipID()
+		return nil
 	case ticketapproval.FieldStatus:
 		m.ResetStatus()
 		return nil
@@ -219303,6 +219942,9 @@ func (m *TicketApprovalMutation) ResetField(name string) error {
 		return nil
 	case ticketapproval.FieldDelegateToUserID:
 		m.ResetDelegateToUserID()
+		return nil
+	case ticketapproval.FieldDelegateToMembershipID:
+		m.ResetDelegateToMembershipID()
 		return nil
 	case ticketapproval.FieldTenantID:
 		m.ResetTenantID()
@@ -220461,27 +221103,29 @@ func (m *TicketAssignmentRuleMutation) ResetEdge(name string) error {
 // TicketAttachmentMutation represents an operation that mutates the TicketAttachment nodes in the graph.
 type TicketAttachmentMutation struct {
 	config
-	op              Op
-	typ             string
-	id              *int
-	file_name       *string
-	file_path       *string
-	file_url        *string
-	file_size       *int
-	addfile_size    *int
-	file_type       *string
-	mime_type       *string
-	tenant_id       *int
-	addtenant_id    *int
-	created_at      *time.Time
-	clearedFields   map[string]struct{}
-	ticket          *int
-	clearedticket   bool
-	uploader        *int
-	cleareduploader bool
-	done            bool
-	oldValue        func(context.Context) (*TicketAttachment, error)
-	predicates      []predicate.TicketAttachment
+	op                           Op
+	typ                          string
+	id                           *int
+	file_name                    *string
+	file_path                    *string
+	file_url                     *string
+	file_size                    *int
+	addfile_size                 *int
+	file_type                    *string
+	mime_type                    *string
+	uploaded_by_membership_id    *int
+	adduploaded_by_membership_id *int
+	tenant_id                    *int
+	addtenant_id                 *int
+	created_at                   *time.Time
+	clearedFields                map[string]struct{}
+	ticket                       *int
+	clearedticket                bool
+	uploader                     *int
+	cleareduploader              bool
+	done                         bool
+	oldValue                     func(context.Context) (*TicketAttachment, error)
+	predicates                   []predicate.TicketAttachment
 }
 
 var _ ent.Mutation = (*TicketAttachmentMutation)(nil)
@@ -220916,6 +221560,76 @@ func (m *TicketAttachmentMutation) ResetUploadedBy() {
 	m.uploader = nil
 }
 
+// SetUploadedByMembershipID sets the "uploaded_by_membership_id" field.
+func (m *TicketAttachmentMutation) SetUploadedByMembershipID(i int) {
+	m.uploaded_by_membership_id = &i
+	m.adduploaded_by_membership_id = nil
+}
+
+// UploadedByMembershipID returns the value of the "uploaded_by_membership_id" field in the mutation.
+func (m *TicketAttachmentMutation) UploadedByMembershipID() (r int, exists bool) {
+	v := m.uploaded_by_membership_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUploadedByMembershipID returns the old "uploaded_by_membership_id" field's value of the TicketAttachment entity.
+// If the TicketAttachment object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TicketAttachmentMutation) OldUploadedByMembershipID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUploadedByMembershipID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUploadedByMembershipID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUploadedByMembershipID: %w", err)
+	}
+	return oldValue.UploadedByMembershipID, nil
+}
+
+// AddUploadedByMembershipID adds i to the "uploaded_by_membership_id" field.
+func (m *TicketAttachmentMutation) AddUploadedByMembershipID(i int) {
+	if m.adduploaded_by_membership_id != nil {
+		*m.adduploaded_by_membership_id += i
+	} else {
+		m.adduploaded_by_membership_id = &i
+	}
+}
+
+// AddedUploadedByMembershipID returns the value that was added to the "uploaded_by_membership_id" field in this mutation.
+func (m *TicketAttachmentMutation) AddedUploadedByMembershipID() (r int, exists bool) {
+	v := m.adduploaded_by_membership_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearUploadedByMembershipID clears the value of the "uploaded_by_membership_id" field.
+func (m *TicketAttachmentMutation) ClearUploadedByMembershipID() {
+	m.uploaded_by_membership_id = nil
+	m.adduploaded_by_membership_id = nil
+	m.clearedFields[ticketattachment.FieldUploadedByMembershipID] = struct{}{}
+}
+
+// UploadedByMembershipIDCleared returns if the "uploaded_by_membership_id" field was cleared in this mutation.
+func (m *TicketAttachmentMutation) UploadedByMembershipIDCleared() bool {
+	_, ok := m.clearedFields[ticketattachment.FieldUploadedByMembershipID]
+	return ok
+}
+
+// ResetUploadedByMembershipID resets all changes to the "uploaded_by_membership_id" field.
+func (m *TicketAttachmentMutation) ResetUploadedByMembershipID() {
+	m.uploaded_by_membership_id = nil
+	m.adduploaded_by_membership_id = nil
+	delete(m.clearedFields, ticketattachment.FieldUploadedByMembershipID)
+}
+
 // SetTenantID sets the "tenant_id" field.
 func (m *TicketAttachmentMutation) SetTenantID(i int) {
 	m.tenant_id = &i
@@ -221109,7 +221823,7 @@ func (m *TicketAttachmentMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *TicketAttachmentMutation) Fields() []string {
-	fields := make([]string, 0, 10)
+	fields := make([]string, 0, 11)
 	if m.ticket != nil {
 		fields = append(fields, ticketattachment.FieldTicketID)
 	}
@@ -221133,6 +221847,9 @@ func (m *TicketAttachmentMutation) Fields() []string {
 	}
 	if m.uploader != nil {
 		fields = append(fields, ticketattachment.FieldUploadedBy)
+	}
+	if m.uploaded_by_membership_id != nil {
+		fields = append(fields, ticketattachment.FieldUploadedByMembershipID)
 	}
 	if m.tenant_id != nil {
 		fields = append(fields, ticketattachment.FieldTenantID)
@@ -221164,6 +221881,8 @@ func (m *TicketAttachmentMutation) Field(name string) (ent.Value, bool) {
 		return m.MimeType()
 	case ticketattachment.FieldUploadedBy:
 		return m.UploadedBy()
+	case ticketattachment.FieldUploadedByMembershipID:
+		return m.UploadedByMembershipID()
 	case ticketattachment.FieldTenantID:
 		return m.TenantID()
 	case ticketattachment.FieldCreatedAt:
@@ -221193,6 +221912,8 @@ func (m *TicketAttachmentMutation) OldField(ctx context.Context, name string) (e
 		return m.OldMimeType(ctx)
 	case ticketattachment.FieldUploadedBy:
 		return m.OldUploadedBy(ctx)
+	case ticketattachment.FieldUploadedByMembershipID:
+		return m.OldUploadedByMembershipID(ctx)
 	case ticketattachment.FieldTenantID:
 		return m.OldTenantID(ctx)
 	case ticketattachment.FieldCreatedAt:
@@ -221262,6 +221983,13 @@ func (m *TicketAttachmentMutation) SetField(name string, value ent.Value) error 
 		}
 		m.SetUploadedBy(v)
 		return nil
+	case ticketattachment.FieldUploadedByMembershipID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUploadedByMembershipID(v)
+		return nil
 	case ticketattachment.FieldTenantID:
 		v, ok := value.(int)
 		if !ok {
@@ -221287,6 +222015,9 @@ func (m *TicketAttachmentMutation) AddedFields() []string {
 	if m.addfile_size != nil {
 		fields = append(fields, ticketattachment.FieldFileSize)
 	}
+	if m.adduploaded_by_membership_id != nil {
+		fields = append(fields, ticketattachment.FieldUploadedByMembershipID)
+	}
 	if m.addtenant_id != nil {
 		fields = append(fields, ticketattachment.FieldTenantID)
 	}
@@ -221300,6 +222031,8 @@ func (m *TicketAttachmentMutation) AddedField(name string) (ent.Value, bool) {
 	switch name {
 	case ticketattachment.FieldFileSize:
 		return m.AddedFileSize()
+	case ticketattachment.FieldUploadedByMembershipID:
+		return m.AddedUploadedByMembershipID()
 	case ticketattachment.FieldTenantID:
 		return m.AddedTenantID()
 	}
@@ -221317,6 +222050,13 @@ func (m *TicketAttachmentMutation) AddField(name string, value ent.Value) error 
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddFileSize(v)
+		return nil
+	case ticketattachment.FieldUploadedByMembershipID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddUploadedByMembershipID(v)
 		return nil
 	case ticketattachment.FieldTenantID:
 		v, ok := value.(int)
@@ -221339,6 +222079,9 @@ func (m *TicketAttachmentMutation) ClearedFields() []string {
 	if m.FieldCleared(ticketattachment.FieldMimeType) {
 		fields = append(fields, ticketattachment.FieldMimeType)
 	}
+	if m.FieldCleared(ticketattachment.FieldUploadedByMembershipID) {
+		fields = append(fields, ticketattachment.FieldUploadedByMembershipID)
+	}
 	return fields
 }
 
@@ -221358,6 +222101,9 @@ func (m *TicketAttachmentMutation) ClearField(name string) error {
 		return nil
 	case ticketattachment.FieldMimeType:
 		m.ClearMimeType()
+		return nil
+	case ticketattachment.FieldUploadedByMembershipID:
+		m.ClearUploadedByMembershipID()
 		return nil
 	}
 	return fmt.Errorf("unknown TicketAttachment nullable field %s", name)
@@ -221390,6 +222136,9 @@ func (m *TicketAttachmentMutation) ResetField(name string) error {
 		return nil
 	case ticketattachment.FieldUploadedBy:
 		m.ResetUploadedBy()
+		return nil
+	case ticketattachment.FieldUploadedByMembershipID:
+		m.ResetUploadedByMembershipID()
 		return nil
 	case ticketattachment.FieldTenantID:
 		m.ResetTenantID()
@@ -222698,23 +223447,27 @@ func (m *TicketAutomationRuleMutation) ResetEdge(name string) error {
 // TicketCCMutation represents an operation that mutates the TicketCC nodes in the graph.
 type TicketCCMutation struct {
 	config
-	op            Op
-	typ           string
-	id            *int
-	user_id       *int
-	adduser_id    *int
-	added_by      *int
-	addadded_by   *int
-	tenant_id     *int
-	addtenant_id  *int
-	added_at      *time.Time
-	is_active     *bool
-	clearedFields map[string]struct{}
-	ticket        *int
-	clearedticket bool
-	done          bool
-	oldValue      func(context.Context) (*TicketCC, error)
-	predicates    []predicate.TicketCC
+	op                        Op
+	typ                       string
+	id                        *int
+	user_id                   *int
+	adduser_id                *int
+	user_membership_id        *int
+	adduser_membership_id     *int
+	added_by                  *int
+	addadded_by               *int
+	added_by_membership_id    *int
+	addadded_by_membership_id *int
+	tenant_id                 *int
+	addtenant_id              *int
+	added_at                  *time.Time
+	is_active                 *bool
+	clearedFields             map[string]struct{}
+	ticket                    *int
+	clearedticket             bool
+	done                      bool
+	oldValue                  func(context.Context) (*TicketCC, error)
+	predicates                []predicate.TicketCC
 }
 
 var _ ent.Mutation = (*TicketCCMutation)(nil)
@@ -222907,6 +223660,76 @@ func (m *TicketCCMutation) ResetUserID() {
 	m.adduser_id = nil
 }
 
+// SetUserMembershipID sets the "user_membership_id" field.
+func (m *TicketCCMutation) SetUserMembershipID(i int) {
+	m.user_membership_id = &i
+	m.adduser_membership_id = nil
+}
+
+// UserMembershipID returns the value of the "user_membership_id" field in the mutation.
+func (m *TicketCCMutation) UserMembershipID() (r int, exists bool) {
+	v := m.user_membership_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUserMembershipID returns the old "user_membership_id" field's value of the TicketCC entity.
+// If the TicketCC object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TicketCCMutation) OldUserMembershipID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUserMembershipID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUserMembershipID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUserMembershipID: %w", err)
+	}
+	return oldValue.UserMembershipID, nil
+}
+
+// AddUserMembershipID adds i to the "user_membership_id" field.
+func (m *TicketCCMutation) AddUserMembershipID(i int) {
+	if m.adduser_membership_id != nil {
+		*m.adduser_membership_id += i
+	} else {
+		m.adduser_membership_id = &i
+	}
+}
+
+// AddedUserMembershipID returns the value that was added to the "user_membership_id" field in this mutation.
+func (m *TicketCCMutation) AddedUserMembershipID() (r int, exists bool) {
+	v := m.adduser_membership_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearUserMembershipID clears the value of the "user_membership_id" field.
+func (m *TicketCCMutation) ClearUserMembershipID() {
+	m.user_membership_id = nil
+	m.adduser_membership_id = nil
+	m.clearedFields[ticketcc.FieldUserMembershipID] = struct{}{}
+}
+
+// UserMembershipIDCleared returns if the "user_membership_id" field was cleared in this mutation.
+func (m *TicketCCMutation) UserMembershipIDCleared() bool {
+	_, ok := m.clearedFields[ticketcc.FieldUserMembershipID]
+	return ok
+}
+
+// ResetUserMembershipID resets all changes to the "user_membership_id" field.
+func (m *TicketCCMutation) ResetUserMembershipID() {
+	m.user_membership_id = nil
+	m.adduser_membership_id = nil
+	delete(m.clearedFields, ticketcc.FieldUserMembershipID)
+}
+
 // SetAddedBy sets the "added_by" field.
 func (m *TicketCCMutation) SetAddedBy(i int) {
 	m.added_by = &i
@@ -222961,6 +223784,76 @@ func (m *TicketCCMutation) AddedAddedBy() (r int, exists bool) {
 func (m *TicketCCMutation) ResetAddedBy() {
 	m.added_by = nil
 	m.addadded_by = nil
+}
+
+// SetAddedByMembershipID sets the "added_by_membership_id" field.
+func (m *TicketCCMutation) SetAddedByMembershipID(i int) {
+	m.added_by_membership_id = &i
+	m.addadded_by_membership_id = nil
+}
+
+// AddedByMembershipID returns the value of the "added_by_membership_id" field in the mutation.
+func (m *TicketCCMutation) AddedByMembershipID() (r int, exists bool) {
+	v := m.added_by_membership_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAddedByMembershipID returns the old "added_by_membership_id" field's value of the TicketCC entity.
+// If the TicketCC object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TicketCCMutation) OldAddedByMembershipID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAddedByMembershipID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAddedByMembershipID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAddedByMembershipID: %w", err)
+	}
+	return oldValue.AddedByMembershipID, nil
+}
+
+// AddAddedByMembershipID adds i to the "added_by_membership_id" field.
+func (m *TicketCCMutation) AddAddedByMembershipID(i int) {
+	if m.addadded_by_membership_id != nil {
+		*m.addadded_by_membership_id += i
+	} else {
+		m.addadded_by_membership_id = &i
+	}
+}
+
+// AddedAddedByMembershipID returns the value that was added to the "added_by_membership_id" field in this mutation.
+func (m *TicketCCMutation) AddedAddedByMembershipID() (r int, exists bool) {
+	v := m.addadded_by_membership_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearAddedByMembershipID clears the value of the "added_by_membership_id" field.
+func (m *TicketCCMutation) ClearAddedByMembershipID() {
+	m.added_by_membership_id = nil
+	m.addadded_by_membership_id = nil
+	m.clearedFields[ticketcc.FieldAddedByMembershipID] = struct{}{}
+}
+
+// AddedByMembershipIDCleared returns if the "added_by_membership_id" field was cleared in this mutation.
+func (m *TicketCCMutation) AddedByMembershipIDCleared() bool {
+	_, ok := m.clearedFields[ticketcc.FieldAddedByMembershipID]
+	return ok
+}
+
+// ResetAddedByMembershipID resets all changes to the "added_by_membership_id" field.
+func (m *TicketCCMutation) ResetAddedByMembershipID() {
+	m.added_by_membership_id = nil
+	m.addadded_by_membership_id = nil
+	delete(m.clearedFields, ticketcc.FieldAddedByMembershipID)
 }
 
 // SetTenantID sets the "tenant_id" field.
@@ -223152,15 +224045,21 @@ func (m *TicketCCMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *TicketCCMutation) Fields() []string {
-	fields := make([]string, 0, 6)
+	fields := make([]string, 0, 8)
 	if m.ticket != nil {
 		fields = append(fields, ticketcc.FieldTicketID)
 	}
 	if m.user_id != nil {
 		fields = append(fields, ticketcc.FieldUserID)
 	}
+	if m.user_membership_id != nil {
+		fields = append(fields, ticketcc.FieldUserMembershipID)
+	}
 	if m.added_by != nil {
 		fields = append(fields, ticketcc.FieldAddedBy)
+	}
+	if m.added_by_membership_id != nil {
+		fields = append(fields, ticketcc.FieldAddedByMembershipID)
 	}
 	if m.tenant_id != nil {
 		fields = append(fields, ticketcc.FieldTenantID)
@@ -223183,8 +224082,12 @@ func (m *TicketCCMutation) Field(name string) (ent.Value, bool) {
 		return m.TicketID()
 	case ticketcc.FieldUserID:
 		return m.UserID()
+	case ticketcc.FieldUserMembershipID:
+		return m.UserMembershipID()
 	case ticketcc.FieldAddedBy:
 		return m.AddedBy()
+	case ticketcc.FieldAddedByMembershipID:
+		return m.AddedByMembershipID()
 	case ticketcc.FieldTenantID:
 		return m.TenantID()
 	case ticketcc.FieldAddedAt:
@@ -223204,8 +224107,12 @@ func (m *TicketCCMutation) OldField(ctx context.Context, name string) (ent.Value
 		return m.OldTicketID(ctx)
 	case ticketcc.FieldUserID:
 		return m.OldUserID(ctx)
+	case ticketcc.FieldUserMembershipID:
+		return m.OldUserMembershipID(ctx)
 	case ticketcc.FieldAddedBy:
 		return m.OldAddedBy(ctx)
+	case ticketcc.FieldAddedByMembershipID:
+		return m.OldAddedByMembershipID(ctx)
 	case ticketcc.FieldTenantID:
 		return m.OldTenantID(ctx)
 	case ticketcc.FieldAddedAt:
@@ -223235,12 +224142,26 @@ func (m *TicketCCMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetUserID(v)
 		return nil
+	case ticketcc.FieldUserMembershipID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUserMembershipID(v)
+		return nil
 	case ticketcc.FieldAddedBy:
 		v, ok := value.(int)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetAddedBy(v)
+		return nil
+	case ticketcc.FieldAddedByMembershipID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAddedByMembershipID(v)
 		return nil
 	case ticketcc.FieldTenantID:
 		v, ok := value.(int)
@@ -223274,8 +224195,14 @@ func (m *TicketCCMutation) AddedFields() []string {
 	if m.adduser_id != nil {
 		fields = append(fields, ticketcc.FieldUserID)
 	}
+	if m.adduser_membership_id != nil {
+		fields = append(fields, ticketcc.FieldUserMembershipID)
+	}
 	if m.addadded_by != nil {
 		fields = append(fields, ticketcc.FieldAddedBy)
+	}
+	if m.addadded_by_membership_id != nil {
+		fields = append(fields, ticketcc.FieldAddedByMembershipID)
 	}
 	if m.addtenant_id != nil {
 		fields = append(fields, ticketcc.FieldTenantID)
@@ -223290,8 +224217,12 @@ func (m *TicketCCMutation) AddedField(name string) (ent.Value, bool) {
 	switch name {
 	case ticketcc.FieldUserID:
 		return m.AddedUserID()
+	case ticketcc.FieldUserMembershipID:
+		return m.AddedUserMembershipID()
 	case ticketcc.FieldAddedBy:
 		return m.AddedAddedBy()
+	case ticketcc.FieldAddedByMembershipID:
+		return m.AddedAddedByMembershipID()
 	case ticketcc.FieldTenantID:
 		return m.AddedTenantID()
 	}
@@ -223310,12 +224241,26 @@ func (m *TicketCCMutation) AddField(name string, value ent.Value) error {
 		}
 		m.AddUserID(v)
 		return nil
+	case ticketcc.FieldUserMembershipID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddUserMembershipID(v)
+		return nil
 	case ticketcc.FieldAddedBy:
 		v, ok := value.(int)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddAddedBy(v)
+		return nil
+	case ticketcc.FieldAddedByMembershipID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddAddedByMembershipID(v)
 		return nil
 	case ticketcc.FieldTenantID:
 		v, ok := value.(int)
@@ -223331,7 +224276,14 @@ func (m *TicketCCMutation) AddField(name string, value ent.Value) error {
 // ClearedFields returns all nullable fields that were cleared during this
 // mutation.
 func (m *TicketCCMutation) ClearedFields() []string {
-	return nil
+	var fields []string
+	if m.FieldCleared(ticketcc.FieldUserMembershipID) {
+		fields = append(fields, ticketcc.FieldUserMembershipID)
+	}
+	if m.FieldCleared(ticketcc.FieldAddedByMembershipID) {
+		fields = append(fields, ticketcc.FieldAddedByMembershipID)
+	}
+	return fields
 }
 
 // FieldCleared returns a boolean indicating if a field with the given name was
@@ -223344,6 +224296,14 @@ func (m *TicketCCMutation) FieldCleared(name string) bool {
 // ClearField clears the value of the field with the given name. It returns an
 // error if the field is not defined in the schema.
 func (m *TicketCCMutation) ClearField(name string) error {
+	switch name {
+	case ticketcc.FieldUserMembershipID:
+		m.ClearUserMembershipID()
+		return nil
+	case ticketcc.FieldAddedByMembershipID:
+		m.ClearAddedByMembershipID()
+		return nil
+	}
 	return fmt.Errorf("unknown TicketCC nullable field %s", name)
 }
 
@@ -223357,8 +224317,14 @@ func (m *TicketCCMutation) ResetField(name string) error {
 	case ticketcc.FieldUserID:
 		m.ResetUserID()
 		return nil
+	case ticketcc.FieldUserMembershipID:
+		m.ResetUserMembershipID()
+		return nil
 	case ticketcc.FieldAddedBy:
 		m.ResetAddedBy()
+		return nil
+	case ticketcc.FieldAddedByMembershipID:
+		m.ResetAddedByMembershipID()
 		return nil
 	case ticketcc.FieldTenantID:
 		m.ResetTenantID()
@@ -224865,27 +225831,29 @@ func (m *TicketCategoryMutation) ResetEdge(name string) error {
 // TicketCommentMutation represents an operation that mutates the TicketComment nodes in the graph.
 type TicketCommentMutation struct {
 	config
-	op                Op
-	typ               string
-	id                *int
-	content           *string
-	is_internal       *bool
-	mentions          *[]int
-	appendmentions    []int
-	attachments       *[]int
-	appendattachments []int
-	tenant_id         *int
-	addtenant_id      *int
-	created_at        *time.Time
-	updated_at        *time.Time
-	clearedFields     map[string]struct{}
-	ticket            *int
-	clearedticket     bool
-	user              *int
-	cleareduser       bool
-	done              bool
-	oldValue          func(context.Context) (*TicketComment, error)
-	predicates        []predicate.TicketComment
+	op                    Op
+	typ                   string
+	id                    *int
+	user_membership_id    *int
+	adduser_membership_id *int
+	content               *string
+	is_internal           *bool
+	mentions              *[]int
+	appendmentions        []int
+	attachments           *[]int
+	appendattachments     []int
+	tenant_id             *int
+	addtenant_id          *int
+	created_at            *time.Time
+	updated_at            *time.Time
+	clearedFields         map[string]struct{}
+	ticket                *int
+	clearedticket         bool
+	user                  *int
+	cleareduser           bool
+	done                  bool
+	oldValue              func(context.Context) (*TicketComment, error)
+	predicates            []predicate.TicketComment
 }
 
 var _ ent.Mutation = (*TicketCommentMutation)(nil)
@@ -225056,6 +226024,76 @@ func (m *TicketCommentMutation) OldUserID(ctx context.Context) (v int, err error
 // ResetUserID resets all changes to the "user_id" field.
 func (m *TicketCommentMutation) ResetUserID() {
 	m.user = nil
+}
+
+// SetUserMembershipID sets the "user_membership_id" field.
+func (m *TicketCommentMutation) SetUserMembershipID(i int) {
+	m.user_membership_id = &i
+	m.adduser_membership_id = nil
+}
+
+// UserMembershipID returns the value of the "user_membership_id" field in the mutation.
+func (m *TicketCommentMutation) UserMembershipID() (r int, exists bool) {
+	v := m.user_membership_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUserMembershipID returns the old "user_membership_id" field's value of the TicketComment entity.
+// If the TicketComment object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TicketCommentMutation) OldUserMembershipID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUserMembershipID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUserMembershipID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUserMembershipID: %w", err)
+	}
+	return oldValue.UserMembershipID, nil
+}
+
+// AddUserMembershipID adds i to the "user_membership_id" field.
+func (m *TicketCommentMutation) AddUserMembershipID(i int) {
+	if m.adduser_membership_id != nil {
+		*m.adduser_membership_id += i
+	} else {
+		m.adduser_membership_id = &i
+	}
+}
+
+// AddedUserMembershipID returns the value that was added to the "user_membership_id" field in this mutation.
+func (m *TicketCommentMutation) AddedUserMembershipID() (r int, exists bool) {
+	v := m.adduser_membership_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearUserMembershipID clears the value of the "user_membership_id" field.
+func (m *TicketCommentMutation) ClearUserMembershipID() {
+	m.user_membership_id = nil
+	m.adduser_membership_id = nil
+	m.clearedFields[ticketcomment.FieldUserMembershipID] = struct{}{}
+}
+
+// UserMembershipIDCleared returns if the "user_membership_id" field was cleared in this mutation.
+func (m *TicketCommentMutation) UserMembershipIDCleared() bool {
+	_, ok := m.clearedFields[ticketcomment.FieldUserMembershipID]
+	return ok
+}
+
+// ResetUserMembershipID resets all changes to the "user_membership_id" field.
+func (m *TicketCommentMutation) ResetUserMembershipID() {
+	m.user_membership_id = nil
+	m.adduser_membership_id = nil
+	delete(m.clearedFields, ticketcomment.FieldUserMembershipID)
 }
 
 // SetContent sets the "content" field.
@@ -225476,12 +226514,15 @@ func (m *TicketCommentMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *TicketCommentMutation) Fields() []string {
-	fields := make([]string, 0, 9)
+	fields := make([]string, 0, 10)
 	if m.ticket != nil {
 		fields = append(fields, ticketcomment.FieldTicketID)
 	}
 	if m.user != nil {
 		fields = append(fields, ticketcomment.FieldUserID)
+	}
+	if m.user_membership_id != nil {
+		fields = append(fields, ticketcomment.FieldUserMembershipID)
 	}
 	if m.content != nil {
 		fields = append(fields, ticketcomment.FieldContent)
@@ -225516,6 +226557,8 @@ func (m *TicketCommentMutation) Field(name string) (ent.Value, bool) {
 		return m.TicketID()
 	case ticketcomment.FieldUserID:
 		return m.UserID()
+	case ticketcomment.FieldUserMembershipID:
+		return m.UserMembershipID()
 	case ticketcomment.FieldContent:
 		return m.Content()
 	case ticketcomment.FieldIsInternal:
@@ -225543,6 +226586,8 @@ func (m *TicketCommentMutation) OldField(ctx context.Context, name string) (ent.
 		return m.OldTicketID(ctx)
 	case ticketcomment.FieldUserID:
 		return m.OldUserID(ctx)
+	case ticketcomment.FieldUserMembershipID:
+		return m.OldUserMembershipID(ctx)
 	case ticketcomment.FieldContent:
 		return m.OldContent(ctx)
 	case ticketcomment.FieldIsInternal:
@@ -225579,6 +226624,13 @@ func (m *TicketCommentMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetUserID(v)
+		return nil
+	case ticketcomment.FieldUserMembershipID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUserMembershipID(v)
 		return nil
 	case ticketcomment.FieldContent:
 		v, ok := value.(string)
@@ -225637,6 +226689,9 @@ func (m *TicketCommentMutation) SetField(name string, value ent.Value) error {
 // this mutation.
 func (m *TicketCommentMutation) AddedFields() []string {
 	var fields []string
+	if m.adduser_membership_id != nil {
+		fields = append(fields, ticketcomment.FieldUserMembershipID)
+	}
 	if m.addtenant_id != nil {
 		fields = append(fields, ticketcomment.FieldTenantID)
 	}
@@ -225648,6 +226703,8 @@ func (m *TicketCommentMutation) AddedFields() []string {
 // was not set, or was not defined in the schema.
 func (m *TicketCommentMutation) AddedField(name string) (ent.Value, bool) {
 	switch name {
+	case ticketcomment.FieldUserMembershipID:
+		return m.AddedUserMembershipID()
 	case ticketcomment.FieldTenantID:
 		return m.AddedTenantID()
 	}
@@ -225659,6 +226716,13 @@ func (m *TicketCommentMutation) AddedField(name string) (ent.Value, bool) {
 // type.
 func (m *TicketCommentMutation) AddField(name string, value ent.Value) error {
 	switch name {
+	case ticketcomment.FieldUserMembershipID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddUserMembershipID(v)
+		return nil
 	case ticketcomment.FieldTenantID:
 		v, ok := value.(int)
 		if !ok {
@@ -225674,6 +226738,9 @@ func (m *TicketCommentMutation) AddField(name string, value ent.Value) error {
 // mutation.
 func (m *TicketCommentMutation) ClearedFields() []string {
 	var fields []string
+	if m.FieldCleared(ticketcomment.FieldUserMembershipID) {
+		fields = append(fields, ticketcomment.FieldUserMembershipID)
+	}
 	if m.FieldCleared(ticketcomment.FieldMentions) {
 		fields = append(fields, ticketcomment.FieldMentions)
 	}
@@ -225694,6 +226761,9 @@ func (m *TicketCommentMutation) FieldCleared(name string) bool {
 // error if the field is not defined in the schema.
 func (m *TicketCommentMutation) ClearField(name string) error {
 	switch name {
+	case ticketcomment.FieldUserMembershipID:
+		m.ClearUserMembershipID()
+		return nil
 	case ticketcomment.FieldMentions:
 		m.ClearMentions()
 		return nil
@@ -225713,6 +226783,9 @@ func (m *TicketCommentMutation) ResetField(name string) error {
 		return nil
 	case ticketcomment.FieldUserID:
 		m.ResetUserID()
+		return nil
+	case ticketcomment.FieldUserMembershipID:
+		m.ResetUserMembershipID()
 		return nil
 	case ticketcomment.FieldContent:
 		m.ResetContent()
@@ -225834,26 +226907,28 @@ func (m *TicketCommentMutation) ResetEdge(name string) error {
 // TicketNotificationMutation represents an operation that mutates the TicketNotification nodes in the graph.
 type TicketNotificationMutation struct {
 	config
-	op            Op
-	typ           string
-	id            *int
-	_type         *string
-	channel       *string
-	content       *string
-	sent_at       *time.Time
-	read_at       *time.Time
-	status        *string
-	tenant_id     *int
-	addtenant_id  *int
-	created_at    *time.Time
-	clearedFields map[string]struct{}
-	ticket        *int
-	clearedticket bool
-	user          *int
-	cleareduser   bool
-	done          bool
-	oldValue      func(context.Context) (*TicketNotification, error)
-	predicates    []predicate.TicketNotification
+	op                    Op
+	typ                   string
+	id                    *int
+	user_membership_id    *int
+	adduser_membership_id *int
+	_type                 *string
+	channel               *string
+	content               *string
+	sent_at               *time.Time
+	read_at               *time.Time
+	status                *string
+	tenant_id             *int
+	addtenant_id          *int
+	created_at            *time.Time
+	clearedFields         map[string]struct{}
+	ticket                *int
+	clearedticket         bool
+	user                  *int
+	cleareduser           bool
+	done                  bool
+	oldValue              func(context.Context) (*TicketNotification, error)
+	predicates            []predicate.TicketNotification
 }
 
 var _ ent.Mutation = (*TicketNotificationMutation)(nil)
@@ -226024,6 +227099,76 @@ func (m *TicketNotificationMutation) OldUserID(ctx context.Context) (v int, err 
 // ResetUserID resets all changes to the "user_id" field.
 func (m *TicketNotificationMutation) ResetUserID() {
 	m.user = nil
+}
+
+// SetUserMembershipID sets the "user_membership_id" field.
+func (m *TicketNotificationMutation) SetUserMembershipID(i int) {
+	m.user_membership_id = &i
+	m.adduser_membership_id = nil
+}
+
+// UserMembershipID returns the value of the "user_membership_id" field in the mutation.
+func (m *TicketNotificationMutation) UserMembershipID() (r int, exists bool) {
+	v := m.user_membership_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUserMembershipID returns the old "user_membership_id" field's value of the TicketNotification entity.
+// If the TicketNotification object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TicketNotificationMutation) OldUserMembershipID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUserMembershipID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUserMembershipID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUserMembershipID: %w", err)
+	}
+	return oldValue.UserMembershipID, nil
+}
+
+// AddUserMembershipID adds i to the "user_membership_id" field.
+func (m *TicketNotificationMutation) AddUserMembershipID(i int) {
+	if m.adduser_membership_id != nil {
+		*m.adduser_membership_id += i
+	} else {
+		m.adduser_membership_id = &i
+	}
+}
+
+// AddedUserMembershipID returns the value that was added to the "user_membership_id" field in this mutation.
+func (m *TicketNotificationMutation) AddedUserMembershipID() (r int, exists bool) {
+	v := m.adduser_membership_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearUserMembershipID clears the value of the "user_membership_id" field.
+func (m *TicketNotificationMutation) ClearUserMembershipID() {
+	m.user_membership_id = nil
+	m.adduser_membership_id = nil
+	m.clearedFields[ticketnotification.FieldUserMembershipID] = struct{}{}
+}
+
+// UserMembershipIDCleared returns if the "user_membership_id" field was cleared in this mutation.
+func (m *TicketNotificationMutation) UserMembershipIDCleared() bool {
+	_, ok := m.clearedFields[ticketnotification.FieldUserMembershipID]
+	return ok
+}
+
+// ResetUserMembershipID resets all changes to the "user_membership_id" field.
+func (m *TicketNotificationMutation) ResetUserMembershipID() {
+	m.user_membership_id = nil
+	m.adduser_membership_id = nil
+	delete(m.clearedFields, ticketnotification.FieldUserMembershipID)
 }
 
 // SetType sets the "type" field.
@@ -226448,12 +227593,15 @@ func (m *TicketNotificationMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *TicketNotificationMutation) Fields() []string {
-	fields := make([]string, 0, 10)
+	fields := make([]string, 0, 11)
 	if m.ticket != nil {
 		fields = append(fields, ticketnotification.FieldTicketID)
 	}
 	if m.user != nil {
 		fields = append(fields, ticketnotification.FieldUserID)
+	}
+	if m.user_membership_id != nil {
+		fields = append(fields, ticketnotification.FieldUserMembershipID)
 	}
 	if m._type != nil {
 		fields = append(fields, ticketnotification.FieldType)
@@ -226491,6 +227639,8 @@ func (m *TicketNotificationMutation) Field(name string) (ent.Value, bool) {
 		return m.TicketID()
 	case ticketnotification.FieldUserID:
 		return m.UserID()
+	case ticketnotification.FieldUserMembershipID:
+		return m.UserMembershipID()
 	case ticketnotification.FieldType:
 		return m.GetType()
 	case ticketnotification.FieldChannel:
@@ -226520,6 +227670,8 @@ func (m *TicketNotificationMutation) OldField(ctx context.Context, name string) 
 		return m.OldTicketID(ctx)
 	case ticketnotification.FieldUserID:
 		return m.OldUserID(ctx)
+	case ticketnotification.FieldUserMembershipID:
+		return m.OldUserMembershipID(ctx)
 	case ticketnotification.FieldType:
 		return m.OldType(ctx)
 	case ticketnotification.FieldChannel:
@@ -226558,6 +227710,13 @@ func (m *TicketNotificationMutation) SetField(name string, value ent.Value) erro
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetUserID(v)
+		return nil
+	case ticketnotification.FieldUserMembershipID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUserMembershipID(v)
 		return nil
 	case ticketnotification.FieldType:
 		v, ok := value.(string)
@@ -226623,6 +227782,9 @@ func (m *TicketNotificationMutation) SetField(name string, value ent.Value) erro
 // this mutation.
 func (m *TicketNotificationMutation) AddedFields() []string {
 	var fields []string
+	if m.adduser_membership_id != nil {
+		fields = append(fields, ticketnotification.FieldUserMembershipID)
+	}
 	if m.addtenant_id != nil {
 		fields = append(fields, ticketnotification.FieldTenantID)
 	}
@@ -226634,6 +227796,8 @@ func (m *TicketNotificationMutation) AddedFields() []string {
 // was not set, or was not defined in the schema.
 func (m *TicketNotificationMutation) AddedField(name string) (ent.Value, bool) {
 	switch name {
+	case ticketnotification.FieldUserMembershipID:
+		return m.AddedUserMembershipID()
 	case ticketnotification.FieldTenantID:
 		return m.AddedTenantID()
 	}
@@ -226645,6 +227809,13 @@ func (m *TicketNotificationMutation) AddedField(name string) (ent.Value, bool) {
 // type.
 func (m *TicketNotificationMutation) AddField(name string, value ent.Value) error {
 	switch name {
+	case ticketnotification.FieldUserMembershipID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddUserMembershipID(v)
+		return nil
 	case ticketnotification.FieldTenantID:
 		v, ok := value.(int)
 		if !ok {
@@ -226660,6 +227831,9 @@ func (m *TicketNotificationMutation) AddField(name string, value ent.Value) erro
 // mutation.
 func (m *TicketNotificationMutation) ClearedFields() []string {
 	var fields []string
+	if m.FieldCleared(ticketnotification.FieldUserMembershipID) {
+		fields = append(fields, ticketnotification.FieldUserMembershipID)
+	}
 	if m.FieldCleared(ticketnotification.FieldSentAt) {
 		fields = append(fields, ticketnotification.FieldSentAt)
 	}
@@ -226680,6 +227854,9 @@ func (m *TicketNotificationMutation) FieldCleared(name string) bool {
 // error if the field is not defined in the schema.
 func (m *TicketNotificationMutation) ClearField(name string) error {
 	switch name {
+	case ticketnotification.FieldUserMembershipID:
+		m.ClearUserMembershipID()
+		return nil
 	case ticketnotification.FieldSentAt:
 		m.ClearSentAt()
 		return nil
@@ -226699,6 +227876,9 @@ func (m *TicketNotificationMutation) ResetField(name string) error {
 		return nil
 	case ticketnotification.FieldUserID:
 		m.ResetUserID()
+		return nil
+	case ticketnotification.FieldUserMembershipID:
+		m.ResetUserMembershipID()
 		return nil
 	case ticketnotification.FieldType:
 		m.ResetType()

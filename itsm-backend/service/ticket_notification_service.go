@@ -16,6 +16,7 @@ import (
 	"itsm-backend/ent/ticketnotification"
 	"itsm-backend/ent/user"
 	"itsm-backend/internal/commandbus"
+	"itsm-backend/middleware"
 
 	"go.uber.org/zap"
 )
@@ -180,30 +181,42 @@ func (s *TicketNotificationService) SendNotification(
 
 		// 站内消息总是创建记录（即使其他渠道被禁用）
 		if req.Channel == "in_app" || shouldSend {
-			notification, err := s.client.TicketNotification.Create().
+			recipientMembershipID := 0
+			if membership, mErr := middleware.ResolveActiveMembership(ctx, s.client, userID, tenantID); mErr != nil {
+				s.logger.Warnw("Failed to resolve notification recipient membership", "error", mErr, "user_id", userID, "tenant_id", tenantID)
+			} else if membership != nil {
+				recipientMembershipID = membership.ID
+			}
+			create := s.client.TicketNotification.Create().
 				SetTicketID(ticketID).
 				SetUserID(userID).
 				SetType(req.Type).
 				SetChannel(req.Channel).
 				SetContent(req.Content).
 				SetTenantID(tenantID).
-				SetStatus("pending").
-				Save(ctx)
+				SetStatus("pending")
+			if recipientMembershipID > 0 {
+				create = create.SetUserMembershipID(recipientMembershipID)
+			}
+			notification, err := create.Save(ctx)
 			if err != nil {
 				s.logger.Errorw("Failed to create notification", "error", err, "user_id", userID)
 				continue
 			}
 
 			// 同步创建到通用notifications表(供前端统一查询)
-			_, _ = s.client.Notification.Create().
+			unifiedCreate := s.client.Notification.Create().
 				SetTitle(req.Type).
 				SetMessage(req.Content).
 				SetType(req.Type).
 				SetUserID(userID).
 				SetTenantID(tenantID).
 				SetNillableActionURL(ticketNotificationStringPtr(fmt.Sprintf("/tickets/%d", ticketID))).
-				SetNillableActionText(ticketNotificationStringPtr("查看工单")).
-				Save(ctx)
+				SetNillableActionText(ticketNotificationStringPtr("查看工单"))
+			if recipientMembershipID > 0 {
+				unifiedCreate = unifiedCreate.SetUserMembershipID(recipientMembershipID)
+			}
+			_, _ = unifiedCreate.Save(ctx)
 
 			// 如果是站内消息，立即标记为已发送
 			if req.Channel == "in_app" {

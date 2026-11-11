@@ -138,6 +138,20 @@ func (_c *AttachmentCreate) SetUploadedBy(v int) *AttachmentCreate {
 	return _c
 }
 
+// SetUploadedByMembershipID sets the "uploaded_by_membership_id" field.
+func (_c *AttachmentCreate) SetUploadedByMembershipID(v int) *AttachmentCreate {
+	_c.mutation.SetUploadedByMembershipID(v)
+	return _c
+}
+
+// SetNillableUploadedByMembershipID sets the "uploaded_by_membership_id" field if the given value is not nil.
+func (_c *AttachmentCreate) SetNillableUploadedByMembershipID(v *int) *AttachmentCreate {
+	if v != nil {
+		_c.SetUploadedByMembershipID(*v)
+	}
+	return _c
+}
+
 // SetStatus sets the "status" field.
 func (_c *AttachmentCreate) SetStatus(v string) *AttachmentCreate {
 	_c.mutation.SetStatus(v)
@@ -411,6 +425,10 @@ func (_c *AttachmentCreate) createSpec() (*Attachment, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.UploadedBy(); ok {
 		_spec.SetField(attachment.FieldUploadedBy, field.TypeInt, value)
 		_node.UploadedBy = value
+	}
+	if value, ok := _c.mutation.UploadedByMembershipID(); ok {
+		_spec.SetField(attachment.FieldUploadedByMembershipID, field.TypeInt, value)
+		_node.UploadedByMembershipID = value
 	}
 	if value, ok := _c.mutation.Status(); ok {
 		_spec.SetField(attachment.FieldStatus, field.TypeString, value)

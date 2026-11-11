@@ -36,6 +36,8 @@ export interface AttachmentRef {
   previewUrl?: string;
   sha256?: string;
   uploadedBy?: number;
+  /** 上传人在宿主租户内的 membership 身份（C 方案；历史响应可缺省）。 */
+  uploadedByMembershipId?: number;
   /**
    * 上传人展示信息（可选）：通用响应只给 `uploadedBy`（ID），旧工单域内响应另带昵称，
    * 映射时保留以免列表展示退化（FE-3）。

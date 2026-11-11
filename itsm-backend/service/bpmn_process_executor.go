@@ -17,6 +17,7 @@ import (
 	"itsm-backend/ent/ticketassignmentrule"
 	"itsm-backend/ent/user"
 	"itsm-backend/internal/commandbus"
+	"itsm-backend/middleware"
 	"itsm-backend/service/bpmn"
 )
 
@@ -374,13 +375,17 @@ func (e *CustomProcessEngine) recordApprovalDecision(ctx context.Context, txc *e
 	}
 	businessType := fmt.Sprint(instance.Variables["business_type"])
 	businessID := fmt.Sprint(instance.Variables["business_id"])
-	_, err := txc.ProcessApprovalDecision.Create().
+	decisionCreate := txc.ProcessApprovalDecision.Create().
 		SetProcessInstanceID(instance.ID).SetProcessTaskID(task.ID).
 		SetProcessInstanceKey(instance.ProcessInstanceID).SetTaskID(task.TaskID).
 		SetProcessDefinitionKey(instance.ProcessDefinitionKey).SetNodeKey(task.TaskDefinitionKey).
 		SetBusinessType(businessType).SetBusinessID(businessID).
 		SetActorID(actorID).SetActorName(actorName).SetAction(action).SetDecision(decision).
-		SetComment(comment).SetVariablesSnapshot(variables).SetTenantID(instance.TenantID).Save(ctx)
+		SetComment(comment).SetVariablesSnapshot(variables).SetTenantID(instance.TenantID)
+	if membership, mErr := middleware.ResolveActiveMembership(ctx, txc, actorID, instance.TenantID); mErr == nil && membership != nil {
+		decisionCreate = decisionCreate.SetActorMembershipID(membership.ID)
+	}
+	_, err := decisionCreate.Save(ctx)
 	if err != nil {
 		return fmt.Errorf("记录审批决策失败: %w", err)
 	}

@@ -10,6 +10,7 @@ import (
 	"itsm-backend/common"
 	"itsm-backend/ent/enttest"
 	"itsm-backend/ent/processauditlog"
+	"itsm-backend/ent/usertenantmembership"
 	"itsm-backend/service/bpmn"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -730,6 +731,12 @@ func setupApprovalDecisionFixture(t *testing.T, engine *CustomProcessEngine) (te
 		SetTenantID(tenant.ID).
 		Save(ctx)
 	require.NoError(t, err)
+	_, err = engine.client.UserTenantMembership.Create().
+		SetUserID(user.ID).SetTenantID(tenant.ID).
+		SetAccountKind(usertenantmembership.AccountKindCustomer).
+		SetSource(usertenantmembership.SourceHome).
+		SetStatus(usertenantmembership.StatusActive).SetIsDefault(true).Save(ctx)
+	require.NoError(t, err)
 	return tenant.ID, user.ID
 }
 
@@ -810,6 +817,7 @@ func TestRecordApprovalDecision_PersistsApproveReject(t *testing.T) {
 	assert.Equal(t, "change", stored[0].BusinessType)
 	assert.Equal(t, "CHG-approval1", stored[0].BusinessID)
 	assert.Equal(t, actorID, stored[0].ActorID)
+	assert.NotZero(t, stored[0].ActorMembershipID)
 }
 
 func TestRecordApprovalDecision_SkippedWhenActionMissing(t *testing.T) {

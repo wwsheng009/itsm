@@ -30,6 +30,8 @@ const (
 	FieldMimeType = "mime_type"
 	// FieldUploadedBy holds the string denoting the uploaded_by field in the database.
 	FieldUploadedBy = "uploaded_by"
+	// FieldUploadedByMembershipID holds the string denoting the uploaded_by_membership_id field in the database.
+	FieldUploadedByMembershipID = "uploaded_by_membership_id"
 	// FieldTenantID holds the string denoting the tenant_id field in the database.
 	FieldTenantID = "tenant_id"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
@@ -67,6 +69,7 @@ var Columns = []string{
 	FieldFileType,
 	FieldMimeType,
 	FieldUploadedBy,
+	FieldUploadedByMembershipID,
 	FieldTenantID,
 	FieldCreatedAt,
 }
@@ -146,6 +149,11 @@ func ByMimeType(opts ...sql.OrderTermOption) OrderOption {
 // ByUploadedBy orders the results by the uploaded_by field.
 func ByUploadedBy(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldUploadedBy, opts...).ToFunc()
+}
+
+// ByUploadedByMembershipID orders the results by the uploaded_by_membership_id field.
+func ByUploadedByMembershipID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldUploadedByMembershipID, opts...).ToFunc()
 }
 
 // ByTenantID orders the results by the tenant_id field.

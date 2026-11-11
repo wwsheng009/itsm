@@ -75,6 +75,11 @@ func ApproverID(v int) predicate.TicketApproval {
 	return predicate.TicketApproval(sql.FieldEQ(FieldApproverID, v))
 }
 
+// ApproverMembershipID applies equality check predicate on the "approver_membership_id" field. It's identical to ApproverMembershipIDEQ.
+func ApproverMembershipID(v int) predicate.TicketApproval {
+	return predicate.TicketApproval(sql.FieldEQ(FieldApproverMembershipID, v))
+}
+
 // Status applies equality check predicate on the "status" field. It's identical to StatusEQ.
 func Status(v string) predicate.TicketApproval {
 	return predicate.TicketApproval(sql.FieldEQ(FieldStatus, v))
@@ -93,6 +98,11 @@ func Comment(v string) predicate.TicketApproval {
 // DelegateToUserID applies equality check predicate on the "delegate_to_user_id" field. It's identical to DelegateToUserIDEQ.
 func DelegateToUserID(v int) predicate.TicketApproval {
 	return predicate.TicketApproval(sql.FieldEQ(FieldDelegateToUserID, v))
+}
+
+// DelegateToMembershipID applies equality check predicate on the "delegate_to_membership_id" field. It's identical to DelegateToMembershipIDEQ.
+func DelegateToMembershipID(v int) predicate.TicketApproval {
+	return predicate.TicketApproval(sql.FieldEQ(FieldDelegateToMembershipID, v))
 }
 
 // TenantID applies equality check predicate on the "tenant_id" field. It's identical to TenantIDEQ.
@@ -278,6 +288,56 @@ func ApproverIDLT(v int) predicate.TicketApproval {
 // ApproverIDLTE applies the LTE predicate on the "approver_id" field.
 func ApproverIDLTE(v int) predicate.TicketApproval {
 	return predicate.TicketApproval(sql.FieldLTE(FieldApproverID, v))
+}
+
+// ApproverMembershipIDEQ applies the EQ predicate on the "approver_membership_id" field.
+func ApproverMembershipIDEQ(v int) predicate.TicketApproval {
+	return predicate.TicketApproval(sql.FieldEQ(FieldApproverMembershipID, v))
+}
+
+// ApproverMembershipIDNEQ applies the NEQ predicate on the "approver_membership_id" field.
+func ApproverMembershipIDNEQ(v int) predicate.TicketApproval {
+	return predicate.TicketApproval(sql.FieldNEQ(FieldApproverMembershipID, v))
+}
+
+// ApproverMembershipIDIn applies the In predicate on the "approver_membership_id" field.
+func ApproverMembershipIDIn(vs ...int) predicate.TicketApproval {
+	return predicate.TicketApproval(sql.FieldIn(FieldApproverMembershipID, vs...))
+}
+
+// ApproverMembershipIDNotIn applies the NotIn predicate on the "approver_membership_id" field.
+func ApproverMembershipIDNotIn(vs ...int) predicate.TicketApproval {
+	return predicate.TicketApproval(sql.FieldNotIn(FieldApproverMembershipID, vs...))
+}
+
+// ApproverMembershipIDGT applies the GT predicate on the "approver_membership_id" field.
+func ApproverMembershipIDGT(v int) predicate.TicketApproval {
+	return predicate.TicketApproval(sql.FieldGT(FieldApproverMembershipID, v))
+}
+
+// ApproverMembershipIDGTE applies the GTE predicate on the "approver_membership_id" field.
+func ApproverMembershipIDGTE(v int) predicate.TicketApproval {
+	return predicate.TicketApproval(sql.FieldGTE(FieldApproverMembershipID, v))
+}
+
+// ApproverMembershipIDLT applies the LT predicate on the "approver_membership_id" field.
+func ApproverMembershipIDLT(v int) predicate.TicketApproval {
+	return predicate.TicketApproval(sql.FieldLT(FieldApproverMembershipID, v))
+}
+
+// ApproverMembershipIDLTE applies the LTE predicate on the "approver_membership_id" field.
+func ApproverMembershipIDLTE(v int) predicate.TicketApproval {
+	return predicate.TicketApproval(sql.FieldLTE(FieldApproverMembershipID, v))
+}
+
+// ApproverMembershipIDIsNil applies the IsNil predicate on the "approver_membership_id" field.
+func ApproverMembershipIDIsNil() predicate.TicketApproval {
+	return predicate.TicketApproval(sql.FieldIsNull(FieldApproverMembershipID))
+}
+
+// ApproverMembershipIDNotNil applies the NotNil predicate on the "approver_membership_id" field.
+func ApproverMembershipIDNotNil() predicate.TicketApproval {
+	return predicate.TicketApproval(sql.FieldNotNull(FieldApproverMembershipID))
 }
 
 // StatusEQ applies the EQ predicate on the "status" field.
@@ -543,6 +603,56 @@ func DelegateToUserIDIsNil() predicate.TicketApproval {
 // DelegateToUserIDNotNil applies the NotNil predicate on the "delegate_to_user_id" field.
 func DelegateToUserIDNotNil() predicate.TicketApproval {
 	return predicate.TicketApproval(sql.FieldNotNull(FieldDelegateToUserID))
+}
+
+// DelegateToMembershipIDEQ applies the EQ predicate on the "delegate_to_membership_id" field.
+func DelegateToMembershipIDEQ(v int) predicate.TicketApproval {
+	return predicate.TicketApproval(sql.FieldEQ(FieldDelegateToMembershipID, v))
+}
+
+// DelegateToMembershipIDNEQ applies the NEQ predicate on the "delegate_to_membership_id" field.
+func DelegateToMembershipIDNEQ(v int) predicate.TicketApproval {
+	return predicate.TicketApproval(sql.FieldNEQ(FieldDelegateToMembershipID, v))
+}
+
+// DelegateToMembershipIDIn applies the In predicate on the "delegate_to_membership_id" field.
+func DelegateToMembershipIDIn(vs ...int) predicate.TicketApproval {
+	return predicate.TicketApproval(sql.FieldIn(FieldDelegateToMembershipID, vs...))
+}
+
+// DelegateToMembershipIDNotIn applies the NotIn predicate on the "delegate_to_membership_id" field.
+func DelegateToMembershipIDNotIn(vs ...int) predicate.TicketApproval {
+	return predicate.TicketApproval(sql.FieldNotIn(FieldDelegateToMembershipID, vs...))
+}
+
+// DelegateToMembershipIDGT applies the GT predicate on the "delegate_to_membership_id" field.
+func DelegateToMembershipIDGT(v int) predicate.TicketApproval {
+	return predicate.TicketApproval(sql.FieldGT(FieldDelegateToMembershipID, v))
+}
+
+// DelegateToMembershipIDGTE applies the GTE predicate on the "delegate_to_membership_id" field.
+func DelegateToMembershipIDGTE(v int) predicate.TicketApproval {
+	return predicate.TicketApproval(sql.FieldGTE(FieldDelegateToMembershipID, v))
+}
+
+// DelegateToMembershipIDLT applies the LT predicate on the "delegate_to_membership_id" field.
+func DelegateToMembershipIDLT(v int) predicate.TicketApproval {
+	return predicate.TicketApproval(sql.FieldLT(FieldDelegateToMembershipID, v))
+}
+
+// DelegateToMembershipIDLTE applies the LTE predicate on the "delegate_to_membership_id" field.
+func DelegateToMembershipIDLTE(v int) predicate.TicketApproval {
+	return predicate.TicketApproval(sql.FieldLTE(FieldDelegateToMembershipID, v))
+}
+
+// DelegateToMembershipIDIsNil applies the IsNil predicate on the "delegate_to_membership_id" field.
+func DelegateToMembershipIDIsNil() predicate.TicketApproval {
+	return predicate.TicketApproval(sql.FieldIsNull(FieldDelegateToMembershipID))
+}
+
+// DelegateToMembershipIDNotNil applies the NotNil predicate on the "delegate_to_membership_id" field.
+func DelegateToMembershipIDNotNil() predicate.TicketApproval {
+	return predicate.TicketApproval(sql.FieldNotNull(FieldDelegateToMembershipID))
 }
 
 // TenantIDEQ applies the EQ predicate on the "tenant_id" field.

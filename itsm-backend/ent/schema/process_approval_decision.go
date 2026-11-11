@@ -25,6 +25,7 @@ func (ProcessApprovalDecision) Fields() []ent.Field {
 		// 其 audit 事实由 system_decision 动作落库，故放宽为 NonNegative；
 		// 人工决策仍恒为 Positive。
 		field.Int("actor_id").NonNegative(),
+		field.Int("actor_membership_id").Optional().Comment("人工决策 actor 在租户内的 membership ID；系统决策为 NULL"),
 		field.String("actor_name").Optional().Comment("系统决策时固定为 system"),
 		field.String("action").Comment("approve, reject, delegate, transfer, add_approver, withdraw, timeout, system_decision"),
 		field.String("decision").Comment("approved, rejected, delegated, withdrawn, timeout"),

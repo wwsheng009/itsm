@@ -22,8 +22,12 @@ type TicketCC struct {
 	TicketID int `json:"ticket_id,omitempty"`
 	// 抄送用户ID
 	UserID int `json:"user_id,omitempty"`
+	// 抄送用户在租户内的 membership ID
+	UserMembershipID int `json:"user_membership_id,omitempty"`
 	// 添加人ID
 	AddedBy int `json:"added_by,omitempty"`
+	// 添加人在租户内的 membership ID
+	AddedByMembershipID int `json:"added_by_membership_id,omitempty"`
 	// 租户ID
 	TenantID int `json:"tenant_id,omitempty"`
 	// 添加时间
@@ -63,7 +67,7 @@ func (*TicketCC) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case ticketcc.FieldIsActive:
 			values[i] = new(sql.NullBool)
-		case ticketcc.FieldID, ticketcc.FieldTicketID, ticketcc.FieldUserID, ticketcc.FieldAddedBy, ticketcc.FieldTenantID:
+		case ticketcc.FieldID, ticketcc.FieldTicketID, ticketcc.FieldUserID, ticketcc.FieldUserMembershipID, ticketcc.FieldAddedBy, ticketcc.FieldAddedByMembershipID, ticketcc.FieldTenantID:
 			values[i] = new(sql.NullInt64)
 		case ticketcc.FieldAddedAt:
 			values[i] = new(sql.NullTime)
@@ -100,11 +104,23 @@ func (_m *TicketCC) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.UserID = int(value.Int64)
 			}
+		case ticketcc.FieldUserMembershipID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field user_membership_id", values[i])
+			} else if value.Valid {
+				_m.UserMembershipID = int(value.Int64)
+			}
 		case ticketcc.FieldAddedBy:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
 				return fmt.Errorf("unexpected type %T for field added_by", values[i])
 			} else if value.Valid {
 				_m.AddedBy = int(value.Int64)
+			}
+		case ticketcc.FieldAddedByMembershipID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field added_by_membership_id", values[i])
+			} else if value.Valid {
+				_m.AddedByMembershipID = int(value.Int64)
 			}
 		case ticketcc.FieldTenantID:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -171,8 +187,14 @@ func (_m *TicketCC) String() string {
 	builder.WriteString("user_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.UserID))
 	builder.WriteString(", ")
+	builder.WriteString("user_membership_id=")
+	builder.WriteString(fmt.Sprintf("%v", _m.UserMembershipID))
+	builder.WriteString(", ")
 	builder.WriteString("added_by=")
 	builder.WriteString(fmt.Sprintf("%v", _m.AddedBy))
+	builder.WriteString(", ")
+	builder.WriteString("added_by_membership_id=")
+	builder.WriteString(fmt.Sprintf("%v", _m.AddedByMembershipID))
 	builder.WriteString(", ")
 	builder.WriteString("tenant_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.TenantID))

@@ -44,9 +44,9 @@ func toUserDomain(e *ent.User) *User {
 		Active:       e.Active,
 		// IP-P1-5：首登强制改密随 /auth/me 下发（前端刷新后仍能收敛到改密页）。
 		MustChangePassword: e.MustChangePassword,
-		TenantID:     e.TenantID,
-		CreatedAt:    e.CreatedAt,
-		UpdatedAt:    e.UpdatedAt,
+		TenantID:           e.TenantID,
+		CreatedAt:          e.CreatedAt,
+		UpdatedAt:          e.UpdatedAt,
 	}
 }
 
@@ -113,18 +113,19 @@ func toAuditLogDomain(e *ent.AuditLog) *AuditLog {
 		body = *e.RequestBody
 	}
 	return &AuditLog{
-		ID:          e.ID,
-		CreatedAt:   e.CreatedAt,
-		TenantID:    e.TenantID,
-		UserID:      e.UserID,
-		RequestID:   e.RequestID,
-		IP:          e.IP,
-		Resource:    e.Resource,
-		Action:      e.Action,
-		Path:        e.Path,
-		Method:      e.Method,
-		StatusCode:  e.StatusCode,
-		RequestBody: body,
+		ID:           e.ID,
+		CreatedAt:    e.CreatedAt,
+		TenantID:     e.TenantID,
+		UserID:       e.UserID,
+		MembershipID: e.MembershipID,
+		RequestID:    e.RequestID,
+		IP:           e.IP,
+		Resource:     e.Resource,
+		Action:       e.Action,
+		Path:         e.Path,
+		Method:       e.Method,
+		StatusCode:   e.StatusCode,
+		RequestBody:  body,
 	}
 }
 
@@ -418,7 +419,7 @@ func (r *EntRepository) DeleteTag(ctx context.Context, id int, tenantID int) err
 // Audit Log methods
 
 func (r *EntRepository) CreateAuditLog(ctx context.Context, l *AuditLog) error {
-	return r.client.AuditLog.Create().
+	create := r.client.AuditLog.Create().
 		SetTenantID(l.TenantID).
 		SetUserID(l.UserID).
 		SetRequestID(l.RequestID).
@@ -428,8 +429,11 @@ func (r *EntRepository) CreateAuditLog(ctx context.Context, l *AuditLog) error {
 		SetPath(l.Path).
 		SetMethod(l.Method).
 		SetStatusCode(l.StatusCode).
-		SetNillableRequestBody(&l.RequestBody).
-		Exec(ctx)
+		SetNillableRequestBody(&l.RequestBody)
+	if l.MembershipID > 0 {
+		create = create.SetMembershipID(l.MembershipID)
+	}
+	return create.Exec(ctx)
 }
 
 func (r *EntRepository) ListAuditLogs(ctx context.Context, tenantID int, userID int, limit int) ([]*AuditLog, error) {

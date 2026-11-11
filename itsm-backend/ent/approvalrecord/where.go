@@ -95,6 +95,11 @@ func ApproverID(v int) predicate.ApprovalRecord {
 	return predicate.ApprovalRecord(sql.FieldEQ(FieldApproverID, v))
 }
 
+// ApproverMembershipID applies equality check predicate on the "approver_membership_id" field. It's identical to ApproverMembershipIDEQ.
+func ApproverMembershipID(v int) predicate.ApprovalRecord {
+	return predicate.ApprovalRecord(sql.FieldEQ(FieldApproverMembershipID, v))
+}
+
 // ApproverName applies equality check predicate on the "approver_name" field. It's identical to ApproverNameEQ.
 func ApproverName(v string) predicate.ApprovalRecord {
 	return predicate.ApprovalRecord(sql.FieldEQ(FieldApproverName, v))
@@ -493,6 +498,56 @@ func ApproverIDLT(v int) predicate.ApprovalRecord {
 // ApproverIDLTE applies the LTE predicate on the "approver_id" field.
 func ApproverIDLTE(v int) predicate.ApprovalRecord {
 	return predicate.ApprovalRecord(sql.FieldLTE(FieldApproverID, v))
+}
+
+// ApproverMembershipIDEQ applies the EQ predicate on the "approver_membership_id" field.
+func ApproverMembershipIDEQ(v int) predicate.ApprovalRecord {
+	return predicate.ApprovalRecord(sql.FieldEQ(FieldApproverMembershipID, v))
+}
+
+// ApproverMembershipIDNEQ applies the NEQ predicate on the "approver_membership_id" field.
+func ApproverMembershipIDNEQ(v int) predicate.ApprovalRecord {
+	return predicate.ApprovalRecord(sql.FieldNEQ(FieldApproverMembershipID, v))
+}
+
+// ApproverMembershipIDIn applies the In predicate on the "approver_membership_id" field.
+func ApproverMembershipIDIn(vs ...int) predicate.ApprovalRecord {
+	return predicate.ApprovalRecord(sql.FieldIn(FieldApproverMembershipID, vs...))
+}
+
+// ApproverMembershipIDNotIn applies the NotIn predicate on the "approver_membership_id" field.
+func ApproverMembershipIDNotIn(vs ...int) predicate.ApprovalRecord {
+	return predicate.ApprovalRecord(sql.FieldNotIn(FieldApproverMembershipID, vs...))
+}
+
+// ApproverMembershipIDGT applies the GT predicate on the "approver_membership_id" field.
+func ApproverMembershipIDGT(v int) predicate.ApprovalRecord {
+	return predicate.ApprovalRecord(sql.FieldGT(FieldApproverMembershipID, v))
+}
+
+// ApproverMembershipIDGTE applies the GTE predicate on the "approver_membership_id" field.
+func ApproverMembershipIDGTE(v int) predicate.ApprovalRecord {
+	return predicate.ApprovalRecord(sql.FieldGTE(FieldApproverMembershipID, v))
+}
+
+// ApproverMembershipIDLT applies the LT predicate on the "approver_membership_id" field.
+func ApproverMembershipIDLT(v int) predicate.ApprovalRecord {
+	return predicate.ApprovalRecord(sql.FieldLT(FieldApproverMembershipID, v))
+}
+
+// ApproverMembershipIDLTE applies the LTE predicate on the "approver_membership_id" field.
+func ApproverMembershipIDLTE(v int) predicate.ApprovalRecord {
+	return predicate.ApprovalRecord(sql.FieldLTE(FieldApproverMembershipID, v))
+}
+
+// ApproverMembershipIDIsNil applies the IsNil predicate on the "approver_membership_id" field.
+func ApproverMembershipIDIsNil() predicate.ApprovalRecord {
+	return predicate.ApprovalRecord(sql.FieldIsNull(FieldApproverMembershipID))
+}
+
+// ApproverMembershipIDNotNil applies the NotNil predicate on the "approver_membership_id" field.
+func ApproverMembershipIDNotNil() predicate.ApprovalRecord {
+	return predicate.ApprovalRecord(sql.FieldNotNull(FieldApproverMembershipID))
 }
 
 // ApproverNameEQ applies the EQ predicate on the "approver_name" field.

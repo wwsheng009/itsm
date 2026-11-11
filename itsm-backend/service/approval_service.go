@@ -14,6 +14,7 @@ import (
 	"itsm-backend/ent/approvalworkflow"
 	"itsm-backend/ent/ticket"
 	"itsm-backend/ent/user"
+	"itsm-backend/middleware"
 	"itsm-backend/service/approver"
 	"itsm-backend/service/bpmn"
 
@@ -572,7 +573,7 @@ func (s *ApprovalService) handleApprovalDelegated(ctx context.Context, client *e
 	}
 
 	// 创建新的审批记录给被委托人
-	_, err = client.ApprovalRecord.Create().
+	create := client.ApprovalRecord.Create().
 		SetWorkflowID(record.WorkflowID).
 		SetWorkflowName(record.WorkflowName).
 		SetTicketID(record.TicketID).
@@ -585,8 +586,13 @@ func (s *ApprovalService) handleApprovalDelegated(ctx context.Context, client *e
 		SetStepOrder(record.StepOrder).
 		SetStatus("pending").
 		SetNillableDueDate(record.DueDate).
-		SetTenantID(record.TenantID).
-		Save(ctx)
+		SetTenantID(record.TenantID)
+	if membership, mErr := middleware.ResolveActiveMembership(ctx, client, delegateTo, record.TenantID); mErr != nil {
+		s.logger.Warnw("Failed to resolve delegated approval membership", "error", mErr, "user_id", delegateTo, "tenant_id", record.TenantID)
+	} else if membership != nil {
+		create = create.SetApproverMembershipID(membership.ID)
+	}
+	_, err = create.Save(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to create delegated approval record: %w", err)
 	}

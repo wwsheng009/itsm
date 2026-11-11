@@ -34,6 +34,20 @@ func (_c *TicketCommentCreate) SetUserID(v int) *TicketCommentCreate {
 	return _c
 }
 
+// SetUserMembershipID sets the "user_membership_id" field.
+func (_c *TicketCommentCreate) SetUserMembershipID(v int) *TicketCommentCreate {
+	_c.mutation.SetUserMembershipID(v)
+	return _c
+}
+
+// SetNillableUserMembershipID sets the "user_membership_id" field if the given value is not nil.
+func (_c *TicketCommentCreate) SetNillableUserMembershipID(v *int) *TicketCommentCreate {
+	if v != nil {
+		_c.SetUserMembershipID(*v)
+	}
+	return _c
+}
+
 // SetContent sets the "content" field.
 func (_c *TicketCommentCreate) SetContent(v string) *TicketCommentCreate {
 	_c.mutation.SetContent(v)
@@ -234,6 +248,10 @@ func (_c *TicketCommentCreate) createSpec() (*TicketComment, *sqlgraph.CreateSpe
 		_node = &TicketComment{config: _c.config}
 		_spec = sqlgraph.NewCreateSpec(ticketcomment.Table, sqlgraph.NewFieldSpec(ticketcomment.FieldID, field.TypeInt))
 	)
+	if value, ok := _c.mutation.UserMembershipID(); ok {
+		_spec.SetField(ticketcomment.FieldUserMembershipID, field.TypeInt, value)
+		_node.UserMembershipID = value
+	}
 	if value, ok := _c.mutation.Content(); ok {
 		_spec.SetField(ticketcomment.FieldContent, field.TypeString, value)
 		_node.Content = value

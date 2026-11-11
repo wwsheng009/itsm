@@ -165,6 +165,73 @@ BEGIN
   END IF;
 END $$;
 
+-- ── Membership tenant-identity references (C plan Phase 2/3) ────────────────
+-- Ent 不声明这些复合外键；Schema.Create 重建表后必须重新补齐。
+CREATE INDEX IF NOT EXISTS idx_tickets_requester_membership
+  ON tickets (tenant_id, requester_membership_id);
+CREATE INDEX IF NOT EXISTS idx_tickets_assignee_membership
+  ON tickets (tenant_id, assignee_membership_id);
+CREATE INDEX IF NOT EXISTS idx_tickets_created_by_membership
+  ON tickets (tenant_id, created_by_membership_id);
+CREATE INDEX IF NOT EXISTS idx_ticket_comments_user_membership
+  ON ticket_comments (tenant_id, user_membership_id);
+CREATE INDEX IF NOT EXISTS idx_ticket_attachments_uploader_membership
+  ON ticket_attachments (tenant_id, uploaded_by_membership_id);
+CREATE INDEX IF NOT EXISTS idx_attachments_uploader_membership
+  ON attachments (tenant_id, uploaded_by_membership_id);
+CREATE INDEX IF NOT EXISTS idx_ticket_ccs_user_membership
+  ON ticket_ccs (tenant_id, user_membership_id);
+CREATE INDEX IF NOT EXISTS idx_ticket_ccs_added_by_membership
+  ON ticket_ccs (tenant_id, added_by_membership_id);
+CREATE INDEX IF NOT EXISTS idx_ticket_approvals_approver_membership
+  ON ticket_approvals (tenant_id, approver_membership_id);
+CREATE INDEX IF NOT EXISTS idx_ticket_approvals_delegate_membership
+  ON ticket_approvals (tenant_id, delegate_to_membership_id);
+CREATE INDEX IF NOT EXISTS idx_approval_records_approver_membership
+  ON approval_records (tenant_id, approver_membership_id);
+CREATE INDEX IF NOT EXISTS idx_notifications_user_membership
+  ON notifications (tenant_id, user_membership_id);
+CREATE INDEX IF NOT EXISTS idx_ticket_notifications_user_membership
+  ON ticket_notifications (tenant_id, user_membership_id);
+CREATE INDEX IF NOT EXISTS idx_process_approval_decisions_actor_membership
+  ON process_approval_decisions (tenant_id, actor_membership_id);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_membership
+  ON audit_logs (tenant_id, membership_id);
+
+DO $$
+DECLARE
+    r record;
+BEGIN
+    FOR r IN
+        SELECT * FROM (VALUES
+            ('tickets', 'fk_tickets_requester_membership_tenant', 'requester_membership_id'),
+            ('tickets', 'fk_tickets_assignee_membership_tenant', 'assignee_membership_id'),
+            ('tickets', 'fk_tickets_created_by_membership_tenant', 'created_by_membership_id'),
+            ('ticket_comments', 'fk_ticket_comments_user_membership_tenant', 'user_membership_id'),
+            ('ticket_attachments', 'fk_ticket_attachments_uploader_membership_tenant', 'uploaded_by_membership_id'),
+            ('attachments', 'fk_attachments_uploader_membership_tenant', 'uploaded_by_membership_id'),
+            ('ticket_ccs', 'fk_ticket_ccs_user_membership_tenant', 'user_membership_id'),
+            ('ticket_ccs', 'fk_ticket_ccs_added_by_membership_tenant', 'added_by_membership_id'),
+            ('ticket_approvals', 'fk_ticket_approvals_approver_membership_tenant', 'approver_membership_id'),
+            ('ticket_approvals', 'fk_ticket_approvals_delegate_membership_tenant', 'delegate_to_membership_id'),
+            ('approval_records', 'fk_approval_records_approver_membership_tenant', 'approver_membership_id'),
+            ('notifications', 'fk_notifications_user_membership_tenant', 'user_membership_id'),
+            ('ticket_notifications', 'fk_ticket_notifications_user_membership_tenant', 'user_membership_id'),
+            ('process_approval_decisions', 'fk_process_approval_decisions_actor_membership_tenant', 'actor_membership_id'),
+            ('audit_logs', 'fk_audit_logs_membership_tenant', 'membership_id')
+        ) AS v(tbl, conname, colname)
+    LOOP
+        IF NOT EXISTS (
+            SELECT 1 FROM pg_constraint WHERE conname = r.conname
+        ) THEN
+            EXECUTE format(
+                'ALTER TABLE %I ADD CONSTRAINT %I FOREIGN KEY (%I, tenant_id) REFERENCES user_tenant_memberships (id, tenant_id) NOT VALID',
+                r.tbl, r.conname, r.colname
+            );
+        END IF;
+    END LOOP;
+END $$;
+
 -- ── Contract C1 CHECK constraints ───────────────────────────────────────────
 DO $$
 BEGIN

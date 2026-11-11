@@ -42,6 +42,7 @@ type AuthAuditEntry struct {
 	UserID         int
 	TenantID       int // 审计行归属租户（通常为 actor 家租户）
 	TargetTenantID int // 跨租户目标（切换/条目级操作）
+	MembershipID   int // actor 在审计行 TenantID 作用域内的 membership（可解析时）
 	ActorAccount   string
 	Source         string
 	Action         string // 事件目录：auth.login / tenant.switch / tenant.switch_denied ...
@@ -81,6 +82,9 @@ func RecordAuthAudit(ctx context.Context, client *ent.Client, e AuthAuditEntry) 
 		SetRequestBody(string(payload)).SetSource(e.Source)
 	if e.TenantID > 0 {
 		create = create.SetTenantID(e.TenantID)
+	}
+	if e.MembershipID > 0 {
+		create = create.SetMembershipID(e.MembershipID)
 	}
 	if e.TargetTenantID > 0 {
 		create = create.SetTargetTenantID(e.TargetTenantID)
@@ -131,6 +135,9 @@ func RecordTenantDeniedAudit(
 	}
 	if tid := c.GetInt("tenant_id"); tid > 0 {
 		create = create.SetTenantID(tid)
+	}
+	if mid := c.GetInt(CtxKeyMembershipID); mid > 0 {
+		create = create.SetMembershipID(mid)
 	}
 	if targetTenantID > 0 {
 		create = create.SetTargetTenantID(targetTenantID)
@@ -243,6 +250,7 @@ func AuditMiddleware(client *ent.Client) gin.HandlerFunc {
 		rid := c.GetString("request_id")
 		tenantID := c.GetInt("tenant_id")
 		userID := 0
+		membershipID := c.GetInt(CtxKeyMembershipID)
 		username := ""
 
 		if v, ok := c.Get("user_id"); ok {
@@ -330,6 +338,9 @@ func AuditMiddleware(client *ent.Client) gin.HandlerFunc {
 			SetAction(action).
 			SetRequestBody(requestBody).
 			SetSource(source)
+		if membershipID > 0 {
+			auditCreate = auditCreate.SetMembershipID(membershipID)
+		}
 		// PAT 归因（D-PAT-9）：source=pat 的请求带 token_id（由 AuthMiddleware PAT 分支写入）。
 		if authTokenID := c.GetInt(CtxKeyAuthTokenID); authTokenID > 0 && source == AuditSourcePAT {
 			auditCreate = auditCreate.SetTokenID(authTokenID)
@@ -355,6 +366,7 @@ func AuditMiddleware(client *ent.Client) gin.HandlerFunc {
 			"request_id", rid,
 			"tenant_id", tenantID,
 			"user_id", userID,
+			"membership_id", membershipID,
 			"username", username,
 			"action", action,
 			"resource", resource,

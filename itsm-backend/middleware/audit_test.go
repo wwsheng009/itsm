@@ -39,6 +39,7 @@ func TestAuditMiddleware_UserCRUD(t *testing.T) {
 		c.Request = req
 		c.Set("tenant_id", 7)
 		c.Set("user_id", 42)
+		c.Set(CtxKeyMembershipID, 4242)
 		c.Set("username", "auditor")
 		if extra != nil {
 			extra(c, req)
@@ -59,6 +60,7 @@ func TestAuditMiddleware_UserCRUD(t *testing.T) {
 		if assert.Len(t, logs, 1) {
 			assert.Equal(t, "users", logs[0].Resource)
 			assert.Equal(t, 42, logs[0].UserID)
+			assert.Equal(t, 4242, logs[0].MembershipID)
 			assert.Equal(t, "POST", logs[0].Method)
 			assert.Equal(t, AuditSourceLogin, logs[0].Source)
 			assert.Equal(t, 7, logs[0].TargetTenantID)

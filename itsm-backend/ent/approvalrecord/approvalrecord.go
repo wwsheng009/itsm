@@ -30,6 +30,8 @@ const (
 	FieldTotalLevels = "total_levels"
 	// FieldApproverID holds the string denoting the approver_id field in the database.
 	FieldApproverID = "approver_id"
+	// FieldApproverMembershipID holds the string denoting the approver_membership_id field in the database.
+	FieldApproverMembershipID = "approver_membership_id"
 	// FieldApproverName holds the string denoting the approver_name field in the database.
 	FieldApproverName = "approver_name"
 	// FieldStepOrder holds the string denoting the step_order field in the database.
@@ -81,6 +83,7 @@ var Columns = []string{
 	FieldCurrentLevel,
 	FieldTotalLevels,
 	FieldApproverID,
+	FieldApproverMembershipID,
 	FieldApproverName,
 	FieldStepOrder,
 	FieldDueDate,
@@ -177,6 +180,11 @@ func ByTotalLevels(opts ...sql.OrderTermOption) OrderOption {
 // ByApproverID orders the results by the approver_id field.
 func ByApproverID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldApproverID, opts...).ToFunc()
+}
+
+// ByApproverMembershipID orders the results by the approver_membership_id field.
+func ByApproverMembershipID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldApproverMembershipID, opts...).ToFunc()
 }
 
 // ByApproverName orders the results by the approver_name field.

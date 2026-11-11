@@ -483,14 +483,15 @@ func (s *MSPWorkbenchService) ListTicketComments(ctx context.Context, actor MSPW
 			side = "provider"
 		}
 		items = append(items, dto.WorkbenchTicketCommentItem{
-			ID:         c.ID,
-			UserID:     c.UserID,
-			AuthorName: am.name,
-			AuthorSide: side,
-			Content:    c.Content,
-			IsInternal: c.IsInternal,
-			CreatedAt:  c.CreatedAt,
-			UpdatedAt:  c.UpdatedAt,
+			ID:               c.ID,
+			UserID:           c.UserID,
+			UserMembershipID: c.UserMembershipID,
+			AuthorName:       am.name,
+			AuthorSide:       side,
+			Content:          c.Content,
+			IsInternal:       c.IsInternal,
+			CreatedAt:        c.CreatedAt,
+			UpdatedAt:        c.UpdatedAt,
 		})
 	}
 	return &dto.WorkbenchTicketCommentsResponse{Items: items, Total: total}, nil

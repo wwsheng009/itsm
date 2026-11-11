@@ -23,6 +23,8 @@ type TicketNotification struct {
 	TicketID int `json:"ticket_id,omitempty"`
 	// 接收人ID
 	UserID int `json:"user_id,omitempty"`
+	// 接收人在租户内的 membership ID
+	UserMembershipID int `json:"user_membership_id,omitempty"`
 	// 通知类型: created, assigned, status_changed, commented, sla_warning, resolved, closed
 	Type string `json:"type,omitempty"`
 	// 通知渠道: email, in_app, sms
@@ -83,7 +85,7 @@ func (*TicketNotification) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case ticketnotification.FieldID, ticketnotification.FieldTicketID, ticketnotification.FieldUserID, ticketnotification.FieldTenantID:
+		case ticketnotification.FieldID, ticketnotification.FieldTicketID, ticketnotification.FieldUserID, ticketnotification.FieldUserMembershipID, ticketnotification.FieldTenantID:
 			values[i] = new(sql.NullInt64)
 		case ticketnotification.FieldType, ticketnotification.FieldChannel, ticketnotification.FieldContent, ticketnotification.FieldStatus:
 			values[i] = new(sql.NullString)
@@ -121,6 +123,12 @@ func (_m *TicketNotification) assignValues(columns []string, values []any) error
 				return fmt.Errorf("unexpected type %T for field user_id", values[i])
 			} else if value.Valid {
 				_m.UserID = int(value.Int64)
+			}
+		case ticketnotification.FieldUserMembershipID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field user_membership_id", values[i])
+			} else if value.Valid {
+				_m.UserMembershipID = int(value.Int64)
 			}
 		case ticketnotification.FieldType:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -221,6 +229,9 @@ func (_m *TicketNotification) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("user_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.UserID))
+	builder.WriteString(", ")
+	builder.WriteString("user_membership_id=")
+	builder.WriteString(fmt.Sprintf("%v", _m.UserMembershipID))
 	builder.WriteString(", ")
 	builder.WriteString("type=")
 	builder.WriteString(_m.Type)

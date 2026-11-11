@@ -8,17 +8,18 @@ import (
 
 // TicketNotificationResponse 工单通知响应
 type TicketNotificationResponse struct {
-	ID        int        `json:"id"`
-	TicketID  int        `json:"ticketId"`
-	UserID    int        `json:"userId"`
-	Type      string     `json:"type"`    // created, assigned, status_changed, commented, sla_warning, resolved, closed
-	Channel   string     `json:"channel"` // email, in_app, sms
-	Content   string     `json:"content"`
-	SentAt    *time.Time `json:"sentAt,omitempty"`
-	ReadAt    *time.Time `json:"readAt,omitempty"`
-	Status    string     `json:"status"` // pending, sent, read
-	CreatedAt time.Time  `json:"createdAt"`
-	User      *UserInfo  `json:"user,omitempty"` // 接收人信息
+	ID               int        `json:"id"`
+	TicketID         int        `json:"ticketId"`
+	UserID           int        `json:"userId"`
+	UserMembershipID int        `json:"userMembershipId,omitempty"`
+	Type             string     `json:"type"`    // created, assigned, status_changed, commented, sla_warning, resolved, closed
+	Channel          string     `json:"channel"` // email, in_app, sms
+	Content          string     `json:"content"`
+	SentAt           *time.Time `json:"sentAt,omitempty"`
+	ReadAt           *time.Time `json:"readAt,omitempty"`
+	Status           string     `json:"status"` // pending, sent, read
+	CreatedAt        time.Time  `json:"createdAt"`
+	User             *UserInfo  `json:"user,omitempty"` // 接收人信息
 }
 
 // ListTicketNotificationsResponse 工单通知列表响应
@@ -39,14 +40,15 @@ type SendTicketNotificationRequest struct {
 // ToTicketNotificationResponse 将 Ent 实体转换为 DTO
 func ToTicketNotificationResponse(notification *ent.TicketNotification, user *ent.User) *TicketNotificationResponse {
 	resp := &TicketNotificationResponse{
-		ID:        notification.ID,
-		TicketID:  notification.TicketID,
-		UserID:    notification.UserID,
-		Type:      notification.Type,
-		Channel:   notification.Channel,
-		Content:   notification.Content,
-		Status:    notification.Status,
-		CreatedAt: notification.CreatedAt,
+		ID:               notification.ID,
+		TicketID:         notification.TicketID,
+		UserID:           notification.UserID,
+		UserMembershipID: notification.UserMembershipID,
+		Type:             notification.Type,
+		Channel:          notification.Channel,
+		Content:          notification.Content,
+		Status:           notification.Status,
+		CreatedAt:        notification.CreatedAt,
 	}
 
 	// SentAt 和 ReadAt 在 Ent 中可能是 time.Time 或 *time.Time

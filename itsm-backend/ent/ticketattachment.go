@@ -35,6 +35,8 @@ type TicketAttachment struct {
 	MimeType string `json:"mime_type,omitempty"`
 	// 上传人ID
 	UploadedBy int `json:"uploaded_by,omitempty"`
+	// 上传人在租户内的 membership ID
+	UploadedByMembershipID int `json:"uploaded_by_membership_id,omitempty"`
 	// 租户ID
 	TenantID int `json:"tenant_id,omitempty"`
 	// 创建时间
@@ -83,7 +85,7 @@ func (*TicketAttachment) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case ticketattachment.FieldID, ticketattachment.FieldTicketID, ticketattachment.FieldFileSize, ticketattachment.FieldUploadedBy, ticketattachment.FieldTenantID:
+		case ticketattachment.FieldID, ticketattachment.FieldTicketID, ticketattachment.FieldFileSize, ticketattachment.FieldUploadedBy, ticketattachment.FieldUploadedByMembershipID, ticketattachment.FieldTenantID:
 			values[i] = new(sql.NullInt64)
 		case ticketattachment.FieldFileName, ticketattachment.FieldFilePath, ticketattachment.FieldFileURL, ticketattachment.FieldFileType, ticketattachment.FieldMimeType:
 			values[i] = new(sql.NullString)
@@ -157,6 +159,12 @@ func (_m *TicketAttachment) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field uploaded_by", values[i])
 			} else if value.Valid {
 				_m.UploadedBy = int(value.Int64)
+			}
+		case ticketattachment.FieldUploadedByMembershipID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field uploaded_by_membership_id", values[i])
+			} else if value.Valid {
+				_m.UploadedByMembershipID = int(value.Int64)
 			}
 		case ticketattachment.FieldTenantID:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -239,6 +247,9 @@ func (_m *TicketAttachment) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("uploaded_by=")
 	builder.WriteString(fmt.Sprintf("%v", _m.UploadedBy))
+	builder.WriteString(", ")
+	builder.WriteString("uploaded_by_membership_id=")
+	builder.WriteString(fmt.Sprintf("%v", _m.UploadedByMembershipID))
 	builder.WriteString(", ")
 	builder.WriteString("tenant_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.TenantID))

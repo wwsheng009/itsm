@@ -186,6 +186,33 @@ func (_u *ProcessApprovalDecisionUpdate) AddActorID(v int) *ProcessApprovalDecis
 	return _u
 }
 
+// SetActorMembershipID sets the "actor_membership_id" field.
+func (_u *ProcessApprovalDecisionUpdate) SetActorMembershipID(v int) *ProcessApprovalDecisionUpdate {
+	_u.mutation.ResetActorMembershipID()
+	_u.mutation.SetActorMembershipID(v)
+	return _u
+}
+
+// SetNillableActorMembershipID sets the "actor_membership_id" field if the given value is not nil.
+func (_u *ProcessApprovalDecisionUpdate) SetNillableActorMembershipID(v *int) *ProcessApprovalDecisionUpdate {
+	if v != nil {
+		_u.SetActorMembershipID(*v)
+	}
+	return _u
+}
+
+// AddActorMembershipID adds value to the "actor_membership_id" field.
+func (_u *ProcessApprovalDecisionUpdate) AddActorMembershipID(v int) *ProcessApprovalDecisionUpdate {
+	_u.mutation.AddActorMembershipID(v)
+	return _u
+}
+
+// ClearActorMembershipID clears the value of the "actor_membership_id" field.
+func (_u *ProcessApprovalDecisionUpdate) ClearActorMembershipID() *ProcessApprovalDecisionUpdate {
+	_u.mutation.ClearActorMembershipID()
+	return _u
+}
+
 // SetActorName sets the "actor_name" field.
 func (_u *ProcessApprovalDecisionUpdate) SetActorName(v string) *ProcessApprovalDecisionUpdate {
 	_u.mutation.SetActorName(v)
@@ -485,6 +512,15 @@ func (_u *ProcessApprovalDecisionUpdate) sqlSave(ctx context.Context) (_node int
 	if value, ok := _u.mutation.AddedActorID(); ok {
 		_spec.AddField(processapprovaldecision.FieldActorID, field.TypeInt, value)
 	}
+	if value, ok := _u.mutation.ActorMembershipID(); ok {
+		_spec.SetField(processapprovaldecision.FieldActorMembershipID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedActorMembershipID(); ok {
+		_spec.AddField(processapprovaldecision.FieldActorMembershipID, field.TypeInt, value)
+	}
+	if _u.mutation.ActorMembershipIDCleared() {
+		_spec.ClearField(processapprovaldecision.FieldActorMembershipID, field.TypeInt)
+	}
 	if value, ok := _u.mutation.ActorName(); ok {
 		_spec.SetField(processapprovaldecision.FieldActorName, field.TypeString, value)
 	}
@@ -712,6 +748,33 @@ func (_u *ProcessApprovalDecisionUpdateOne) SetNillableActorID(v *int) *ProcessA
 // AddActorID adds value to the "actor_id" field.
 func (_u *ProcessApprovalDecisionUpdateOne) AddActorID(v int) *ProcessApprovalDecisionUpdateOne {
 	_u.mutation.AddActorID(v)
+	return _u
+}
+
+// SetActorMembershipID sets the "actor_membership_id" field.
+func (_u *ProcessApprovalDecisionUpdateOne) SetActorMembershipID(v int) *ProcessApprovalDecisionUpdateOne {
+	_u.mutation.ResetActorMembershipID()
+	_u.mutation.SetActorMembershipID(v)
+	return _u
+}
+
+// SetNillableActorMembershipID sets the "actor_membership_id" field if the given value is not nil.
+func (_u *ProcessApprovalDecisionUpdateOne) SetNillableActorMembershipID(v *int) *ProcessApprovalDecisionUpdateOne {
+	if v != nil {
+		_u.SetActorMembershipID(*v)
+	}
+	return _u
+}
+
+// AddActorMembershipID adds value to the "actor_membership_id" field.
+func (_u *ProcessApprovalDecisionUpdateOne) AddActorMembershipID(v int) *ProcessApprovalDecisionUpdateOne {
+	_u.mutation.AddActorMembershipID(v)
+	return _u
+}
+
+// ClearActorMembershipID clears the value of the "actor_membership_id" field.
+func (_u *ProcessApprovalDecisionUpdateOne) ClearActorMembershipID() *ProcessApprovalDecisionUpdateOne {
+	_u.mutation.ClearActorMembershipID()
 	return _u
 }
 
@@ -1043,6 +1106,15 @@ func (_u *ProcessApprovalDecisionUpdateOne) sqlSave(ctx context.Context) (_node 
 	}
 	if value, ok := _u.mutation.AddedActorID(); ok {
 		_spec.AddField(processapprovaldecision.FieldActorID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.ActorMembershipID(); ok {
+		_spec.SetField(processapprovaldecision.FieldActorMembershipID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedActorMembershipID(); ok {
+		_spec.AddField(processapprovaldecision.FieldActorMembershipID, field.TypeInt, value)
+	}
+	if _u.mutation.ActorMembershipIDCleared() {
+		_spec.ClearField(processapprovaldecision.FieldActorMembershipID, field.TypeInt)
 	}
 	if value, ok := _u.mutation.ActorName(); ok {
 		_spec.SetField(processapprovaldecision.FieldActorName, field.TypeString, value)

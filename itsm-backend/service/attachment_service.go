@@ -46,6 +46,7 @@ import (
 	"itsm-backend/ent/ticket"
 	"itsm-backend/ent/ticketcomment"
 	userent "itsm-backend/ent/user"
+	"itsm-backend/middleware"
 
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -292,22 +293,23 @@ type AttachmentUploadInput struct {
 // 存储 key 属内部实现：只以 `json:"-"` 暴露给同进程适配器（BE-6 旧工单端点映射 filePath），
 // 不进入任何 HTTP 响应；外部下载统一走 A4 端点。
 type AttachmentView struct {
-	ID          int        `json:"id"`
-	TenantID    int        `json:"tenantId"`
-	BizType     string     `json:"bizType"`
-	BizID       int        `json:"bizId"`
-	Usage       string     `json:"usage"`
-	FileName    string     `json:"fileName"`
-	FileURL     string     `json:"fileUrl"`
-	FileSize    int        `json:"fileSize"`
-	FileType    string     `json:"fileType"`
-	MimeType    string     `json:"mimeType"`
-	SHA256      string     `json:"sha256,omitempty"`
-	ClientToken string     `json:"clientToken,omitempty"`
-	UploadedBy  int        `json:"uploadedBy"`
-	Status      string     `json:"status"`
-	CreatedAt   time.Time  `json:"createdAt"`
-	DeletedAt   *time.Time `json:"deletedAt,omitempty"`
+	ID                     int        `json:"id"`
+	TenantID               int        `json:"tenantId"`
+	BizType                string     `json:"bizType"`
+	BizID                  int        `json:"bizId"`
+	Usage                  string     `json:"usage"`
+	FileName               string     `json:"fileName"`
+	FileURL                string     `json:"fileUrl"`
+	FileSize               int        `json:"fileSize"`
+	FileType               string     `json:"fileType"`
+	MimeType               string     `json:"mimeType"`
+	SHA256                 string     `json:"sha256,omitempty"`
+	ClientToken            string     `json:"clientToken,omitempty"`
+	UploadedBy             int        `json:"uploadedBy"`
+	UploadedByMembershipID int        `json:"uploadedByMembershipId,omitempty"`
+	Status                 string     `json:"status"`
+	CreatedAt              time.Time  `json:"createdAt"`
+	DeletedAt              *time.Time `json:"deletedAt,omitempty"`
 	// StorageKey 存储相对路径（attachments.file_path），仅供同进程适配器读取。
 	StorageKey string `json:"-"`
 }
@@ -479,6 +481,11 @@ func (s *AttachmentService) Upload(ctx context.Context, tenantID, userID int, in
 		SetMimeType(mimeType).
 		SetUploadedBy(userID).
 		SetStatus(AttachmentStatusActive)
+	if membership, mErr := middleware.ResolveActiveMembership(ctx, s.client, userID, tenantID); mErr != nil {
+		s.logger.Warnw("Failed to resolve attachment uploader membership", "error", mErr, "user_id", userID, "tenant_id", tenantID)
+	} else if membership != nil {
+		create = create.SetUploadedByMembershipID(membership.ID)
+	}
 	if hash := hex.EncodeToString(hasher.Sum(nil)); hash != "" {
 		create = create.SetSha256(hash)
 	}
@@ -652,23 +659,24 @@ func toAttachmentView(att *ent.Attachment) *AttachmentView {
 		return nil
 	}
 	view := &AttachmentView{
-		ID:          att.ID,
-		TenantID:    att.TenantID,
-		BizType:     att.BizType,
-		BizID:       att.BizID,
-		Usage:       att.Usage,
-		FileName:    att.FileName,
-		FileURL:     att.FileURL,
-		FileSize:    att.FileSize,
-		FileType:    att.FileType,
-		MimeType:    att.MimeType,
-		SHA256:      att.Sha256,
-		ClientToken: att.ClientToken,
-		UploadedBy:  att.UploadedBy,
-		Status:      att.Status,
-		CreatedAt:   att.CreatedAt,
-		DeletedAt:   att.DeletedAt,
-		StorageKey:  att.FilePath,
+		ID:                     att.ID,
+		TenantID:               att.TenantID,
+		BizType:                att.BizType,
+		BizID:                  att.BizID,
+		Usage:                  att.Usage,
+		FileName:               att.FileName,
+		FileURL:                att.FileURL,
+		FileSize:               att.FileSize,
+		FileType:               att.FileType,
+		MimeType:               att.MimeType,
+		SHA256:                 att.Sha256,
+		ClientToken:            att.ClientToken,
+		UploadedBy:             att.UploadedBy,
+		UploadedByMembershipID: att.UploadedByMembershipID,
+		Status:                 att.Status,
+		CreatedAt:              att.CreatedAt,
+		DeletedAt:              att.DeletedAt,
+		StorageKey:             att.FilePath,
 	}
 	return view
 }

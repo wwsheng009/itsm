@@ -24,6 +24,7 @@ import (
 	"itsm-backend/common/tenantctx"
 	"itsm-backend/ent"
 	"itsm-backend/ent/user"
+	"itsm-backend/middleware"
 	"itsm-backend/pkg/tenantmode"
 )
 
@@ -111,19 +112,29 @@ func (s *TicketNotificationService) notifyMSPProviderSide(
 	now := time.Now()
 	deepLink := mspWorkbenchActionURL(ticket)
 	for _, uid := range recipients {
-		if _, err := s.client.TicketNotification.Create().
+		membershipID := 0
+		if membership, mErr := middleware.ResolveActiveMembership(providerCtx, s.client, uid, pt.ID); mErr == nil && membership != nil {
+			membershipID = membership.ID
+		}
+		ticketNotificationCreate := s.client.TicketNotification.Create().
 			SetTicketID(ticket.ID).SetUserID(uid).SetType(eventType).SetChannel("in_app").
-			SetContent(content).SetTenantID(pt.ID).SetStatus("sent").SetNillableSentAt(&now).
-			Save(providerCtx); err != nil {
+			SetContent(content).SetTenantID(pt.ID).SetStatus("sent").SetNillableSentAt(&now)
+		if membershipID > 0 {
+			ticketNotificationCreate = ticketNotificationCreate.SetUserMembershipID(membershipID)
+		}
+		if _, err := ticketNotificationCreate.Save(providerCtx); err != nil {
 			s.logger.Warnw("msp dual delivery: create ticket notification failed",
 				"ticket_id", ticket.ID, "user_id", uid, "error", err)
 			continue
 		}
-		if _, err := s.client.Notification.Create().
+		notificationCreate := s.client.Notification.Create().
 			SetTitle(eventType).SetMessage(content).SetType("info").
 			SetUserID(uid).SetTenantID(pt.ID).
-			SetActionURL(deepLink).SetActionText("打开工单详情").
-			Save(providerCtx); err != nil {
+			SetActionURL(deepLink).SetActionText("打开工单详情")
+		if membershipID > 0 {
+			notificationCreate = notificationCreate.SetUserMembershipID(membershipID)
+		}
+		if _, err := notificationCreate.Save(providerCtx); err != nil {
 			s.logger.Warnw("msp dual delivery: create notification failed",
 				"ticket_id", ticket.ID, "user_id", uid, "error", err)
 		}
@@ -156,17 +167,27 @@ func (s *TicketNotificationService) notifyMSPProviderSideTx(
 	now := time.Now()
 	deepLink := mspWorkbenchActionURL(ticket)
 	for _, uid := range recipients {
-		if _, err := tx.TicketNotification.Create().
+		membershipID := 0
+		if membership, mErr := middleware.ResolveActiveMembership(providerCtx, tx.Client(), uid, pt.ID); mErr == nil && membership != nil {
+			membershipID = membership.ID
+		}
+		ticketNotificationCreate := tx.TicketNotification.Create().
 			SetTicketID(ticket.ID).SetUserID(uid).SetType(eventType).SetChannel("in_app").
-			SetContent(content).SetTenantID(pt.ID).SetStatus("sent").SetNillableSentAt(&now).
-			Save(providerCtx); err != nil {
+			SetContent(content).SetTenantID(pt.ID).SetStatus("sent").SetNillableSentAt(&now)
+		if membershipID > 0 {
+			ticketNotificationCreate = ticketNotificationCreate.SetUserMembershipID(membershipID)
+		}
+		if _, err := ticketNotificationCreate.Save(providerCtx); err != nil {
 			return fmt.Errorf("msp dual delivery(tx): create ticket notification: %w", err)
 		}
-		if _, err := tx.Notification.Create().
+		notificationCreate := tx.Notification.Create().
 			SetTitle(eventType).SetMessage(content).SetType("info").
 			SetUserID(uid).SetTenantID(pt.ID).
-			SetActionURL(deepLink).SetActionText("打开工单详情").
-			Save(providerCtx); err != nil {
+			SetActionURL(deepLink).SetActionText("打开工单详情")
+		if membershipID > 0 {
+			notificationCreate = notificationCreate.SetUserMembershipID(membershipID)
+		}
+		if _, err := notificationCreate.Save(providerCtx); err != nil {
 			return fmt.Errorf("msp dual delivery(tx): create notification: %w", err)
 		}
 	}

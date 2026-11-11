@@ -94,6 +94,20 @@ func (_c *NotificationCreate) SetUserID(v int) *NotificationCreate {
 	return _c
 }
 
+// SetUserMembershipID sets the "user_membership_id" field.
+func (_c *NotificationCreate) SetUserMembershipID(v int) *NotificationCreate {
+	_c.mutation.SetUserMembershipID(v)
+	return _c
+}
+
+// SetNillableUserMembershipID sets the "user_membership_id" field if the given value is not nil.
+func (_c *NotificationCreate) SetNillableUserMembershipID(v *int) *NotificationCreate {
+	if v != nil {
+		_c.SetUserMembershipID(*v)
+	}
+	return _c
+}
+
 // SetTenantID sets the "tenant_id" field.
 func (_c *NotificationCreate) SetTenantID(v int) *NotificationCreate {
 	_c.mutation.SetTenantID(v)
@@ -280,6 +294,10 @@ func (_c *NotificationCreate) createSpec() (*Notification, *sqlgraph.CreateSpec)
 	if value, ok := _c.mutation.UserID(); ok {
 		_spec.SetField(notification.FieldUserID, field.TypeInt, value)
 		_node.UserID = value
+	}
+	if value, ok := _c.mutation.UserMembershipID(); ok {
+		_spec.SetField(notification.FieldUserMembershipID, field.TypeInt, value)
+		_node.UserMembershipID = value
 	}
 	if value, ok := _c.mutation.TenantID(); ok {
 		_spec.SetField(notification.FieldTenantID, field.TypeInt, value)

@@ -119,6 +119,11 @@ func UploadedBy(v int) predicate.Attachment {
 	return predicate.Attachment(sql.FieldEQ(FieldUploadedBy, v))
 }
 
+// UploadedByMembershipID applies equality check predicate on the "uploaded_by_membership_id" field. It's identical to UploadedByMembershipIDEQ.
+func UploadedByMembershipID(v int) predicate.Attachment {
+	return predicate.Attachment(sql.FieldEQ(FieldUploadedByMembershipID, v))
+}
+
 // Status applies equality check predicate on the "status" field. It's identical to StatusEQ.
 func Status(v string) predicate.Attachment {
 	return predicate.Attachment(sql.FieldEQ(FieldStatus, v))
@@ -917,6 +922,56 @@ func UploadedByLT(v int) predicate.Attachment {
 // UploadedByLTE applies the LTE predicate on the "uploaded_by" field.
 func UploadedByLTE(v int) predicate.Attachment {
 	return predicate.Attachment(sql.FieldLTE(FieldUploadedBy, v))
+}
+
+// UploadedByMembershipIDEQ applies the EQ predicate on the "uploaded_by_membership_id" field.
+func UploadedByMembershipIDEQ(v int) predicate.Attachment {
+	return predicate.Attachment(sql.FieldEQ(FieldUploadedByMembershipID, v))
+}
+
+// UploadedByMembershipIDNEQ applies the NEQ predicate on the "uploaded_by_membership_id" field.
+func UploadedByMembershipIDNEQ(v int) predicate.Attachment {
+	return predicate.Attachment(sql.FieldNEQ(FieldUploadedByMembershipID, v))
+}
+
+// UploadedByMembershipIDIn applies the In predicate on the "uploaded_by_membership_id" field.
+func UploadedByMembershipIDIn(vs ...int) predicate.Attachment {
+	return predicate.Attachment(sql.FieldIn(FieldUploadedByMembershipID, vs...))
+}
+
+// UploadedByMembershipIDNotIn applies the NotIn predicate on the "uploaded_by_membership_id" field.
+func UploadedByMembershipIDNotIn(vs ...int) predicate.Attachment {
+	return predicate.Attachment(sql.FieldNotIn(FieldUploadedByMembershipID, vs...))
+}
+
+// UploadedByMembershipIDGT applies the GT predicate on the "uploaded_by_membership_id" field.
+func UploadedByMembershipIDGT(v int) predicate.Attachment {
+	return predicate.Attachment(sql.FieldGT(FieldUploadedByMembershipID, v))
+}
+
+// UploadedByMembershipIDGTE applies the GTE predicate on the "uploaded_by_membership_id" field.
+func UploadedByMembershipIDGTE(v int) predicate.Attachment {
+	return predicate.Attachment(sql.FieldGTE(FieldUploadedByMembershipID, v))
+}
+
+// UploadedByMembershipIDLT applies the LT predicate on the "uploaded_by_membership_id" field.
+func UploadedByMembershipIDLT(v int) predicate.Attachment {
+	return predicate.Attachment(sql.FieldLT(FieldUploadedByMembershipID, v))
+}
+
+// UploadedByMembershipIDLTE applies the LTE predicate on the "uploaded_by_membership_id" field.
+func UploadedByMembershipIDLTE(v int) predicate.Attachment {
+	return predicate.Attachment(sql.FieldLTE(FieldUploadedByMembershipID, v))
+}
+
+// UploadedByMembershipIDIsNil applies the IsNil predicate on the "uploaded_by_membership_id" field.
+func UploadedByMembershipIDIsNil() predicate.Attachment {
+	return predicate.Attachment(sql.FieldIsNull(FieldUploadedByMembershipID))
+}
+
+// UploadedByMembershipIDNotNil applies the NotNil predicate on the "uploaded_by_membership_id" field.
+func UploadedByMembershipIDNotNil() predicate.Attachment {
+	return predicate.Attachment(sql.FieldNotNull(FieldUploadedByMembershipID))
 }
 
 // StatusEQ applies the EQ predicate on the "status" field.

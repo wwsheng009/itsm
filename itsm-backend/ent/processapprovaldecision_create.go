@@ -90,6 +90,20 @@ func (_c *ProcessApprovalDecisionCreate) SetActorID(v int) *ProcessApprovalDecis
 	return _c
 }
 
+// SetActorMembershipID sets the "actor_membership_id" field.
+func (_c *ProcessApprovalDecisionCreate) SetActorMembershipID(v int) *ProcessApprovalDecisionCreate {
+	_c.mutation.SetActorMembershipID(v)
+	return _c
+}
+
+// SetNillableActorMembershipID sets the "actor_membership_id" field if the given value is not nil.
+func (_c *ProcessApprovalDecisionCreate) SetNillableActorMembershipID(v *int) *ProcessApprovalDecisionCreate {
+	if v != nil {
+		_c.SetActorMembershipID(*v)
+	}
+	return _c
+}
+
 // SetActorName sets the "actor_name" field.
 func (_c *ProcessApprovalDecisionCreate) SetActorName(v string) *ProcessApprovalDecisionCreate {
 	_c.mutation.SetActorName(v)
@@ -375,6 +389,10 @@ func (_c *ProcessApprovalDecisionCreate) createSpec() (*ProcessApprovalDecision,
 	if value, ok := _c.mutation.ActorID(); ok {
 		_spec.SetField(processapprovaldecision.FieldActorID, field.TypeInt, value)
 		_node.ActorID = value
+	}
+	if value, ok := _c.mutation.ActorMembershipID(); ok {
+		_spec.SetField(processapprovaldecision.FieldActorMembershipID, field.TypeInt, value)
+		_node.ActorMembershipID = value
 	}
 	if value, ok := _c.mutation.ActorName(); ok {
 		_spec.SetField(processapprovaldecision.FieldActorName, field.TypeString, value)

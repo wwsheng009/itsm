@@ -247,6 +247,7 @@ interface LegacyTicketAttachment {
   fileSize?: number;
   mimeType?: string;
   uploadedBy?: number;
+  uploadedByMembershipId?: number;
   uploader?: { id: number; name?: string; username?: string };
   createdAt?: string;
 }
@@ -272,6 +273,7 @@ function toAttachmentRef(raw: LegacyTicketAttachment, host: Required<AttachmentH
     fileUrl: raw.fileUrl || fallbackContent,
     previewUrl: raw.fileUrl || fallbackPreview,
     uploadedBy: raw.uploadedBy ?? raw.uploader?.id,
+    uploadedByMembershipId: raw.uploadedByMembershipId,
     uploader: raw.uploader,
     createdAt: raw.createdAt,
   };

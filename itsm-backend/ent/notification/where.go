@@ -89,6 +89,11 @@ func UserID(v int) predicate.Notification {
 	return predicate.Notification(sql.FieldEQ(FieldUserID, v))
 }
 
+// UserMembershipID applies equality check predicate on the "user_membership_id" field. It's identical to UserMembershipIDEQ.
+func UserMembershipID(v int) predicate.Notification {
+	return predicate.Notification(sql.FieldEQ(FieldUserMembershipID, v))
+}
+
 // TenantID applies equality check predicate on the "tenant_id" field. It's identical to TenantIDEQ.
 func TenantID(v int) predicate.Notification {
 	return predicate.Notification(sql.FieldEQ(FieldTenantID, v))
@@ -497,6 +502,56 @@ func UserIDLT(v int) predicate.Notification {
 // UserIDLTE applies the LTE predicate on the "user_id" field.
 func UserIDLTE(v int) predicate.Notification {
 	return predicate.Notification(sql.FieldLTE(FieldUserID, v))
+}
+
+// UserMembershipIDEQ applies the EQ predicate on the "user_membership_id" field.
+func UserMembershipIDEQ(v int) predicate.Notification {
+	return predicate.Notification(sql.FieldEQ(FieldUserMembershipID, v))
+}
+
+// UserMembershipIDNEQ applies the NEQ predicate on the "user_membership_id" field.
+func UserMembershipIDNEQ(v int) predicate.Notification {
+	return predicate.Notification(sql.FieldNEQ(FieldUserMembershipID, v))
+}
+
+// UserMembershipIDIn applies the In predicate on the "user_membership_id" field.
+func UserMembershipIDIn(vs ...int) predicate.Notification {
+	return predicate.Notification(sql.FieldIn(FieldUserMembershipID, vs...))
+}
+
+// UserMembershipIDNotIn applies the NotIn predicate on the "user_membership_id" field.
+func UserMembershipIDNotIn(vs ...int) predicate.Notification {
+	return predicate.Notification(sql.FieldNotIn(FieldUserMembershipID, vs...))
+}
+
+// UserMembershipIDGT applies the GT predicate on the "user_membership_id" field.
+func UserMembershipIDGT(v int) predicate.Notification {
+	return predicate.Notification(sql.FieldGT(FieldUserMembershipID, v))
+}
+
+// UserMembershipIDGTE applies the GTE predicate on the "user_membership_id" field.
+func UserMembershipIDGTE(v int) predicate.Notification {
+	return predicate.Notification(sql.FieldGTE(FieldUserMembershipID, v))
+}
+
+// UserMembershipIDLT applies the LT predicate on the "user_membership_id" field.
+func UserMembershipIDLT(v int) predicate.Notification {
+	return predicate.Notification(sql.FieldLT(FieldUserMembershipID, v))
+}
+
+// UserMembershipIDLTE applies the LTE predicate on the "user_membership_id" field.
+func UserMembershipIDLTE(v int) predicate.Notification {
+	return predicate.Notification(sql.FieldLTE(FieldUserMembershipID, v))
+}
+
+// UserMembershipIDIsNil applies the IsNil predicate on the "user_membership_id" field.
+func UserMembershipIDIsNil() predicate.Notification {
+	return predicate.Notification(sql.FieldIsNull(FieldUserMembershipID))
+}
+
+// UserMembershipIDNotNil applies the NotNil predicate on the "user_membership_id" field.
+func UserMembershipIDNotNil() predicate.Notification {
+	return predicate.Notification(sql.FieldNotNull(FieldUserMembershipID))
 }
 
 // TenantIDEQ applies the EQ predicate on the "tenant_id" field.

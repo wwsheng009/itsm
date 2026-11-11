@@ -21,6 +21,7 @@ import (
 	"itsm-backend/ent/ticketcc"
 	"itsm-backend/ent/ticketworkflowrecord"
 	"itsm-backend/ent/user"
+	"itsm-backend/middleware"
 	"itsm-backend/service/bpmn"
 
 	"go.uber.org/zap"
@@ -280,6 +281,12 @@ func (s *TicketWorkflowService) CCTicket(ctx context.Context, req *dto.CCTicketR
 	}
 
 	// 添加抄送人
+	addedByMembershipID := 0
+	if membership, mErr := middleware.ResolveActiveMembership(ctx, s.client, userID, tenantID); mErr != nil {
+		s.logger.Warnw("Failed to resolve CC adder membership", "error", mErr, "user_id", userID, "tenant_id", tenantID)
+	} else if membership != nil {
+		addedByMembershipID = membership.ID
+	}
 	addedUserIDs := make([]int, 0, len(targetUsers))
 	for _, ccUserID := range targetUsers {
 		// 检查是否已存在抄送记录
@@ -294,14 +301,22 @@ func (s *TicketWorkflowService) CCTicket(ctx context.Context, req *dto.CCTicketR
 			continue
 		}
 		if !exists {
-			err = s.client.TicketCC.Create().
+			create := s.client.TicketCC.Create().
 				SetTicketID(req.TicketID).
 				SetUserID(ccUserID).
 				SetAddedBy(userID).
 				SetTenantID(tenantID).
 				SetAddedAt(time.Now()).
-				SetIsActive(true).
-				Exec(ctx)
+				SetIsActive(true)
+			if addedByMembershipID > 0 {
+				create = create.SetAddedByMembershipID(addedByMembershipID)
+			}
+			if membership, mErr := middleware.ResolveActiveMembership(ctx, s.client, ccUserID, tenantID); mErr != nil {
+				s.logger.Warnw("Failed to resolve CC recipient membership", "error", mErr, "user_id", ccUserID, "tenant_id", tenantID)
+			} else if membership != nil {
+				create = create.SetUserMembershipID(membership.ID)
+			}
+			err = create.Exec(ctx)
 			if err != nil {
 				s.logger.Warnw("Failed to add CC user", "error", err, "user_id", ccUserID)
 				continue
@@ -490,6 +505,11 @@ func (s *TicketWorkflowService) ApproveTicket(ctx context.Context, req *dto.Appr
 
 	if req.DelegateToUserID != nil {
 		updateBuilder.SetDelegateToUserID(*req.DelegateToUserID)
+		if membership, mErr := middleware.ResolveActiveMembership(ctx, s.client, *req.DelegateToUserID, tenantID); mErr != nil {
+			s.logger.Warnw("Failed to resolve ticket approval delegate membership", "error", mErr, "user_id", *req.DelegateToUserID, "tenant_id", tenantID)
+		} else if membership != nil {
+			updateBuilder.SetDelegateToMembershipID(membership.ID)
+		}
 	}
 
 	err = updateBuilder.Exec(ctx)
@@ -500,14 +520,19 @@ func (s *TicketWorkflowService) ApproveTicket(ctx context.Context, req *dto.Appr
 
 	// 如果是委派，创建新的审批记录
 	if req.Action == "delegate" && req.DelegateToUserID != nil {
-		_, err = txClient.TicketApproval.Create().
+		create := txClient.TicketApproval.Create().
 			SetTicketID(req.TicketID).
 			SetLevel(approval.Level).
 			SetLevelName(approval.LevelName).
 			SetApproverID(*req.DelegateToUserID).
 			SetStatus(string(dto.ApprovalStatusPending)).
-			SetTenantID(tenantID).
-			Save(ctx)
+			SetTenantID(tenantID)
+		if membership, mErr := middleware.ResolveActiveMembership(ctx, s.client, *req.DelegateToUserID, tenantID); mErr != nil {
+			s.logger.Warnw("Failed to resolve delegated ticket approver membership", "error", mErr, "user_id", *req.DelegateToUserID, "tenant_id", tenantID)
+		} else if membership != nil {
+			create = create.SetApproverMembershipID(membership.ID)
+		}
+		_, err = create.Save(ctx)
 		if err != nil {
 			txErr = fmt.Errorf("创建委派审批记录失败: %w", err)
 			return txErr

@@ -13,6 +13,7 @@ import (
 	"itsm-backend/ent/role"
 	"itsm-backend/ent/ticketcc"
 	"itsm-backend/ent/user"
+	"itsm-backend/middleware"
 
 	"go.uber.org/zap"
 )
@@ -97,6 +98,12 @@ func (h *CCTaskHandler) Execute(ctx context.Context, task *ent.ProcessTask, vari
 	}
 
 	// 添加抄送人
+	addedByMembershipID := 0
+	if membership, mErr := middleware.ResolveActiveMembership(ctx, h.client, addedBy, tenantID); mErr != nil {
+		h.logger.Warnw("Failed to resolve BPMN CC adder membership", "error", mErr, "user_id", addedBy, "tenant_id", tenantID)
+	} else if membership != nil {
+		addedByMembershipID = membership.ID
+	}
 	var addedUsers []int
 	for _, ccUserID := range ccUsers {
 		// 检查是否已存在抄送记录
@@ -111,14 +118,22 @@ func (h *CCTaskHandler) Execute(ctx context.Context, task *ent.ProcessTask, vari
 			continue
 		}
 		if !exists {
-			err = h.client.TicketCC.Create().
+			create := h.client.TicketCC.Create().
 				SetTicketID(ticketID).
 				SetUserID(ccUserID).
 				SetAddedBy(addedBy).
 				SetTenantID(tenantID).
 				SetAddedAt(time.Now()).
-				SetIsActive(true).
-				Exec(ctx)
+				SetIsActive(true)
+			if addedByMembershipID > 0 {
+				create = create.SetAddedByMembershipID(addedByMembershipID)
+			}
+			if membership, mErr := middleware.ResolveActiveMembership(ctx, h.client, ccUserID, tenantID); mErr != nil {
+				h.logger.Warnw("Failed to resolve BPMN CC recipient membership", "error", mErr, "user_id", ccUserID, "tenant_id", tenantID)
+			} else if membership != nil {
+				create = create.SetUserMembershipID(membership.ID)
+			}
+			err = create.Exec(ctx)
 			if err != nil {
 				h.logger.Warnw("Failed to add CC user", "error", err, "user_id", ccUserID)
 				continue
@@ -351,6 +366,12 @@ func (h *CCTaskHandler) createCCNotifications(ctx context.Context, ticketID int,
 	now := time.Now()
 	content := fmt.Sprintf("工单 %s「%s」已抄送给你", ticketEntity.TicketNumber, ticketEntity.Title)
 	for _, userID := range userIDs {
+		membershipID := 0
+		if membership, mErr := middleware.ResolveActiveMembership(ctx, h.client, userID, tenantID); mErr != nil {
+			h.logger.Warnw("Failed to resolve BPMN CC notification membership", "error", mErr, "user_id", userID, "tenant_id", tenantID)
+		} else if membership != nil {
+			membershipID = membership.ID
+		}
 		for _, channel := range channels {
 			create := h.client.TicketNotification.Create().
 				SetTicketID(ticketID).
@@ -360,6 +381,9 @@ func (h *CCTaskHandler) createCCNotifications(ctx context.Context, ticketID int,
 				SetContent(content).
 				SetTenantID(tenantID).
 				SetStatus("pending")
+			if membershipID > 0 {
+				create.SetUserMembershipID(membershipID)
+			}
 			if channel == "in_app" {
 				create.SetStatus("sent").SetSentAt(now)
 			}
@@ -367,15 +391,18 @@ func (h *CCTaskHandler) createCCNotifications(ctx context.Context, ticketID int,
 				h.logger.Warnw("Failed to create BPMN CC notification", "error", err, "ticket_id", ticketID, "user_id", userID, "channel", channel)
 			}
 		}
-		if _, err := h.client.Notification.Create().
+		unifiedCreate := h.client.Notification.Create().
 			SetTitle("工单抄送").
 			SetMessage(content).
 			SetType("info").
 			SetUserID(userID).
 			SetTenantID(tenantID).
 			SetActionURL(fmt.Sprintf("/tickets/%d", ticketID)).
-			SetActionText("查看工单").
-			Save(ctx); err != nil {
+			SetActionText("查看工单")
+		if membershipID > 0 {
+			unifiedCreate = unifiedCreate.SetUserMembershipID(membershipID)
+		}
+		if _, err := unifiedCreate.Save(ctx); err != nil {
 			h.logger.Warnw("Failed to create BPMN unified CC notification", "error", err, "ticket_id", ticketID, "user_id", userID)
 		}
 	}

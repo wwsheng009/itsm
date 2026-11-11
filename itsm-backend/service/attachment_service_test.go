@@ -13,6 +13,7 @@ import (
 
 	"itsm-backend/ent"
 	"itsm-backend/ent/enttest"
+	"itsm-backend/ent/usertenantmembership"
 
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/stretchr/testify/assert"
@@ -103,6 +104,11 @@ func TestAttachmentUploadStoresFileAndRecord(t *testing.T) {
 	svc, client, root := newAttachmentTestService(t)
 	ctx := context.Background()
 	tn, user := seedHost(t, client, "store")
+	membership := client.UserTenantMembership.Create().
+		SetUserID(user.ID).SetTenantID(tn.ID).
+		SetAccountKind(usertenantmembership.AccountKindCustomer).
+		SetSource(usertenantmembership.SourceHome).
+		SetStatus(usertenantmembership.StatusActive).SetIsDefault(true).SaveX(ctx)
 	tk := createTestTicket(t, client, tn, user, "T-1001")
 
 	view, err := svc.Upload(ctx, tn.ID, user.ID, AttachmentUploadInput{
@@ -122,6 +128,7 @@ func TestAttachmentUploadStoresFileAndRecord(t *testing.T) {
 	assert.Equal(t, "image/png", view.FileType)
 	assert.Equal(t, "image/png", view.MimeType)
 	assert.Equal(t, user.ID, view.UploadedBy)
+	assert.Equal(t, membership.ID, view.UploadedByMembershipID)
 	assert.Equal(t, AttachmentStatusActive, view.Status)
 	assert.NotEmpty(t, view.SHA256)
 	assert.Equal(t, fmt.Sprintf("/api/v1/attachments/%d/content", view.ID), view.FileURL)
@@ -129,6 +136,7 @@ func TestAttachmentUploadStoresFileAndRecord(t *testing.T) {
 	// 存储 key 规则 `{tenant_id}/{biz_type}/{biz_id}/{uuid}.{ext}` + 文件真实落盘
 	att, err := client.Attachment.Get(ctx, view.ID)
 	require.NoError(t, err)
+	assert.Equal(t, membership.ID, att.UploadedByMembershipID)
 	assert.True(t, filepath.IsLocal(filepath.FromSlash(att.FilePath)))
 	assert.Equal(t, fmt.Sprintf("%d/%s/%d", tn.ID, AttachmentBizTypeTicket, tk.ID), filepath.ToSlash(filepath.Dir(att.FilePath)))
 	assert.Equal(t, ".png", filepath.Ext(att.FilePath))

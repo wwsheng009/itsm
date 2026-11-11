@@ -64,6 +64,33 @@ func (_u *TicketCCUpdate) AddUserID(v int) *TicketCCUpdate {
 	return _u
 }
 
+// SetUserMembershipID sets the "user_membership_id" field.
+func (_u *TicketCCUpdate) SetUserMembershipID(v int) *TicketCCUpdate {
+	_u.mutation.ResetUserMembershipID()
+	_u.mutation.SetUserMembershipID(v)
+	return _u
+}
+
+// SetNillableUserMembershipID sets the "user_membership_id" field if the given value is not nil.
+func (_u *TicketCCUpdate) SetNillableUserMembershipID(v *int) *TicketCCUpdate {
+	if v != nil {
+		_u.SetUserMembershipID(*v)
+	}
+	return _u
+}
+
+// AddUserMembershipID adds value to the "user_membership_id" field.
+func (_u *TicketCCUpdate) AddUserMembershipID(v int) *TicketCCUpdate {
+	_u.mutation.AddUserMembershipID(v)
+	return _u
+}
+
+// ClearUserMembershipID clears the value of the "user_membership_id" field.
+func (_u *TicketCCUpdate) ClearUserMembershipID() *TicketCCUpdate {
+	_u.mutation.ClearUserMembershipID()
+	return _u
+}
+
 // SetAddedBy sets the "added_by" field.
 func (_u *TicketCCUpdate) SetAddedBy(v int) *TicketCCUpdate {
 	_u.mutation.ResetAddedBy()
@@ -82,6 +109,33 @@ func (_u *TicketCCUpdate) SetNillableAddedBy(v *int) *TicketCCUpdate {
 // AddAddedBy adds value to the "added_by" field.
 func (_u *TicketCCUpdate) AddAddedBy(v int) *TicketCCUpdate {
 	_u.mutation.AddAddedBy(v)
+	return _u
+}
+
+// SetAddedByMembershipID sets the "added_by_membership_id" field.
+func (_u *TicketCCUpdate) SetAddedByMembershipID(v int) *TicketCCUpdate {
+	_u.mutation.ResetAddedByMembershipID()
+	_u.mutation.SetAddedByMembershipID(v)
+	return _u
+}
+
+// SetNillableAddedByMembershipID sets the "added_by_membership_id" field if the given value is not nil.
+func (_u *TicketCCUpdate) SetNillableAddedByMembershipID(v *int) *TicketCCUpdate {
+	if v != nil {
+		_u.SetAddedByMembershipID(*v)
+	}
+	return _u
+}
+
+// AddAddedByMembershipID adds value to the "added_by_membership_id" field.
+func (_u *TicketCCUpdate) AddAddedByMembershipID(v int) *TicketCCUpdate {
+	_u.mutation.AddAddedByMembershipID(v)
+	return _u
+}
+
+// ClearAddedByMembershipID clears the value of the "added_by_membership_id" field.
+func (_u *TicketCCUpdate) ClearAddedByMembershipID() *TicketCCUpdate {
+	_u.mutation.ClearAddedByMembershipID()
 	return _u
 }
 
@@ -203,11 +257,29 @@ func (_u *TicketCCUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if value, ok := _u.mutation.AddedUserID(); ok {
 		_spec.AddField(ticketcc.FieldUserID, field.TypeInt, value)
 	}
+	if value, ok := _u.mutation.UserMembershipID(); ok {
+		_spec.SetField(ticketcc.FieldUserMembershipID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedUserMembershipID(); ok {
+		_spec.AddField(ticketcc.FieldUserMembershipID, field.TypeInt, value)
+	}
+	if _u.mutation.UserMembershipIDCleared() {
+		_spec.ClearField(ticketcc.FieldUserMembershipID, field.TypeInt)
+	}
 	if value, ok := _u.mutation.AddedBy(); ok {
 		_spec.SetField(ticketcc.FieldAddedBy, field.TypeInt, value)
 	}
 	if value, ok := _u.mutation.AddedAddedBy(); ok {
 		_spec.AddField(ticketcc.FieldAddedBy, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedByMembershipID(); ok {
+		_spec.SetField(ticketcc.FieldAddedByMembershipID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedAddedByMembershipID(); ok {
+		_spec.AddField(ticketcc.FieldAddedByMembershipID, field.TypeInt, value)
+	}
+	if _u.mutation.AddedByMembershipIDCleared() {
+		_spec.ClearField(ticketcc.FieldAddedByMembershipID, field.TypeInt)
 	}
 	if value, ok := _u.mutation.TenantID(); ok {
 		_spec.SetField(ticketcc.FieldTenantID, field.TypeInt, value)
@@ -305,6 +377,33 @@ func (_u *TicketCCUpdateOne) AddUserID(v int) *TicketCCUpdateOne {
 	return _u
 }
 
+// SetUserMembershipID sets the "user_membership_id" field.
+func (_u *TicketCCUpdateOne) SetUserMembershipID(v int) *TicketCCUpdateOne {
+	_u.mutation.ResetUserMembershipID()
+	_u.mutation.SetUserMembershipID(v)
+	return _u
+}
+
+// SetNillableUserMembershipID sets the "user_membership_id" field if the given value is not nil.
+func (_u *TicketCCUpdateOne) SetNillableUserMembershipID(v *int) *TicketCCUpdateOne {
+	if v != nil {
+		_u.SetUserMembershipID(*v)
+	}
+	return _u
+}
+
+// AddUserMembershipID adds value to the "user_membership_id" field.
+func (_u *TicketCCUpdateOne) AddUserMembershipID(v int) *TicketCCUpdateOne {
+	_u.mutation.AddUserMembershipID(v)
+	return _u
+}
+
+// ClearUserMembershipID clears the value of the "user_membership_id" field.
+func (_u *TicketCCUpdateOne) ClearUserMembershipID() *TicketCCUpdateOne {
+	_u.mutation.ClearUserMembershipID()
+	return _u
+}
+
 // SetAddedBy sets the "added_by" field.
 func (_u *TicketCCUpdateOne) SetAddedBy(v int) *TicketCCUpdateOne {
 	_u.mutation.ResetAddedBy()
@@ -323,6 +422,33 @@ func (_u *TicketCCUpdateOne) SetNillableAddedBy(v *int) *TicketCCUpdateOne {
 // AddAddedBy adds value to the "added_by" field.
 func (_u *TicketCCUpdateOne) AddAddedBy(v int) *TicketCCUpdateOne {
 	_u.mutation.AddAddedBy(v)
+	return _u
+}
+
+// SetAddedByMembershipID sets the "added_by_membership_id" field.
+func (_u *TicketCCUpdateOne) SetAddedByMembershipID(v int) *TicketCCUpdateOne {
+	_u.mutation.ResetAddedByMembershipID()
+	_u.mutation.SetAddedByMembershipID(v)
+	return _u
+}
+
+// SetNillableAddedByMembershipID sets the "added_by_membership_id" field if the given value is not nil.
+func (_u *TicketCCUpdateOne) SetNillableAddedByMembershipID(v *int) *TicketCCUpdateOne {
+	if v != nil {
+		_u.SetAddedByMembershipID(*v)
+	}
+	return _u
+}
+
+// AddAddedByMembershipID adds value to the "added_by_membership_id" field.
+func (_u *TicketCCUpdateOne) AddAddedByMembershipID(v int) *TicketCCUpdateOne {
+	_u.mutation.AddAddedByMembershipID(v)
+	return _u
+}
+
+// ClearAddedByMembershipID clears the value of the "added_by_membership_id" field.
+func (_u *TicketCCUpdateOne) ClearAddedByMembershipID() *TicketCCUpdateOne {
+	_u.mutation.ClearAddedByMembershipID()
 	return _u
 }
 
@@ -474,11 +600,29 @@ func (_u *TicketCCUpdateOne) sqlSave(ctx context.Context) (_node *TicketCC, err 
 	if value, ok := _u.mutation.AddedUserID(); ok {
 		_spec.AddField(ticketcc.FieldUserID, field.TypeInt, value)
 	}
+	if value, ok := _u.mutation.UserMembershipID(); ok {
+		_spec.SetField(ticketcc.FieldUserMembershipID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedUserMembershipID(); ok {
+		_spec.AddField(ticketcc.FieldUserMembershipID, field.TypeInt, value)
+	}
+	if _u.mutation.UserMembershipIDCleared() {
+		_spec.ClearField(ticketcc.FieldUserMembershipID, field.TypeInt)
+	}
 	if value, ok := _u.mutation.AddedBy(); ok {
 		_spec.SetField(ticketcc.FieldAddedBy, field.TypeInt, value)
 	}
 	if value, ok := _u.mutation.AddedAddedBy(); ok {
 		_spec.AddField(ticketcc.FieldAddedBy, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedByMembershipID(); ok {
+		_spec.SetField(ticketcc.FieldAddedByMembershipID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedAddedByMembershipID(); ok {
+		_spec.AddField(ticketcc.FieldAddedByMembershipID, field.TypeInt, value)
+	}
+	if _u.mutation.AddedByMembershipIDCleared() {
+		_spec.ClearField(ticketcc.FieldAddedByMembershipID, field.TypeInt)
 	}
 	if value, ok := _u.mutation.TenantID(); ok {
 		_spec.SetField(ticketcc.FieldTenantID, field.TypeInt, value)

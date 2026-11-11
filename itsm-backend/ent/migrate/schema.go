@@ -140,6 +140,7 @@ var (
 		{Name: "current_level", Type: field.TypeInt, Default: 1},
 		{Name: "total_levels", Type: field.TypeInt, Default: 1},
 		{Name: "approver_id", Type: field.TypeInt},
+		{Name: "approver_membership_id", Type: field.TypeInt, Nullable: true},
 		{Name: "approver_name", Type: field.TypeString},
 		{Name: "step_order", Type: field.TypeInt, Default: 1},
 		{Name: "due_date", Type: field.TypeTime, Nullable: true},
@@ -160,13 +161,13 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "approval_records_approval_workflows_approval_records",
-				Columns:    []*schema.Column{ApprovalRecordsColumns[16]},
+				Columns:    []*schema.Column{ApprovalRecordsColumns[17]},
 				RefColumns: []*schema.Column{ApprovalWorkflowsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
 			{
 				Symbol:     "approval_records_tickets_approval_records",
-				Columns:    []*schema.Column{ApprovalRecordsColumns[17]},
+				Columns:    []*schema.Column{ApprovalRecordsColumns[18]},
 				RefColumns: []*schema.Column{TicketsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -345,6 +346,7 @@ var (
 		{Name: "sha256", Type: field.TypeString, Nullable: true, Size: 64},
 		{Name: "client_token", Type: field.TypeString, Nullable: true, Size: 64},
 		{Name: "uploaded_by", Type: field.TypeInt},
+		{Name: "uploaded_by_membership_id", Type: field.TypeInt, Nullable: true},
 		{Name: "status", Type: field.TypeString, Size: 16, Default: "active"},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "deleted_at", Type: field.TypeTime, Nullable: true},
@@ -3778,6 +3780,7 @@ var (
 		{Name: "action_url", Type: field.TypeString, Nullable: true},
 		{Name: "action_text", Type: field.TypeString, Nullable: true},
 		{Name: "user_id", Type: field.TypeInt},
+		{Name: "user_membership_id", Type: field.TypeInt, Nullable: true},
 		{Name: "tenant_id", Type: field.TypeInt},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "updated_at", Type: field.TypeTime},
@@ -4160,6 +4163,7 @@ var (
 		{Name: "business_type", Type: field.TypeString, Nullable: true},
 		{Name: "business_id", Type: field.TypeString, Nullable: true},
 		{Name: "actor_id", Type: field.TypeInt},
+		{Name: "actor_membership_id", Type: field.TypeInt, Nullable: true},
 		{Name: "actor_name", Type: field.TypeString, Nullable: true},
 		{Name: "action", Type: field.TypeString},
 		{Name: "decision", Type: field.TypeString},
@@ -4180,22 +4184,22 @@ var (
 			{
 				Name:    "processapprovaldecision_tenant_id_process_task_id",
 				Unique:  false,
-				Columns: []*schema.Column{ProcessApprovalDecisionsColumns[18], ProcessApprovalDecisionsColumns[2]},
+				Columns: []*schema.Column{ProcessApprovalDecisionsColumns[19], ProcessApprovalDecisionsColumns[2]},
 			},
 			{
 				Name:    "processapprovaldecision_tenant_id_process_instance_id_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{ProcessApprovalDecisionsColumns[18], ProcessApprovalDecisionsColumns[1], ProcessApprovalDecisionsColumns[19]},
+				Columns: []*schema.Column{ProcessApprovalDecisionsColumns[19], ProcessApprovalDecisionsColumns[1], ProcessApprovalDecisionsColumns[20]},
 			},
 			{
 				Name:    "processapprovaldecision_tenant_id_business_type_business_id",
 				Unique:  false,
-				Columns: []*schema.Column{ProcessApprovalDecisionsColumns[18], ProcessApprovalDecisionsColumns[7], ProcessApprovalDecisionsColumns[8]},
+				Columns: []*schema.Column{ProcessApprovalDecisionsColumns[19], ProcessApprovalDecisionsColumns[7], ProcessApprovalDecisionsColumns[8]},
 			},
 			{
 				Name:    "processapprovaldecision_tenant_id_actor_id_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{ProcessApprovalDecisionsColumns[18], ProcessApprovalDecisionsColumns[9], ProcessApprovalDecisionsColumns[19]},
+				Columns: []*schema.Column{ProcessApprovalDecisionsColumns[19], ProcessApprovalDecisionsColumns[9], ProcessApprovalDecisionsColumns[20]},
 			},
 		},
 	}
@@ -6962,10 +6966,12 @@ var (
 		{Name: "level", Type: field.TypeInt},
 		{Name: "level_name", Type: field.TypeString},
 		{Name: "approver_id", Type: field.TypeInt},
+		{Name: "approver_membership_id", Type: field.TypeInt, Nullable: true},
 		{Name: "status", Type: field.TypeString, Default: "pending"},
 		{Name: "action", Type: field.TypeString, Nullable: true},
 		{Name: "comment", Type: field.TypeString, Nullable: true},
 		{Name: "delegate_to_user_id", Type: field.TypeInt, Nullable: true},
+		{Name: "delegate_to_membership_id", Type: field.TypeInt, Nullable: true},
 		{Name: "tenant_id", Type: field.TypeInt},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "updated_at", Type: field.TypeTime},
@@ -6980,7 +6986,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "ticket_approvals_tickets_approvals",
-				Columns:    []*schema.Column{TicketApprovalsColumns[12]},
+				Columns:    []*schema.Column{TicketApprovalsColumns[14]},
 				RefColumns: []*schema.Column{TicketsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -7016,6 +7022,7 @@ var (
 		{Name: "file_size", Type: field.TypeInt},
 		{Name: "file_type", Type: field.TypeString},
 		{Name: "mime_type", Type: field.TypeString, Nullable: true},
+		{Name: "uploaded_by_membership_id", Type: field.TypeInt, Nullable: true},
 		{Name: "tenant_id", Type: field.TypeInt},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "ticket_id", Type: field.TypeInt},
@@ -7029,13 +7036,13 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "ticket_attachments_tickets_attachments",
-				Columns:    []*schema.Column{TicketAttachmentsColumns[9]},
+				Columns:    []*schema.Column{TicketAttachmentsColumns[10]},
 				RefColumns: []*schema.Column{TicketsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
 			{
 				Symbol:     "ticket_attachments_users_ticket_attachments",
-				Columns:    []*schema.Column{TicketAttachmentsColumns[10]},
+				Columns:    []*schema.Column{TicketAttachmentsColumns[11]},
 				RefColumns: []*schema.Column{UsersColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -7075,7 +7082,9 @@ var (
 	TicketCcsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
 		{Name: "user_id", Type: field.TypeInt},
+		{Name: "user_membership_id", Type: field.TypeInt, Nullable: true},
 		{Name: "added_by", Type: field.TypeInt},
+		{Name: "added_by_membership_id", Type: field.TypeInt, Nullable: true},
 		{Name: "tenant_id", Type: field.TypeInt},
 		{Name: "added_at", Type: field.TypeTime},
 		{Name: "is_active", Type: field.TypeBool, Default: true},
@@ -7089,7 +7098,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "ticket_ccs_tickets_cc_users",
-				Columns:    []*schema.Column{TicketCcsColumns[6]},
+				Columns:    []*schema.Column{TicketCcsColumns[8]},
 				RefColumns: []*schema.Column{TicketsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -7140,6 +7149,7 @@ var (
 	// TicketCommentsColumns holds the columns for the "ticket_comments" table.
 	TicketCommentsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "user_membership_id", Type: field.TypeInt, Nullable: true},
 		{Name: "content", Type: field.TypeString, Size: 2147483647},
 		{Name: "is_internal", Type: field.TypeBool, Default: false},
 		{Name: "mentions", Type: field.TypeJSON, Nullable: true},
@@ -7158,13 +7168,13 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "ticket_comments_tickets_comments",
-				Columns:    []*schema.Column{TicketCommentsColumns[8]},
+				Columns:    []*schema.Column{TicketCommentsColumns[9]},
 				RefColumns: []*schema.Column{TicketsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
 			{
 				Symbol:     "ticket_comments_users_ticket_comments",
-				Columns:    []*schema.Column{TicketCommentsColumns[9]},
+				Columns:    []*schema.Column{TicketCommentsColumns[10]},
 				RefColumns: []*schema.Column{UsersColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -7173,6 +7183,7 @@ var (
 	// TicketNotificationsColumns holds the columns for the "ticket_notifications" table.
 	TicketNotificationsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "user_membership_id", Type: field.TypeInt, Nullable: true},
 		{Name: "type", Type: field.TypeString},
 		{Name: "channel", Type: field.TypeString, Default: "in_app"},
 		{Name: "content", Type: field.TypeString, Size: 2147483647},
@@ -7192,13 +7203,13 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "ticket_notifications_tickets_notifications",
-				Columns:    []*schema.Column{TicketNotificationsColumns[9]},
+				Columns:    []*schema.Column{TicketNotificationsColumns[10]},
 				RefColumns: []*schema.Column{TicketsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
 			{
 				Symbol:     "ticket_notifications_users_ticket_notifications",
-				Columns:    []*schema.Column{TicketNotificationsColumns[10]},
+				Columns:    []*schema.Column{TicketNotificationsColumns[11]},
 				RefColumns: []*schema.Column{UsersColumns[0]},
 				OnDelete:   schema.NoAction,
 			},

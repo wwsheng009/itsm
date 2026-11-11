@@ -38,6 +38,8 @@ export interface TicketComment {
   content: string;
   author: TicketUser;
   authorId?: number;
+  /** 评论人在工单租户内的 membership 身份（C 方案；历史行为可缺省）。 */
+  userMembershipId?: number;
   isInternal: boolean;
   createdAt: string;
   updatedAt?: string;
@@ -53,6 +55,8 @@ export interface TicketAttachment {
   mimeType: string;
   url: string;
   uploadedBy: TicketUser;
+  /** 上传人在工单租户内的 membership 身份（C 方案；历史行为可缺省）。 */
+  uploadedByMembershipId?: number;
   createdAt: string;
 }
 

@@ -20,8 +20,14 @@ func (TicketCC) Fields() []ent.Field {
 			Comment("工单ID"),
 		field.Int("user_id").
 			Comment("抄送用户ID"),
+		field.Int("user_membership_id").
+			Comment("抄送用户在租户内的 membership ID").
+			Optional(),
 		field.Int("added_by").
 			Comment("添加人ID"),
+		field.Int("added_by_membership_id").
+			Comment("添加人在租户内的 membership ID").
+			Optional(),
 		field.Int("tenant_id").
 			Comment("租户ID"),
 		field.Time("added_at").

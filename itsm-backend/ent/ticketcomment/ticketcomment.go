@@ -18,6 +18,8 @@ const (
 	FieldTicketID = "ticket_id"
 	// FieldUserID holds the string denoting the user_id field in the database.
 	FieldUserID = "user_id"
+	// FieldUserMembershipID holds the string denoting the user_membership_id field in the database.
+	FieldUserMembershipID = "user_membership_id"
 	// FieldContent holds the string denoting the content field in the database.
 	FieldContent = "content"
 	// FieldIsInternal holds the string denoting the is_internal field in the database.
@@ -59,6 +61,7 @@ var Columns = []string{
 	FieldID,
 	FieldTicketID,
 	FieldUserID,
+	FieldUserMembershipID,
 	FieldContent,
 	FieldIsInternal,
 	FieldMentions,
@@ -113,6 +116,11 @@ func ByTicketID(opts ...sql.OrderTermOption) OrderOption {
 // ByUserID orders the results by the user_id field.
 func ByUserID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldUserID, opts...).ToFunc()
+}
+
+// ByUserMembershipID orders the results by the user_membership_id field.
+func ByUserMembershipID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldUserMembershipID, opts...).ToFunc()
 }
 
 // ByContent orders the results by the content field.

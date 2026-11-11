@@ -22,6 +22,9 @@ func (TicketComment) Fields() []ent.Field {
 		field.Int("user_id").
 			Comment("评论人ID").
 			Positive(),
+		field.Int("user_membership_id").
+			Comment("评论人在租户内的 membership ID").
+			Optional(),
 		field.Text("content").
 			Comment("评论内容").
 			NotEmpty(),

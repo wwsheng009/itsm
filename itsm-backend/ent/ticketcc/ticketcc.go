@@ -18,8 +18,12 @@ const (
 	FieldTicketID = "ticket_id"
 	// FieldUserID holds the string denoting the user_id field in the database.
 	FieldUserID = "user_id"
+	// FieldUserMembershipID holds the string denoting the user_membership_id field in the database.
+	FieldUserMembershipID = "user_membership_id"
 	// FieldAddedBy holds the string denoting the added_by field in the database.
 	FieldAddedBy = "added_by"
+	// FieldAddedByMembershipID holds the string denoting the added_by_membership_id field in the database.
+	FieldAddedByMembershipID = "added_by_membership_id"
 	// FieldTenantID holds the string denoting the tenant_id field in the database.
 	FieldTenantID = "tenant_id"
 	// FieldAddedAt holds the string denoting the added_at field in the database.
@@ -44,7 +48,9 @@ var Columns = []string{
 	FieldID,
 	FieldTicketID,
 	FieldUserID,
+	FieldUserMembershipID,
 	FieldAddedBy,
+	FieldAddedByMembershipID,
 	FieldTenantID,
 	FieldAddedAt,
 	FieldIsActive,
@@ -85,9 +91,19 @@ func ByUserID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldUserID, opts...).ToFunc()
 }
 
+// ByUserMembershipID orders the results by the user_membership_id field.
+func ByUserMembershipID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldUserMembershipID, opts...).ToFunc()
+}
+
 // ByAddedBy orders the results by the added_by field.
 func ByAddedBy(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldAddedBy, opts...).ToFunc()
+}
+
+// ByAddedByMembershipID orders the results by the added_by_membership_id field.
+func ByAddedByMembershipID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldAddedByMembershipID, opts...).ToFunc()
 }
 
 // ByTenantID orders the results by the tenant_id field.

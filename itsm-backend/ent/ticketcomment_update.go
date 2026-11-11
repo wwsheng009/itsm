@@ -59,6 +59,33 @@ func (_u *TicketCommentUpdate) SetNillableUserID(v *int) *TicketCommentUpdate {
 	return _u
 }
 
+// SetUserMembershipID sets the "user_membership_id" field.
+func (_u *TicketCommentUpdate) SetUserMembershipID(v int) *TicketCommentUpdate {
+	_u.mutation.ResetUserMembershipID()
+	_u.mutation.SetUserMembershipID(v)
+	return _u
+}
+
+// SetNillableUserMembershipID sets the "user_membership_id" field if the given value is not nil.
+func (_u *TicketCommentUpdate) SetNillableUserMembershipID(v *int) *TicketCommentUpdate {
+	if v != nil {
+		_u.SetUserMembershipID(*v)
+	}
+	return _u
+}
+
+// AddUserMembershipID adds value to the "user_membership_id" field.
+func (_u *TicketCommentUpdate) AddUserMembershipID(v int) *TicketCommentUpdate {
+	_u.mutation.AddUserMembershipID(v)
+	return _u
+}
+
+// ClearUserMembershipID clears the value of the "user_membership_id" field.
+func (_u *TicketCommentUpdate) ClearUserMembershipID() *TicketCommentUpdate {
+	_u.mutation.ClearUserMembershipID()
+	return _u
+}
+
 // SetContent sets the "content" field.
 func (_u *TicketCommentUpdate) SetContent(v string) *TicketCommentUpdate {
 	_u.mutation.SetContent(v)
@@ -270,6 +297,15 @@ func (_u *TicketCommentUpdate) sqlSave(ctx context.Context) (_node int, err erro
 			}
 		}
 	}
+	if value, ok := _u.mutation.UserMembershipID(); ok {
+		_spec.SetField(ticketcomment.FieldUserMembershipID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedUserMembershipID(); ok {
+		_spec.AddField(ticketcomment.FieldUserMembershipID, field.TypeInt, value)
+	}
+	if _u.mutation.UserMembershipIDCleared() {
+		_spec.ClearField(ticketcomment.FieldUserMembershipID, field.TypeInt)
+	}
 	if value, ok := _u.mutation.Content(); ok {
 		_spec.SetField(ticketcomment.FieldContent, field.TypeString, value)
 	}
@@ -413,6 +449,33 @@ func (_u *TicketCommentUpdateOne) SetNillableUserID(v *int) *TicketCommentUpdate
 	if v != nil {
 		_u.SetUserID(*v)
 	}
+	return _u
+}
+
+// SetUserMembershipID sets the "user_membership_id" field.
+func (_u *TicketCommentUpdateOne) SetUserMembershipID(v int) *TicketCommentUpdateOne {
+	_u.mutation.ResetUserMembershipID()
+	_u.mutation.SetUserMembershipID(v)
+	return _u
+}
+
+// SetNillableUserMembershipID sets the "user_membership_id" field if the given value is not nil.
+func (_u *TicketCommentUpdateOne) SetNillableUserMembershipID(v *int) *TicketCommentUpdateOne {
+	if v != nil {
+		_u.SetUserMembershipID(*v)
+	}
+	return _u
+}
+
+// AddUserMembershipID adds value to the "user_membership_id" field.
+func (_u *TicketCommentUpdateOne) AddUserMembershipID(v int) *TicketCommentUpdateOne {
+	_u.mutation.AddUserMembershipID(v)
+	return _u
+}
+
+// ClearUserMembershipID clears the value of the "user_membership_id" field.
+func (_u *TicketCommentUpdateOne) ClearUserMembershipID() *TicketCommentUpdateOne {
+	_u.mutation.ClearUserMembershipID()
 	return _u
 }
 
@@ -656,6 +719,15 @@ func (_u *TicketCommentUpdateOne) sqlSave(ctx context.Context) (_node *TicketCom
 				ps[i](selector)
 			}
 		}
+	}
+	if value, ok := _u.mutation.UserMembershipID(); ok {
+		_spec.SetField(ticketcomment.FieldUserMembershipID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedUserMembershipID(); ok {
+		_spec.AddField(ticketcomment.FieldUserMembershipID, field.TypeInt, value)
+	}
+	if _u.mutation.UserMembershipIDCleared() {
+		_spec.ClearField(ticketcomment.FieldUserMembershipID, field.TypeInt)
 	}
 	if value, ok := _u.mutation.Content(); ok {
 		_spec.SetField(ticketcomment.FieldContent, field.TypeString, value)

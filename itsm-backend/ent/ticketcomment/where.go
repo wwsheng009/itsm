@@ -65,6 +65,11 @@ func UserID(v int) predicate.TicketComment {
 	return predicate.TicketComment(sql.FieldEQ(FieldUserID, v))
 }
 
+// UserMembershipID applies equality check predicate on the "user_membership_id" field. It's identical to UserMembershipIDEQ.
+func UserMembershipID(v int) predicate.TicketComment {
+	return predicate.TicketComment(sql.FieldEQ(FieldUserMembershipID, v))
+}
+
 // Content applies equality check predicate on the "content" field. It's identical to ContentEQ.
 func Content(v string) predicate.TicketComment {
 	return predicate.TicketComment(sql.FieldEQ(FieldContent, v))
@@ -128,6 +133,56 @@ func UserIDIn(vs ...int) predicate.TicketComment {
 // UserIDNotIn applies the NotIn predicate on the "user_id" field.
 func UserIDNotIn(vs ...int) predicate.TicketComment {
 	return predicate.TicketComment(sql.FieldNotIn(FieldUserID, vs...))
+}
+
+// UserMembershipIDEQ applies the EQ predicate on the "user_membership_id" field.
+func UserMembershipIDEQ(v int) predicate.TicketComment {
+	return predicate.TicketComment(sql.FieldEQ(FieldUserMembershipID, v))
+}
+
+// UserMembershipIDNEQ applies the NEQ predicate on the "user_membership_id" field.
+func UserMembershipIDNEQ(v int) predicate.TicketComment {
+	return predicate.TicketComment(sql.FieldNEQ(FieldUserMembershipID, v))
+}
+
+// UserMembershipIDIn applies the In predicate on the "user_membership_id" field.
+func UserMembershipIDIn(vs ...int) predicate.TicketComment {
+	return predicate.TicketComment(sql.FieldIn(FieldUserMembershipID, vs...))
+}
+
+// UserMembershipIDNotIn applies the NotIn predicate on the "user_membership_id" field.
+func UserMembershipIDNotIn(vs ...int) predicate.TicketComment {
+	return predicate.TicketComment(sql.FieldNotIn(FieldUserMembershipID, vs...))
+}
+
+// UserMembershipIDGT applies the GT predicate on the "user_membership_id" field.
+func UserMembershipIDGT(v int) predicate.TicketComment {
+	return predicate.TicketComment(sql.FieldGT(FieldUserMembershipID, v))
+}
+
+// UserMembershipIDGTE applies the GTE predicate on the "user_membership_id" field.
+func UserMembershipIDGTE(v int) predicate.TicketComment {
+	return predicate.TicketComment(sql.FieldGTE(FieldUserMembershipID, v))
+}
+
+// UserMembershipIDLT applies the LT predicate on the "user_membership_id" field.
+func UserMembershipIDLT(v int) predicate.TicketComment {
+	return predicate.TicketComment(sql.FieldLT(FieldUserMembershipID, v))
+}
+
+// UserMembershipIDLTE applies the LTE predicate on the "user_membership_id" field.
+func UserMembershipIDLTE(v int) predicate.TicketComment {
+	return predicate.TicketComment(sql.FieldLTE(FieldUserMembershipID, v))
+}
+
+// UserMembershipIDIsNil applies the IsNil predicate on the "user_membership_id" field.
+func UserMembershipIDIsNil() predicate.TicketComment {
+	return predicate.TicketComment(sql.FieldIsNull(FieldUserMembershipID))
+}
+
+// UserMembershipIDNotNil applies the NotNil predicate on the "user_membership_id" field.
+func UserMembershipIDNotNil() predicate.TicketComment {
+	return predicate.TicketComment(sql.FieldNotNull(FieldUserMembershipID))
 }
 
 // ContentEQ applies the EQ predicate on the "content" field.

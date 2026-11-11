@@ -4,17 +4,18 @@ import "time"
 
 // Notification 通知DTO
 type Notification struct {
-	ID         int       `json:"id"`
-	Title      string    `json:"title"`
-	Message    string    `json:"message"`
-	Type       string    `json:"type"`
-	Read       bool      `json:"read"`
-	ActionURL  *string   `json:"actionUrl,omitempty"`
-	ActionText *string   `json:"actionText,omitempty"`
-	UserID     int       `json:"userId"`
-	TenantID   int       `json:"tenantId"`
-	CreatedAt  time.Time `json:"createdAt"`
-	UpdatedAt  time.Time `json:"updatedAt"`
+	ID               int       `json:"id"`
+	Title            string    `json:"title"`
+	Message          string    `json:"message"`
+	Type             string    `json:"type"`
+	Read             bool      `json:"read"`
+	ActionURL        *string   `json:"actionUrl,omitempty"`
+	ActionText       *string   `json:"actionText,omitempty"`
+	UserID           int       `json:"userId"`
+	UserMembershipID int       `json:"userMembershipId,omitempty"`
+	TenantID         int       `json:"tenantId"`
+	CreatedAt        time.Time `json:"createdAt"`
+	UpdatedAt        time.Time `json:"updatedAt"`
 }
 
 // CreateNotificationRequest 创建通知请求

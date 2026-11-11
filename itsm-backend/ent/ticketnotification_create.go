@@ -34,6 +34,20 @@ func (_c *TicketNotificationCreate) SetUserID(v int) *TicketNotificationCreate {
 	return _c
 }
 
+// SetUserMembershipID sets the "user_membership_id" field.
+func (_c *TicketNotificationCreate) SetUserMembershipID(v int) *TicketNotificationCreate {
+	_c.mutation.SetUserMembershipID(v)
+	return _c
+}
+
+// SetNillableUserMembershipID sets the "user_membership_id" field if the given value is not nil.
+func (_c *TicketNotificationCreate) SetNillableUserMembershipID(v *int) *TicketNotificationCreate {
+	if v != nil {
+		_c.SetUserMembershipID(*v)
+	}
+	return _c
+}
+
 // SetType sets the "type" field.
 func (_c *TicketNotificationCreate) SetType(v string) *TicketNotificationCreate {
 	_c.mutation.SetType(v)
@@ -264,6 +278,10 @@ func (_c *TicketNotificationCreate) createSpec() (*TicketNotification, *sqlgraph
 		_node = &TicketNotification{config: _c.config}
 		_spec = sqlgraph.NewCreateSpec(ticketnotification.Table, sqlgraph.NewFieldSpec(ticketnotification.FieldID, field.TypeInt))
 	)
+	if value, ok := _c.mutation.UserMembershipID(); ok {
+		_spec.SetField(ticketnotification.FieldUserMembershipID, field.TypeInt, value)
+		_node.UserMembershipID = value
+	}
 	if value, ok := _c.mutation.GetType(); ok {
 		_spec.SetField(ticketnotification.FieldType, field.TypeString, value)
 		_node.Type = value

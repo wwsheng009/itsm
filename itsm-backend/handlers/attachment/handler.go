@@ -42,18 +42,19 @@ const (
 
 // AttachmentRef A1-A6 统一响应体；字段与 §3.1 TS 契约 AttachmentRef 同名同义。
 type AttachmentRef struct {
-	ID         int    `json:"id"`
-	BizType    string `json:"bizType"`
-	BizID      int    `json:"bizId"`
-	Usage      string `json:"usage"`
-	FileName   string `json:"fileName"`
-	FileSize   int    `json:"fileSize"`
-	MimeType   string `json:"mimeType"`
-	FileURL    string `json:"fileUrl,omitempty"`
-	PreviewURL string `json:"previewUrl,omitempty"`
-	SHA256     string `json:"sha256,omitempty"`
-	UploadedBy int    `json:"uploadedBy,omitempty"`
-	CreatedAt  string `json:"createdAt,omitempty"`
+	ID                     int    `json:"id"`
+	BizType                string `json:"bizType"`
+	BizID                  int    `json:"bizId"`
+	Usage                  string `json:"usage"`
+	FileName               string `json:"fileName"`
+	FileSize               int    `json:"fileSize"`
+	MimeType               string `json:"mimeType"`
+	FileURL                string `json:"fileUrl,omitempty"`
+	PreviewURL             string `json:"previewUrl,omitempty"`
+	SHA256                 string `json:"sha256,omitempty"`
+	UploadedBy             int    `json:"uploadedBy,omitempty"`
+	UploadedByMembershipID int    `json:"uploadedByMembershipId,omitempty"`
+	CreatedAt              string `json:"createdAt,omitempty"`
 }
 
 // ListResponse A2 列表响应（data: {attachments, total}）。
@@ -591,16 +592,17 @@ func toAttachmentRef(v *service.AttachmentView) AttachmentRef {
 		return AttachmentRef{}
 	}
 	ref := AttachmentRef{
-		ID:         v.ID,
-		BizType:    v.BizType,
-		BizID:      v.BizID,
-		Usage:      v.Usage,
-		FileName:   v.FileName,
-		FileSize:   v.FileSize,
-		MimeType:   v.MimeType,
-		FileURL:    v.FileURL,
-		SHA256:     v.SHA256,
-		UploadedBy: v.UploadedBy,
+		ID:                     v.ID,
+		BizType:                v.BizType,
+		BizID:                  v.BizID,
+		Usage:                  v.Usage,
+		FileName:               v.FileName,
+		FileSize:               v.FileSize,
+		MimeType:               v.MimeType,
+		FileURL:                v.FileURL,
+		SHA256:                 v.SHA256,
+		UploadedBy:             v.UploadedBy,
+		UploadedByMembershipID: v.UploadedByMembershipID,
 	}
 	if ref.FileURL == "" {
 		ref.FileURL = fmt.Sprintf("/api/v1/attachments/%d/content", v.ID)

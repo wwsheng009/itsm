@@ -39,6 +39,8 @@ const (
 	FieldClientToken = "client_token"
 	// FieldUploadedBy holds the string denoting the uploaded_by field in the database.
 	FieldUploadedBy = "uploaded_by"
+	// FieldUploadedByMembershipID holds the string denoting the uploaded_by_membership_id field in the database.
+	FieldUploadedByMembershipID = "uploaded_by_membership_id"
 	// FieldStatus holds the string denoting the status field in the database.
 	FieldStatus = "status"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
@@ -65,6 +67,7 @@ var Columns = []string{
 	FieldSha256,
 	FieldClientToken,
 	FieldUploadedBy,
+	FieldUploadedByMembershipID,
 	FieldStatus,
 	FieldCreatedAt,
 	FieldDeletedAt,
@@ -188,6 +191,11 @@ func ByClientToken(opts ...sql.OrderTermOption) OrderOption {
 // ByUploadedBy orders the results by the uploaded_by field.
 func ByUploadedBy(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldUploadedBy, opts...).ToFunc()
+}
+
+// ByUploadedByMembershipID orders the results by the uploaded_by_membership_id field.
+func ByUploadedByMembershipID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldUploadedByMembershipID, opts...).ToFunc()
 }
 
 // ByStatus orders the results by the status field.

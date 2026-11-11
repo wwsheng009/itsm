@@ -336,6 +336,7 @@ export class TicketApi {
       fileType: string;
       mimeType: string;
       uploadedBy: number;
+      uploadedByMembershipId?: number;
       uploader?: {
         id: number;
         username: string;
@@ -368,6 +369,7 @@ export class TicketApi {
     fileType: string;
     mimeType: string;
     uploadedBy: number;
+    uploadedByMembershipId?: number;
     uploader?: {
       id: number;
       username: string;

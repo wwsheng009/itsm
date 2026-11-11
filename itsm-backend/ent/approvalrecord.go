@@ -35,6 +35,8 @@ type ApprovalRecord struct {
 	TotalLevels int `json:"total_levels,omitempty"`
 	// 审批人ID
 	ApproverID int `json:"approver_id,omitempty"`
+	// 审批人在租户内的 membership ID
+	ApproverMembershipID int `json:"approver_membership_id,omitempty"`
 	// 审批人姓名
 	ApproverName string `json:"approver_name,omitempty"`
 	// 节点顺序
@@ -97,7 +99,7 @@ func (*ApprovalRecord) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case approvalrecord.FieldID, approvalrecord.FieldTicketID, approvalrecord.FieldWorkflowID, approvalrecord.FieldCurrentLevel, approvalrecord.FieldTotalLevels, approvalrecord.FieldApproverID, approvalrecord.FieldStepOrder, approvalrecord.FieldTenantID:
+		case approvalrecord.FieldID, approvalrecord.FieldTicketID, approvalrecord.FieldWorkflowID, approvalrecord.FieldCurrentLevel, approvalrecord.FieldTotalLevels, approvalrecord.FieldApproverID, approvalrecord.FieldApproverMembershipID, approvalrecord.FieldStepOrder, approvalrecord.FieldTenantID:
 			values[i] = new(sql.NullInt64)
 		case approvalrecord.FieldTicketNumber, approvalrecord.FieldTicketTitle, approvalrecord.FieldWorkflowName, approvalrecord.FieldApproverName, approvalrecord.FieldStatus, approvalrecord.FieldAction, approvalrecord.FieldComment:
 			values[i] = new(sql.NullString)
@@ -171,6 +173,12 @@ func (_m *ApprovalRecord) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field approver_id", values[i])
 			} else if value.Valid {
 				_m.ApproverID = int(value.Int64)
+			}
+		case approvalrecord.FieldApproverMembershipID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field approver_membership_id", values[i])
+			} else if value.Valid {
+				_m.ApproverMembershipID = int(value.Int64)
 			}
 		case approvalrecord.FieldApproverName:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -296,6 +304,9 @@ func (_m *ApprovalRecord) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("approver_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.ApproverID))
+	builder.WriteString(", ")
+	builder.WriteString("approver_membership_id=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ApproverMembershipID))
 	builder.WriteString(", ")
 	builder.WriteString("approver_name=")
 	builder.WriteString(_m.ApproverName)

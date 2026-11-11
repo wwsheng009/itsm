@@ -220,8 +220,13 @@ func (s *Service) SwitchTenantWithRevoke(ctx context.Context, userID, tenantID i
 		}
 	}
 	// 审计：tenant.switch（target_tenant 维度可查；basis 标注授权依据）。
+	homeMembershipID := 0
+	if membership, mErr := middleware.ResolveActiveMembership(ctx, s.client, userID, userEntity.TenantID); mErr == nil && membership != nil {
+		homeMembershipID = membership.ID
+	}
 	middleware.RecordAuthAudit(ctx, s.client, middleware.AuthAuditEntry{
 		UserID: userID, TenantID: userEntity.TenantID, TargetTenantID: tenantID,
+		MembershipID: homeMembershipID,
 		ActorAccount: userEntity.Username, Source: middleware.AuditSourceSwitch,
 		Action: "tenant.switch", Path: "/api/v1/auth/switch-tenant", Method: "POST", StatusCode: 200,
 		Basis: decision.Basis,

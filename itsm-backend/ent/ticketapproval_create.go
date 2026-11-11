@@ -45,6 +45,20 @@ func (_c *TicketApprovalCreate) SetApproverID(v int) *TicketApprovalCreate {
 	return _c
 }
 
+// SetApproverMembershipID sets the "approver_membership_id" field.
+func (_c *TicketApprovalCreate) SetApproverMembershipID(v int) *TicketApprovalCreate {
+	_c.mutation.SetApproverMembershipID(v)
+	return _c
+}
+
+// SetNillableApproverMembershipID sets the "approver_membership_id" field if the given value is not nil.
+func (_c *TicketApprovalCreate) SetNillableApproverMembershipID(v *int) *TicketApprovalCreate {
+	if v != nil {
+		_c.SetApproverMembershipID(*v)
+	}
+	return _c
+}
+
 // SetStatus sets the "status" field.
 func (_c *TicketApprovalCreate) SetStatus(v string) *TicketApprovalCreate {
 	_c.mutation.SetStatus(v)
@@ -97,6 +111,20 @@ func (_c *TicketApprovalCreate) SetDelegateToUserID(v int) *TicketApprovalCreate
 func (_c *TicketApprovalCreate) SetNillableDelegateToUserID(v *int) *TicketApprovalCreate {
 	if v != nil {
 		_c.SetDelegateToUserID(*v)
+	}
+	return _c
+}
+
+// SetDelegateToMembershipID sets the "delegate_to_membership_id" field.
+func (_c *TicketApprovalCreate) SetDelegateToMembershipID(v int) *TicketApprovalCreate {
+	_c.mutation.SetDelegateToMembershipID(v)
+	return _c
+}
+
+// SetNillableDelegateToMembershipID sets the "delegate_to_membership_id" field if the given value is not nil.
+func (_c *TicketApprovalCreate) SetNillableDelegateToMembershipID(v *int) *TicketApprovalCreate {
+	if v != nil {
+		_c.SetDelegateToMembershipID(*v)
 	}
 	return _c
 }
@@ -270,6 +298,10 @@ func (_c *TicketApprovalCreate) createSpec() (*TicketApproval, *sqlgraph.CreateS
 		_spec.SetField(ticketapproval.FieldApproverID, field.TypeInt, value)
 		_node.ApproverID = value
 	}
+	if value, ok := _c.mutation.ApproverMembershipID(); ok {
+		_spec.SetField(ticketapproval.FieldApproverMembershipID, field.TypeInt, value)
+		_node.ApproverMembershipID = value
+	}
 	if value, ok := _c.mutation.Status(); ok {
 		_spec.SetField(ticketapproval.FieldStatus, field.TypeString, value)
 		_node.Status = value
@@ -285,6 +317,10 @@ func (_c *TicketApprovalCreate) createSpec() (*TicketApproval, *sqlgraph.CreateS
 	if value, ok := _c.mutation.DelegateToUserID(); ok {
 		_spec.SetField(ticketapproval.FieldDelegateToUserID, field.TypeInt, value)
 		_node.DelegateToUserID = value
+	}
+	if value, ok := _c.mutation.DelegateToMembershipID(); ok {
+		_spec.SetField(ticketapproval.FieldDelegateToMembershipID, field.TypeInt, value)
+		_node.DelegateToMembershipID = value
 	}
 	if value, ok := _c.mutation.TenantID(); ok {
 		_spec.SetField(ticketapproval.FieldTenantID, field.TypeInt, value)

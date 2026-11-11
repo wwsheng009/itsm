@@ -24,6 +24,9 @@ func (TicketApproval) Fields() []ent.Field {
 			Comment("级别名称"),
 		field.Int("approver_id").
 			Comment("审批人ID"),
+		field.Int("approver_membership_id").
+			Comment("审批人在租户内的 membership ID").
+			Optional(),
 		field.String("status").
 			Default("pending").
 			Comment("审批状态: pending/approved/rejected/cancelled"),
@@ -36,6 +39,9 @@ func (TicketApproval) Fields() []ent.Field {
 		field.Int("delegate_to_user_id").
 			Optional().
 			Comment("委派目标用户ID"),
+		field.Int("delegate_to_membership_id").
+			Optional().
+			Comment("委派目标在租户内的 membership ID"),
 		field.Int("tenant_id").
 			Comment("租户ID"),
 		field.Time("created_at").

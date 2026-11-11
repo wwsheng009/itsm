@@ -27,6 +27,8 @@ const (
 	FieldActionText = "action_text"
 	// FieldUserID holds the string denoting the user_id field in the database.
 	FieldUserID = "user_id"
+	// FieldUserMembershipID holds the string denoting the user_membership_id field in the database.
+	FieldUserMembershipID = "user_membership_id"
 	// FieldTenantID holds the string denoting the tenant_id field in the database.
 	FieldTenantID = "tenant_id"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
@@ -47,6 +49,7 @@ var Columns = []string{
 	FieldActionURL,
 	FieldActionText,
 	FieldUserID,
+	FieldUserMembershipID,
 	FieldTenantID,
 	FieldCreatedAt,
 	FieldUpdatedAt,
@@ -124,6 +127,11 @@ func ByActionText(opts ...sql.OrderTermOption) OrderOption {
 // ByUserID orders the results by the user_id field.
 func ByUserID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldUserID, opts...).ToFunc()
+}
+
+// ByUserMembershipID orders the results by the user_membership_id field.
+func ByUserMembershipID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldUserMembershipID, opts...).ToFunc()
 }
 
 // ByTenantID orders the results by the tenant_id field.

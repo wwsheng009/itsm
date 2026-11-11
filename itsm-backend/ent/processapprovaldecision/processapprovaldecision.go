@@ -31,6 +31,8 @@ const (
 	FieldBusinessID = "business_id"
 	// FieldActorID holds the string denoting the actor_id field in the database.
 	FieldActorID = "actor_id"
+	// FieldActorMembershipID holds the string denoting the actor_membership_id field in the database.
+	FieldActorMembershipID = "actor_membership_id"
 	// FieldActorName holds the string denoting the actor_name field in the database.
 	FieldActorName = "actor_name"
 	// FieldAction holds the string denoting the action field in the database.
@@ -67,6 +69,7 @@ var Columns = []string{
 	FieldBusinessType,
 	FieldBusinessID,
 	FieldActorID,
+	FieldActorMembershipID,
 	FieldActorName,
 	FieldAction,
 	FieldDecision,
@@ -161,6 +164,11 @@ func ByBusinessID(opts ...sql.OrderTermOption) OrderOption {
 // ByActorID orders the results by the actor_id field.
 func ByActorID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldActorID, opts...).ToFunc()
+}
+
+// ByActorMembershipID orders the results by the actor_membership_id field.
+func ByActorMembershipID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldActorMembershipID, opts...).ToFunc()
 }
 
 // ByActorName orders the results by the actor_name field.

@@ -10,6 +10,7 @@ import (
 	"itsm-backend/ent"
 	"itsm-backend/ent/enttest"
 	"itsm-backend/ent/notification"
+	"itsm-backend/ent/usertenantmembership"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -56,6 +57,11 @@ func TestNotificationService_CreateNotification_Success(t *testing.T) {
 
 	testUser, err := createNotificationTestUser(ctx, client, testTenant.ID, "create")
 	require.NoError(t, err)
+	membership := client.UserTenantMembership.Create().
+		SetUserID(testUser.ID).SetTenantID(testTenant.ID).
+		SetAccountKind(usertenantmembership.AccountKindCustomer).
+		SetSource(usertenantmembership.SourceHome).
+		SetStatus(usertenantmembership.StatusActive).SetIsDefault(true).SaveX(ctx)
 
 	req := &dto.CreateNotificationRequest{
 		Title:    "测试通知",
@@ -72,7 +78,12 @@ func TestNotificationService_CreateNotification_Success(t *testing.T) {
 	assert.Equal(t, req.Message, response.Message)
 	assert.Equal(t, req.Type, response.Type)
 	assert.Equal(t, req.UserID, response.UserID)
+	assert.Equal(t, membership.ID, response.UserMembershipID)
 	assert.False(t, response.Read)
+
+	row, err := client.Notification.Get(ctx, response.ID)
+	require.NoError(t, err)
+	assert.Equal(t, membership.ID, row.UserMembershipID)
 }
 
 func TestNotificationService_CreateNotification_WithAction(t *testing.T) {

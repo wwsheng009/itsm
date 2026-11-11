@@ -23,6 +23,7 @@ export interface TicketAttachment {
   fileType: string;
   mimeType: string;
   uploadedBy: number;
+  uploadedByMembershipId?: number;
   uploader?: {
     id: number;
     username: string;
@@ -53,6 +54,7 @@ function toLegacyAttachment(ref: AttachmentRef, ticketId: number): TicketAttachm
     fileType: ref.mimeType,
     mimeType: ref.mimeType,
     uploadedBy: ref.uploadedBy ?? 0,
+    uploadedByMembershipId: ref.uploadedByMembershipId,
     createdAt: ref.createdAt ?? '',
   };
 }

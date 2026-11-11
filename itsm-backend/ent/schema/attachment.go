@@ -74,6 +74,9 @@ func (Attachment) Fields() []ent.Field {
 		field.Int("uploaded_by").
 			Comment("上传人ID").
 			Positive(),
+		field.Int("uploaded_by_membership_id").
+			Comment("上传人在租户内的 membership ID").
+			Optional(),
 		field.String("status").
 			Comment("状态：active | deleted（软删；被引用时删除返回 409）").
 			NotEmpty().

@@ -145,6 +145,33 @@ func (_u *NotificationUpdate) AddUserID(v int) *NotificationUpdate {
 	return _u
 }
 
+// SetUserMembershipID sets the "user_membership_id" field.
+func (_u *NotificationUpdate) SetUserMembershipID(v int) *NotificationUpdate {
+	_u.mutation.ResetUserMembershipID()
+	_u.mutation.SetUserMembershipID(v)
+	return _u
+}
+
+// SetNillableUserMembershipID sets the "user_membership_id" field if the given value is not nil.
+func (_u *NotificationUpdate) SetNillableUserMembershipID(v *int) *NotificationUpdate {
+	if v != nil {
+		_u.SetUserMembershipID(*v)
+	}
+	return _u
+}
+
+// AddUserMembershipID adds value to the "user_membership_id" field.
+func (_u *NotificationUpdate) AddUserMembershipID(v int) *NotificationUpdate {
+	_u.mutation.AddUserMembershipID(v)
+	return _u
+}
+
+// ClearUserMembershipID clears the value of the "user_membership_id" field.
+func (_u *NotificationUpdate) ClearUserMembershipID() *NotificationUpdate {
+	_u.mutation.ClearUserMembershipID()
+	return _u
+}
+
 // SetTenantID sets the "tenant_id" field.
 func (_u *NotificationUpdate) SetTenantID(v int) *NotificationUpdate {
 	_u.mutation.ResetTenantID()
@@ -294,6 +321,15 @@ func (_u *NotificationUpdate) sqlSave(ctx context.Context) (_node int, err error
 	if value, ok := _u.mutation.AddedUserID(); ok {
 		_spec.AddField(notification.FieldUserID, field.TypeInt, value)
 	}
+	if value, ok := _u.mutation.UserMembershipID(); ok {
+		_spec.SetField(notification.FieldUserMembershipID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedUserMembershipID(); ok {
+		_spec.AddField(notification.FieldUserMembershipID, field.TypeInt, value)
+	}
+	if _u.mutation.UserMembershipIDCleared() {
+		_spec.ClearField(notification.FieldUserMembershipID, field.TypeInt)
+	}
 	if value, ok := _u.mutation.TenantID(); ok {
 		_spec.SetField(notification.FieldTenantID, field.TypeInt, value)
 	}
@@ -440,6 +476,33 @@ func (_u *NotificationUpdateOne) SetNillableUserID(v *int) *NotificationUpdateOn
 // AddUserID adds value to the "user_id" field.
 func (_u *NotificationUpdateOne) AddUserID(v int) *NotificationUpdateOne {
 	_u.mutation.AddUserID(v)
+	return _u
+}
+
+// SetUserMembershipID sets the "user_membership_id" field.
+func (_u *NotificationUpdateOne) SetUserMembershipID(v int) *NotificationUpdateOne {
+	_u.mutation.ResetUserMembershipID()
+	_u.mutation.SetUserMembershipID(v)
+	return _u
+}
+
+// SetNillableUserMembershipID sets the "user_membership_id" field if the given value is not nil.
+func (_u *NotificationUpdateOne) SetNillableUserMembershipID(v *int) *NotificationUpdateOne {
+	if v != nil {
+		_u.SetUserMembershipID(*v)
+	}
+	return _u
+}
+
+// AddUserMembershipID adds value to the "user_membership_id" field.
+func (_u *NotificationUpdateOne) AddUserMembershipID(v int) *NotificationUpdateOne {
+	_u.mutation.AddUserMembershipID(v)
+	return _u
+}
+
+// ClearUserMembershipID clears the value of the "user_membership_id" field.
+func (_u *NotificationUpdateOne) ClearUserMembershipID() *NotificationUpdateOne {
+	_u.mutation.ClearUserMembershipID()
 	return _u
 }
 
@@ -621,6 +684,15 @@ func (_u *NotificationUpdateOne) sqlSave(ctx context.Context) (_node *Notificati
 	}
 	if value, ok := _u.mutation.AddedUserID(); ok {
 		_spec.AddField(notification.FieldUserID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.UserMembershipID(); ok {
+		_spec.SetField(notification.FieldUserMembershipID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedUserMembershipID(); ok {
+		_spec.AddField(notification.FieldUserMembershipID, field.TypeInt, value)
+	}
+	if _u.mutation.UserMembershipIDCleared() {
+		_spec.ClearField(notification.FieldUserMembershipID, field.TypeInt)
 	}
 	if value, ok := _u.mutation.TenantID(); ok {
 		_spec.SetField(notification.FieldTenantID, field.TypeInt, value)

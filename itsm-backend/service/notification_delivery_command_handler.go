@@ -15,6 +15,7 @@ import (
 	"itsm-backend/ent/servicerequest"
 	"itsm-backend/ent/ticket"
 	"itsm-backend/ent/user"
+	"itsm-backend/middleware"
 
 	"go.uber.org/zap"
 )
@@ -196,18 +197,30 @@ func (h *NotificationDeliveryCommandHandler) deliverInApp(ctx context.Context, c
 	}
 	rollback := func(cause error) error { _ = tx.Rollback(); return cause }
 	now := time.Now()
+	membershipID := 0
+	if membership, mErr := middleware.ResolveActiveMembership(ctx, tx.Client(), recipient.ID, cmd.TenantID); mErr == nil && membership != nil {
+		membershipID = membership.ID
+	}
 	var ticketNotificationID *int
 	if tk != nil {
-		ticketNotification, err := tx.TicketNotification.Create().
+		create := tx.TicketNotification.Create().
 			SetTicketID(tk.ID).SetUserID(recipient.ID).SetType(notificationType).SetChannel("in_app").
-			SetContent(content).SetTenantID(cmd.TenantID).SetStatus("sent").SetSentAt(now).Save(ctx)
+			SetContent(content).SetTenantID(cmd.TenantID).SetStatus("sent").SetSentAt(now)
+		if membershipID > 0 {
+			create.SetUserMembershipID(membershipID)
+		}
+		ticketNotification, err := create.Save(ctx)
 		if err != nil {
 			return rollback(err)
 		}
 		ticketNotificationID = &ticketNotification.ID
 	}
-	_, err = tx.Notification.Create().SetTitle(notificationType).SetMessage(content).SetType("info").
-		SetUserID(recipient.ID).SetTenantID(cmd.TenantID).SetActionURL(actionURL).SetActionText(actionText).Save(ctx)
+	notificationCreate := tx.Notification.Create().SetTitle(notificationType).SetMessage(content).SetType("info").
+		SetUserID(recipient.ID).SetTenantID(cmd.TenantID).SetActionURL(actionURL).SetActionText(actionText)
+	if membershipID > 0 {
+		notificationCreate.SetUserMembershipID(membershipID)
+	}
+	_, err = notificationCreate.Save(ctx)
 	if err != nil {
 		return rollback(err)
 	}
@@ -244,9 +257,17 @@ func (h *NotificationDeliveryCommandHandler) deliverConnector(ctx context.Contex
 		if err != nil {
 			return err
 		}
+		membershipID := 0
+		if membership, mErr := middleware.ResolveActiveMembership(ctx, tx.Client(), recipient.ID, cmd.TenantID); mErr == nil && membership != nil {
+			membershipID = membership.ID
+		}
 		if tk != nil {
-			tn, err := tx.TicketNotification.Create().SetTicketID(tk.ID).SetUserID(recipient.ID).
-				SetType(notificationType).SetChannel(channel).SetContent(content).SetTenantID(cmd.TenantID).SetStatus("pending").Save(ctx)
+			create := tx.TicketNotification.Create().SetTicketID(tk.ID).SetUserID(recipient.ID).
+				SetType(notificationType).SetChannel(channel).SetContent(content).SetTenantID(cmd.TenantID).SetStatus("pending")
+			if membershipID > 0 {
+				create.SetUserMembershipID(membershipID)
+			}
+			tn, err := create.Save(ctx)
 			if err != nil {
 				_ = tx.Rollback()
 				return err

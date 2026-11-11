@@ -33,9 +33,37 @@ func (_c *TicketCCCreate) SetUserID(v int) *TicketCCCreate {
 	return _c
 }
 
+// SetUserMembershipID sets the "user_membership_id" field.
+func (_c *TicketCCCreate) SetUserMembershipID(v int) *TicketCCCreate {
+	_c.mutation.SetUserMembershipID(v)
+	return _c
+}
+
+// SetNillableUserMembershipID sets the "user_membership_id" field if the given value is not nil.
+func (_c *TicketCCCreate) SetNillableUserMembershipID(v *int) *TicketCCCreate {
+	if v != nil {
+		_c.SetUserMembershipID(*v)
+	}
+	return _c
+}
+
 // SetAddedBy sets the "added_by" field.
 func (_c *TicketCCCreate) SetAddedBy(v int) *TicketCCCreate {
 	_c.mutation.SetAddedBy(v)
+	return _c
+}
+
+// SetAddedByMembershipID sets the "added_by_membership_id" field.
+func (_c *TicketCCCreate) SetAddedByMembershipID(v int) *TicketCCCreate {
+	_c.mutation.SetAddedByMembershipID(v)
+	return _c
+}
+
+// SetNillableAddedByMembershipID sets the "added_by_membership_id" field if the given value is not nil.
+func (_c *TicketCCCreate) SetNillableAddedByMembershipID(v *int) *TicketCCCreate {
+	if v != nil {
+		_c.SetAddedByMembershipID(*v)
+	}
 	return _c
 }
 
@@ -176,9 +204,17 @@ func (_c *TicketCCCreate) createSpec() (*TicketCC, *sqlgraph.CreateSpec) {
 		_spec.SetField(ticketcc.FieldUserID, field.TypeInt, value)
 		_node.UserID = value
 	}
+	if value, ok := _c.mutation.UserMembershipID(); ok {
+		_spec.SetField(ticketcc.FieldUserMembershipID, field.TypeInt, value)
+		_node.UserMembershipID = value
+	}
 	if value, ok := _c.mutation.AddedBy(); ok {
 		_spec.SetField(ticketcc.FieldAddedBy, field.TypeInt, value)
 		_node.AddedBy = value
+	}
+	if value, ok := _c.mutation.AddedByMembershipID(); ok {
+		_spec.SetField(ticketcc.FieldAddedByMembershipID, field.TypeInt, value)
+		_node.AddedByMembershipID = value
 	}
 	if value, ok := _c.mutation.TenantID(); ok {
 		_spec.SetField(ticketcc.FieldTenantID, field.TypeInt, value)

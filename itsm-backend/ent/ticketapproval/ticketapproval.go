@@ -22,6 +22,8 @@ const (
 	FieldLevelName = "level_name"
 	// FieldApproverID holds the string denoting the approver_id field in the database.
 	FieldApproverID = "approver_id"
+	// FieldApproverMembershipID holds the string denoting the approver_membership_id field in the database.
+	FieldApproverMembershipID = "approver_membership_id"
 	// FieldStatus holds the string denoting the status field in the database.
 	FieldStatus = "status"
 	// FieldAction holds the string denoting the action field in the database.
@@ -30,6 +32,8 @@ const (
 	FieldComment = "comment"
 	// FieldDelegateToUserID holds the string denoting the delegate_to_user_id field in the database.
 	FieldDelegateToUserID = "delegate_to_user_id"
+	// FieldDelegateToMembershipID holds the string denoting the delegate_to_membership_id field in the database.
+	FieldDelegateToMembershipID = "delegate_to_membership_id"
 	// FieldTenantID holds the string denoting the tenant_id field in the database.
 	FieldTenantID = "tenant_id"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
@@ -58,10 +62,12 @@ var Columns = []string{
 	FieldLevel,
 	FieldLevelName,
 	FieldApproverID,
+	FieldApproverMembershipID,
 	FieldStatus,
 	FieldAction,
 	FieldComment,
 	FieldDelegateToUserID,
+	FieldDelegateToMembershipID,
 	FieldTenantID,
 	FieldCreatedAt,
 	FieldUpdatedAt,
@@ -117,6 +123,11 @@ func ByApproverID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldApproverID, opts...).ToFunc()
 }
 
+// ByApproverMembershipID orders the results by the approver_membership_id field.
+func ByApproverMembershipID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldApproverMembershipID, opts...).ToFunc()
+}
+
 // ByStatus orders the results by the status field.
 func ByStatus(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldStatus, opts...).ToFunc()
@@ -135,6 +146,11 @@ func ByComment(opts ...sql.OrderTermOption) OrderOption {
 // ByDelegateToUserID orders the results by the delegate_to_user_id field.
 func ByDelegateToUserID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldDelegateToUserID, opts...).ToFunc()
+}
+
+// ByDelegateToMembershipID orders the results by the delegate_to_membership_id field.
+func ByDelegateToMembershipID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldDelegateToMembershipID, opts...).ToFunc()
 }
 
 // ByTenantID orders the results by the tenant_id field.

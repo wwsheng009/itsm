@@ -303,6 +303,8 @@ export async function getWorkbenchTicket(
 export interface WorkbenchTicketComment {
   id: number;
   userId: number;
+  /** 作者在工单租户内的 membership 身份（C 方案；历史行为可缺省）。 */
+  userMembershipId?: number;
   authorName?: string;
   /** customer | provider（按作者归属租户判定） */
   authorSide: 'customer' | 'provider';

@@ -16,6 +16,7 @@ import (
 	"itsm-backend/ent/processinstance"
 	"itsm-backend/ent/processtask"
 	"itsm-backend/ent/user"
+	"itsm-backend/middleware"
 	"itsm-backend/service/bpmn"
 
 	"go.uber.org/zap"
@@ -773,13 +774,17 @@ func (s *bpmnTaskService) DelegateTask(ctx context.Context, taskID string, newAs
 		return nil
 	}
 	delegatedFrom, _ := strconv.Atoi(originalAssignee)
-	if _, err := s.client.ProcessApprovalDecision.Create().
+	decisionCreate := s.client.ProcessApprovalDecision.Create().
 		SetProcessInstanceID(instance.ID).SetProcessTaskID(task.ID).
 		SetProcessInstanceKey(instance.ProcessInstanceID).SetTaskID(task.TaskID).
 		SetProcessDefinitionKey(instance.ProcessDefinitionKey).SetNodeKey(task.TaskDefinitionKey).
 		SetActorID(actorID).SetAction("delegate").SetDecision("delegated").
 		SetNillableDelegatedFrom(&delegatedFrom).
-		SetTenantID(instance.TenantID).Save(ctx); err != nil {
+		SetTenantID(instance.TenantID)
+	if membership, mErr := middleware.ResolveActiveMembership(ctx, s.client, actorID, instance.TenantID); mErr == nil && membership != nil {
+		decisionCreate = decisionCreate.SetActorMembershipID(membership.ID)
+	}
+	if _, err := decisionCreate.Save(ctx); err != nil {
 		// 审计事实失败不得静默：委派本身已生效，仅记录日志供巡检补偿
 		s.logger.Errorw("记录委派审计决策失败",
 			"task_id", task.TaskID, "process_instance_id", instance.ID, "error", err)
@@ -880,12 +885,16 @@ func (s *bpmnTaskService) AddApproverTask(ctx context.Context, taskID string, ne
 	if ierr != nil {
 		return nil
 	}
-	if _, err := s.client.ProcessApprovalDecision.Create().
+	decisionCreate := s.client.ProcessApprovalDecision.Create().
 		SetProcessInstanceID(instance.ID).SetProcessTaskID(newTask.ID).
 		SetProcessInstanceKey(instance.ProcessInstanceID).SetTaskID(addedTaskID).
 		SetProcessDefinitionKey(instance.ProcessDefinitionKey).SetNodeKey(task.TaskDefinitionKey).
 		SetActorID(actorID).SetAction("add_approver").SetDecision("added").
-		SetTenantID(instance.TenantID).Save(ctx); err != nil {
+		SetTenantID(instance.TenantID)
+	if membership, mErr := middleware.ResolveActiveMembership(ctx, s.client, actorID, instance.TenantID); mErr == nil && membership != nil {
+		decisionCreate = decisionCreate.SetActorMembershipID(membership.ID)
+	}
+	if _, err := decisionCreate.Save(ctx); err != nil {
 		// 审计事实失败不得静默：加签本身已生效，仅记录日志供巡检补偿
 		s.logger.Errorw("记录加签审计决策失败",
 			"task_id", addedTaskID, "process_instance_id", instance.ID, "error", err)

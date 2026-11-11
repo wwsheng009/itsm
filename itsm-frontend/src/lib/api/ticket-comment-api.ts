@@ -10,6 +10,8 @@ export interface TicketComment {
   id: number;
   ticketId: number;
   userId: number;
+  /** actor 在工单租户内的 membership 身份（C 方案；历史行为可缺省）。 */
+  userMembershipId?: number;
   content: string;
   isInternal: boolean;
   mentions: number[];
