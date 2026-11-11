@@ -28,8 +28,8 @@ import (
 
 	"itsm-backend/common"
 	"itsm-backend/common/tenantctx"
-	"itsm-backend/dto"
 	domainrole "itsm-backend/domain/role"
+	"itsm-backend/dto"
 	"itsm-backend/ent"
 	"itsm-backend/ent/user"
 	"itsm-backend/middleware"
@@ -505,6 +505,12 @@ func mspRecordPathSlug(recordType string) string {
 	}
 }
 
+// provider 调用方在目标客户租户内的写权限已由 recordWriteAllowed（msp_ticket:write）
+// 与租户 active 校验；MSP 角色在客户租户是 tenant-wide data scope，不能再拿
+// 家租户 users.role（如演示账号的 end_user）做 owner/assignee 行级白名单，
+// 否则 UI 会显示不可写、而域服务按 data_scope=all 实际放行。行级 owner/assignee
+// 守卫仅保留给非 MSP 调用方。
+//
 // problemAllowedActions 问题条目动作契约（XF5；与写路径前置校验逐条同口径）：
 // view 恒允许；status 按 客户 active ∩ provider 写门禁 ∩ 非终态 ∩ 行级守卫 计算。
 func problemAllowedActions(actor MSPWorkbenchActor, tenantActive, writeAllowed bool, homeRole string, row mspRecordRow) []dto.WorkbenchAllowedAction {
@@ -519,7 +525,8 @@ func problemAllowedActions(actor MSPWorkbenchActor, tenantActive, writeAllowed b
 	case row.status == "closed":
 		statusAction.ReasonCode = CodeActionNotAllowed
 		statusAction.ReasonText = "问题已关闭，不支持该操作"
-	case !canWriteRecord(actor.UserID, homeRole, row.ownerID, row.assigneeID):
+	case strings.TrimSpace(actor.MSPRole) == "" &&
+		!canWriteRecord(actor.UserID, homeRole, row.ownerID, row.assigneeID):
 		statusAction.ReasonCode = CodeActionNotAllowed
 		statusAction.ReasonText = "仅创建人、受理人或管理员可执行状态流转"
 	default:
@@ -549,7 +556,8 @@ func changeAllowedActions(actor MSPWorkbenchActor, tenantActive, writeAllowed bo
 	case mspChangeTerminalStatuses[row.status]:
 		statusAction.ReasonCode = CodeActionNotAllowed
 		statusAction.ReasonText = "变更已处于终态，不支持该操作"
-	case !canWriteRecord(actor.UserID, homeRole, row.ownerID, row.assigneeID):
+	case strings.TrimSpace(actor.MSPRole) == "" &&
+		!canWriteRecord(actor.UserID, homeRole, row.ownerID, row.assigneeID):
 		statusAction.ReasonCode = CodeActionNotAllowed
 		statusAction.ReasonText = "仅创建人、受理人或管理员可执行状态流转"
 	default:
@@ -572,7 +580,7 @@ func requestAllowedActions(actor MSPWorkbenchActor, tenantActive, writeAllowed b
 	case !mspRequestFulfillmentFrom[row.status]:
 		statusAction.ReasonCode = CodeActionNotAllowed
 		statusAction.ReasonText = "当前状态不支持履约推进（审批类动作保留客户治理面）"
-	case !canOperateServiceRequest(homeRole):
+	case strings.TrimSpace(actor.MSPRole) == "" && !canOperateServiceRequest(homeRole):
 		statusAction.ReasonCode = CodeActionNotAllowed
 		statusAction.ReasonText = "仅服务操作人（admin/agent/technician）可推进履约状态"
 	default:

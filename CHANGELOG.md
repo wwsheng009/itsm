@@ -107,6 +107,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `44 passed`（0 预期失败）；238 部署版本 `1.8.0-dev.af3cba9c`。证据：
   [2026-11-10-msp-demo-e2e-validation.md](docs/review/2026-11-10-msp-demo-e2e-validation.md)。
 
+- **硬编码角色白名单审计与权限旁路修复（后端 + 前端，2026-11-11）** — 对授权路径做专项排查并修复：
+  ① `Header` AI 入口移除 `hasPermission('ai:read') || isAdmin()` 的 admin 旁路，改为仅权限码门控，
+  新增回归测试；② AI autopilot 通知收件人过滤将不是 `users.role` 枚举的 `tenant_admin`
+  改为合法 `admin/super_admin/sysadmin`；③ 工单数据范围、MSP 记录写权限删除重复角色白名单，
+  统一委托 `datascope.IsDataScopeAllRole` / `domain/role.IsAdminLike`；④ 穷尽复核补漏：AI 健康
+  告警与审批人 fallback 清除无效 `tenant_admin`/`workflow_admin` 用户角色码，MSP 工作台
+  `allowedActions` 对 provider 不再叠加家租户角色行级白名单（写门禁仍 fail-closed）。复核保留内部备注 staff
+  限制（明确租户内隔离语义）；`ticket_workflow_service.go` CC 管理角色白名单、旧前端
+  `RoleGuard`/`isAdmin()` 旁路与平台租户页 `super_admin` 条件登记为待产品决策风险。
+  验证：`npx tsc --noEmit`、改动文件 ESLint、Header Jest 4/4、`go test ./service -count=1`
+  全包通过、后端 Docker 编译、238 六容器 healthy、E2E 分组累计 44/44；部署见审计报告与
+  部署证据。上一轮部署版本 `1.8.0-dev.a0d4240a`。证据：
+  [角色白名单审计](docs/review/2026-11-11-role-whitelist-audit.md)。
+
 - **菜单树层级修复**：修复 demo/存量租户菜单同步及新租户菜单克隆丢失 `parent_id` 的问题。按菜单 `path` 重映射目标租户父节点，保留租户自定义名称、排序和可见性；重复初始化可修复历史扁平菜单且不重复插入。
 
 - **AI 助手执行稳定性与写操作歧义治理（后端 + 前端，2026-10-20）** — 预算超限时前端不再只显示错误而没有任何答案：`error` 帧回带 `errorCode`，前端在 `budget_exceeded` 时把已完成的工具摘要与“拆小请求 / 补明确编号”的降级建议写入消息正文（`stream-fallback.ts`），并以 warning 提示替代纯错误；错误字典动作由“知道了”改为“拆分后重试”。10 次调用中 6 次重复 `help_search`：工具循环对相同参数的只读调用复用同一轮结果（写工具永不缓存），并补 `TestRAG_ToolLoopReusesIdenticalReadOnlyResult`。写操作前未澄清“第二张单”：系统提示词新增消歧规则，执行点增加确定性闸门（序数/近指代/随便/任意命中时返回 `clarification_required`，不创建审批单；用户已确认或给出稳定编号时不拦截）。同时修复 Enter 提示与实现不一致（残留 `isComposing` 但 keyCode=13 时仍发送）。验证：前端 AI 相关 62 套件 441 用例、后端 `handlers/ai` / `service` / `helpindex` / `assistantcontext` 全绿，`tsc --noEmit` 与改动文件 `eslint` 无输出。

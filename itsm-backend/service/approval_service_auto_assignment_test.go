@@ -7,6 +7,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap/zaptest"
+
+	"itsm-backend/ent/enttest"
+	"itsm-backend/ent/user"
+
+	_ "github.com/mattn/go-sqlite3"
 )
 
 // TestResolveApprover_DynamicRoleUsesRequestContext 验证 i2 P0 修复：当 assigneeType
@@ -96,6 +101,32 @@ func TestResolveTenantAdminApprover_RequiresClientAndTenant(t *testing.T) {
 		_, _, err := service.resolveTenantAdminApprover(context.Background(), 0)
 		require.Error(t, err)
 	})
+}
+
+// TestResolveTenantAdminApprover_UsesValidUserRoleEnum 锁定 fallback 查询只能使用
+// users.role 合法枚举；历史 tenant_admin（MSP 角色）与 workflow_admin（不存在）
+// 不得再次混入用户角色查询。
+func TestResolveTenantAdminApprover_UsesValidUserRoleEnum(t *testing.T) {
+	ctx := context.Background()
+	client := enttest.Open(t, "sqlite3", "file:approval-admin-fallback?mode=memory&cache=shared&_fk=1")
+	t.Cleanup(func() { _ = client.Close() })
+
+	tenant := client.Tenant.Create().SetCode("fallback").SetName("fallback").SaveX(ctx)
+	admin := client.User.Create().
+		SetUsername("fallback-admin").
+		SetEmail("fallback-admin@example.com").
+		SetName("fallback-admin").
+		SetPasswordHash("hash").
+		SetTenantID(tenant.ID).
+		SetRole(user.RoleAdmin).
+		SetActive(true).
+		SaveX(ctx)
+
+	service := &ApprovalService{client: client, logger: zaptest.NewLogger(t).Sugar()}
+	id, name, err := service.resolveTenantAdminApprover(ctx, tenant.ID)
+	require.NoError(t, err)
+	assert.Equal(t, admin.ID, id)
+	assert.Equal(t, admin.Name, name)
 }
 
 // TestEnrichApproverContext_NilSafe 验证 enrichApproverContext 对 nil req 不会 panic，

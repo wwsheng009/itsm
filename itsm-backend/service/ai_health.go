@@ -424,7 +424,7 @@ func buildAlerts(results []SLOResult) []AIHealthAlert {
 func (s *AIHealthService) alertRecipients(ctx context.Context, tenantID int) ([]int, error) {
 	admins, err := s.client.User.Query().
 		Where(user.TenantID(tenantID), user.ActiveEQ(true),
-			user.RoleIn("admin", "super_admin", "tenant_admin")).
+			user.RoleIn(user.RoleAdmin, user.RoleSuperAdmin, user.RoleSysadmin)).
 		Limit(aiHealthMaxRecipients).
 		All(ctx)
 	if err != nil {

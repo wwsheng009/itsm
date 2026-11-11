@@ -252,3 +252,29 @@ func TestAIHealthService_DispatchFallsBackToActiveUsers(t *testing.T) {
 		assert.Equal(t, "ai_health", row.Type)
 	}
 }
+
+// TestAIHealthService_AlertRecipientsUseValidUserRoleEnum 锁定告警收件人只查
+// users.role 合法枚举：sysadmin 属于管理类；无效的 tenant_admin 不得混入查询。
+func TestAIHealthService_AlertRecipientsUseValidUserRoleEnum(t *testing.T) {
+	ctx := context.Background()
+	client := enttest.Open(t, "sqlite3", "file:ai-health-recipients?mode=memory&cache=shared&_fk=1")
+	t.Cleanup(func() { _ = client.Close() })
+
+	tenant := client.Tenant.Create().SetCode("health-recipients").SetName("health-recipients").SaveX(ctx)
+	mkUser := func(name string, role user.Role) int {
+		return client.User.Create().
+			SetUsername(name).SetEmail(name + "@example.com").SetName(name).
+			SetPasswordHash("hash").SetTenantID(tenant.ID).SetRole(role).
+			SetActive(true).SaveX(ctx).ID
+	}
+	adminID := mkUser("recipients-admin", user.RoleAdmin)
+	superID := mkUser("recipients-super", user.RoleSuperAdmin)
+	sysID := mkUser("recipients-sys", user.RoleSysadmin)
+	mkUser("recipients-agent", user.RoleAgent)
+	mkUser("recipients-end-user", user.RoleEndUser)
+
+	svc := NewAIHealthService(client, bot.NewMetricsService(client), nil)
+	ids, err := svc.alertRecipients(ctx, tenant.ID)
+	require.NoError(t, err)
+	assert.ElementsMatch(t, []int{adminID, superID, sysID}, ids)
+}

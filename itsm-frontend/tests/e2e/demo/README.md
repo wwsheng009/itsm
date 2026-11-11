@@ -9,15 +9,20 @@
 cd itsm-frontend
 
 # 默认跑全部 demo 用例（Chrome 系统通道；1 worker 规避登录限流）
+# 注意：Windows 本机内存不足时，Chrome 可能因 44 条上下文累积 OOM；
+# 此时按下方 spec 分组独立进程执行，结果应累计 44/44。
 PLAYWRIGHT_BASE_URL=http://172.18.3.238:8089 \
 PLAYWRIGHT_DEMO_CHANNEL=chrome \
 npx playwright test -c playwright.demo.config.ts --workers=1
 
 # 分组
+npx playwright test -c playwright.demo.config.ts tests/e2e/demo/00-smoke.spec.ts --workers=1
 npx playwright test -c playwright.demo.config.ts tests/e2e/demo/01-permissions.spec.ts --workers=1
 npx playwright test -c playwright.demo.config.ts tests/e2e/demo/02-associations.spec.ts --workers=1
 npx playwright test -c playwright.demo.config.ts tests/e2e/demo/03-workflows.spec.ts --workers=1
 npx playwright test -c playwright.demo.config.ts tests/e2e/demo/04-ui-ux.spec.ts --workers=1
+npx playwright test -c playwright.demo.config.ts tests/e2e/demo/05-multi-tenant-business.spec.ts --workers=1
+npx playwright test -c playwright.demo.config.ts tests/e2e/demo/06-attachment-access.spec.ts --workers=1
 ```
 
 - 本机需有 Chrome；没有时可用 `PLAYWRIGHT_DEMO_CHANNEL=chromium` 并安装 Playwright Chromium。
@@ -49,7 +54,7 @@ DEMO_ADMIN_PASSWORD='...' DEMO_USER_PASSWORD='...' ...
 - 租户管理员自 `1.8.0-dev.af3cba9c` 起具备 `service_request:delete`，服务请求通过删除接口清理。
 - **不要**删除或改写 demo 种子数据（`[DEMO]` 前缀记录）。
 
-## 4. 已修复项（238 `1.8.0-dev.af3cba9c` 已验证）
+## 4. 已修复项（238 `1.8.0-dev.a0d4240a` 已验证）
 
 | 编号 | 现象 | 处理 |
 |---|---|---|

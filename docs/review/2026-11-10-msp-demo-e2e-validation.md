@@ -1,8 +1,8 @@
 # MSP Demo 多轮多用户 E2E 验证与缺陷修复报告（2026-11-10）
 
-**Status: current** — 本报告基于 2026-11-10 的 E2E 验证与 2026-11-11 的三轮 238 全量重部署复核。
+**Status: current** — 本报告基于 2026-11-10 的 E2E 验证与 2026-11-11 的多轮 238 全量重部署复核。
 
-> **环境**：`itsm-demo`（`saas_msp`），当前部署版本 `1.8.0-dev.af3cba9c`
+> **环境**：`itsm-demo`（`saas_msp`），当前部署版本 `1.8.0-dev.a0d4240a`
 > **范围**：多用户、多角色、多租户、多单据关联、权限、前端 UI/UX、文档一致性
 > **套件**：`itsm-frontend/tests/e2e/demo/`；配置 `itsm-frontend/playwright.demo.config.ts`
 > **证据**：[`evidence/2026-11-10-msp-demo-e2e/run-summary.md`](./evidence/2026-11-10-msp-demo-e2e/run-summary.md)
@@ -311,22 +311,24 @@ Running 44 tests using 1 worker
 - Windows 测试库清理：服务请求测试统一 `t.Cleanup(client.Close)`，修复 SQLite 文件句柄导致的 TempDir 假红；
   BPMN 桥接夹具补齐 `taskVariables.taskPurpose=approval`。
 
-> 238 已从当前工作区 HEAD `af3cba9cb` 全量发布 `1.8.0-dev.af3cba9c`；所有回归均为普通用例，全量复跑 44/44 通过。
+> 238 已从当前工作区 HEAD `a0d4240ad` 全量发布 `1.8.0-dev.a0d4240a`；所有回归均为普通用例，按 spec 分组复跑累计 44/44 通过。
 
 ### 4.4 238 部署与运行态验证
 
 | 项 | 结果 |
 |---|---|
-| 部署版本 | `1.8.0-dev.af3cba9c`（Git worktree commit `af3cba9cb`） |
-| 部署入口 | `/home/n9e/itsm/repo-e2e-6745c998`（branch `deploy/full-af3cba9c`，从当前工作区 HEAD 全量构建） |
+| 部署版本 | `1.8.0-dev.a0d4240a`（Git worktree commit `a0d4240ad`） |
+| 部署入口 | `/home/n9e/itsm/repo-e2e-6745c998`（branch `deploy/full-a0d4240a`，从当前工作区 HEAD 全量构建） |
 | Init/migration | `itsm-init-demo` exit=0；`20261111_service_request_delete_grants` 已应用 |
 | 容器 | backend/worker/frontend/nginx/redis/ai-service 6/6 healthy |
-| 健康 | `/healthz`、`/readyz` ready；`/api/v1/version` 返回 af3cba9c |
+| 健康 | `/healthz`、`/readyz` ready；`/api/v1/version` 返回 a0d4240a |
 | D10 授权 | `admin` / `provider_tenant_admin` 的 `service_request:delete` 已在存量租户落库 |
 | 附件 smoke | 真实评论附件上传/预览/SHA256/删除通过 |
 | 全量 E2E | `44 passed`，0 expected failure |
 
-> 部署前备份：`/home/n9e/itsm/repo-e2e-6745c998/backups/demo-release-1.8.0-dev.af3cba9c-20261111T071224Z`。
+> 部署前备份：`/home/n9e/itsm/repo-e2e-6745c998/backups/demo-release-1.8.0-dev.a0d4240a-20261111T080506Z`。
+
+> 本轮全量发布包含硬编码角色白名单审计修复（Header AI `isAdmin()` 旁路、AI 通知无效角色码、3 处角色判定漂移）；详见 [`2026-11-11-role-whitelist-audit.md`](./2026-11-11-role-whitelist-audit.md)。
 
 ---
 
@@ -334,7 +336,7 @@ Running 44 tests using 1 worker
 
 | 文件 | 修正 |
 |---|---|
-| `docs/multi-tenant/demo-environment.md` | 版本号更新为 `1.8.0-dev.af3cba9c`；工作台 34 `[DEMO]` + 31 残留 = 65；SLA `slaDueSoon=0`；review-test 说明；E2E 差异表更新为已发布验证 |
+| `docs/multi-tenant/demo-environment.md` | 版本号更新为 `1.8.0-dev.a0d4240a`；工作台 34 `[DEMO]` + 31 残留 = 65；SLA `slaDueSoon=0`；review-test 说明；E2E 差异表更新为已发布验证 |
 | `itsm-frontend/tests/e2e/BEST_PRACTICES.md` | 标明 `admin/admin123` 等为历史本地 seeder，不适用于 238；链接 demo README |
 | `docs/multi-tenant/scenarios/README.md` / `00-environment-and-accounts.md` | 增加 238 demo 账号矩阵与本地开发账号的区分提示 |
 | `itsm-frontend/tests/e2e/demo/README.md` | 新增 238 E2E 运行手册、账号、清理与已修复项清单 |
@@ -349,7 +351,9 @@ Running 44 tests using 1 worker
 - 配置：`itsm-frontend/playwright.demo.config.ts`
 - 运行手册：`itsm-frontend/tests/e2e/demo/README.md`
 - 本轮摘要与遗留：`docs/review/evidence/2026-11-10-msp-demo-e2e/run-summary.md`
-- 2026-11-11 当前全量部署证据：`docs/review/evidence/2026-11-11-demo-full-deploy-af3cba9c.md`
+- 2026-11-11 当前全量部署证据：`docs/review/evidence/2026-11-11-demo-full-deploy-a0d4240a.md`
+- 角色白名单审计：`docs/review/2026-11-11-role-whitelist-audit.md`
+- 上一轮全量部署证据（historical）：`docs/review/evidence/2026-11-11-demo-full-deploy-af3cba9c.md`
 - 上一轮全量部署证据（historical）：`docs/review/evidence/2026-11-11-demo-full-deploy-5699b5a8.md`
 - 上一轮全量部署证据（historical）：`docs/review/evidence/2026-11-11-demo-full-deploy-44faf311.md`
 - Playwright HTML：`.dev/playwright-demo-report/`（本地）
@@ -357,8 +361,8 @@ Running 44 tests using 1 worker
 
 **发布后复核已完成**：
 
-1. 238 已发布 `1.8.0-dev.af3cba9c`，6/6 容器 healthy，readyz ready；
+1. 238 已发布 `1.8.0-dev.a0d4240a`，6/6 容器 healthy，readyz ready；
 2. 原 12 个预期失败回归已改为普通用例，`/tickets/7` 已并回核心页面 smoke；
-3. 全量 demo 套件 `44 passed`，0 expected failure；
+3. demo 套件按 spec 分组累计 `44 passed`，0 expected failure；
 4. 版本/工作台数量/SLA/review-test 事实已回填 `demo-environment.md`；
 5. D10 已按“授予租户管理员删除”决策落库并完成 E2E。

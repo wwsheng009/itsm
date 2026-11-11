@@ -1074,17 +1074,18 @@ func (s *ApprovalService) enrichApproverContext(ctx context.Context, req *Approv
 	}
 }
 
-// resolveTenantAdminApprover 寻找租户内第一位 active 的 super_admin/管理员，
-// 用于动态审批人解析失败时的最后迫降；找不到则返回 error，由调用方记 audit。
+// resolveTenantAdminApprover 寻找租户内第一位 active 的管理员，用于动态审批人
+// 解析失败时的最后迫降；找不到则返回 error，由调用方记 audit。
+// 角色词表必须使用 users.role 合法枚举（domain/role 单一源）：
+// tenant_admin 是 MSP 角色、workflow_admin 不是用户角色，均不得出现在此查询中。
 func (s *ApprovalService) resolveTenantAdminApprover(ctx context.Context, tenantID int) (int, string, error) {
 	if s == nil || s.client == nil || tenantID <= 0 {
 		return 0, "", fmt.Errorf("approver service not initialized")
 	}
 	adminRoles := []user.Role{
-		user.Role("super_admin"),
-		user.Role("tenant_admin"),
-		user.Role("admin"),
-		user.Role("workflow_admin"),
+		user.RoleSuperAdmin,
+		user.RoleAdmin,
+		user.RoleSysadmin,
 	}
 	for _, role := range adminRoles {
 		admin, err := s.client.User.Query().

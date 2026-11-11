@@ -238,6 +238,7 @@ func TestCanWriteRecord_ParityWithDataScope(t *testing.T) {
 // TestMSPProblemAllowedActions_Matrix 动作契约矩阵（与写路径前置校验同口径）。
 func TestMSPProblemAllowedActions_Matrix(t *testing.T) {
 	actor := MSPWorkbenchActor{UserID: 7}
+	providerActor := MSPWorkbenchActor{UserID: 7, MSPRole: "provider_admin"}
 	row := mspRecordRow{status: "investigating", ownerID: 7, assigneeID: 0}
 
 	assert.True(t, problemAllowedActions(actor, true, true, "agent", row)[1].Allowed, "owner 可写")
@@ -246,6 +247,10 @@ func TestMSPProblemAllowedActions_Matrix(t *testing.T) {
 	assert.False(t, problemAllowedActions(actor, true, true, "agent", mspRecordRow{status: "closed", ownerID: 7})[1].Allowed, "终态禁写")
 	assert.False(t, problemAllowedActions(actor, true, true, "agent", mspRecordRow{status: "open", ownerID: 1, assigneeID: 2})[1].Allowed, "非 owner/assignee 禁写")
 	assert.True(t, problemAllowedActions(actor, true, true, "admin", mspRecordRow{status: "open", ownerID: 1})[1].Allowed, "管理员可写")
+	assert.True(t, problemAllowedActions(providerActor, true, true, "end_user", mspRecordRow{status: "open", ownerID: 1, assigneeID: 2})[1].Allowed,
+		"provider 写门禁已通过时不得再按家租户 users.role 做行级白名单")
+	assert.False(t, problemAllowedActions(providerActor, true, false, "end_user", mspRecordRow{status: "open", ownerID: 1, assigneeID: 2})[1].Allowed,
+		"provider 写门禁未通过仍须拒绝")
 	assert.False(t, problemAllowedActions(actor, true, false, "agent", row)[1].Allowed)
 }
 
@@ -594,6 +599,7 @@ func TestMSPRequestWrite_GuardChainFailClosed(t *testing.T) {
 // TestMSPChangeAllowedActions_Matrix 变更动作契约矩阵（与写路径前置校验同口径）。
 func TestMSPChangeAllowedActions_Matrix(t *testing.T) {
 	actor := MSPWorkbenchActor{UserID: 7}
+	providerActor := MSPWorkbenchActor{UserID: 7, MSPRole: "provider_admin"}
 	row := mspRecordRow{status: "approved", ownerID: 7}
 
 	assert.True(t, changeAllowedActions(actor, true, true, "agent", row)[1].Allowed, "owner 可写")
@@ -603,11 +609,14 @@ func TestMSPChangeAllowedActions_Matrix(t *testing.T) {
 	assert.False(t, changeAllowedActions(actor, true, true, "agent", mspRecordRow{status: "rejected", ownerID: 7})[1].Allowed, "驳回终态禁写")
 	assert.False(t, changeAllowedActions(actor, true, true, "agent", mspRecordRow{status: "approved", ownerID: 1, assigneeID: 2})[1].Allowed, "非 owner/assignee 禁写")
 	assert.True(t, changeAllowedActions(actor, true, true, "admin", mspRecordRow{status: "approved", ownerID: 1})[1].Allowed, "管理员可写")
+	assert.True(t, changeAllowedActions(providerActor, true, true, "end_user", mspRecordRow{status: "approved", ownerID: 1, assigneeID: 2})[1].Allowed,
+		"provider 写门禁已通过时不得再按家租户 users.role 做行级白名单")
 }
 
 // TestMSPRequestAllowedActions_Matrix 服务请求动作契约矩阵（与写路径前置校验同口径）。
 func TestMSPRequestAllowedActions_Matrix(t *testing.T) {
 	actor := MSPWorkbenchActor{UserID: 7}
+	providerActor := MSPWorkbenchActor{UserID: 7, MSPRole: "provider_admin"}
 	row := mspRecordRow{status: "security_approved"}
 
 	assert.True(t, requestAllowedActions(actor, true, true, "agent", row)[1].Allowed, "履约窗口内 + 操作人")
@@ -616,6 +625,8 @@ func TestMSPRequestAllowedActions_Matrix(t *testing.T) {
 	assert.False(t, requestAllowedActions(actor, true, true, "agent", mspRecordRow{status: "approved"})[1].Allowed, "履约窗口外（审批中）")
 	assert.False(t, requestAllowedActions(actor, true, true, "end_user", row)[1].Allowed, "非操作人角色")
 	assert.True(t, requestAllowedActions(actor, true, true, "technician", row)[1].Allowed)
+	assert.True(t, requestAllowedActions(providerActor, true, true, "end_user", row)[1].Allowed,
+		"provider 写门禁已通过时不得再按家租户 users.role 拒绝履约动作")
 }
 
 // TestCanOperateServiceRequest_Semantics 锁定与 handlers/service_request.isServiceRequestOperator 同口径
