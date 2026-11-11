@@ -24,6 +24,7 @@
     "test:e2e": "playwright test",
     "test:e2e:roles": "playwright test tests/e2e/roles",
     "test:e2e:flows": "playwright test tests/e2e/flows",
+    "test:e2e:demo": "playwright test -c playwright.demo.config.ts --workers=1",
     "test:e2e:business": "playwright test --project=business-flows",
     "test:smoke": "playwright test tests/e2e/business-flows/smoke-test.spec.ts --project=chromium",
     "test:ux": "jest src/pages/__tests__/ux --coverage=false --passWithNoTests",
