@@ -54,7 +54,7 @@ DEMO_ADMIN_PASSWORD='...' DEMO_USER_PASSWORD='...' ...
 - 租户管理员自 `1.8.0-dev.af3cba9c` 起具备 `service_request:delete`，服务请求通过删除接口清理。
 - **不要**删除或改写 demo 种子数据（`[DEMO]` 前缀记录）。
 
-## 4. 已修复项（238 `1.8.0-dev.e1599ffd` 已验证）
+## 4. 已修复项（238 `1.8.0-dev.bf131540` 已验证）
 
 | 编号 | 现象 | 处理 |
 |---|---|---|

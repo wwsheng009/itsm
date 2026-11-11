@@ -123,7 +123,7 @@ tickets.assignee_id
 - 前端 provider 深度态建单页显示“客户申请人”选择器；
 - 新增单测与 238 E2E。
 
-### Phase 3：其他业务引用（已本地实现，待 238 发布验证）
+### Phase 3：其他业务引用（已发布验证）
 
 按风险顺序迁移：
 
@@ -135,7 +135,7 @@ tickets.assignee_id
 
 迁移采用双写 + 读回退 + 一致性巡检，避免一次性切换。
 
-本轮 Phase 3 已落地的增量（2026-11-11）：
+本轮 Phase 3 已落地的增量（2026-11-11，238 `1.8.0-dev.bf131540` 验证）：
 
 | 表 | membership 引用 | 写路径 |
 |---|---|---|
@@ -214,12 +214,13 @@ tickets.assignee_id
 
 ## 9. 本轮实现状态
 
-本轮已落地 Phase 1 + Phase 2 工单主链路，Phase 3/4 保留为后续迁移计划。
+本轮已落地 Phase 1 + Phase 2 工单主链路与 Phase 3 工单域 actor/recipient 引用；
+Phase 4 与其他业务域迁移保留为后续计划。
 
 ```text
-runtime_commit=e1599ffdb5fdf56b44aa783261fe6535bf5714f2
-version=1.8.0-dev.e1599ffd
-deploy_branch=deploy/full-e1599ffd
+runtime_commit=bf13154089aadda6ecfdf5e163840c4ff7c57329
+version=1.8.0-dev.bf131540
+deploy_branch=deploy/full-bf131540
 e2e=45/45
 backend=go test ./service ./handlers/ticket ./handlers/auth ./handlers/common ./middleware ./dto ./repository/ticket ./migration
 frontend=npx tsc --noEmit + eslint
@@ -232,19 +233,24 @@ frontend=npx tsc --noEmit + eslint
 - `ad8788051` fix(change): return 404 when deleting missing change
 - `e1599ffdb` fix(ticket): persist assignee membership on assignment
 - `ae0709619` feat(multi-tenant): add membership refs for ticket actors
+- `bf1315408` fix(audit): attribute direct service audits to membership
 
 发布与运行态证据：
-[2026-11-11-demo-full-deploy-e1599ffd.md](../../review/evidence/2026-11-11-demo-full-deploy-e1599ffd.md)。
+[2026-11-11-demo-full-deploy-bf131540.md](../../review/evidence/2026-11-11-demo-full-deploy-bf131540.md)。
 
 Phase 3 剩余（未完成）：
 
 - 问题/变更/服务请求创建人、处理人的 membership 引用迁移；
 - 复合外键 `VALIDATE CONSTRAINT` 与全量 RLS/cross-tenant 测试矩阵；
-- 前端对评论/附件/审批/通知 membership 身份的显式展示（当前仅下发字段）。
+- 前端对评论/附件/审批/通知 membership 身份的显式展示（当前仅下发字段）；
+- 平台管理员跨租户审计的 membership 归属口径（当前保留 NULL + `target_tenant_id`）。
 
-Phase 3 本轮验证（本地，尚未发布到 238）：
+Phase 3 本轮验证（238）：
 
 - `go test ./service -count=1` 全包通过（含评论/附件/CC/通知/BPMN 决策 membership 断言）；
-- `go test ./middleware ./dto ./service/bpmn ./handlers/common ./handlers/auth ./handlers/ticket_comment ./handlers/notification ./handlers/approval ./handlers/bpmn` 通过；
+- `go test ./middleware ./dto ./service/bpmn ./handlers/common ./handlers/auth` 通过；
+- `go test` 定向编译 `handlers/ticket_comment/notification/approval/bpmn` 通过；
 - `npx tsc --noEmit`、改动文件 ESLint 通过；
-- 新增迁移与 `post_schema_constraints.sql` 已通过 PostgreSQL AST 语法解析（pglast）。
+- 新增迁移与 `post_schema_constraints.sql` 通过 PostgreSQL AST 语法解析（pglast）；
+- 238 部署 `1.8.0-dev.bf131540`，6/6 healthy、迁移台账已应用、15 个复合外键存在、
+  租户错配 0；demo E2E **45/45**（含评论/CC/附件 membership 运行态断言）。

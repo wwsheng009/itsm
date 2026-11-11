@@ -1,6 +1,7 @@
 # 238 Demo 全量部署证据（2026-11-11 · 1.8.0-dev.e1599ffd）
 
-> **Status: current**
+> **Status: historical** — 已被 `1.8.0-dev.bf131540` 取代，见
+> [2026-11-11-demo-full-deploy-bf131540.md](./2026-11-11-demo-full-deploy-bf131540.md)。
 > **环境**：`http://172.18.3.238:8089`（`itsm-demo`，`saas_msp`）
 > **部署来源**：当前工作区 HEAD `e1599ffdb5fdf56b44aa783261fe6535bf5714f2`
 > **部署 worktree**：`/home/n9e/itsm/repo-e2e-6745c998`，branch `deploy/full-e1599ffd`

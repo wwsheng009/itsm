@@ -1,10 +1,10 @@
 # C 方案 Phase 3：actor/recipient membership 引用（2026-11-11）
 
-> **Status: current (implemented-local, pending 238 deploy)**
+> **Status: current (deployed & verified on 238)**
 > **范围**：工单评论、附件、CC、审批、通知、审计、BPMN 审批决策
 > **设计基线**：[membership-tenant-identity-c-plan.md](../multi-tenant/plan/membership-tenant-identity-c-plan.md)
-> **上一运行态**：`http://172.18.3.238:8089` / `1.8.0-dev.e1599ffd`
-> **本轮未发布**：需全量构建、迁移、demo E2E 后才能改标 `deployed/verified`
+> **当前运行态**：`http://172.18.3.238:8089` / `1.8.0-dev.bf131540`
+> **部署证据**：[2026-11-11-demo-full-deploy-bf131540.md](./evidence/2026-11-11-demo-full-deploy-bf131540.md)
 
 ## 1. 本轮落地内容
 
@@ -18,7 +18,7 @@
 | `approval_records` | `approver_membership_id` | 审批链委派 |
 | `notifications` | `user_membership_id` | 通用通知 / MSP provider 双投递 / 投递命令 |
 | `ticket_notifications` | `user_membership_id` | 工单通知 / MSP provider 双投递 / 投递命令 |
-| `audit_logs` | `membership_id` 写入 | HTTP 审计中间件、登录/切换/租户拒绝审计 |
+| `audit_logs` | `membership_id` 写入 | HTTP 审计中间件、登录/切换/租户拒绝审计、附件直写审计、MSP 直写审计 |
 | `process_approval_decisions` | `actor_membership_id` | BPMN 人工审批、委派、加签 |
 
 API 响应增量：
@@ -43,7 +43,7 @@ API 响应增量：
   `tickets.*_membership_id` 外键与 Phase 3 新外键都已补入
   `internal/bootstrap/post_schema_constraints.sql`，每次启动重建后自动补齐。
 
-## 3. 验证（本地）
+## 3. 验证
 
 ```text
 go test -p=1 -gcflags=all=-l ./service -count=1                  PASS
@@ -55,6 +55,8 @@ go test -p=1 -gcflags=all=-l ./handlers/ticket_comment \
 npx tsc --noEmit                                                 PASS
 npx eslint <changed frontend files>                              PASS
 pglast parse(migration + post_schema_constraints.sql)            PASS
+238 全量部署 + 迁移 + 数据巡检                                  PASS
+238 demo E2E 00–06                                             45/45
 ```
 
 新增测试：
@@ -65,15 +67,32 @@ pglast parse(migration + post_schema_constraints.sql)            PASS
 - `service/notification_service_test.go`（收件人 membership 断言）
 - `service/bpmn_process_engine_ext_test.go`（BPMN 决策 actor membership 断言）
 - `middleware/audit_test.go`（审计行 membership 断言）
+- `tests/e2e/demo/03-workflows.spec.ts`（评论、CC 记录、provider 回复 membership 运行态断言）
+- `tests/e2e/demo/06-attachment-access.spec.ts`（上传响应 membership 运行态断言）
 
 说明：本机 Go 编译仍受内存限制，使用 `-gcflags=all=-l` 并单包串行执行；这是测试运行器
 资源约束，不是产品失败。
 
-## 4. 剩余与发布门槛
+## 4. 238 发布结果
 
-1. 238 全量构建与发布新 tag；确认 `itsm-init-demo` 执行
-   `20261111_membership_actor_references` 且六容器 healthy。
-2. 运行数据巡检：各新列 NULL 率、`(membership_id, tenant_id)` 错配数、复合外键是否已建。
-3. 复跑 45 条 demo E2E；补充评论/附件/CC/审批/通知/审计 membership 的运行态断言。
-4. 视数据质量执行 `VALIDATE CONSTRAINT`。
-5. 后续再迁移问题/变更/服务请求的 actor/assignee 引用与前端显式展示。
+```text
+version=1.8.0-dev.bf131540
+commit=bf13154089aadda6ecfdf5e163840c4ff7c57329
+deployed_at=2026-11-11T16:25:33Z
+containers=6/6 healthy
+readyz=ready
+migration=20261111_membership_actor_references applied
+membership_fks=15（NOT VALID）
+tenant_mismatch=0
+```
+
+运行态新增数据：评论 9/9、附件 2/2、CC 1/1（双方 membership）、工单通知 78/78、
+通知 4/4。审计窗口 224 行中 174 行有 membership；50 行为登录前 /
+切换拒绝 / 平台管理员跨租户（目标租户无 membership），不伪造身份。
+
+## 5. 剩余
+
+1. 问题/变更/服务请求的 actor/assignee 引用迁移；
+2. 视数据质量执行 `VALIDATE CONSTRAINT`；
+3. 前端对评论/附件/审批/通知 membership 身份的显式展示；
+4. 平台管理员跨租户审计的 membership 归属口径（当前保留 NULL + target_tenant 可追溯）。

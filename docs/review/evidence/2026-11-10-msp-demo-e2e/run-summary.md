@@ -5,7 +5,7 @@
 | 项 | 值 |
 |---|---|
 | Base URL | `http://172.18.3.238:8089` |
-| Version | `1.8.0-dev.e1599ffd`（部署 worktree commit `e1599ffdb`） |
+| Version | `1.8.0-dev.bf131540`（部署 worktree commit `bf1315408`） |
 | Deployment mode | `saas_msp` |
 | Browser | Chrome（Playwright `channel: chrome`） |
 | Worker | `1`（规避登录限流） |
@@ -34,14 +34,14 @@ Running 45 tests using 1 worker
 
 ## 发布与部署后验证
 
-238 已从当前工作区 HEAD `e1599ffdb` 全量发布 `1.8.0-dev.e1599ffd`：
+238 已从当前工作区 HEAD `bf1315408` 全量发布 `1.8.0-dev.bf131540`：
 
 - 6 个常驻容器（backend/worker/frontend/nginx/redis/ai-service）healthy；`itsm-init-demo` exit=0。
-- `/api/v1/healthz` ok、`/api/v1/readyz` ready；`/api/v1/version` 返回 `e1599ffd`。
-- 部署 worktree：`/home/n9e/itsm/repo-e2e-6745c998`，branch `deploy/full-e1599ffd`。
-- 备份/回滚证据：`backups/demo-release-1.8.0-dev.e1599ffd-20261111T125504Z`。
-- 镜像：backend `sha256:af1cc2efa5cee2a9f53f29e1170e24c708d123c4dae5f1f37fc0d7a01289a1e6`；frontend `sha256:f22a65fe0675a307ed2f47085eff73e6e6ddad3a8cc242e96a77954b3400fa96`；ai-service `sha256:f99367604826ed7fa1541bfa8868dee1eb7492b4307d4e55f050d35b6a2d3301`。
-- demo E2E 分组累计 `45/45 passed`；此前 `f7dd2974`、`44faf311`、`5699b5a8`、`af3cba9c`、`a0d4240a`、`91eb6e82`、`49a2ad11`、`ad878805` 全量部署均已被本结果取代。
+- `/api/v1/healthz` ok、`/api/v1/readyz` ready；`/api/v1/version` 返回 `bf131540`。
+- 部署 worktree：`/home/n9e/itsm/repo-e2e-6745c998`，branch `deploy/full-bf131540`。
+- 备份/回滚证据：`backups/demo-release-1.8.0-dev.bf131540-20261111T162032Z`。
+- 镜像：backend `sha256:b4e7e3a5a77f9d91d1b7f2d3b91a19898f36ff31e0ba2ff312c9bbb4e1351a4b`；frontend `sha256:dc4b4798c3cdc27c664d4c8a6e42633649e81c895be300591183efecb120aee9`；ai-service `sha256:f99367604826ed7fa1541bfa8868dee1eb7492b4307d4e55f050d35b6a2d3301`。
+- demo E2E 分组累计 `45/45 passed`；此前 `f7dd2974`、`44faf311`、`5699b5a8`、`af3cba9c`、`a0d4240a`、`91eb6e82`、`49a2ad11`、`ad878805`、`e1599ffd` 全量部署均已被本结果取代。
 
 > 发布前曾用本地生产构建 + 238 后端验证前端门控与布局修复；最终验证据以部署后的 238 结果为准。此前 `f7dd2974` 是独立部署分支的裁剪版本，未包含当前分支的 DeepTenantReturn 与完整当前代码；本次已纠正。
 
@@ -101,6 +101,7 @@ Running 45 tests using 1 worker
 
 - 238 已发布本轮修复；E2E 分组累计 45/45 通过，无 expected failure。
 - C 方案 membership 租户内身份：membership 上下文、工单 membership 回填、provider 代客建单、`/auth/me` membership 字段；详见 [`../../../multi-tenant/plan/membership-tenant-identity-c-plan.md`](../../../multi-tenant/plan/membership-tenant-identity-c-plan.md)。
+- C 方案 Phase 3：评论/附件/CC/审批/通知/审计/BPMN 决策 membership 引用；238 迁移台账已应用、15 个复合外键存在、租户错配 0；运行态评论 9/9、附件 2/2、CC 1/1、工单通知 78/78 有 membership；运行态 E2E 含评论/CC/附件 membership 断言，最终 45/45。
 - 工单分配 membership 同步：单张/批量/智能/重新分配均写 `assignee_membership_id`；238 active 有处理人工单 62/62 有 membership，缺失 0。
 - 硬编码角色白名单审计及穷尽复核补漏：Header AI `isAdmin()` 旁路、AI 通知/审批 fallback 无效角色码、MSP 写权限重复白名单、provider `allowedActions` 行级误判；详见 [`../../2026-11-11-role-whitelist-audit.md`](../../2026-11-11-role-whitelist-audit.md)。
 - provider 深度态代客建单已修复：必须显式提交客户 `requesterId`，服务端解析目标租户 membership；

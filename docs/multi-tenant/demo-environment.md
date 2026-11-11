@@ -8,7 +8,7 @@
 |---|---|
 | 演示入口 | `http://172.18.3.238:8089`（独立栈 `itsm-demo`） |
 | 数据库 | `itsm_demo`（复用宿主 `itsm-postgres-prod` 实例，独立库） |
-| 版本 | 以 `.env.demo` 中 `VERSION` 为准（2026-11-11 全量重部署后 `1.8.0-dev.e1599ffd`） |
+| 版本 | 以 `.env.demo` 中 `VERSION` 为准（2026-11-11 全量重部署后 `1.8.0-dev.bf131540`） |
 | 部署模式 | `saas_msp`（MSP 跨租户能力开启） |
 | 容器组 | `itsm-{backend,worker,frontend,nginx,redis,ai-service}-demo`（6 个常驻，均 healthy）+ `itsm-init-demo` 一次性迁移任务 |
 | 部署文件 | `docker-compose.demo.yml`、`nginx/demo/conf.d/default.conf`、`.env.demo.example` |
@@ -110,7 +110,7 @@
 - 角色配套：每租户新增 `itadmin`（it_admin，L2）与 `secadmin`（security_admin，L3）账号，
   可按层级演示审批权限差异。
 
-**2026-11-10 E2E 验证结果（2026-11-11 已从当前工作区 HEAD 全量发布 `1.8.0-dev.e1599ffd`）**
+**2026-11-10 E2E 验证结果（2026-11-11 已从当前工作区 HEAD 全量发布 `1.8.0-dev.bf131540`）**
 
 | 项 | 原 238 现象 | 当前状态 |
 |---|---|---|

@@ -2,7 +2,7 @@
 
 > Status: current
 > 更新：2026-11-11
-> 基线：8089 演示栈（`1.8.0-dev.e1599ffd`，当前工作区 HEAD 全量构建，Schema `20261111_service_request_delete_grants`）。
+> 基线：8089 演示栈（`1.8.0-dev.bf131540`，当前工作区 HEAD 全量构建，Schema `20261111_service_request_delete_grants`）。
 > 目标：把 8088 重建为新的生产/验收栈，或从同一 release tag 新建生产栈。
 > 执行记录：[238 · 8088 重建记录](./238-8088-rebuild-2026-11-09.md)
 
@@ -129,7 +129,7 @@ forward-fix 处理并在发布证据中登记。
 
 1. **备份**：复制 `.env.prod`，并用 `PG_DATABASE=itsm_prod_v2 ./scripts/prod-backup.sh --verify`
    生成可恢复备份（238 上 Docker 需 sudo，可用 `sudo -E env PG_DATABASE=itsm_prod_v2 ...`）。
-2. **版本/入口**：在 `.env.prod` 设置 `VERSION=1.8.0-dev.e1599ffd`（8089 当前基线）
+2. **版本/入口**：在 `.env.prod` 设置 `VERSION=1.8.0-dev.bf131540`（8089 当前基线）
    或正式 release tag；不要使用 `latest`。
    同时设置 `PROD_HTTP_PORT=8088`（当前 8088 入口；避免与宿主 80 端口冲突）。
 3. **配置**：补 `CONFIG_SECRET_KEY`、`LLM_PROVIDER_ENCRYPTION_KEY`、`APP_BASE_URL`、

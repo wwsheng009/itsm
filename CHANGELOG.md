@@ -145,11 +145,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `approval_records.approver_membership_id`、
   `notifications/ticket_notifications.user_membership_id`、
   `process_approval_decisions.actor_membership_id`；HTTP 审计中间件、登录/租户切换/拒绝审计
-  写入 `audit_logs.membership_id`。新增迁移 `20261111_membership_actor_references` 按
+  写入 `audit_logs.membership_id`；附件/MSP 工作台/任务/记录写/模板下发/帮助空间/
+  工单类型等直写审计路径补齐 membership 归因。新增迁移 `20261111_membership_actor_references` 按
   `(user_id, tenant_id)` 回填，复合外键先 `NOT VALID` 并在每次 schema rebuild 后由
   `post_schema_constraints.sql` 重建。验证：`go test ./service -count=1` 全包通过、
   `middleware/dto/service/bpmn/handlers` 定向包通过、`npx tsc --noEmit` 与改动文件 ESLint
-  通过；迁移 SQL 通过 PostgreSQL AST 语法解析。**当前为本地实现，尚未发布 238 验证。**
+  通过；迁移 SQL 通过 PostgreSQL AST 语法解析。238 部署 `1.8.0-dev.bf131540`：
+  6/6 healthy、迁移台账已应用、15 个复合外键存在、租户错配 0；demo E2E **45/45**
+  （含评论/CC/附件 membership 运行态断言）；发布后 45 分钟无 5xx/error/panic。
+  证据：[Phase 3 验证](docs/review/2026-11-11-membership-actor-reference-phase3.md)、
+  [238 部署证据](docs/review/evidence/2026-11-11-demo-full-deploy-bf131540.md)。
 
 - **菜单树层级修复**：修复 demo/存量租户菜单同步及新租户菜单克隆丢失 `parent_id` 的问题。按菜单 `path` 重映射目标租户父节点，保留租户自定义名称、排序和可见性；重复初始化可修复历史扁平菜单且不重复插入。
 
