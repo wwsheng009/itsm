@@ -123,7 +123,7 @@ tickets.assignee_id
 - 前端 provider 深度态建单页显示“客户申请人”选择器；
 - 新增单测与 238 E2E。
 
-### Phase 3：其他业务引用（后续）
+### Phase 3：其他业务引用（已本地实现，待 238 发布验证）
 
 按风险顺序迁移：
 
@@ -134,6 +134,26 @@ tickets.assignee_id
 5. 问题/变更/服务请求创建人、处理人。
 
 迁移采用双写 + 读回退 + 一致性巡检，避免一次性切换。
+
+本轮 Phase 3 已落地的增量（2026-11-11）：
+
+| 表 | membership 引用 | 写路径 |
+|---|---|---|
+| `ticket_comments` | `user_membership_id` | 工单评论创建 |
+| `attachments` / `ticket_attachments` | `uploaded_by_membership_id` | 通用附件上传、旧工单附件上传 |
+| `ticket_ccs` | `user_membership_id` / `added_by_membership_id` | 工单 CC、BPMN CC |
+| `ticket_approvals` | `approver_membership_id` / `delegate_to_membership_id` | 工单审批委派 |
+| `approval_records` | `approver_membership_id` | 审批链委派 |
+| `notifications` / `ticket_notifications` | `user_membership_id` | 通知创建、工单通知、MSP provider 双投递、投递命令 |
+| `audit_logs` | `membership_id` | HTTP 审计中间件、登录/切换/租户拒绝审计 |
+| `process_approval_decisions` | `actor_membership_id` | BPMN 人工审批/委派/加签 |
+
+新增迁移：`20261111_membership_actor_references`（含 `_down`），回填按
+`(user_id, tenant_id) -> user_tenant_memberships`，无匹配行保持 NULL。
+复合外键先以 `NOT VALID` 上线，并同步写入
+`internal/bootstrap/post_schema_constraints.sql`，避免 `ent.Schema.Create` 重建表后丢失。
+当前未做：`VALIDATE CONSTRAINT`、问题/变更/服务请求的同口径迁移、membership 身份的
+前端显式展示与租户级 RLS 全矩阵。
 
 ### Phase 4：约束与清理（后续）
 
@@ -211,10 +231,20 @@ frontend=npx tsc --noEmit + eslint
 - `49a2ad115` fix(ticket): detect provider switch scope from JWT source
 - `ad8788051` fix(change): return 404 when deleting missing change
 - `e1599ffdb` fix(ticket): persist assignee membership on assignment
+- `ae0709619` feat(multi-tenant): add membership refs for ticket actors
 
 发布与运行态证据：
 [2026-11-11-demo-full-deploy-e1599ffd.md](../../review/evidence/2026-11-11-demo-full-deploy-e1599ffd.md)。
 
-本轮未完成、保留到 Phase 3：
+Phase 3 剩余（未完成）：
 
-- 工单评论/附件/审批/CC/通知/审计 actor 的 membership 引用迁移。
+- 问题/变更/服务请求创建人、处理人的 membership 引用迁移；
+- 复合外键 `VALIDATE CONSTRAINT` 与全量 RLS/cross-tenant 测试矩阵；
+- 前端对评论/附件/审批/通知 membership 身份的显式展示（当前仅下发字段）。
+
+Phase 3 本轮验证（本地，尚未发布到 238）：
+
+- `go test ./service -count=1` 全包通过（含评论/附件/CC/通知/BPMN 决策 membership 断言）；
+- `go test ./middleware ./dto ./service/bpmn ./handlers/common ./handlers/auth ./handlers/ticket_comment ./handlers/notification ./handlers/approval ./handlers/bpmn` 通过；
+- `npx tsc --noEmit`、改动文件 ESLint 通过；
+- 新增迁移与 `post_schema_constraints.sql` 已通过 PostgreSQL AST 语法解析（pglast）。

@@ -48,6 +48,7 @@
 | `2026-11-06-upstream-heidsoft-feature-inventory.md` | 只读清单（未合并） | 上游**到底加了什么**：955 新增文件逐项归类（新 handler 域 on_call/cloudsignal/workbench/account、`service/cloud` 29 文件、5 个 `cmd/` 验证命令、46 个新增 SQL 迁移、382 个新回归测试、`itsm-cli/dist` 144 产物入 VCS）；并给出**三处必须先裁决的不兼容**——`users.username` 全局唯一 vs 上游租户内组合唯一（上游依据正是 `AGENTS.md:245`，我们才是偏离基线的一方）、`cab` vs `change_review` 同端点同权限两套表、`feat(role)!` 与 D7/G11 冲突；另列本地独有 9 个 handler 域，防单向结论 |
 | `2026-11-10-msp-demo-e2e-validation.md` | **current** | 238 demo 多轮多用户 E2E（当前 `1.8.0-dev.e1599ffd`：45 passed / 0 预期失败）：权限矩阵、跨单据关联、事件→问题→变更、服务请求审批、MSP 工作台、多租户深度处理、附件角色访问、UI/UX/响应式；D1–D18、角色白名单补漏与 C 方案 membership 身份/分配同步已完成发布验证 |
 | `2026-11-11-role-whitelist-audit.md` | **current** | 硬编码角色白名单专项审计：修复 Header AI `isAdmin()` 旁路、AI 通知/审批 fallback 无效角色码、工单数据范围/MSP 写权限重复白名单、provider allowedActions 行级误判；内部备注限制复核保留；CC 管理、旧前端角色守卫、平台租户页 `super_admin` 条件列为待产品决策 |
+| `2026-11-11-membership-actor-reference-phase3.md` | **current (local)** | C 方案 Phase 3 本地实现：评论/附件/CC/审批/通知/审计/BPMN 决策的 membership 引用、回填迁移、复合外键 post-schema 重建；已通过单测/tsc/eslint/PostgreSQL AST 解析，**待 238 发布与运行态 E2E** |
 | `evidence/2026-11-11-demo-full-deploy-44faf311.md` | historical | 2026-11-11 第一轮全量部署 8089 的证据（`44faf311`，40/40 E2E）；已被后续 `af3cba9c` 取代 |
 | `evidence/2026-11-11-demo-full-deploy-5699b5a8.md` | historical | 2026-11-11 第二轮全量部署 8089 的证据（`5699b5a8`，43/43 E2E）；已被 `af3cba9c` 取代 |
 | `evidence/2026-11-11-demo-full-deploy-af3cba9c.md` | historical | 2026-11-11 第三轮全量部署 8089 的证据（`af3cba9c`）：44/44 E2E、D18 附件访问修复；已被 `a0d4240a` / `91eb6e82` 取代 |
