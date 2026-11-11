@@ -5,7 +5,7 @@
 | 项 | 值 |
 |---|---|
 | Base URL | `http://172.18.3.238:8089` |
-| Version | `1.8.0-dev.44faf311`（部署 worktree commit `44faf3110`） |
+| Version | `1.8.0-dev.5699b5a8`（部署 worktree commit `5699b5a8a`） |
 | Deployment mode | `saas_msp` |
 | Browser | Chrome（Playwright `channel: chrome`） |
 | Worker | `1`（规避登录限流） |
@@ -22,25 +22,25 @@ npx playwright test -c playwright.demo.config.ts tests/e2e/demo --workers=1
 ## 结果
 
 ```text
-Running 40 tests using 1 worker
-40 passed (1.9m)
+Running 43 tests using 1 worker
+43 passed (2.3m)
 ```
 
-> 0 个 expected failure；D1–D15 与多租户跳转返回入口的回归断言均为普通用例。
+> 0 个 expected failure；D1–D17、多租户跳转与多租户业务操作的回归断言均为普通用例。
 
 > 已移除旧的 known-defect 容忍分支：跨租户删除/问题关联不再接受 500，事件转换后必须返回
 > `problemId`，L1/L2/L3 审批必须 200，D10 删除后 GET 必须 404，Dashboard/AI 不再允许 403 白名单。
 
 ## 发布与部署后验证
 
-238 已从当前工作区 HEAD `44faf3110` 全量发布 `1.8.0-dev.44faf311`：
+238 已从当前工作区 HEAD `5699b5a8a` 全量发布 `1.8.0-dev.5699b5a8`：
 
 - 6 个常驻容器（backend/worker/frontend/nginx/redis/ai-service）healthy；`itsm-init-demo` exit=0。
-- `/healthz`、`/readyz` ready；`/api/v1/version` 返回 `44faf311`。
-- 部署 worktree：`/home/n9e/itsm/repo-e2e-6745c998`，branch `deploy/full-44faf311`。
-- 备份/回滚证据：`backups/demo-release-1.8.0-dev.44faf311-20261111T043741Z`。
-- 镜像：backend `sha256:79ff20479cfa588ff758e1745da8758af72971532fb837dd13ffdc48753fe164`；frontend `sha256:53e5b5878b37c57724c7a6d251160d1293e23e53e739b7ee5d140dc30cfac9cf`；ai-service `sha256:f99367604826ed7fa1541bfa8868dee1eb7492b4307d4e55f050d35b6a2d3301`。
-- 全量 demo E2E `40/40 passed`；发布前的 `39/39` 预跑记录已由本结果取代，不再作为当前状态引用。
+- `/healthz`、`/readyz` ready；`/api/v1/version` 返回 `5699b5a8`。
+- 部署 worktree：`/home/n9e/itsm/repo-e2e-6745c998`，branch `deploy/full-5699b5a8`。
+- 备份/回滚证据：`backups/demo-release-1.8.0-dev.5699b5a8-20261111T052801Z`。
+- 镜像：backend `sha256:6e04f25142168a3ca4fa57a86ac8efe23a083e38bf97921435bbc9d3eb362ad6`；frontend `sha256:53e5b5878b37c57724c7a6d251160d1293e23e53e739b7ee5d140dc30cfac9cf`；ai-service `sha256:f99367604826ed7fa1541bfa8868dee1eb7492b4307d4e55f050d35b6a2d3301`。
+- 全量 demo E2E `43/43 passed`；此前 `f7dd2974` 裁剪部署、`44faf311` 全量部署均已被本结果取代。
 
 > 发布前曾用本地生产构建 + 238 后端验证前端门控与布局修复；最终验证据以部署后的 238 全量结果为准。此前 `f7dd2974` 是独立部署分支的裁剪版本，未包含当前分支的 DeepTenantReturn 与完整当前代码；本次已纠正。
 
@@ -53,6 +53,7 @@ Running 40 tests using 1 worker
 | Round 2 | 工单↔工单、问题↔工单/事件/变更、事件→问题、变更↔CMDB、变更关联工单、工单↔CI、发布↔变更 | pass |
 | Round 3 | 事件→问题→变更全生命周期、服务请求 L1/L2/L3、工单协作、MSP 指派/回复/改状态、租户 readiness | pass |
 | Round 4 | 客户核心页面、工单详情 BPMN/i18n、MSP 工作台、readiness 向导、360/768/1440 响应式、服务目录统计、无 ai:read 的工单/变更 AI 门控、发布↔变更 UI、provider→customer→返回工作台 | pass |
+| Round 5 | provider 深度切换三客户处理既有工单、客户作用域评论/改状态、跨租户隔离、MSP 工作台指派/回复、provider 员工分配边界、provider 读取客户问题且医疗不可见 | pass |
 
 ## 发现与处理
 
@@ -74,6 +75,7 @@ Running 40 tests using 1 worker
 | D14 | 发布表单无“关联变更”入口，详情不展示 `changeId` | `04-ui-ux` D14；`ReleaseForm`/`ReleaseDetail` | 已修复并发布：新增 `ChangeSelect`；详情展示变更标题并可跳转；E2E 通过 |
 | D15 | 服务请求软删后 GET 返回 HTTP 200（包体 code=404） | `03-workflows` D10；`handlers/service_request/handler.go` | 已修复并发布：`common.NotFound` 返回 HTTP 404 + 业务码 4004；handler 单测 + E2E 通过 |
 | D16 | provider 进入客户租户后 Header 丢失“返回工作台”入口 | `04-ui-ux` 多租户跳转；`DeepTenantReturn`/`Header` | 已修复并全量发布：返回入口从 `CustomerFilter` 解耦，客户作用域独立渲染；切回 provider 后再导航工作台；E2E 通过 |
+| D17 | 多租户连续建单时 tenant-local 序列撞全局唯一 `ticket_number`，3 次重试后 500 | `repository/ticket`；Round 5 MT-1；后端日志 | 已修复并全量发布：Redis/DB 发号共用 `nextFreeTicketNumber` 全局探针，跳过他租户占用号；单测 + 43/43 E2E 通过 |
 
 ## 数据清理
 
@@ -94,6 +96,7 @@ Running 40 tests using 1 worker
 
 ## 限制
 
-- 238 已发布本轮修复；全量 40/40 通过，无 expected failure。
+- 238 已发布本轮修复；全量 43/43 通过，无 expected failure。
+- 开放缺口：provider 深度切到客户作用域后直接建单仍返回 404「申请人不存在或不可用」；当前主路径为客户建单、provider 处理。修复方向待产品决策（requester 选择器 / 允许 provider requester / 禁用建单）。
 - 本轮不覆盖性能/并发容量、真实 SMTP/邀请投递、云发现、AI 质量评估。
 - 历史评审文档保持 `Status: historical`，未改写；当前事实已回填 `docs/multi-tenant/demo-environment.md` 与新报告。

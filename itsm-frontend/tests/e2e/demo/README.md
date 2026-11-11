@@ -46,10 +46,10 @@ DEMO_ADMIN_PASSWORD='...' DEMO_USER_PASSWORD='...' ...
 
 - 新建数据标题统一 `[E2E-<runId>]`。
 - 工单/变更/问题/事件/服务请求/关联在用例内 `finally` 发起删除；相关资源为软删，API/工作台不可见但审计行保留。
-- 租户管理员自 `1.8.0-dev.44faf311` 起具备 `service_request:delete`，服务请求通过删除接口清理。
+- 租户管理员自 `1.8.0-dev.5699b5a8` 起具备 `service_request:delete`，服务请求通过删除接口清理。
 - **不要**删除或改写 demo 种子数据（`[DEMO]` 前缀记录）。
 
-## 4. 已修复项（238 `1.8.0-dev.44faf311` 已验证）
+## 4. 已修复项（238 `1.8.0-dev.5699b5a8` 已验证）
 
 | 编号 | 现象 | 处理 |
 |---|---|---|
@@ -69,8 +69,12 @@ DEMO_ADMIN_PASSWORD='...' DEMO_USER_PASSWORD='...' ...
 | D14 | 发布表单无法选择变更，详情不展示变更 | 已修复并发布（`ChangeSelect` + 详情跳转）；`04-ui-ux` 通过 |
 | D15 | 服务请求软删后 GET 返回 HTTP 200（包体 code=404） | 已修复并发布（HTTP 404 + 业务码 4004）；`03-workflows` D10 通过 |
 | D16 | provider 进入客户租户后 Header 丢失“返回工作台” | 已修复并全量发布（`DeepTenantReturn` 独立渲染）；`04-ui-ux` 多租户跳转通过 |
+| D17 | 多租户连续建单时租户序列撞全局唯一工单号，重试后 500 | 已修复并全量发布（全局 `nextFreeTicketNumber` 探针）；`05-multi-tenant-business` 通过 |
 
 > 当前套件无预期失败用例；上述回归均为普通断言。
+>
+> **待产品决策**：provider 深度切到客户作用域后直接建单仍返回 404「申请人不存在或不可用」；
+> 当前用例验证的是客户建单、provider 深度处理的主路径。
 
 ## 5. 目录
 
@@ -84,5 +88,6 @@ tests/e2e/demo/
 ├── 01-permissions.spec.ts
 ├── 02-associations.spec.ts
 ├── 03-workflows.spec.ts
-└── 04-ui-ux.spec.ts
+├── 04-ui-ux.spec.ts
+└── 05-multi-tenant-business.spec.ts
 ```
