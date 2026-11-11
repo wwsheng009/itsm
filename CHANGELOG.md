@@ -88,8 +88,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- **MSP demo 多轮 E2E 修复与回归（D1–D17，后端 + 前端，2026-11-11）** — 基于 `172.18.3.238:8089`
-  真实多租户 demo 完成 43 条 Playwright E2E，并从当前工作区 HEAD `5699b5a8a` 全量部署，修复：① 关联/契约——变更 `affectedCis`
+- **MSP demo 多轮 E2E 修复与回归（D1–D18，后端 + 前端，2026-11-11）** — 基于 `172.18.3.238:8089`
+  真实多租户 demo 完成 44 条 Playwright E2E，并从当前工作区 HEAD `af3cba9cb` 全量部署，修复：① 关联/契约——变更 `affectedCis`
   接受 CI 编号、跨租户工单删除返回 404、跨租户问题关联返回 400、事件转换后回填
   `problemId`、发布单创建/更新校验 `changeId/ownerId/departmentId/customerId` 租户归属、
   发布表单/详情补齐关联变更选择与展示；② 权限/流程——BPMN 审批桥接仅完成
@@ -99,10 +99,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ③ UI——768 平板默认收起侧栏，服务目录顶部按真实分类统计，provider 进入客户租户后
   Header 保留独立“返回工作台”入口（`DeepTenantReturn`，先切回 provider 作用域再导航）；
   ④ 多租户发号——Redis/DB 序列共用全局 `nextFreeTicketNumber` 探针，跳过其他租户已占用
-  的全局唯一 `ticket_number`，修复租户序列落后时连续重试后 500。
+  的全局唯一 `ticket_number`，修复租户序列落后时连续重试后 500；⑤ 工单附件——附件列表
+  授权跟随 `ticket:read` + active 用户，修复 `end_user`/`it_admin`/`security_admin`/
+  provider 深度态打开 ticket 74 时 500「获取附件列表失败」，403/404 精确映射。
   回归：`go build ./...`、
   相关 Go 单测、`npx tsc --noEmit`、`npx eslint tests/e2e/demo`、全量 demo E2E
-  `43 passed`（0 预期失败）；238 部署版本 `1.8.0-dev.5699b5a8`。证据：
+  `44 passed`（0 预期失败）；238 部署版本 `1.8.0-dev.af3cba9c`。证据：
   [2026-11-10-msp-demo-e2e-validation.md](docs/review/2026-11-10-msp-demo-e2e-validation.md)。
 
 - **菜单树层级修复**：修复 demo/存量租户菜单同步及新租户菜单克隆丢失 `parent_id` 的问题。按菜单 `path` 重映射目标租户父节点，保留租户自定义名称、排序和可见性；重复初始化可修复历史扁平菜单且不重复插入。

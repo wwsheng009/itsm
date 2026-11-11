@@ -2,11 +2,11 @@
 
 > **状态**：executed-deployed（2026-11-10 完成验证与修复；2026-11-11 从当前工作区 HEAD 全量发布 238 并完成复核）
 > **环境**：`http://172.18.3.238:8089`（`itsm-demo`，部署模式 `saas_msp`）
-> **当前镜像版本**：`1.8.0-dev.5699b5a8`（2026-11-11 第二轮全量重部署后实测）
+> **当前镜像版本**：`1.8.0-dev.af3cba9c`（2026-11-11 第三轮全量重部署后实测）
 > **定位**：以现有 demo 数据为基线，执行多轮、多用户、多场景 E2E；先验证、后修复、再回归；只修改可复现且有证据的缺陷。
 > **关联**：`plan.md`（2026-10-28 的 13 项修复计划）、`docs/review/2026-10-28-*`（历史快照）、`docs/multi-tenant/demo-environment.md`
 >
-> **执行结果**：43 个 demo E2E 用例通过，0 个预期失败；
+> **执行结果**：44 个 demo E2E 用例通过，0 个预期失败；
 > 缺陷与修复见 [`docs/review/2026-11-10-msp-demo-e2e-validation.md`](../../review/2026-11-10-msp-demo-e2e-validation.md)；
 > 原始运行摘要见 [`docs/review/evidence/2026-11-10-msp-demo-e2e/run-summary.md`](../../review/evidence/2026-11-10-msp-demo-e2e/run-summary.md)。
 
@@ -336,4 +336,4 @@ go test ./handlers/change/... ./handlers/problem/... ./handlers/incident/... ./h
 | F | 修复 | 缺陷测试先红后绿；定向回归通过 |
 | G | 全量回归 + 文档 + 证据 | DoD 全勾；报告与文档提交 |
 
-> A–G 已全部完成：Round 0–5 全量 43/43 通过；D1–D17 修复已随当前工作区 HEAD `5699b5a8a` 全量发布到 238（`1.8.0-dev.5699b5a8`）并复核。
+> A–G 已全部完成：Round 0–6 全量 44/44 通过；D1–D18 修复已随当前工作区 HEAD `af3cba9cb` 全量发布到 238（`1.8.0-dev.af3cba9c`）并复核。

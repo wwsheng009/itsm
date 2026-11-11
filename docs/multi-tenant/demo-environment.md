@@ -8,7 +8,7 @@
 |---|---|
 | 演示入口 | `http://172.18.3.238:8089`（独立栈 `itsm-demo`） |
 | 数据库 | `itsm_demo`（复用宿主 `itsm-postgres-prod` 实例，独立库） |
-| 版本 | 以 `.env.demo` 中 `VERSION` 为准（2026-11-11 全量重部署后 `1.8.0-dev.5699b5a8`） |
+| 版本 | 以 `.env.demo` 中 `VERSION` 为准（2026-11-11 全量重部署后 `1.8.0-dev.af3cba9c`） |
 | 部署模式 | `saas_msp`（MSP 跨租户能力开启） |
 | 容器组 | `itsm-{backend,worker,frontend,nginx,redis,ai-service}-demo`（6 个常驻，均 healthy）+ `itsm-init-demo` 一次性迁移任务 |
 | 部署文件 | `docker-compose.demo.yml`、`nginx/demo/conf.d/default.conf`、`.env.demo.example` |
@@ -110,7 +110,7 @@
 - 角色配套：每租户新增 `itadmin`（it_admin，L2）与 `secadmin`（security_admin，L3）账号，
   可按层级演示审批权限差异。
 
-**2026-11-10 E2E 验证结果（2026-11-11 已从当前工作区 HEAD 全量发布 `1.8.0-dev.5699b5a8`）**
+**2026-11-10 E2E 验证结果（2026-11-11 已从当前工作区 HEAD 全量发布 `1.8.0-dev.af3cba9c`）**
 
 | 项 | 原 238 现象 | 当前状态 |
 |---|---|---|
@@ -130,7 +130,8 @@
 | 服务请求删除权限 | 租户管理员无 `service_request:delete`，无法清理 | 已修复；租户管理员可删除，存量租户迁移已应用 |
 | 服务请求删除语义 | 软删后 GET 返回 HTTP 200，仅包体 `code=404` | 已修复；返回 HTTP 404 + 业务码 4004 |
 | 多租户跳转返回入口 | provider 进入客户租户后 Header 不显示“返回工作台” | 已修复；`DeepTenantReturn` 独立渲染，切回 provider 后打开工作台；E2E 通过 |
-| 多租户连续建单 | 租户序列与全局唯一 `ticket_number` 冲突，重试后 500 | 已修复；Redis/DB 发号共用全局探针，跳过他租户占用号；43/43 E2E 通过 |
+| 多租户连续建单 | 租户序列与全局唯一 `ticket_number` 冲突，重试后 500 | 已修复；Redis/DB 发号共用全局探针，跳过他租户占用号；E2E 通过 |
+| 工单附件列表 | `end_user`/`it_admin`/`security_admin`/provider 深度态打开 ticket 74 显示「获取附件列表失败」 | 已修复；授权跟随 `ticket:read` + active 用户；44/44 E2E 通过 |
 
 > 本轮执行/修复详情：`docs/review/2026-11-10-msp-demo-e2e-validation.md`；
 > 测试套件：`itsm-frontend/tests/e2e/demo/`。

@@ -1,7 +1,8 @@
 # 238 Demo 全量部署证据（2026-11-11 · 1.8.0-dev.44faf311）
 
 > **历史状态**：本文件记录第一轮全量部署 `44faf311`；当前生产基线已更新为
-> `1.8.0-dev.5699b5a8`，见 [2026-11-11-demo-full-deploy-5699b5a8.md](./2026-11-11-demo-full-deploy-5699b5a8.md)。
+> 后续版本已迭代至 `1.8.0-dev.af3cba9c`，见
+> [2026-11-11-demo-full-deploy-af3cba9c.md](./2026-11-11-demo-full-deploy-af3cba9c.md)。
 
 > **状态**：success
 > **环境**：`http://172.18.3.238:8089`（`itsm-demo`，`saas_msp`）
