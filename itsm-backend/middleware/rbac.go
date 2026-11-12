@@ -1342,6 +1342,16 @@ func hasPermission(client *ent.Client, role, method, path string, userID, tenant
 		return true
 	}
 
+	// 预检与路由级 RequirePermission 对齐（C 方案 deep-switch 修复）：
+	// SmartCheckPermission 的 L2/L3 不覆盖 membership.role -> role_permissions 的
+	// DB 权限集合；若映射存在，按与 RequirePermission 相同的多角色并集 + DB 权限
+	// 再判一次。不会绕过路由守卫：后续 RequirePermission 仍执行同一判定。
+	if perm := getPermissionFromPath(method, path); perm != nil {
+		if AuthorizeResource(c.Request.Context(), client, GetContextRoles(c), perm.Resource, perm.Action, tenantID) {
+			return true
+		}
+	}
+
 	// OB-14（2026-10-12）：MSP 路由族预检兜底。
 	// token 角色按 07:G3 取「主角色 ∪ MSP 映射角色」rank 更高者：主角色 admin(rank 4) 会遮蔽
 	// provider_admin→msp_manager(rank 3)，使 /api/v1/msp/* 被通用预检 403，而 RequireMSPPermission
