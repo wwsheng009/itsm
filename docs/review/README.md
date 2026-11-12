@@ -50,7 +50,7 @@
 | `2026-11-11-role-whitelist-audit.md` | **current** | 硬编码角色白名单专项审计：修复 Header AI `isAdmin()` 旁路、AI 通知/审批 fallback 无效角色码、工单数据范围/MSP 写权限重复白名单、provider allowedActions 行级误判；内部备注限制复核保留；CC 管理、旧前端角色守卫、平台租户页 `super_admin` 条件列为待产品决策 |
 | `2026-11-11-membership-actor-reference-phase3.md` | **current** | C 方案 Phase 3 发布验证：评论/附件/CC/审批/通知/审计/BPMN 决策的 membership 引用、回填迁移、复合外键 post-schema 重建；238 `bf131540` 六容器 healthy、迁移台账/15 外键/租户错配 0、E2E 45/45（含评论/CC/附件 membership 断言） |
 | `2026-11-12-tenant-recipient-validation.md` | **current** | C 方案 Phase 4 第一批：CC / BPMN CC / 审批委派 / BPMN 任务 actor-target 的跨租户 membership 校验；provider 客户租户身份放行、无 membership 外部账号 fail-closed；CC 路由权限与 RBAC 预检同源修复；238 `5639c21c9` 46/46 E2E |
-| `2026-11-12-membership-business-actors.md` | **current** | C 方案 Phase 4 第二批：问题/变更/服务请求创建人与处理人 membership 双写与回填；21 条 membership 复合外键清理脏引用后 VALIDATE；post-schema 约束自愈；跨租户读写/伪造引用矩阵与真实 PostgreSQL 约束巡检；238 `cb55a4e69` 发布，E2E 46/46；实际业务操作验证修复事件转问题缺 creator membership、跨租户处理人 500、provider 深度态建 SR 失败 |
+| `2026-11-12-membership-business-actors.md` | **current** | C 方案 Phase 4 第二批：问题/变更/服务请求创建人与处理人 membership 双写与回填；21 条 membership 复合外键清理脏引用后 VALIDATE；post-schema 约束自愈；跨租户读写/伪造引用矩阵与真实 PostgreSQL 约束巡检；实际业务操作验证修复事件转问题缺 creator membership、跨租户处理人 500、provider 深度态建 SR 失败；238 `8558ecfcc` 发布，前端口径展示评论/附件/工单审批/通知身份，E2E 50/50 |
 | `evidence/2026-11-11-demo-full-deploy-44faf311.md` | historical | 2026-11-11 第一轮全量部署 8089 的证据（`44faf311`，40/40 E2E）；已被后续 `af3cba9c` 取代 |
 | `evidence/2026-11-11-demo-full-deploy-5699b5a8.md` | historical | 2026-11-11 第二轮全量部署 8089 的证据（`5699b5a8`，43/43 E2E）；已被 `af3cba9c` 取代 |
 | `evidence/2026-11-11-demo-full-deploy-af3cba9c.md` | historical | 2026-11-11 第三轮全量部署 8089 的证据（`af3cba9c`）：44/44 E2E、D18 附件访问修复；已被 `a0d4240a` / `91eb6e82` 取代 |
@@ -62,7 +62,8 @@
 | `evidence/2026-11-11-demo-full-deploy-bf131540.md` | historical | 2026-11-11 Phase 3 全量部署证据（`bf131540`）：45/45 E2E；已被 `5639c21c9` 取代 |
 | `evidence/2026-11-12-demo-full-deploy-5639c21c9.md` | **evidence** | 2026-11-12 当前全量部署证据（`5639c21c9`）：接收人租户校验、RBAC 预检同源、B4b E2E、46/46 分组 E2E、容器健康与备份回滚路径 |
 | `evidence/2026-11-12-demo-full-deploy-47bd56dc5.md` | historical | 2026-11-12 Phase 4 第二批中间部署（`47bd56dc5`）：事件转问题 membership 补漏与 reconcile 迁移；已被 `cb55a4e69` 取代 |
-| `evidence/2026-11-12-demo-full-deploy-cb55a4e69.md` | **evidence** | 2026-11-12 Phase 4 第二批最终部署证据（`cb55a4e69`）：21/21 约束 VALIDATED、6 类业务引用 missing=0、46/46 E2E；含客户/provider 真实建单、分配、三级审批、履约与跨租户拒绝验证 |
+| `evidence/2026-11-12-demo-full-deploy-cb55a4e69.md` | historical | 2026-11-12 Phase 4 第二批后端/业务验证部署（`cb55a4e69`）：21/21 约束 VALIDATED、6 类业务引用 missing=0、46/46 E2E；已被 `8558ecfcc` 取代 |
+| `evidence/2026-11-12-demo-full-deploy-8558ecfcc.md` | **evidence** | 2026-11-12 membership 身份前端展示部署（`8558ecfcc`）：共享 MembershipBadge、评论/附件/工单审批/通知身份展示、`07-membership-identity` 4/4、全量 E2E 50/50 |
 
 ## 目录合并（2026-09-12）
 

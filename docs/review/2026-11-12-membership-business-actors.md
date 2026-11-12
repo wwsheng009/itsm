@@ -1,7 +1,7 @@
 # Phase 4 第二批：问题/变更/服务请求 membership 与约束 VALIDATE
 
 > 日期：2026-11-12
-> 状态：已发布 238（`1.8.0-dev.cb55a4e69`），E2E 46/46
+> 状态：已发布 238（`1.8.0-dev.8558ecfcc`），E2E 50/50
 > 关联：[C 方案主文档](../multi-tenant/plan/membership-tenant-identity-c-plan.md) ·
 > [Phase 4 第一批验证](2026-11-12-tenant-recipient-validation.md)
 
@@ -208,17 +208,18 @@ demo containers=6/6 healthy
 
 ```text
 membership 复合外键        21/21 convalidated=true
-problems.created_by        0 missing / 204
-problems.assignee          0 missing / 204
+problems.created_by        0 missing / 209
+problems.assignee          0 missing / 209
 changes.created_by         0 missing / 14
 changes.assignee           0 missing / 14
-service_requests.requester 0 missing / 132
-service_requests.processor 0 missing / 132
+service_requests.requester 0 missing / 135
+service_requests.processor 0 missing / 135
 跨租户 membership 错配     0
 ```
 
 E2E：`00-smoke 6 + 01-permissions 8 + 02-associations 8 + 03-workflows 8 +
-04-ui-ux 11 + 05-multi-tenant-business 4 + 06-attachment-access 1 = 46/46`。
+04-ui-ux 11 + 05-multi-tenant-business 4 + 06-attachment-access 1 +
+07-membership-identity 4 = 50/50`。
 
 运行时 API 抽查（`demo.mfg.admin`，tenant 3 / membership 4）：
 
@@ -265,8 +266,25 @@ E2E：`00-smoke 6 + 01-permissions 8 + 02-associations 8 + 03-workflows 8 +
 
 最终版 `cb55a4e69` 在 `47bd56dc5` 基础上增加错误分类与 provider SR 创建能力。
 
-发布证据详见
-[`evidence/2026-11-12-demo-full-deploy-cb55a4e69.md`](evidence/2026-11-12-demo-full-deploy-cb55a4e69.md)。
+### 前端 membership 身份展示（`8558ecfcc`）
+
+- 新增共享 `MembershipBadge`：展示「租户身份 #N」，tooltip 解释 C 方案语义；
+- 覆盖评论作者、附件上传人、工单审批人、通知接收人；
+- `ApprovalRecordResponse` 补齐 `approverMembershipId`；
+- 新增 `07-membership-identity.spec.ts`，4 个用例：
+
+```text
+✓ 工单评论作者身份（membership 4）
+✓ provider 在客户租户内的评论身份（membership 22）
+✓ 附件上传人身份（membership 4）
+✓ 通知接收人身份
+4 passed
+```
+
+发布证据：
+
+- 后端/业务验证：[`evidence/2026-11-12-demo-full-deploy-cb55a4e69.md`](evidence/2026-11-12-demo-full-deploy-cb55a4e69.md)
+- UI 展示验证：[`evidence/2026-11-12-demo-full-deploy-8558ecfcc.md`](evidence/2026-11-12-demo-full-deploy-8558ecfcc.md)
 
 ## 7. 回滚
 
@@ -282,4 +300,5 @@ E2E：`00-smoke 6 + 01-permissions 8 + 02-associations 8 + 03-workflows 8 +
 2. 迁移会把跨租户/失效的 membership 指针置 NULL，历史行仍可通过 `user_id`
    读取，但依赖 membership 的新查询会少这些行，属于预期的 fail-safe；
 3. 服务请求审批记录仍是 `approver_id` 单轨，审批身份展示需下一批补齐；
-4. 前端尚未显式展示创建人/处理人的 membership 身份（Phase 4 剩余项 3）。
+4. 前端已展示评论/附件/工单审批/通知的 membership 身份；变更审批与服务请求审批
+   仍缺 membership 列，需后续迁移。

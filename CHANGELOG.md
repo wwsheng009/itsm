@@ -62,6 +62,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `20261112_membership_business_actors_reconcile` 幂等回填；最终巡检 21/21 约束
   VALIDATED、6 类业务引用 missing=0、跨租户错配 0。
 
+- **前端 membership 身份展示（2026-11-12，`1.8.0-dev.8558ecfcc`）** —
+  新增共享 `MembershipBadge`，在评论作者、附件上传人、工单审批人、通知接收人旁显示
+  「租户身份 #N」并提供 C 方案语义 tooltip；补齐 `ApprovalRecordResponse.approverMembershipId`；
+  新增 `07-membership-identity.spec.ts`，真实浏览器验证客户评论、provider 客户租户评论、
+  附件和通知身份；238 发布后 E2E **50/50**。变更审批与服务请求审批仍缺 membership 列。
+
 - **工单详情契约修复：空数组、标签空列表与工单级审批读取（后端，2026-11-10）** —
   ① `GET /api/v1/tickets/:id/tags` 在无绑定标签时返回 `items: []`（DTO 映射与服务层均
   不再返回 `nil`），路由回归测试覆盖租户/工单过滤与空数组；② 评论响应初始化

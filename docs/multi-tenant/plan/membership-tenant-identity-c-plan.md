@@ -1,8 +1,8 @@
 # C 方案：membership 作为租户内身份（2026-11-12）
 
 > **状态**：implemented（Phase 1–3 工单域已发布 238；Phase 4 第一批接收人校验已发布；
-> 第二批问题/变更/服务请求 actors 迁移与约束 VALIDATE 已发布 238 `1.8.0-dev.cb55a4e69`，
-> E2E 46/46）
+> 第二批问题/变更/服务请求 actors 迁移与约束 VALIDATE 已发布 238 `1.8.0-dev.8558ecfcc`，
+> E2E 50/50）
 > **背景**：provider 深度切换到客户租户后，JWT 的 `tenant_id` 已指向客户租户，但工单仍以
 > `users.id` 作为申请人引用；provider 的 `users.tenant_id` 仍在 provider 租户，导致
 > “权限通过、申请人 404”。
@@ -225,8 +225,8 @@ tickets.assignee_id
 
 **本批不做**
 
-- 前端对创建人/处理人 membership 身份的显式展示；
-- 服务请求审批记录（`service_request_approvals`）的 membership 迁移；
+- 变更审批（`change_approvals`）与服务请求审批记录（`service_request_approvals`）
+  的 membership 列迁移（工单审批/评论/附件/通知的前端展示已在 `8558ecfcc` 完成）；
 - PostgreSQL RLS policy 的全表启用（当前仍为应用层租户隔离 + 约束矩阵）。
 
 ## 5. 兼容与迁移
