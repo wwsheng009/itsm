@@ -669,10 +669,21 @@ func (r *EntRepository) ListPendingApprovals(ctx context.Context, tenantID int, 
 // Note: This leaks abstraction slightly by querying User, but practical.
 func (r *EntRepository) GetUserContext(ctx context.Context, userID, tenantID int) (string, string, error) {
 	u, err := r.client.User.Query().
-		Where(user.IDEQ(userID), user.TenantIDEQ(tenantID), user.ActiveEQ(true)).
+		Where(user.IDEQ(userID), user.ActiveEQ(true)).
 		Only(ctx)
 	if err != nil {
 		return "", "", err
+	}
+	// C 方案：provider 深度切换到客户租户后，users.tenant_id 仍是 provider 租户。
+	// 只要目标租户内存在 active membership，就允许以该租户身份创建/处理服务请求。
+	if u.TenantID != tenantID {
+		membershipID, err := membershipref.ResolveOptional(ctx, r.client, userID, tenantID)
+		if err != nil {
+			return "", "", err
+		}
+		if membershipID == 0 {
+			return "", "", fmt.Errorf("user %d is not an active member of tenant %d", userID, tenantID)
+		}
 	}
 	return u.Department, u.Name, nil
 }

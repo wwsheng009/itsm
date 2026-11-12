@@ -11,6 +11,7 @@ import (
 	"context"
 	"fmt"
 
+	"itsm-backend/common"
 	"itsm-backend/ent"
 	"itsm-backend/ent/user"
 	"itsm-backend/middleware"
@@ -23,7 +24,7 @@ import (
 func ResolveActor(ctx context.Context, client *ent.Client, userID, tenantID, providedID int) (int, error) {
 	if client == nil || userID <= 0 || tenantID <= 0 {
 		if providedID > 0 {
-			return 0, fmt.Errorf("缺少解析租户内身份所需的账号或租户上下文")
+			return 0, common.NewBadRequestError("缺少解析租户内身份所需的账号或租户上下文", nil)
 		}
 		return 0, nil
 	}
@@ -33,12 +34,14 @@ func ResolveActor(ctx context.Context, client *ent.Client, userID, tenantID, pro
 	}
 	if membership == nil {
 		if providedID > 0 {
-			return 0, fmt.Errorf("账号 %d 不是租户 %d 的有效成员", userID, tenantID)
+			return 0, common.NewBadRequestError(
+				fmt.Sprintf("账号 %d 不是租户 %d 的有效成员", userID, tenantID), nil,
+			)
 		}
 		return 0, nil
 	}
 	if providedID > 0 && membership.ID != providedID {
-		return 0, fmt.Errorf("membership 上下文与目标租户不一致")
+		return 0, common.NewForbiddenError("membership 上下文与目标租户不一致")
 	}
 	return membership.ID, nil
 }
@@ -78,7 +81,7 @@ func ResolveAssignable(ctx context.Context, client *ent.Client, userID, tenantID
 		return 0, fmt.Errorf("验证处理人失败: %w", err)
 	}
 	if !exists {
-		return 0, fmt.Errorf("处理人不存在或不可用")
+		return 0, common.NewBadRequestError("处理人不存在或不可用", nil)
 	}
 	return 0, nil
 }

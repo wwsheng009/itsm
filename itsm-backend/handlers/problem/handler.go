@@ -191,7 +191,7 @@ func (h *Handler) Create(c *gin.Context) {
 
 	created, err := h.service.Create(c.Request.Context(), tenantID, problem)
 	if err != nil {
-		common.FailWithErr(c, err, "操作失败")
+		common.RespondError(c, err, "操作失败")
 		return
 	}
 

@@ -151,7 +151,7 @@ func (h *Handler) CreateChange(c *gin.Context) {
 
 	res, err := h.svc.CreateChange(c.Request.Context(), changeEntity)
 	if err != nil {
-		common.InternalError(c, "创建变更失败: "+err.Error())
+		common.RespondError(c, err, "创建变更失败")
 		return
 	}
 
