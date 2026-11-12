@@ -253,6 +253,7 @@ export const ApprovalWorkflowPanel: React.FC<ApprovalWorkflowPanelProps> = ({
         status: r.status,
         approverId: r.approverId,
         approverName: r.approverName,
+        approverMembershipId: r.approverMembershipId,
         comment: r.comment,
         processedAt: r.processedAt,
         createdAt: r.createdAt,

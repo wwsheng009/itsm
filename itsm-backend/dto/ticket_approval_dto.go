@@ -79,21 +79,22 @@ type ApprovalNodeResponse struct {
 
 // 审批记录相关DTO
 type ApprovalRecordResponse struct {
-	ID           int        `json:"id" example:"1"`
-	TicketID     int        `json:"ticketId" example:"1001"`
-	TicketNumber string     `json:"ticketNumber" example:"T-2024-001"`
-	TicketTitle  string     `json:"ticketTitle" example:"系统响应缓慢"`
-	WorkflowID   int        `json:"workflowId" example:"1"`
-	WorkflowName string     `json:"workflowName" example:"标准工单审批流程"`
-	CurrentLevel int        `json:"currentLevel" example:"1"`
-	TotalLevels  int        `json:"totalLevels" example:"2"`
-	ApproverID   int        `json:"approverId" example:"1"`
-	ApproverName string     `json:"approverName" example:"张三"`
-	Status       string     `json:"status" example:"pending"`
-	Action       *string    `json:"action,omitempty" example:"approve"`
-	Comment      *string    `json:"comment,omitempty"`
-	CreatedAt    time.Time  `json:"createdAt" example:"2024-01-01T00:00:00Z"`
-	ProcessedAt  *time.Time `json:"processedAt,omitempty"`
+	ID                   int        `json:"id" example:"1"`
+	TicketID             int        `json:"ticketId" example:"1001"`
+	TicketNumber         string     `json:"ticketNumber" example:"T-2024-001"`
+	TicketTitle          string     `json:"ticketTitle" example:"系统响应缓慢"`
+	WorkflowID           int        `json:"workflowId" example:"1"`
+	WorkflowName         string     `json:"workflowName" example:"标准工单审批流程"`
+	CurrentLevel         int        `json:"currentLevel" example:"1"`
+	TotalLevels          int        `json:"totalLevels" example:"2"`
+	ApproverID           int        `json:"approverId" example:"1"`
+	ApproverName         string     `json:"approverName" example:"张三"`
+	ApproverMembershipID int        `json:"approverMembershipId,omitempty" example:"42"`
+	Status               string     `json:"status" example:"pending"`
+	Action               *string    `json:"action,omitempty" example:"approve"`
+	Comment              *string    `json:"comment,omitempty"`
+	CreatedAt            time.Time  `json:"createdAt" example:"2024-01-01T00:00:00Z"`
+	ProcessedAt          *time.Time `json:"processedAt,omitempty"`
 }
 
 type GetApprovalRecordsRequest struct {

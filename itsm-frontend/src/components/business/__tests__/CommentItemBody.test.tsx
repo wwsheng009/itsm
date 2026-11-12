@@ -70,4 +70,22 @@ describe('CommentItemBody', () => {
     expect(screen.getByText('无作者信息')).toBeInTheDocument();
     expect(screen.getByText('未知用户')).toBeInTheDocument();
   });
+
+  it('展示作者 membership 身份标签', () => {
+    render(
+      <CommentItemBody
+        item={{
+          id: 4,
+          userId: 3,
+          authorName: '王五',
+          membershipId: 42,
+          content: 'provider 在客户租户内的评论',
+          createdAt: '2026-09-30T08:00:00Z',
+        }}
+      />
+    );
+
+    expect(screen.getByTestId('membership-badge-42')).toBeInTheDocument();
+    expect(screen.getByText('租户身份 #42')).toBeInTheDocument();
+  });
 });

@@ -443,6 +443,7 @@ export const CommentPanel: React.FC<CommentPanelProps> = ({
                 item={{
                   id: comment.id,
                   userId: comment.userId,
+                  membershipId: comment.userMembershipId,
                   authorName: comment.user?.name || comment.user?.username,
                   content: comment.content,
                   isInternal: comment.isInternal,

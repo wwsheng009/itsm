@@ -5,6 +5,7 @@ import { CheckCircle, XCircle, Timer, ArrowRight } from 'lucide-react';
 import type { ApprovalStep, ApprovalStepStatus, ApprovalActionInput } from './types';
 import { UserApi } from '@/lib/api/user-api';
 import { useI18n } from '@/lib/i18n/useI18n';
+import MembershipBadge from '@/components/common/MembershipBadge';
 
 const { Text } = Typography;
 const { TextArea } = Input;
@@ -203,6 +204,7 @@ export const ApprovalTimeline: React.FC<ApprovalTimelineProps> = ({
                       {t('detailTabs.approverLabel')}：{app.approverName}
                     </Text>
                   )}
+                  <MembershipBadge membershipId={app.approverMembershipId} />
                 </div>
                 {app.comment && (
                   <Text type="secondary" italic className="text-xs">

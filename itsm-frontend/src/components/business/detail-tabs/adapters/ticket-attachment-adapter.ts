@@ -24,6 +24,7 @@ function toAttachmentItem(ref: AttachmentRef): AttachmentItem {
     mimeType: ref.mimeType,
     fileUrl: ref.fileUrl,
     createdAt: ref.createdAt ?? '',
+    uploadedByMembershipId: ref.uploadedByMembershipId,
     uploader: ref.uploader ?? (ref.uploadedBy ? { id: ref.uploadedBy } : undefined),
   };
 }

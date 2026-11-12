@@ -661,18 +661,19 @@ func (s *ApprovalService) toWorkflowResponse(ctx context.Context, workflow *ent.
 
 func (s *ApprovalService) toRecordResponse(record *ent.ApprovalRecord) *dto.ApprovalRecordResponse {
 	response := &dto.ApprovalRecordResponse{
-		ID:           record.ID,
-		TicketID:     record.TicketID,
-		TicketNumber: record.TicketNumber,
-		TicketTitle:  record.TicketTitle,
-		WorkflowID:   record.WorkflowID,
-		WorkflowName: record.WorkflowName,
-		CurrentLevel: record.CurrentLevel,
-		TotalLevels:  record.TotalLevels,
-		ApproverID:   record.ApproverID,
-		ApproverName: record.ApproverName,
-		Status:       record.Status,
-		CreatedAt:    record.CreatedAt,
+		ID:                   record.ID,
+		TicketID:             record.TicketID,
+		TicketNumber:         record.TicketNumber,
+		TicketTitle:          record.TicketTitle,
+		WorkflowID:           record.WorkflowID,
+		WorkflowName:         record.WorkflowName,
+		CurrentLevel:         record.CurrentLevel,
+		TotalLevels:          record.TotalLevels,
+		ApproverID:           record.ApproverID,
+		ApproverName:         record.ApproverName,
+		ApproverMembershipID: record.ApproverMembershipID,
+		Status:               record.Status,
+		CreatedAt:            record.CreatedAt,
 	}
 
 	if record.Action != "" {

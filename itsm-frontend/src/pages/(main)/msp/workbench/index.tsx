@@ -1197,7 +1197,10 @@ export default function MSPWorkbenchPage() {
             </div>
             {/* P2 评论只读面：公开评论双向互通；客户内部备注由服务端过滤（XFD8） */}
             <TicketCommentTimeline
-              items={comments}
+              items={comments.map(comment => ({
+                ...comment,
+                membershipId: comment.userMembershipId,
+              }))}
               loading={commentsLoading}
               error={commentsError}
               title="评论（只读）"

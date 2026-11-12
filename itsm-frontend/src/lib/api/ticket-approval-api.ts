@@ -49,6 +49,8 @@ export interface ApprovalRecord {
   totalLevels: number;
   approverId: number;
   approverName: string;
+  /** C 方案：审批人在工单租户内的 membership 身份；历史记录可缺省。 */
+  approverMembershipId?: number;
   status: 'pending' | 'approved' | 'rejected' | 'delegated' | 'timeout';
   action?: string;
   comment?: string;

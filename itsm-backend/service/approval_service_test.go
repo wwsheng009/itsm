@@ -11,6 +11,7 @@ import (
 	"itsm-backend/ent"
 	"itsm-backend/ent/approvalrecord"
 	"itsm-backend/ent/enttest"
+	"itsm-backend/ent/usertenantmembership"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -360,6 +361,11 @@ func TestApprovalService_GetApprovalRecords(t *testing.T) {
 
 	testUser, err := createApprovalTestUser(ctx, client, testTenant.ID, "records")
 	require.NoError(t, err)
+	testMembership := client.UserTenantMembership.Create().
+		SetUserID(testUser.ID).SetTenantID(testTenant.ID).
+		SetAccountKind(usertenantmembership.AccountKindCustomer).
+		SetSource(usertenantmembership.SourceHome).
+		SetStatus(usertenantmembership.StatusActive).SetIsDefault(true).SaveX(ctx)
 
 	// 创建工作流
 	workflow, err := client.ApprovalWorkflow.Create().
@@ -395,6 +401,7 @@ func TestApprovalService_GetApprovalRecords(t *testing.T) {
 		SetTotalLevels(1).
 		SetApproverID(testUser.ID).
 		SetApproverName(testUser.Name).
+		SetApproverMembershipID(testMembership.ID).
 		SetStepOrder(1).
 		SetStatus("pending").
 		SetTenantID(testTenant.ID).
@@ -410,6 +417,7 @@ func TestApprovalService_GetApprovalRecords(t *testing.T) {
 	require.NoError(t, err)
 	assert.GreaterOrEqual(t, total, 1)
 	assert.GreaterOrEqual(t, len(records), 1)
+	assert.Equal(t, testMembership.ID, records[0].ApproverMembershipID)
 }
 
 func TestApprovalService_TriggerApproval_Phase2_NoApprovalRecordWrite(t *testing.T) {

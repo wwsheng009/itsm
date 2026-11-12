@@ -18,6 +18,8 @@ export interface CommentUser {
 export interface CommentItem {
   id: number;
   userId: number;
+  /** C 方案：作者在当前租户内的 membership 身份；历史评论可缺省。 */
+  userMembershipId?: number;
   user?: CommentUser;
   content: string;
   isInternal?: boolean;
@@ -86,6 +88,8 @@ export interface AttachmentItem {
   mimeType: string;
   fileUrl?: string;
   createdAt: string;
+  /** C 方案：上传人在宿主租户内的 membership 身份；历史附件可缺省。 */
+  uploadedByMembershipId?: number;
   uploader?: CommentUser;
 }
 
@@ -132,6 +136,8 @@ export interface ApprovalStep {
   status: ApprovalStepStatus;
   approverId?: number;
   approverName?: string;
+  /** C 方案：审批人在租户内的 membership 身份；历史记录可缺省。 */
+  approverMembershipId?: number;
   comment?: string;
   processedAt?: string;
   createdAt?: string;

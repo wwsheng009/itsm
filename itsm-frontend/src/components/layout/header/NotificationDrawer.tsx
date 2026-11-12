@@ -1,12 +1,13 @@
 
 import React from 'react';
-import { App, Drawer, Typography, Button } from 'antd';
+import { App, Drawer, Typography, Button, Space } from 'antd';
 import { useNavigate } from 'react-router';
 import { Bell, CheckCheck, ArrowRight, Ticket, AlertTriangle, Zap } from 'lucide-react';
 import type { TicketNotification } from '@/lib/api/ticket-notification-api';
 import { DESIGN } from '@/design-system/tokens';
 import { checkNotificationTarget } from '@/lib/utils/notification-target';
 import { useI18n } from '@/lib/i18n/useI18n';
+import MembershipBadge from '@/components/common/MembershipBadge';
 
 const { Text, Title } = Typography;
 
@@ -174,9 +175,12 @@ export const NotificationDrawer: React.FC<NotificationDrawerProps> = ({
             >
               {item.content}
             </Text>
-            <Text style={{ fontSize: 12, color: DESIGN.colors.textMuted }}>
-              {item.createdAt ? new Date(item.createdAt).toLocaleString() : ''}
-            </Text>
+            <Space size={6} wrap>
+              <Text style={{ fontSize: 12, color: DESIGN.colors.textMuted }}>
+                {item.createdAt ? new Date(item.createdAt).toLocaleString() : ''}
+              </Text>
+              <MembershipBadge membershipId={item.userMembershipId} />
+            </Space>
           </div>
         </div>
 

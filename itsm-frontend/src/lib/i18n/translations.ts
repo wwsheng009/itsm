@@ -2533,6 +2533,9 @@ export const translations = {
       mentionsPlaceholder: '选择要@的用户',
       mentionCount: '@{count} 人',
       unknownUser: '未知用户',
+      membershipIdentity: '租户身份 #{id}',
+      membershipIdentityTooltip:
+        'C 方案：操作者在当前租户内的 membership 身份；provider 深度切换到客户租户时同样使用客户租户内的 membership。',
       edited: '已编辑',
       deleteConfirmTitle: '确认删除',
       deleteConfirmContent: '确定要删除这条评论吗？',
@@ -7965,6 +7968,9 @@ export const translations = {
       mentionsPlaceholder: 'Select users to @',
       mentionCount: '@{count}',
       unknownUser: 'Unknown user',
+      membershipIdentity: 'Tenant membership #{id}',
+      membershipIdentityTooltip:
+        'C-plan tenant-scoped membership identity. Providers operating inside a customer tenant use the membership in that customer tenant.',
       edited: 'edited',
       deleteConfirmTitle: 'Confirm Delete',
       deleteConfirmContent: 'Are you sure you want to delete this comment?',

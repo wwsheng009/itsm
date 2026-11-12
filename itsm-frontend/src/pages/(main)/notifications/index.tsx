@@ -54,6 +54,7 @@ import { usePermissions } from '@/lib/hooks/use-permissions';
 import { notificationWS } from '@/lib/services/notification-ws';
 import { checkNotificationTarget } from '@/lib/utils/notification-target';
 import { useI18n } from '@/lib/i18n';
+import MembershipBadge from '@/components/common/MembershipBadge';
 
 const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
@@ -555,6 +556,7 @@ export default function NotificationsPage() {
                           ? t('notifications.sms')
                           : t('notifications.inApp')}
                     </Tag>
+                    <MembershipBadge membershipId={notification.userMembershipId} />
                   </div>
                   <Text type="secondary" className="shrink-0 text-xs whitespace-nowrap">
                     {formatDateTime(notification.createdAt)}

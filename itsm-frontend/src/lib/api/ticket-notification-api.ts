@@ -56,6 +56,8 @@ export interface UserNotification {
   actionUrl?: string;
   actionText?: string;
   userId: number;
+  /** C 方案：通知接收人在通知租户内的 membership 身份；历史通知可缺省。 */
+  userMembershipId?: number;
   tenantId: number;
   createdAt: string;
   updatedAt: string;
@@ -91,6 +93,7 @@ export function toTicketNotification(raw: UserNotification): TicketNotification 
     id: raw.id,
     ticketId: 0,
     userId: raw.userId,
+    userMembershipId: raw.userMembershipId,
     type,
     channel: 'in_app',
     content: raw.message || '',

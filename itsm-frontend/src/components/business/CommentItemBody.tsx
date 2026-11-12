@@ -11,11 +11,14 @@ import React from 'react';
 import { Space, Tag, Typography } from 'antd';
 
 import RichTextContent from '@/components/common/rich-text/RichTextContent';
+import MembershipBadge from '@/components/common/MembershipBadge';
 import { isHtmlContent } from '@/lib/rich-text/content-format';
 
 export interface CommentItemBodyItem {
   id: number;
   userId?: number;
+  /** C 方案：作者在当前租户内的 membership 身份；历史数据可缺省。 */
+  membershipId?: number;
   authorName?: string;
   /** customer | provider；缺省不渲染侧标签（客户侧自用）。 */
   authorSide?: string;
@@ -71,6 +74,7 @@ export default function CommentItemBody({
     <div style={{ width: '100%' }}>
       <Space size={8} wrap>
         <Typography.Text strong>{author}</Typography.Text>
+        <MembershipBadge membershipId={item.membershipId} />
         {item.authorSide ? (
           <Tag color={item.authorSide === 'provider' ? 'blue' : 'default'} style={{ margin: 0 }}>
             {sideLabels[item.authorSide] ?? item.authorSide}

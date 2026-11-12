@@ -27,6 +27,7 @@ import {
   Upload as UploadIcon,
 } from 'lucide-react';
 import type { AttachmentAdapter, AttachmentItem, TargetType } from './types';
+import MembershipBadge from '@/components/common/MembershipBadge';
 import { useI18n } from '@/lib/i18n/useI18n';
 import { httpClient } from '@/lib/api/http-client';
 
@@ -354,6 +355,7 @@ export const AttachmentPanel: React.FC<AttachmentPanelProps> = ({
                         item.uploader?.username ||
                         t('detailTabs.unknownUser')}
                     </Text>
+                    <MembershipBadge membershipId={item.uploadedByMembershipId} />
                     <Text type="secondary" className="text-xs">
                       {fmt(item.createdAt)}
                     </Text>
