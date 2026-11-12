@@ -316,9 +316,10 @@ func updateTicketRequestFromArgs(args map[string]interface{}) (int, *dto.UpdateT
 	status, _ := args["status"].(string)
 	priority, _ := args["priority"].(string)
 	resolution, _ := args["resolution"].(string)
-	assigneeID := 0
+	var assigneeID *int
 	if v, ok := args["assignee_id"].(float64); ok {
-		assigneeID = int(v)
+		id := int(v)
+		assigneeID = &id
 	}
 	req := &dto.UpdateTicketRequest{
 		Status:     status,

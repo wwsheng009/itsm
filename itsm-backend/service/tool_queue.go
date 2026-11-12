@@ -195,16 +195,9 @@ func (q *ToolQueue) worker() {
 					Logger:     zap.NewNop().Sugar(),
 				})
 			}
-			ticketID := 0
-			if v, ok := args["ticket_id"].(float64); ok {
-				ticketID = int(v)
-			}
-			status, _ := args["status"].(string)
-			assigneeID := 0
-			if v, ok := args["assignee_id"].(float64); ok {
-				assigneeID = int(v)
-			}
-			r := &dto.UpdateTicketRequest{Status: status, AssigneeID: assigneeID}
+			// Share optional-field semantics with the direct tool path: an
+			// omitted assignee must not become an accidental unassignment.
+			ticketID, r := updateTicketRequestFromArgs(args)
 			res, err = q.tickets.UpdateTicket(ctx, ticketID, r, job.TenantID, 0, "") // 0=系统操作，跳过 DataScope
 		case "create_ticket_type":
 			if q.ticketTypes == nil {

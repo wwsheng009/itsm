@@ -13,6 +13,7 @@ import (
 // TestUpdateTicketRequestFromArgs_乐观锁与字段映射 覆盖 B1-05：
 // expected_version 映射为乐观锁版本号；缺省/非正值不启用（保持既有行为）。
 func TestUpdateTicketRequestFromArgs_乐观锁与字段映射(t *testing.T) {
+	assigned, cleared := 3, 0
 	cases := []struct {
 		name       string
 		args       map[string]interface{}
@@ -25,8 +26,14 @@ func TestUpdateTicketRequestFromArgs_乐观锁与字段映射(t *testing.T) {
 			args:   map[string]interface{}{"ticket_id": float64(7), "status": "resolved", "priority": "high", "resolution": "已修复", "assignee_id": float64(3), "expected_version": float64(5)},
 			wantID: 7,
 			wantReq: &dto.UpdateTicketRequest{
-				Status: "resolved", Priority: "high", Resolution: "已修复", AssigneeID: 3, Version: 5,
+				Status: "resolved", Priority: "high", Resolution: "已修复", AssigneeID: &assigned, Version: 5,
 			},
+		},
+		{
+			name:    "显式零值清空处理人",
+			args:    map[string]interface{}{"ticket_id": float64(7), "assignee_id": float64(0)},
+			wantID:  7,
+			wantReq: &dto.UpdateTicketRequest{AssigneeID: &cleared},
 		},
 		{
 			name:    "缺 expected_version 不启用乐观锁",
