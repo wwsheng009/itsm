@@ -51,6 +51,7 @@
 | `2026-11-11-membership-actor-reference-phase3.md` | **current** | C 方案 Phase 3 发布验证：评论/附件/CC/审批/通知/审计/BPMN 决策的 membership 引用、回填迁移、复合外键 post-schema 重建；238 `bf131540` 六容器 healthy、迁移台账/15 外键/租户错配 0、E2E 45/45（含评论/CC/附件 membership 断言） |
 | `2026-11-12-tenant-recipient-validation.md` | **current** | C 方案 Phase 4 第一批：CC / BPMN CC / 审批委派 / BPMN 任务 actor-target 的跨租户 membership 校验；provider 客户租户身份放行、无 membership 外部账号 fail-closed；CC 路由权限与 RBAC 预检同源修复；238 `5639c21c9` 46/46 E2E |
 | `2026-11-12-membership-business-actors.md` | **current** | C 方案 Phase 4 第二批：问题/变更/服务请求创建人与处理人 membership 双写与回填；23 条 membership 复合外键 VALIDATE；服务请求审批人 membership 回填；前端展示评论/附件/工单审批/服务请求审批/通知身份；238 `16c5c453c` 发布，E2E 51/51 |
+| [`2026-11-12-membership-hardening-fixes.md`](2026-11-12-membership-hardening-fixes.md) | 修复验证记录（未部署） | 成员撤权/降权、业务身份双写与安全回填的本地修复；明确区分本轮回归、PostgreSQL 跳过项及发布门禁，不沿用旧 E2E 数作为新版本证据 |
 | `evidence/2026-11-11-demo-full-deploy-44faf311.md` | historical | 2026-11-11 第一轮全量部署 8089 的证据（`44faf311`，40/40 E2E）；已被后续 `af3cba9c` 取代 |
 | `evidence/2026-11-11-demo-full-deploy-5699b5a8.md` | historical | 2026-11-11 第二轮全量部署 8089 的证据（`5699b5a8`，43/43 E2E）；已被 `af3cba9c` 取代 |
 | `evidence/2026-11-11-demo-full-deploy-af3cba9c.md` | historical | 2026-11-11 第三轮全量部署 8089 的证据（`af3cba9c`）：44/44 E2E、D18 附件访问修复；已被 `a0d4240a` / `91eb6e82` 取代 |

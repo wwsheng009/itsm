@@ -1,7 +1,7 @@
 # 🛣️ ITSM Roadmap
 
 > **Source of truth for what is shipping, what is shipping next, and what
-> is parked.** Updated as part of every release. Last synced: 2026-10-17.
+> is parked.** Updated as part of every release. Last synced: 2026-11-12.
 >
 > Cross-references:
 > - PRD library: [docs/prd/](./docs/prd)
@@ -82,6 +82,11 @@ Concretely that means:
 
 ### 已落地
 
+- [x] **成员身份生命周期加固（未部署）** — 请求期有效 membership 门禁、旧 JWT 角色去权、
+  用户角色/成员角色事务同步及身份版本缓存已实现，认证与用户 Handler 定向回归通过；
+  迁移及业务参与人扩展修复、最终测试状态见
+  [本轮修复记录](docs/review/2026-11-12-membership-hardening-fixes.md)。真实 PostgreSQL
+  升级与生产 E2E 仍为发布门禁，不据此提升领域成熟度。
 - [x] **TicketType 平台化** — 类型持久化、动态字段、创建快照、Preset Library、归档恢复和管理 UI。
 - [x] **统一绑定解析** — Ticket 创建从已解析 TicketType 执行 Workflow、SLA 与 Assignment。
 - [x] **权限与审计** — TicketType 独立管理/归档/Preset 安装权限，ACL manifest 覆盖；Preset 安装、归档恢复和绑定变更独立审计。

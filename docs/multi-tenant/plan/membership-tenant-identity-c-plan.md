@@ -154,13 +154,14 @@ tickets.assignee_id
 `(user_id, tenant_id) -> user_tenant_memberships`，无匹配行保持 NULL。
 复合外键先以 `NOT VALID` 上线，并同步写入
 `internal/bootstrap/post_schema_constraints.sql`，避免 `ent.Schema.Create` 重建表后丢失。
-当前未做：membership 身份的前端显式展示、BPMN `ccType=group/role` 对 provider
-客户租户组织/角色的选人支持、home tenant 无 membership 兼容窗口收口。
+前端显式身份展示已由 `8558ecfcc` / `16c5c453c` 补齐。当前未做：
+BPMN `ccType=group/role` 对 provider 客户租户组织/角色的选人支持、
+home tenant 无 membership 兼容窗口的最终退出。
 `VALIDATE CONSTRAINT` 与问题/变更/服务请求的同口径迁移已由 Phase 4 第二批补齐。
 
-### Phase 4：约束与清理（后续）
+### Phase 4：约束与清理（部分已发布，清理待收口）
 
-- [x] 补齐复合外键并 `VALIDATE CONSTRAINT`（第二批，21 条约束）；
+- [x] 补齐复合外键并 `VALIDATE CONSTRAINT`（第二批 21 条，加服务请求审批后共 23 条）；
 - [x] 问题/变更/服务请求创建人、处理人 membership 迁移（第二批）；
 - [x] 新增业务域 cross-tenant 行为矩阵与真实 PostgreSQL 约束巡检；
 - [ ] 删除旧 `user_id` 业务引用或最终确定兼容列去留；
@@ -282,18 +283,21 @@ tickets.assignee_id
 | 前端误显示申请人选择器 | 只在 provider 深度态显示；普通客户忽略 `requesterId` |
 | 后续表迁移范围过大 | Phase 3 分表双写/回退，不在本轮强行全量切换 |
 
-## 9. 本轮实现状态
+## 9. 发布基线与后续收口状态
 
 本轮已落地 Phase 1 + Phase 2 工单主链路、Phase 3 工单域 actor/recipient 引用，
-以及 Phase 4 第一批接收人租户校验与 RBAC 预检同源；其他业务域迁移保留为后续计划。
+以及 Phase 4 接收人租户校验、RBAC 预检同源、问题/变更/服务请求 actors、
+服务请求审批身份与前端展示。以下为已验收的发布基线，不代表其后未提交的
+hardening 工作树已发布或通过同一组测试。
 
 ```text
-runtime_commit=5639c21c92e831ca35a5251cef87ddfe234e49f9
-version=1.8.0-dev.5639c21c9
-deploy_branch=deploy/full-5639c21c9
-e2e=46/46
-backend=go test ./service ./handlers/ticket ./handlers/auth ./handlers/common ./middleware ./dto ./repository/ticket ./migration
-frontend=npx tsc --noEmit + eslint（含 E2E 断言器）
+runtime_commit=16c5c453c4ac1a770c5147cf1929685975edeb3a
+version=1.8.0-dev.16c5c453c
+deploy_branch=deploy/full-16c5c453c
+url=http://172.18.3.238:8089
+schemaVersion=20261112_service_request_approval_membership
+e2e=51/51
+membership_constraints=23/23 VALIDATED
 ```
 
 实现提交：
@@ -311,13 +315,17 @@ frontend=npx tsc --noEmit + eslint（含 E2E 断言器）
 - `5639c21c9` fix(rbac): align precheck with membership role DB permissions
 
 发布与运行态证据：
-[2026-11-12-demo-full-deploy-5639c21c9.md](../../review/evidence/2026-11-12-demo-full-deploy-5639c21c9.md)。
+[2026-11-12-demo-full-deploy-16c5c453c.md](../../review/evidence/2026-11-12-demo-full-deploy-16c5c453c.md)。
+后续 hardening 的独立验证及发布状态见
+[2026-11-12-membership-hardening-fixes.md](../../review/2026-11-12-membership-hardening-fixes.md)；
+不得沿用本节历史 E2E 结果替代新版本验收。
 
 Phase 3/4 剩余（未完成）：
 
-- 问题/变更/服务请求创建人、处理人的 membership 引用迁移；
-- 复合外键 `VALIDATE CONSTRAINT` 与全量 RLS/cross-tenant 测试矩阵；
-- 前端对评论/附件/审批/通知 membership 身份的显式展示（当前仅下发字段）；
+- 旧 `user_id` 兼容列去留与双写/回退退出条件；
+- 全量 17 表 cross-tenant 行为矩阵，以及另行排期的 RLS enforce 业务验收；
+- `allowedActions`、列表、通知、统计、审计的全域 membership 口径统一；
+- BPMN `ccType=group/role` 的 provider 客户租户组织/角色选人支持；
 - 平台管理员跨租户审计的 membership 归属口径（当前保留 NULL + `target_tenant_id`）。
 
 已关闭：
@@ -325,8 +333,11 @@ Phase 3/4 剩余（未完成）：
 - 工单 CC、BPMN CC、审批委派、BPMN 任务 actor/target 的跨租户 membership 校验；
 - CC 路由错误的 `workflow:write` 前置门槛；
 - RBAC 预检只看 JWT 主角色导致 membership 角色 DB 权限不生效。
+- 问题/变更/服务请求创建人、处理人及服务请求审批 membership 迁移；
+- 23 条 membership 复合外键 VALIDATE；
+- 评论/附件/工单审批/服务请求审批/通知的前端身份展示。
 
-Phase 3 本轮验证（238）：
+Phase 3 历史验证（238，`5639c21c9`，保留追溯）：
 
 - `go test ./service -count=1` 全包通过（含评论/附件/CC/通知/BPMN 决策 membership 断言）；
 - `go test ./middleware ./dto ./service/bpmn ./handlers/common ./handlers/auth` 通过；

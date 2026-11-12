@@ -21,6 +21,40 @@
 
 以下变更来自 `CHANGELOG.md` 的 `Unreleased` 段，集成方必须适配：
 
+### 租户成员生命周期加固（2026-11-12，权限收窄）
+
+业务请求开始强制验证当前有效 membership，并用其租户角色而非旧 JWT 角色授权。
+撤销、暂停、到期后，未过期 access token 也会收到 403；客户端应重新登录或由管理员
+重新走正式授权流程，不应循环重试业务写入。用户角色更新改为账号、目标租户角色边及
+membership 角色事务同步，历史撤销关系不会因资料编辑恢复。
+
+升级顺序与注意事项：
+
+1. 备份数据库并安排维护窗口。使用**本版本迁移 runner 与 SQL 一起升级**，不要手工重放
+   `20261111_membership_tenant_identity` / `20261112_membership_business_actors`。
+2. 未执行的上述旧版本由 runner 标记 adopted，改由
+   `20261112_membership_backfill_safe` 安全补齐；已执行版本的原始 SQL/checksum 不修改。
+   安全回填检查完整 membership 历史，存在软删除记录也不创建新关系；provider 角色按
+   当前建号词表映射。`20261112z_membership_actor_references_reconcile` 在旧迁移流之后补齐
+   后建 membership 对应的历史 actor 空引用，保留非空历史引用。
+3. **已被旧迁移恢复的关系不可仅凭 source/timestamp 自动判定和撤销。**
+   迁移会对“migration 活行 + 同 user/tenant 软删历史”、旧 MSP 角色词表及空 role_id 发出
+   review warning；部分驱动不展示 PostgreSQL notice，发布时还须执行新迁移末尾的只读
+   检查谓词，结合邀请/撤销审计人工复核。合法重新授权与错误复活不得混为一谈。
+4. 上线前确认在用账号拥有有效 membership 和正确的同租户启用角色。默认不再允许缺失
+   membership 的普通账号访问业务 API。`AUTHZ_STATIC_FALLBACK` 仍只是显式迁移窗口开关，
+   仅允许从未有 membership 的 home 账号，不适用于已撤销/暂停/到期关系或外部租户。
+   不要通过扩大兼容开关掩盖数据问题。
+5. 复验：撤权后旧 token 的 CC 写操作拒绝、降权后重新登录无旧权限、停用账号不可分配/
+   接收通知、跨租户改派拒绝、其他合法用户可以维护含历史失效处理人的业务记录。
+6. 集成方检查工单及子工单部分更新：`assigneeId` 未传或 `null` 表示保留，`0` 表示
+   明确清空处理人与 membership，正整数表示改派，负数拒绝。原先以 `0` 表示“不更新”
+   的客户端必须改为省略字段，避免升级后意外取消分配；`version` 乐观锁契约不变。
+
+新增安全迁移为 **forward-only**，不提供删除身份/历史引用的自动 down 脚本。
+代码修复与本地回归不等于真实库发布验收，完整证据与待验证项见
+[修复记录](docs/review/2026-11-12-membership-hardening-fixes.md)。
+
 ### 1.1 API 响应字段改为 camelCase
 Ticket / Incident / SLA / BPMN 响应不再暴露 snake_case 字段：
 

@@ -31,6 +31,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **MSP 分配角色映射配置化（provider 级，2026-11-12）** —
+  新增 `msp.allocation_role_mapping`（`system_configs`，provider 租户级 JSON）与
+  `GET/PUT/DELETE /api/v1/msp/allocation-role-mapping`：`primary/backup/specialist`
+  可映射为 `msp_viewer/msp_tech/msp_specialist/msp_manager/msp_admin`；无配置行时使用
+  代码默认（primary/backup→`msp_tech`、specialist→`msp_specialist`）。目标角色在客户租户
+  不存在/已停用时回退默认；已有覆盖行但 JSON 为空/损坏/缺键时 **fail-closed**（新分配
+  membership 同步失败，不静默放宽）。配置变更显式写 `audit_logs`
+  （`msp_allocation_role_mapping.update/reset`，含 before/after）。`/msp/management`
+  新增配置卡片（仅 `msp_allocation:write` 可写；加载失败可重试、损坏红色告警、
+  高权限映射二次确认、响应式三列布局），
+  保存仅影响新分配，存量执行 `go run ./cmd/backfill_membership -apply -reconcile`。
+  方案见 `docs/multi-tenant/plan/msp-allocation-role-mapping-configuration-plan.md`。
+
 - **C 方案 Phase 4 第一批：接收人租户校验与 RBAC 预检同源（后端 + 前端 + E2E，2026-11-12）** —
   ① 工单 CC、BPMN CC、审批委派、BPMN 任务 actor/target 统一为“home tenant 兼容 /
   跨租户必须有 active membership”，无客户租户 membership 的外部账号不再写入
@@ -130,6 +143,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Bot 能力改平台级运行时开关、免重启（后端 + 前端迁移，2026-10-18）** — Bot 管理组件与路由改为常驻装配（去掉 bootstrap 对 `cfg.Bot.Enabled` 的短路），静态 `bot.enabled` 仅作默认值，生效由 `system_configs` **请求期求值**：管理写端 403（文案指引「系统配置 → AI 配置」）、读端保留（页面可展示关闭态）、聊天不落运行档案（与未注入 RunStore 的兼容态逐字节一致）。管理员打开开关后无需重启即可用。**238 demo 验证**：`PUT {"botEnabled":false}` 后 `POST /admin/bots` → 403 + 新文案、`GET /admin/bots` → 200；恢复后写端 400（校验层，门禁放行）；开关切换全程 backend 容器 `StartedAt` 不变（免重启）；`ai-capability` / `mcp-capabilities-moved` 均进入前端镜像产物。证据：[DEMO-CAPSW-20261018-fd7514a9-EVIDENCE](.dev/deploy/DEMO-CAPSW-20261018-fd7514a9-EVIDENCE.md)。
 
 ### Fixed
+
+- **知识库空列表响应输出 `[]` 而非 `null`（2026-11-12，未部署）** — `GET
+  /api/v1/knowledge-articles` 的 `ListArticles` 之前使用未初始化的 nil slice，
+  无增量结果时把 `items/articles` 编码成 `null`，桌面客户端按数组解析会报
+  `E_ITSM_PROTOCOL`。现在 handler 预分配空 slice 并同时写入 `articles` 别名，
+  DTO `MarshalJSON` 再做空数组兜底；文章字段和必填 `serverTime` 契约不变。
+  新增端点级与 DTO 回归，`go test ./dto ./handlers/knowledge -count=1` 通过。
+  **8089 demo 仍运行修复前的 `1.8.0-dev.16c5c453c`，部署新构建后线上才会返回
+  `[]`；客户端对 nil slice 的兼容不能移除。**
+
+- **多租户成员生命周期与降权一致性（2026-11-12，未部署）** — 请求期先验证当前
+  membership 的状态、软删除和有效期，再以其租户角色授权，不再继承旧 JWT 的权限；
+  权限缓存同时绑定账号/成员/角色版本。用户更新以事务同步账号、目标租户角色边和
+  membership 角色，移除旧主角色镜像，保留其他租户独立授权；失败整体回滚，
+  资料/角色编辑不会重新创建已撤销成员。新增认证中间件及真实用户更新 Handler 回归。
+  完整修复范围、命令与未验证层级见
+  [本轮修复记录](docs/review/2026-11-12-membership-hardening-fixes.md)；
+  不沿用旧发布的 E2E 通过数作为本次验收结果。
+
+- **成员身份业务链与安全回填补齐（2026-11-12，未部署）** — 工单改派、接单和转发
+  同步处理人与 membership；子工单复用普通创建事务/outbox，补齐 `parentTicketId` 响应。
+  工单/子工单更新的 `assigneeId` 现明确区分未传或 `null`（保留）、`0`（清空双列）
+  与正整数（重新校验后分配），AI 直接执行和审批后执行共用参数映射。CC 撤权后历史身份
+  不再放行，`/tickets/cc/my` 权限统一为 `ticket:read`。通知消费/重试按实际成员资格
+  重新鉴权，允许有效的 provider 客户身份；问题/变更维护保留未改变的历史处理人。
+  安全迁移替代未执行的旧回填，不恢复撤权、不改历史 checksum；真实 PostgreSQL
+  升级矩阵仍待验收。后端相关包及 service 定向回归、前端契约/API 65/65 与类型检查
+  通过；完整命令和未通过门禁见[修复记录](docs/review/2026-11-12-membership-hardening-fixes.md)。
+  **升级注意：以 `assigneeId: 0` 表示“不更新”的调用方必须改为省略字段。**
 
 - **MSP demo 多轮 E2E 修复与回归（D1–D18，后端 + 前端，2026-11-11）** — 基于 `172.18.3.238:8089`
   真实多租户 demo 完成 44 条 Playwright E2E，并从当前工作区 HEAD `af3cba9cb` 全量部署，修复：① 关联/契约——变更 `affectedCis`
