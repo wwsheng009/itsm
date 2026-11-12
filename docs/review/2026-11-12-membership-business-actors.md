@@ -1,7 +1,7 @@
 # Phase 4 第二批：问题/变更/服务请求 membership 与约束 VALIDATE
 
 > 日期：2026-11-12
-> 状态：代码完成，本地验证通过，待发布 238
+> 状态：已发布 238（`1.8.0-dev.47bd56dc5`），E2E 46/46
 > 关联：[C 方案主文档](../multi-tenant/plan/membership-tenant-identity-c-plan.md) ·
 > [Phase 4 第一批验证](2026-11-12-tenant-recipient-validation.md)
 
@@ -178,14 +178,79 @@ WHERE t.processor_membership_id IS NOT NULL
 6. 跑 demo E2E 分组（至少 00-smoke、01-permissions、05-multi-tenant-business）；
 7. 发布后 45 分钟观察 5xx / level=error / panic。
 
-## 6. 回滚
+## 6. 238 发布验证
+
+最终运行态：
+
+```text
+URL=http://172.18.3.238:8089
+version=1.8.0-dev.47bd56dc5
+commit=47bd56dc5f2f7707fcdb015d9a7ae25acd40e072
+readyz={"ready":true,"schemaVersion":"20261112_membership_constraints_validate"}
+demo containers=6/6 healthy
+```
+
+发布备份：
+
+```text
+/home/n9e/itsm/repo-e2e-6745c998/backups/demo-release-1.8.0-dev.47bd56dc5-20261112T025423Z
+```
+
+迁移账本：
+
+```text
+20261112_membership_business_actors            applied 2026-11-12 02:44:11
+20261112_membership_constraints_validate       applied 2026-11-12 02:44:11
+20261112_membership_business_actors_reconcile  applied 2026-11-12 02:58:55
+```
+
+约束与数据：
+
+```text
+membership 复合外键        21/21 convalidated=true
+problems.created_by        0 missing / 195
+problems.assignee          0 missing / 195
+changes.created_by         0 missing / 14
+changes.assignee           0 missing / 14
+service_requests.requester 0 missing / 126
+service_requests.processor 0 missing / 126
+跨租户 membership 错配     0
+```
+
+E2E：`00-smoke 6 + 01-permissions 8 + 02-associations 8 + 03-workflows 8 +
+04-ui-ux 11 + 05-multi-tenant-business 4 + 06-attachment-access 1 = 46/46`。
+
+运行时 API 抽查（`demo.mfg.admin`，tenant 3 / membership 4）：
+
+| 操作 | 结果 |
+|---|---|
+| 创建问题 | `id=189`, `createdByMembershipId=4` |
+| 创建变更 | `id=215`, `createdByMembershipId=4` |
+| 变更分配给 `demo.mfg.agent`（user 6） | `assigneeMembershipId=5` |
+| 创建服务请求 | `id=123`, `requesterMembershipId=4` |
+
+### 发布中发现并修复的缺陷
+
+| 缺陷 | 修复 |
+|---|---|
+| 事件转问题走 `RootCauseAnalysisService` 直接 ent 创建，绕过 HTTP 写路径，`created_by_membership_id` 为 NULL | 创建时解析 membership；新增 `20261112_membership_business_actors_reconcile` 幂等回填发布窗口内的 NULL 行 |
+
+首版 `4847f7c03` 的 E2E 生成 6 条新问题，其中 3 条事件转问题行缺少 creator membership；
+修复版 `47bd56dc5` 发布后 reconcile 迁移将其补齐，复跑 E2E 新生成的事件转问题行
+（problem 191–194）全部带 `created_by_membership_id=4`。
+
+发布证据详见
+[`evidence/2026-11-12-demo-full-deploy-47bd56dc5.md`](evidence/2026-11-12-demo-full-deploy-47bd56dc5.md)。
+
+## 7. 回滚
 
 - `20261112_membership_business_actors_down` 可回滚新增列、索引与 6 条约束；
 - `20261112_membership_constraints_validate` 为前向收敛迁移，不提供 down：
   约束保持 VALID 是更严格状态，不影响旧代码读写 `user_id` 兼容列；
+- `20261112_membership_business_actors_reconcile` 为幂等回填，不提供 down；
 - 旧客户端不依赖新增 membership 字段，API 向后兼容。
 
-## 7. 风险与边界
+## 8. 风险与边界
 
 1. VALIDATE 会扫描历史表并持有较轻的锁，建议在低峰期执行 bootstrap；
 2. 迁移会把跨租户/失效的 membership 指针置 NULL，历史行仍可通过 `user_id`

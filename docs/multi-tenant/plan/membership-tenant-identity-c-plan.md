@@ -1,7 +1,8 @@
 # C 方案：membership 作为租户内身份（2026-11-12）
 
 > **状态**：implemented（Phase 1–3 工单域已发布 238；Phase 4 第一批接收人校验已发布；
-> 第二批问题/变更/服务请求 actors 迁移与约束 VALIDATE 已完成待发布）
+> 第二批问题/变更/服务请求 actors 迁移与约束 VALIDATE 已发布 238 `1.8.0-dev.47bd56dc5`，
+> E2E 46/46）
 > **背景**：provider 深度切换到客户租户后，JWT 的 `tenant_id` 已指向客户租户，但工单仍以
 > `users.id` 作为申请人引用；provider 的 `users.tenant_id` 仍在 provider 租户，导致
 > “权限通过、申请人 404”。
@@ -216,6 +217,10 @@ tickets.assignee_id
   服务请求的跨租户读、跨租户写、伪造 membership 引用与跨租户处理人分配；
 - 新增 `database/rls/membership_constraints_integration_test.go`（`integration_rls`）：
   对真实 PostgreSQL 断言 21 条约束全部 `convalidated = true` 且无跨租户脏引用。
+- 238 发布后发现事件转问题路径（`RootCauseAnalysisService` 直接 ent 创建）绕过 HTTP
+  写路径，3 条 E2E 问题行缺少 creator membership；已在该服务解析 membership，并新增
+  `20261112_membership_business_actors_reconcile` 幂等回填。最终版
+  `1.8.0-dev.47bd56dc5` 复跑 E2E 46/46，21/21 约束 VALIDATED，6 类业务引用 missing=0。
 
 **本批不做**
 
