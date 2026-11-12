@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"strconv"
+	"strings"
 	"time"
 
 	"itsm-backend/common"
@@ -27,6 +28,31 @@ func getAuthContext(c *gin.Context) (int, int, bool) {
 		return 0, 0, false
 	}
 	return userID, tenantID, true
+}
+
+// failWorkflowAction 把工单流转业务错误映射为稳定 HTTP 状态：
+// 权限类 → 403，资源不存在 → 404，其余可解释校验错误 → 400；
+// 仅未知基础设施错误保留 FailWithErr（500）并隐藏原始错误。
+func failWorkflowAction(c *gin.Context, err error, publicMsg string) {
+	msg := strings.TrimSpace(err.Error())
+	switch {
+	case strings.Contains(msg, "无权限") || strings.Contains(msg, "无权"):
+		common.Fail(c, common.ForbiddenCode, "权限不足")
+	case strings.Contains(msg, "不存在"):
+		common.Fail(c, common.NotFoundCode, "资源不存在")
+	case strings.Contains(msg, "不属于当前租户"),
+		strings.Contains(msg, "未激活"),
+		strings.Contains(msg, "必须"),
+		strings.Contains(msg, "无效"),
+		strings.Contains(msg, "已结束"),
+		strings.Contains(msg, "已处理"),
+		strings.Contains(msg, "校验失败"),
+		strings.Contains(msg, "不能委派"),
+		strings.Contains(msg, "不能抄送"):
+		common.Fail(c, common.BadRequestCode, msg)
+	default:
+		common.FailWithErr(c, err, publicMsg)
+	}
 }
 
 // AcceptTicket 接单
@@ -137,7 +163,7 @@ func (h *Handler) CCTicket(c *gin.Context) {
 	err := h.workflowService.CCTicket(c.Request.Context(), &req, userID, tenantID)
 	if err != nil {
 		h.logger.Errorw("Failed to cc ticket", "error", err, "ticket_id", req.TicketID)
-		common.FailWithErr(c, err, "操作失败")
+		failWorkflowAction(c, err, "操作失败")
 		return
 	}
 
@@ -224,7 +250,7 @@ func (h *Handler) ApproveTicket(c *gin.Context) {
 	err := h.workflowService.ApproveTicket(c.Request.Context(), &req, userID, tenantID)
 	if err != nil {
 		h.logger.Errorw("Failed to approve ticket", "error", err, "ticket_id", req.TicketID)
-		common.FailWithErr(c, err, "操作失败")
+		failWorkflowAction(c, err, "操作失败")
 		return
 	}
 
