@@ -246,13 +246,15 @@ func (h *Handler) ListArticles(c *gin.Context) {
 		return
 	}
 
-	var dtos []dto.KnowledgeArticleResponse
+	// 空结果必须是 []，不能是 null：客户端增量下行按数组解析 items/articles。
+	dtos := make([]dto.KnowledgeArticleResponse, 0, len(list))
 	for _, item := range list {
 		dtos = append(dtos, *h.toArticleDTO(item))
 	}
 
 	common.Success(c, dto.KnowledgeArticleListResponse{
 		Items:      dtos,
+		Articles:   dtos,
 		Total:      total,
 		Page:       page,
 		PageSize:   pageSize,

@@ -148,9 +148,19 @@ type KnowledgeDeletedListResponse struct {
 	ServerTime time.Time              `json:"serverTime"`
 }
 
-// MarshalJSON 保证 articles 别名至少与 items 一致，避免前端列表为空。
+// MarshalJSON 保证 items/articles 互为别名且始终编码为数组。
+//
+// Go 的 nil slice 会被编码成 null；客户端增量下行按数组严格解析，
+// 因此空列表必须输出 []，不能把 nil 直接交给 encoding/json。
 func (r KnowledgeArticleListResponse) MarshalJSON() ([]byte, error) {
+	if r.Items == nil {
+		r.Items = r.Articles
+	}
 	if r.Articles == nil {
+		r.Articles = r.Items
+	}
+	if r.Items == nil {
+		r.Items = []KnowledgeArticleResponse{}
 		r.Articles = r.Items
 	}
 	type alias KnowledgeArticleListResponse
