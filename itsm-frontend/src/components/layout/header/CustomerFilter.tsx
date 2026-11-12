@@ -275,7 +275,7 @@ export const CustomerFilter: React.FC<CustomerFilterProps> = ({ className }) => 
                   gap: 8,
                   padding: '8px 4px',
                   borderRadius: DESIGN.radius.md,
-                  background: checked ? 'var(--color-bg-tertiary)' : 'transparent',
+                  background: checked ? 'var(--color-background-tertiary, #f1f5f9)' : 'transparent',
                 }}
               >
                 <Checkbox
@@ -382,7 +382,7 @@ export const CustomerFilter: React.FC<CustomerFilterProps> = ({ className }) => 
             borderRadius: DESIGN.radius.md,
             // 主题感知：暗色下由 .dark 覆写的 CSS 变量接管，避免写死浅色胶囊底色
             border: '1px solid var(--color-border-primary)',
-            background: 'var(--color-bg-secondary)',
+            background: 'var(--color-background-secondary, #f8fafc)',
             color: 'var(--color-text-primary)',
             fontSize: 13,
           }}
