@@ -221,7 +221,7 @@ export const CustomerFilter: React.FC<CustomerFilterProps> = ({ className }) => 
       <Input
         size="small"
         allowClear
-        prefix={<Search size={14} style={{ color: DESIGN.colors.textMuted }} />}
+        prefix={<Search size={14} style={{ color: 'var(--color-text-tertiary)' }} />}
         placeholder="搜索客户名称/编码"
         value={searchTerm}
         onChange={event => setSearchTerm(event.target.value)}
@@ -235,7 +235,7 @@ export const CustomerFilter: React.FC<CustomerFilterProps> = ({ className }) => 
           justifyContent: 'space-between',
           margin: '10px 0 4px',
           paddingBottom: 8,
-          borderBottom: `1px solid ${DESIGN.colors.border}`,
+          borderBottom: '1px solid var(--color-border-primary)',
         }}
       >
         <Checkbox
@@ -245,7 +245,7 @@ export const CustomerFilter: React.FC<CustomerFilterProps> = ({ className }) => 
         >
           全部客户
         </Checkbox>
-        <span style={{ fontSize: 12, color: DESIGN.colors.textMuted }}>
+        <span style={{ fontSize: 12, color: 'var(--color-text-tertiary)' }}>
           共 {customers.length} 个可访问客户
         </span>
       </div>
@@ -275,7 +275,7 @@ export const CustomerFilter: React.FC<CustomerFilterProps> = ({ className }) => 
                   gap: 8,
                   padding: '8px 4px',
                   borderRadius: DESIGN.radius.md,
-                  background: checked ? DESIGN.colors.bgSubtle : 'transparent',
+                  background: checked ? 'var(--color-bg-tertiary)' : 'transparent',
                 }}
               >
                 <Checkbox
@@ -295,7 +295,7 @@ export const CustomerFilter: React.FC<CustomerFilterProps> = ({ className }) => 
                   >
                     {customer.name}
                   </div>
-                  <div style={{ fontSize: 12, color: DESIGN.colors.textMuted }}>
+                  <div style={{ fontSize: 12, color: 'var(--color-text-tertiary)' }}>
                     {customer.code}
                   </div>
                 </div>
@@ -347,9 +347,9 @@ export const CustomerFilter: React.FC<CustomerFilterProps> = ({ className }) => 
         style={{
           marginTop: 8,
           paddingTop: 8,
-          borderTop: `1px solid ${DESIGN.colors.border}`,
+          borderTop: '1px solid var(--color-border-primary)',
           fontSize: 12,
-          color: DESIGN.colors.textMuted,
+          color: 'var(--color-text-tertiary)',
         }}
       >
         已选 {selected === 'all' ? '全部客户' : `${selectedIds.length} 个客户`}
@@ -380,8 +380,10 @@ export const CustomerFilter: React.FC<CustomerFilterProps> = ({ className }) => 
             height: 32,
             padding: '0 10px',
             borderRadius: DESIGN.radius.md,
-            border: `1px solid ${DESIGN.colors.border}`,
-            background: DESIGN.colors.bgSubtle,
+            // 主题感知：暗色下由 .dark 覆写的 CSS 变量接管，避免写死浅色胶囊底色
+            border: '1px solid var(--color-border-primary)',
+            background: 'var(--color-bg-secondary)',
+            color: 'var(--color-text-primary)',
             fontSize: 13,
           }}
         >
