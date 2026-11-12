@@ -271,6 +271,7 @@ func (s *RootCauseAnalysisService) CreateProblemFromIncident(
 		SetRootCause(rootCause).
 		SetStatus("open").
 		SetCreatedBy(createdBy).
+		SetNillableCreatedByMembershipID(optionalInt(activeMembershipID(ctx, s.client, createdBy, tenantID))).
 		SetTenantID(tenantID).
 		AddIncidentIDs(incidentID).
 		Save(ctx)

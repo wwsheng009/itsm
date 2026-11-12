@@ -20,6 +20,7 @@ import (
 	"itsm-backend/ent/incidentmetric"
 	"itsm-backend/ent/operationalcommand"
 	"itsm-backend/ent/problem"
+	"itsm-backend/ent/usertenantmembership"
 	"itsm-backend/internal/commandbus"
 
 	"github.com/stretchr/testify/assert"
@@ -870,6 +871,11 @@ func TestRootCauseAnalysisService_ConvertIncidentToProblemTransactionAndTenantIs
 	require.NoError(t, err)
 	userB, err := createIncidentTestUser(ctx, client, tenantB.ID, "convert-b")
 	require.NoError(t, err)
+	userAMembership := client.UserTenantMembership.Create().
+		SetUserID(userA.ID).SetTenantID(tenantA.ID).
+		SetAccountKind(usertenantmembership.AccountKindCustomer).
+		SetSource(usertenantmembership.SourceHome).
+		SetStatus(usertenantmembership.StatusActive).SetIsDefault(true).SaveX(ctx)
 	incidentEntity, err := client.Incident.Create().
 		SetTitle("Repeated API outage").
 		SetDescription("API repeatedly becomes unavailable").
@@ -902,6 +908,7 @@ func TestRootCauseAnalysisService_ConvertIncidentToProblemTransactionAndTenantIs
 	assert.Equal(t, tenantA.ID, created.TenantID)
 	assert.Equal(t, "API stability problem", created.Title)
 	assert.Equal(t, "Connection exhaustion", created.RootCause)
+	assert.Equal(t, userAMembership.ID, created.CreatedByMembershipID)
 	linkedIncident, err := client.Problem.Query().Where(problem.IDEQ(created.ID)).QueryIncidents().Only(ctx)
 	require.NoError(t, err)
 	assert.Equal(t, incidentEntity.ID, linkedIncident.ID)
