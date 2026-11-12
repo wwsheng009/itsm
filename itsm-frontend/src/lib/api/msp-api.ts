@@ -14,6 +14,8 @@ import type {
   MSPCustomerReport,
   MSPAllocationHistory,
   MSPContext,
+  MSPAllocationRoleMapping,
+  UpdateMSPAllocationRoleMappingRequest,
 } from '@/types/msp';
 
 /**
@@ -45,6 +47,23 @@ export class MSPAPI {
       customerTenantId,
       reason,
     });
+  }
+
+  /** 获取 provider 租户级分配角色映射（缺行=代码默认）。 */
+  static async getAllocationRoleMapping(): Promise<MSPAllocationRoleMapping> {
+    return httpClient.get<MSPAllocationRoleMapping>('/api/v1/msp/allocation-role-mapping');
+  }
+
+  /** 更新 provider 租户级分配角色映射。 */
+  static async updateAllocationRoleMapping(
+    data: UpdateMSPAllocationRoleMappingRequest
+  ): Promise<MSPAllocationRoleMapping> {
+    return httpClient.put<MSPAllocationRoleMapping>('/api/v1/msp/allocation-role-mapping', data);
+  }
+
+  /** 恢复默认分配角色映射。 */
+  static async resetAllocationRoleMapping(): Promise<MSPAllocationRoleMapping> {
+    return httpClient.delete<MSPAllocationRoleMapping>('/api/v1/msp/allocation-role-mapping');
   }
 
   // ==================== MSP 客户管理 ====================

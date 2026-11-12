@@ -28,6 +28,10 @@ func SetupMSPRoutes(r *gin.Engine, config *RouterConfig) {
 		msp.GET("/allocations/history", middleware.RequireMSPPermission("msp_allocation", "read"), config.MSPHandler.GetAllocationHistory)
 		msp.POST("/allocations", middleware.RequireMSPPermission("msp_allocation", "write"), config.MSPHandler.CreateAllocation)
 		msp.POST("/allocations/deallocate", middleware.RequireMSPPermission("msp_allocation", "write"), config.MSPHandler.Deallocate)
+		// 分配角色 → 客户租户 membership 角色映射（provider 租户级配置；缺行=代码默认）。
+		msp.GET("/allocation-role-mapping", middleware.RequireMSPPermission("msp_allocation", "read"), config.MSPHandler.GetAllocationRoleMapping)
+		msp.PUT("/allocation-role-mapping", middleware.RequireMSPPermission("msp_allocation", "write"), config.MSPHandler.UpdateAllocationRoleMapping)
+		msp.DELETE("/allocation-role-mapping", middleware.RequireMSPPermission("msp_allocation", "write"), config.MSPHandler.ResetAllocationRoleMapping)
 
 		// 客户管理 - 需要 msp_customer 权限
 		msp.GET("/customers", middleware.RequireMSPPermission("msp_customer", "read"), config.MSPHandler.GetAllCustomers)

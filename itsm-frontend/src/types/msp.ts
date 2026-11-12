@@ -32,6 +32,22 @@ export interface CreateAllocationRequest {
   role?: AllocationRole;
 }
 
+// 分配角色 → 客户租户 membership 角色映射（provider 租户级配置）
+export interface MSPAllocationRoleMapping {
+  mapping: Record<AllocationRole, string>;
+  defaults: Record<AllocationRole, string>;
+  allowedRoles: string[];
+  overridden: boolean;
+  corrupt?: boolean;
+  updatedAt?: string | null;
+  updatedBy?: string;
+  warning?: string;
+}
+
+export interface UpdateMSPAllocationRoleMappingRequest {
+  mapping: Record<AllocationRole, string>;
+}
+
 // 工单的 MSP 信息
 export interface TicketMSPInfo {
   isManagedByMsp: boolean;

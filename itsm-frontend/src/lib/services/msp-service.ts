@@ -8,6 +8,8 @@ import type {
   MSPCustomerReport,
   MSPAllocationHistory,
   MSPContext,
+  MSPAllocationRoleMapping,
+  UpdateMSPAllocationRoleMappingRequest,
 } from '@/types/msp';
 import type {
   ProvisionRoleOption,
@@ -90,6 +92,23 @@ export class MSPService {
    */
   static async deallocate(mspUserId: number, customerTenantId: number, reason?: string): Promise<void> {
     await MSPAPI.deallocate(mspUserId, customerTenantId, reason);
+  }
+
+  /** 获取 provider 租户级分配角色映射。 */
+  static async getAllocationRoleMapping(): Promise<MSPAllocationRoleMapping> {
+    return MSPAPI.getAllocationRoleMapping();
+  }
+
+  /** 更新 provider 租户级分配角色映射。 */
+  static async updateAllocationRoleMapping(
+    data: UpdateMSPAllocationRoleMappingRequest
+  ): Promise<MSPAllocationRoleMapping> {
+    return MSPAPI.updateAllocationRoleMapping(data);
+  }
+
+  /** 恢复默认分配角色映射。 */
+  static async resetAllocationRoleMapping(): Promise<MSPAllocationRoleMapping> {
+    return MSPAPI.resetAllocationRoleMapping();
   }
 
   /**

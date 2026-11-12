@@ -15,25 +15,63 @@ import {
   Spin,
   Tooltip,
   Typography,
+  Row,
+  Col,
 } from 'antd';
 import { Plus, UserPlus } from 'lucide-react';
 import MSPService from '@/lib/services/msp-service';
 import { UserApi } from '@/lib/api/user-api';
-import type { MSPAllocation, CreateAllocationRequest } from '@/types/msp';
+import type { MSPAllocation, CreateAllocationRequest, MSPAllocationRoleMapping } from '@/types/msp';
+import { useAuthStore } from '@/lib/store/auth-store';
 import ProvisionUserModal from '@/components/provisioning/ProvisionUserModal';
+
+const ALLOCATION_ROLE_OPTIONS = [
+  { value: 'primary', label: '主支持 (Primary)' },
+  { value: 'backup', label: '备份 (Backup)' },
+  { value: 'specialist', label: '专家 (Specialist)' },
+] as const;
+
+const MSP_TARGET_ROLE_LABELS: Record<string, string> = {
+  msp_viewer: 'msp_viewer（观察者）',
+  msp_tech: 'msp_tech（技术员）',
+  msp_specialist: 'msp_specialist（专家）',
+  msp_manager: 'msp_manager（经理）',
+  msp_admin: 'msp_admin（全托管）',
+};
+
 export default function MSPManagementPage() {
   const [form] = Form.useForm();
+  const [mappingForm] = Form.useForm();
+  const canWriteRoleMapping = useAuthStore(state => state.hasPermission('msp_allocation:write'));
   const [loading, setLoading] = useState(false);
   const [hasAccess, setHasAccess] = useState(false);
   const [allocations, setAllocations] = useState<MSPAllocation[]>([]);
   const [customers, setCustomers] = useState<{ id: number; code: string; name: string }[]>([]);
   const [mspUsers, setMSPUsers] = useState<{ id: number; username: string }[]>([]);
+  const [roleMapping, setRoleMapping] = useState<MSPAllocationRoleMapping | null>(null);
+  const [mappingLoading, setMappingLoading] = useState(true);
+  const [mappingError, setMappingError] = useState<string | null>(null);
+  const [mappingSaving, setMappingSaving] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedAllocation, setSelectedAllocation] = useState<MSPAllocation | null>(null);
   const [deallocateLoading, setDeallocateLoading] = useState(false);
   const [accessError, setAccessError] = useState<string | null>(null);
   // MSP 建号通道：为客户建号弹窗（IP-P0-5）。
   const [provisionVisible, setProvisionVisible] = useState(false);
+  const primaryTarget = Form.useWatch('primary', mappingForm);
+  const backupTarget = Form.useWatch('backup', mappingForm);
+  const specialistTarget = Form.useWatch('specialist', mappingForm);
+  const highRiskMapping = [primaryTarget, backupTarget, specialistTarget].some(
+    role => role === 'msp_manager' || role === 'msp_admin'
+  );
+  let mappingSourceLabel = '系统默认';
+  if (mappingLoading) {
+    mappingSourceLabel = '加载中';
+  } else if (mappingError) {
+    mappingSourceLabel = '加载失败';
+  } else if (roleMapping?.overridden) {
+    mappingSourceLabel = 'Provider 配置';
+  }
 
   useEffect(() => {
     checkAccess();
@@ -53,8 +91,23 @@ export default function MSPManagementPage() {
     }
   };
 
+  const loadRoleMapping = async () => {
+    setMappingLoading(true);
+    setMappingError(null);
+    try {
+      const mapping = await MSPService.getAllocationRoleMapping();
+      setRoleMapping(mapping);
+      mappingForm.setFieldsValue(mapping.mapping);
+    } catch (err: any) {
+      setMappingError(err.message || '加载分配角色映射失败');
+    } finally {
+      setMappingLoading(false);
+    }
+  };
+
   const loadData = async () => {
     setLoading(true);
+    void loadRoleMapping();
     try {
       const [allocRes, custRes, usersRes] = await Promise.all([
         MSPService.getAllocations(),
@@ -134,6 +187,70 @@ export default function MSPManagementPage() {
           message.error(err.message || '解除分配失败');
         } finally {
           setDeallocateLoading(false);
+        }
+      },
+    });
+  };
+
+  const persistRoleMapping = async (values: Record<string, string>) => {
+    setMappingSaving(true);
+    try {
+      const updated = await MSPService.updateAllocationRoleMapping({
+        mapping: {
+          primary: values.primary,
+          backup: values.backup,
+          specialist: values.specialist,
+        },
+      });
+      setRoleMapping(updated);
+      mappingForm.setFieldsValue(updated.mapping);
+      message.success('分配角色映射已保存');
+    } catch (err: any) {
+      message.error(err.message || '保存分配角色映射失败');
+    } finally {
+      setMappingSaving(false);
+    }
+  };
+
+  const handleSaveRoleMapping = (values: Record<string, string>) => {
+    const riskyValues = [values.primary, values.backup, values.specialist].some(
+      role => role === 'msp_manager' || role === 'msp_admin'
+    );
+    if (!riskyValues) {
+      return persistRoleMapping(values);
+    }
+    return new Promise<void>(resolve => {
+      Modal.confirm({
+        title: '确认保存高权限映射',
+        content:
+          '当前映射包含 msp_manager / msp_admin。该角色会授予客户租户内用户管理、报表、项目或 CMDB/变更写权限，请确认符合客户授权边界。',
+        okText: '确认保存',
+        okButtonProps: { danger: true },
+        cancelText: '取消',
+        onOk: async () => {
+          await persistRoleMapping(values);
+          resolve();
+        },
+        onCancel: () => resolve(),
+      });
+    });
+  };
+
+  const handleResetRoleMapping = () => {
+    Modal.confirm({
+      title: '恢复默认分配角色映射',
+      content: '恢复后新分配将按系统默认映射（primary/backup→msp_tech，specialist→msp_specialist）。',
+      onOk: async () => {
+        setMappingSaving(true);
+        try {
+          const updated = await MSPService.resetAllocationRoleMapping();
+          setRoleMapping(updated);
+          mappingForm.setFieldsValue(updated.mapping);
+          message.success('已恢复默认分配角色映射');
+        } catch (err: any) {
+          message.error(err.message || '恢复默认分配角色映射失败');
+        } finally {
+          setMappingSaving(false);
         }
       },
     });
@@ -221,6 +338,139 @@ export default function MSPManagementPage() {
           loading={loading}
           pagination={{ pageSize: 10 }}
         />
+      </Card>
+
+      <Card
+        title="分配角色映射"
+        style={{ marginTop: 16 }}
+        extra={
+          <Space>
+            <Tag color={mappingError ? 'red' : roleMapping?.overridden ? 'blue' : 'default'}>
+              {mappingSourceLabel}
+            </Tag>
+            {highRiskMapping ? <Tag color='red'>高权限</Tag> : null}
+          </Space>
+        }
+      >
+        <Alert
+          message="分配角色决定服务商员工进入客户租户后的 membership 角色"
+          description="保存后仅影响新建分配；已有分配需执行 backfill_membership -apply -reconcile 重算。"
+          type="info"
+          showIcon
+          style={{ marginBottom: 16 }}
+        />
+        {mappingLoading ? (
+          <div style={{ padding: '24px 0', textAlign: 'center' }}>
+            <Spin />
+          </div>
+        ) : mappingError ? (
+          <Alert
+            message="分配角色映射加载失败"
+            description={mappingError}
+            type="error"
+            showIcon
+            action={
+              <Button size='small' onClick={() => void loadRoleMapping()}>
+                重试
+              </Button>
+            }
+          />
+        ) : (
+          <>
+            {roleMapping?.corrupt ? (
+              <Alert
+                message="配置损坏，已阻止新分配同步"
+                description={
+                  (roleMapping.warning || '配置内容无法解析') +
+                  '；请重新保存一份合法映射，或恢复默认。'
+                }
+                type="error"
+                showIcon
+                style={{ marginBottom: 16 }}
+              />
+            ) : roleMapping?.warning ? (
+              <Alert
+                message="配置警告"
+                description={roleMapping.warning}
+                type="warning"
+                showIcon
+                style={{ marginBottom: 16 }}
+              />
+            ) : null}
+            {highRiskMapping ? (
+              <Alert
+                message="当前映射包含高权限客户角色"
+                description="msp_manager / msp_admin 会授予客户租户内用户管理、报表、项目或 CMDB/变更写权限。保存前会再次确认。"
+                type="warning"
+                showIcon
+                style={{ marginBottom: 16 }}
+              />
+            ) : null}
+            {!canWriteRoleMapping ? (
+              <Alert
+                message="只读视图"
+                description="当前账号没有 msp_allocation:write 权限，只能查看分配角色映射，不能保存或恢复默认。"
+                type="info"
+                showIcon
+                style={{ marginBottom: 16 }}
+              />
+            ) : null}
+            <Form form={mappingForm} layout="vertical" onFinish={handleSaveRoleMapping}>
+              <Row gutter={16}>
+                {ALLOCATION_ROLE_OPTIONS.map(option => (
+                  <Col xs={24} md={8} key={option.value}>
+                    <Form.Item
+                      name={option.value}
+                      label={option.label}
+                      rules={[{ required: true, message: '请选择目标角色' }]}
+                      extra={`默认：${
+                        MSP_TARGET_ROLE_LABELS[roleMapping?.defaults?.[option.value] ?? ''] ??
+                        roleMapping?.defaults?.[option.value] ??
+                        '-'
+                      }`}
+                    >
+                      <Select
+                        disabled={!canWriteRoleMapping}
+                        options={(roleMapping?.allowedRoles?.length
+                          ? roleMapping.allowedRoles
+                          : Object.keys(MSP_TARGET_ROLE_LABELS)
+                        ).map(code => ({
+                          value: code,
+                          label: MSP_TARGET_ROLE_LABELS[code] ?? code,
+                        }))}
+                      />
+                    </Form.Item>
+                  </Col>
+                ))}
+              </Row>
+              <Space>
+                <Button
+                  type="primary"
+                  htmlType="submit"
+                  loading={mappingSaving}
+                  disabled={!canWriteRoleMapping}
+                >
+                  保存
+                </Button>
+                <Button
+                  onClick={handleResetRoleMapping}
+                  loading={mappingSaving}
+                  disabled={!canWriteRoleMapping || !roleMapping?.overridden}
+                >
+                  恢复默认
+                </Button>
+              </Space>
+            </Form>
+            <div style={{ marginTop: 12, color: 'var(--color-text-secondary, #888)', fontSize: 12 }}>
+              当前来源：{roleMapping?.overridden ? 'Provider 配置' : '系统默认'}
+              {roleMapping?.updatedAt
+                ? `｜最近保存：${new Date(roleMapping.updatedAt).toLocaleString('zh-CN')}`
+                : ''}
+              {roleMapping?.updatedBy ? `｜操作人：${roleMapping.updatedBy}` : ''}
+              ｜默认映射：primary/backup → msp_tech，specialist → msp_specialist。
+            </div>
+          </>
+        )}
       </Card>
 
       <Modal

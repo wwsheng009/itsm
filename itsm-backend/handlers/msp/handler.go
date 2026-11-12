@@ -6,6 +6,7 @@ package msp
 
 import (
 	"errors"
+	"fmt"
 	"strconv"
 	"time"
 
@@ -251,6 +252,107 @@ func (h *Handler) CreateAllocation(c *gin.Context) {
 	}
 
 	common.Success(c, alloc)
+}
+
+// allocationRoleMappingTenantID 解析配置所属 provider 租户。
+// MSP 路由不挂 TenantMiddleware，但 AuthMiddleware 已把 JWT 当前作用域写入 tenant_id；
+// 配置端点只允许在 provider 作用域调用（service 层会再次校验租户类型）。
+func (h *Handler) allocationRoleMappingTenantID(c *gin.Context) (int, bool) {
+	tenantID := c.GetInt("tenant_id")
+	if tenantID <= 0 {
+		common.Fail(c, common.AuthFailedCode, "租户信息缺失")
+		return 0, false
+	}
+	return tenantID, true
+}
+
+// GetAllocationRoleMapping 获取 provider 租户级分配角色映射。
+func (h *Handler) GetAllocationRoleMapping(c *gin.Context) {
+	tenantID, ok := h.allocationRoleMappingTenantID(c)
+	if !ok {
+		return
+	}
+	view, err := h.mspAllocationService.GetAllocationRoleMapping(c.Request.Context(), tenantID)
+	if err != nil {
+		if errors.Is(err, service.ErrMSPAllocationRoleMappingNotProvider) {
+			common.Fail(c, common.ForbiddenCode, "仅服务商租户可配置分配角色映射")
+			return
+		}
+		h.logger.Errorw("Failed to get allocation role mapping", "error", err, "tenant_id", tenantID)
+		common.Fail(c, common.InternalErrorCode, "查询分配角色映射失败")
+		return
+	}
+	common.Success(c, view)
+}
+
+// UpdateAllocationRoleMapping 更新 provider 租户级分配角色映射。
+func (h *Handler) UpdateAllocationRoleMapping(c *gin.Context) {
+	tenantID, ok := h.allocationRoleMappingTenantID(c)
+	if !ok {
+		return
+	}
+	var req dto.UpdateMSPAllocationRoleMappingRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		common.ParamErrorWithErr(c, err, "请求参数错误")
+		return
+	}
+	operator := c.GetString("username")
+	if operator == "" {
+		operator = fmt.Sprintf("user:%d", c.GetInt("user_id"))
+	}
+	meta := service.MSPAllocationRoleMappingAuditMeta{
+		ActorUserID:  c.GetInt("user_id"),
+		ActorAccount: operator,
+		Source:       middleware.AuditSourceHeader,
+		Path:         c.Request.URL.Path,
+		Method:       c.Request.Method,
+		IP:           c.ClientIP(),
+	}
+	view, err := h.mspAllocationService.UpdateAllocationRoleMapping(c.Request.Context(), tenantID, req.Mapping, meta)
+	if err != nil {
+		switch {
+		case errors.Is(err, service.ErrMSPAllocationRoleMappingNotProvider):
+			common.Fail(c, common.ForbiddenCode, "仅服务商租户可配置分配角色映射")
+		case errors.Is(err, service.ErrMSPAllocationRoleMappingInvalid):
+			common.ParamErrorWithErr(c, err, "分配角色映射不合法")
+		default:
+			h.logger.Errorw("Failed to update allocation role mapping", "error", err, "tenant_id", tenantID)
+			common.Fail(c, common.InternalErrorCode, "更新分配角色映射失败")
+		}
+		return
+	}
+	common.Success(c, view)
+}
+
+// ResetAllocationRoleMapping 恢复默认分配角色映射。
+func (h *Handler) ResetAllocationRoleMapping(c *gin.Context) {
+	tenantID, ok := h.allocationRoleMappingTenantID(c)
+	if !ok {
+		return
+	}
+	operator := c.GetString("username")
+	if operator == "" {
+		operator = fmt.Sprintf("user:%d", c.GetInt("user_id"))
+	}
+	meta := service.MSPAllocationRoleMappingAuditMeta{
+		ActorUserID:  c.GetInt("user_id"),
+		ActorAccount: operator,
+		Source:       middleware.AuditSourceHeader,
+		Path:         c.Request.URL.Path,
+		Method:       c.Request.Method,
+		IP:           c.ClientIP(),
+	}
+	view, err := h.mspAllocationService.ResetAllocationRoleMapping(c.Request.Context(), tenantID, meta)
+	if err != nil {
+		if errors.Is(err, service.ErrMSPAllocationRoleMappingNotProvider) {
+			common.Fail(c, common.ForbiddenCode, "仅服务商租户可配置分配角色映射")
+			return
+		}
+		h.logger.Errorw("Failed to reset allocation role mapping", "error", err, "tenant_id", tenantID)
+		common.Fail(c, common.InternalErrorCode, "恢复默认分配角色映射失败")
+		return
+	}
+	common.Success(c, view)
 }
 
 // Deallocate 解除 MSP 分配

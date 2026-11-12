@@ -161,9 +161,9 @@ func (s *MembershipSyncService) SyncHomeMembership(
 
 // SyncAllocationMembership 分配 → 客户作用域 membership（source=allocation；迁移 20260504 回填 2 同口径）。
 //
-// 词表映射（20260504 预设）：specialist→msp_specialist；primary/backup/其他→msp_tech。
-// 注意：目标架构 §5.3 表格写 primary→msp_manager，与既有回填数据口径存在差异，
-// 本实现按回填口径（最小权限）执行，差异登记为方案 MSW-Q5 待决。
+// 目标角色由 provider 租户级配置 msp.allocation_role_mapping 决定；缺行/非法值回退
+// 代码默认（specialist→msp_specialist；primary/backup/其他→msp_tech，MSW-Q5 最小权限口径）。
+// 配置目标角色在客户租户不存在时同样回退默认，避免坏配置把 role_id 写成 NULL。
 func (s *MembershipSyncService) SyncAllocationMembership(
 	ctx context.Context,
 	alloc *ent.MSPAllocation,
@@ -177,8 +177,36 @@ func (s *MembershipSyncService) SyncAllocationMembership(
 	}
 	scopeCtx := tenantctx.WithTenantID(ctx, alloc.CustomerTenantID)
 
-	roleCode, mspRole := allocationMembershipRoles(alloc.Role)
-	roleID, roleResolved := s.resolveRoleID(scopeCtx, alloc.CustomerTenantID, roleCode)
+	roleCode, mappingSource, mappingWarning, mappingErr := ResolveMSPAllocationMembershipRole(ctx, s.client, alloc.ProviderTenantID, alloc.Role)
+	if mappingErr != nil {
+		s.logger.Warnw("membership sync: allocation role mapping unavailable, fail closed",
+			"allocation_id", alloc.ID, "provider_tenant_id", alloc.ProviderTenantID,
+			"allocation_role", alloc.Role, "warning", mappingWarning, "error", mappingErr)
+		return nil, mappingErr
+	}
+	mspRole := roleCode
+	if mappingWarning != "" {
+		s.logger.Warnw("membership sync: allocation role mapping warning, fallback/defaults applied",
+			"allocation_id", alloc.ID, "provider_tenant_id", alloc.ProviderTenantID,
+			"allocation_role", alloc.Role, "warning", mappingWarning)
+	}
+	if mappingSource == "provider_config" {
+		s.logger.Debugw("membership sync: allocation role mapping from provider config",
+			"allocation_id", alloc.ID, "provider_tenant_id", alloc.ProviderTenantID,
+			"allocation_role", alloc.Role, "target_role", roleCode)
+	}
+	roleID, roleResolved := s.resolveAllocationRoleID(scopeCtx, alloc.CustomerTenantID, roleCode)
+	if !roleResolved {
+		fallbackRole, _ := allocationMembershipRoles(alloc.Role)
+		if fallbackRole != roleCode {
+			s.logger.Warnw("membership sync: configured allocation role missing in customer tenant, fallback to default",
+				"allocation_id", alloc.ID, "tenant_id", alloc.CustomerTenantID,
+				"configured_role", roleCode, "fallback_role", fallbackRole)
+			roleCode = fallbackRole
+			mspRole = fallbackRole
+			roleID, roleResolved = s.resolveAllocationRoleID(scopeCtx, alloc.CustomerTenantID, roleCode)
+		}
+	}
 	if !roleResolved {
 		s.logger.Warnw("membership sync: allocation role unresolved, role_id stays NULL (巡检清单)",
 			"allocation_id", alloc.ID, "tenant_id", alloc.CustomerTenantID, "role_code", roleCode)
@@ -398,6 +426,32 @@ func (s *MembershipSyncService) resolveRoleID(ctx context.Context, tenantID int,
 	if err != nil {
 		if !ent.IsNotFound(err) {
 			s.logger.Warnw("membership sync: role lookup failed",
+				"tenant_id", tenantID, "role_code", code, "error", err)
+		}
+		return 0, false
+	}
+	return r.ID, true
+}
+
+// resolveAllocationRoleID 与 resolveRoleID 同口径，但额外要求角色启用。
+// 目标角色被停用时按未解析处理，由调用方回退默认/进入巡检，避免把 membership
+// 绑定到已停用角色（运行时权限为空集）。
+func (s *MembershipSyncService) resolveAllocationRoleID(ctx context.Context, tenantID int, code string) (int, bool) {
+	code = strings.ToLower(strings.TrimSpace(code))
+	if code == "" {
+		return 0, false
+	}
+	r, err := s.client.Role.Query().
+		Where(
+			role.TenantIDEQ(tenantID),
+			role.CodeEQ(code),
+			role.IsActiveEQ(true),
+		).
+		Order(ent.Asc(role.FieldID)).
+		First(ctx)
+	if err != nil {
+		if !ent.IsNotFound(err) {
+			s.logger.Warnw("membership sync: active role lookup failed",
 				"tenant_id", tenantID, "role_code", code, "error", err)
 		}
 		return 0, false

@@ -86,9 +86,13 @@ provider 租户内建员工账号      →    把员工分配到客户租户    
 
 - 写入 `msp_allocations`（固化 provider 归属）；同时在**客户租户**自动生成 membership（`source=allocation`）：
   - `specialist → msp_specialist`；
-  - `primary / backup → msp_tech`（最小权限口径；`primary→msp_manager` 的差异登记为 MSW-Q5 待决）；
+  - `primary / backup → msp_tech`（最小权限口径；MSW-Q5 已决 A）；
+  - provider 管理员可在 `/msp/management → 分配角色映射` 覆盖上述映射（目标角色限 MSP 五角色；缺省=默认）；
 - 该 membership 的权限内容 = **客户租户内该角色的 `role_permissions`**（C2 客户侧基线，见 §9）；
 - 该分配同时是**深度切换的授权依据**（active allocation 才可切换；见 §5）。
+- 配置损坏/读取失败时 **fail-closed**：新分配的客户 membership 同步失败（分配行仍创建），
+  需在 `/msp/management → 分配角色映射` 修复配置后执行
+  `go run ./cmd/backfill_membership -apply -reconcile` 重算；配置变更会写入 `audit_logs`。
 
 **常见错误**：
 
@@ -143,6 +147,7 @@ provider 租户内建员工账号      →    把员工分配到客户租户    
 | 1 | 用客户管理员（`admin_demo_customer`）登录 | 客户租户作用域 |
 | 2 | `/admin/users` 用户列表 | **服务方成员**区域只读展示 provider 成员（`accountKind=provider, readOnly=true`，MSW-2 / Q2=B） |
 | 3 | `/admin/roles` 角色管理 → 打开 `msp_tech` / `msp_specialist` 等角色 | 可编辑该角色权限（客户可收回/扩展），变更记审计 |
+| 4 | provider 管理员在 `/msp/management → 分配角色映射` | 可调整 `primary/backup/specialist` 对应的客户侧 `msp_*` 角色；保存后新分配生效，存量执行 `backfill_membership -apply -reconcile` |
 
 > 注：客户**不需要**也不应该手工"建服务商用户"；调整权限请在**角色**上做（不是逐账号）。
 
@@ -178,7 +183,7 @@ Invoke-RestMethod "$base/api/v1/auth/me" -WebSession $s                 # 看 te
 | 环节 | 输入 | 落到角色 |
 |---|---|---|
 | provider 建号 | `msp_role=provider_admin` / `provider_agent` | provider 域 home membership：`msp_manager` / `msp_tech` |
-| 分配到客户 | allocation `role=primary/backup/specialist` | 客户域 membership：`msp_tech`（primary/backup）/ `msp_specialist`（specialist） |
+| 分配到客户 | allocation `role=primary/backup/specialist` | 客户域 membership：默认 `msp_tech`（primary/backup）/ `msp_specialist`（specialist）；可由 provider 分配角色映射覆盖 |
 
 **两套权限矩阵（同名角色、不同租户、不同内容）**
 
@@ -201,7 +206,7 @@ Invoke-RestMethod "$base/api/v1/auth/me" -WebSession $s                 # 看 te
 | 同一账号为什么两处角色不同？ | 账号≠成员身份；两处是各自租户内的角色（provider: C1；客户: C2） |
 | 如何限制某员工只能看某个客户？ | 分配（allocation）即限权；工作台与切换都按分配列表校验 |
 | 收回权限怎么做？ | 解除分配（§7）；必要时客户侧收紧角色权限（§6） |
-| 分配后客户侧角色是哪个？ | 按分配角色映射：primary/backup→`msp_tech`；specialist→`msp_specialist`（MSW-Q5：primary→msp_manager 待决） |
+| 分配后客户侧角色是哪个？ | 按 provider 分配角色映射；默认 primary/backup→`msp_tech`、specialist→`msp_specialist`（MSW-Q5 已决 A，可在 `/msp/management` 配置覆盖） |
 
 ---
 

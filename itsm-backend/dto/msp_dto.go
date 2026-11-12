@@ -60,6 +60,24 @@ type CreateAllocationRequest struct {
 	Role             string `json:"role" binding:"omitempty,oneof=primary backup specialist"`
 }
 
+// MSPAllocationRoleMappingView 是 provider 租户级分配角色映射的读模型：
+// Mapping=当前生效值，Defaults=代码默认值，AllowedRoles=允许映射到的客户侧角色。
+type MSPAllocationRoleMappingView struct {
+	Mapping      map[string]string `json:"mapping"`
+	Defaults     map[string]string `json:"defaults"`
+	AllowedRoles []string          `json:"allowedRoles"`
+	Overridden   bool              `json:"overridden"`
+	Corrupt      bool              `json:"corrupt,omitempty"`
+	UpdatedAt    *time.Time        `json:"updatedAt,omitempty"`
+	UpdatedBy    string            `json:"updatedBy,omitempty"`
+	Warning      string            `json:"warning,omitempty"`
+}
+
+// UpdateMSPAllocationRoleMappingRequest 是 PUT /msp/allocation-role-mapping 的请求体。
+type UpdateMSPAllocationRoleMappingRequest struct {
+	Mapping map[string]string `json:"mapping" binding:"required"`
+}
+
 // DeallocateRequest 解除分配请求
 type DeallocateRequest struct {
 	MSPUserID        int    `json:"mspUserId" binding:"required"`

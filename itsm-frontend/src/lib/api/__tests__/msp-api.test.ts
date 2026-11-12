@@ -12,6 +12,8 @@ jest.mock('../http-client', () => ({
 
 const mockGet = httpClient.get as jest.Mock;
 const mockPost = httpClient.post as jest.Mock;
+const mockPut = httpClient.put as jest.Mock;
+const mockDelete = httpClient.delete as jest.Mock;
 
 describe('MSPAPI', () => {
   beforeEach(() => { jest.clearAllMocks(); });
@@ -54,6 +56,29 @@ describe('MSPAPI', () => {
       expect(mockPost).toHaveBeenCalledWith('/api/v1/msp/allocations/deallocate', {
         mspUserId: 1, customerTenantId: 2, reason: undefined,
       });
+    });
+  });
+
+  describe('allocation role mapping', () => {
+    it('should get provider mapping', async () => {
+      mockGet.mockResolvedValue({ mapping: {}, defaults: {}, allowedRoles: [], overridden: false });
+      await MSPAPI.getAllocationRoleMapping();
+      expect(mockGet).toHaveBeenCalledWith('/api/v1/msp/allocation-role-mapping');
+    });
+
+    it('should update provider mapping', async () => {
+      const data = {
+        mapping: { primary: 'msp_manager', backup: 'msp_tech', specialist: 'msp_specialist' },
+      };
+      mockPut.mockResolvedValue(data);
+      await MSPAPI.updateAllocationRoleMapping(data as any);
+      expect(mockPut).toHaveBeenCalledWith('/api/v1/msp/allocation-role-mapping', data);
+    });
+
+    it('should reset provider mapping', async () => {
+      mockDelete.mockResolvedValue({ overridden: false });
+      await MSPAPI.resetAllocationRoleMapping();
+      expect(mockDelete).toHaveBeenCalledWith('/api/v1/msp/allocation-role-mapping');
     });
   });
 
