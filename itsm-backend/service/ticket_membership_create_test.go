@@ -73,13 +73,18 @@ func TestResolveCreateMemberships_RejectsNonMemberRequester(t *testing.T) {
 	assert.Contains(t, err.Error(), "申请人不是目标租户的有效成员")
 }
 
-func TestResolveCreateMemberships_LegacyDirectCallSkips(t *testing.T) {
+func TestResolveCreateMemberships_LegacyDirectCallRequiresActiveHomeUser(t *testing.T) {
 	ctx := context.Background()
 	client := enttest.Open(t, "sqlite3", "file:ticket-membership-legacy?mode=memory&cache=shared&_fk=1")
 	t.Cleanup(func() { _ = client.Close() })
 
 	svc := &TicketService{client: client, logger: zaptest.NewLogger(t).Sugar()}
-	req := &dto.CreateTicketRequest{RequesterID: 7}
-	require.NoError(t, svc.resolveCreateMemberships(ctx, req, 1))
+	tenant := client.Tenant.Create().SetCode("legacy").SetName("legacy").SaveX(ctx)
+	account := client.User.Create().SetUsername("legacy").SetName("legacy").
+		SetEmail("legacy@example.com").SetPasswordHash("hash").SetTenantID(tenant.ID).SetActive(true).SaveX(ctx)
+	req := &dto.CreateTicketRequest{RequesterID: account.ID}
+	require.NoError(t, svc.resolveCreateMemberships(ctx, req, tenant.ID))
 	assert.Zero(t, req.RequesterMembershipID)
+	client.User.UpdateOneID(account.ID).SetActive(false).ExecX(ctx)
+	require.Error(t, svc.resolveCreateMemberships(ctx, req, tenant.ID))
 }

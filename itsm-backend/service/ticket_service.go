@@ -33,9 +33,10 @@ import (
 	"itsm-backend/ent/tickettemplate"
 	"itsm-backend/ent/tickettype"
 	"itsm-backend/ent/user"
+	"itsm-backend/ent/usertenantmembership"
+	"itsm-backend/handlers/common/membershipref"
 	"itsm-backend/internal/commandbus"
 	"itsm-backend/internal/sanitize"
-	"itsm-backend/middleware"
 	"itsm-backend/repository/base"
 	"itsm-backend/repository/ticket"
 
@@ -325,10 +326,10 @@ func (s *TicketService) CreateTicket(ctx context.Context, req *dto.CreateTicketR
 		assigneeID = s.defaultTierOneAssignee(ctx, tenantID)
 	}
 	if assigneeID > 0 && s.client != nil {
-		if membership, mErr := middleware.ResolveActiveMembership(ctx, s.client, assigneeID, tenantID); mErr != nil {
+		if membershipID, mErr := membershipref.ResolveAssignable(ctx, s.client, assigneeID, tenantID); mErr != nil {
 			return nil, fmt.Errorf("resolve assignee membership: %w", mErr)
-		} else if membership != nil {
-			req.AssigneeMembershipID = membership.ID
+		} else {
+			req.AssigneeMembershipID = membershipID
 		}
 	}
 	categoryID := req.CategoryID
@@ -817,14 +818,8 @@ func (s *TicketService) validateCreateTicketReferences(ctx context.Context, req 
 		return common.NewBusinessError(common.NotFoundCode, "申请人不存在或不可用", "")
 	}
 	if req.AssigneeID > 0 {
-		assigneeExists, err := s.client.User.Query().
-			Where(user.IDEQ(req.AssigneeID), user.TenantIDEQ(tenantID), user.ActiveEQ(true)).
-			Exist(ctx)
-		if err != nil {
+		if _, err := membershipref.ResolveAssignable(ctx, s.client, req.AssigneeID, tenantID); err != nil {
 			return fmt.Errorf("验证处理人失败: %w", err)
-		}
-		if !assigneeExists {
-			return common.NewBusinessError(common.NotFoundCode, "处理人不存在或不可用", "")
 		}
 	}
 	if req.CategoryID != nil {
@@ -879,25 +874,49 @@ func (s *TicketService) validateCreateTicketReferences(ctx context.Context, req 
 //
 // C 方案：user_id 是全局账号，membership_id 是租户内身份。handler 在 RBAC 上下文存在时
 // 会写入 created_by_membership_id；此时新写入必须解析 requester membership。
-// 直接调用 service 的旧测试/内部任务没有 membership 上下文时保持兼容，不强制。
+// 没有 membership 上下文的旧调用也校验账号状态和成员历史，仅无历史的 home
+// 用户保留兼容；子任务复用同一创建链路，不能跳过这项校验。
 func (s *TicketService) resolveCreateMemberships(ctx context.Context, req *dto.CreateTicketRequest, tenantID int) error {
 	if s.client == nil || req == nil {
 		return nil
 	}
 	requireMembership := req.CreatedByMembershipID > 0 || req.RequesterMembershipID > 0
-	if !requireMembership {
-		return nil
-	}
-	requesterMembership, err := middleware.ResolveActiveMembership(ctx, s.client, req.RequesterID, tenantID)
+	requesterMembershipID, err := membershipref.ResolveAssignable(ctx, s.client, req.RequesterID, tenantID)
 	if err != nil {
-		return fmt.Errorf("resolve requester membership: %w", err)
-	}
-	if requesterMembership == nil {
+		if _, ok := common.AsAppError(err); !ok {
+			return fmt.Errorf("resolve requester membership: %w", err)
+		}
 		return common.NewBusinessError(common.ParamErrorCode, "申请人不是目标租户的有效成员", "")
 	}
-	req.RequesterMembershipID = requesterMembership.ID
-	if req.CreatedByMembershipID <= 0 {
-		req.CreatedByMembershipID = requesterMembership.ID
+	if requireMembership && requesterMembershipID == 0 {
+		return common.NewBusinessError(common.ParamErrorCode, "申请人不是目标租户的有效成员", "")
+	}
+	if req.RequesterMembershipID > 0 && req.RequesterMembershipID != requesterMembershipID {
+		return common.NewBadRequestError("申请人与租户成员身份不一致", nil)
+	}
+	req.RequesterMembershipID = requesterMembershipID
+	if req.CreatedByMembershipID > 0 {
+		creator, err := s.client.UserTenantMembership.Query().
+			Where(usertenantmembership.IDEQ(req.CreatedByMembershipID), usertenantmembership.TenantIDEQ(tenantID)).
+			Only(ctx)
+		if err != nil {
+			if ent.IsNotFound(err) {
+				return common.NewForbiddenError("创建人不是目标租户的有效成员")
+			}
+			return fmt.Errorf("resolve creator membership: %w", err)
+		}
+		creatorMembershipID, err := membershipref.ResolveAssignable(ctx, s.client, creator.UserID, tenantID)
+		if err != nil {
+			if _, ok := common.AsAppError(err); !ok {
+				return fmt.Errorf("resolve creator membership: %w", err)
+			}
+			return common.NewForbiddenError("创建人不是目标租户的有效成员")
+		}
+		if creatorMembershipID != creator.ID {
+			return common.NewForbiddenError("创建人不是目标租户的有效成员")
+		}
+	} else {
+		req.CreatedByMembershipID = requesterMembershipID
 	}
 	return nil
 }
@@ -1259,19 +1278,16 @@ func (s *TicketService) UpdateTicket(ctx context.Context, id int, req *dto.Updat
 		}
 		params.FormFields = &validationRequest.FormFields
 	}
-	if req.AssigneeID != 0 {
-		if s.client != nil {
-			assigneeExists, err := s.client.User.Query().
-				Where(user.IDEQ(req.AssigneeID), user.TenantIDEQ(tenantID), user.ActiveEQ(true)).
-				Exist(ctx)
-			if err != nil {
+	if req.AssigneeID != nil {
+		if *req.AssigneeID < 0 {
+			return nil, common.NewBadRequestError("assigneeId 不能为负数", nil)
+		}
+		if *req.AssigneeID > 0 && s.client != nil {
+			if _, err := membershipref.ResolveAssignable(ctx, s.client, *req.AssigneeID, tenantID); err != nil {
 				return nil, fmt.Errorf("验证处理人失败: %w", err)
 			}
-			if !assigneeExists {
-				return nil, fmt.Errorf("处理人不存在或不可用")
-			}
 		}
-		params.AssigneeID = &req.AssigneeID
+		params.AssigneeID = req.AssigneeID
 	}
 	categoryID := req.CategoryID
 	if categoryID == nil && strings.TrimSpace(req.Category) != "" {
@@ -1457,20 +1473,11 @@ func (s *TicketService) AssignTicket(ctx context.Context, ticketID int, assignee
 	}
 	var assigneeMembershipID *int
 	if s.client != nil {
-		if membership, mErr := middleware.ResolveActiveMembership(ctx, s.client, assigneeID, tenantID); mErr == nil && membership != nil {
-			assigneeMembershipID = &membership.ID
-		} else {
-			// 迁移窗口兼容：没有 membership 时仍按旧同租户用户校验。
-			exists, err := s.client.User.Query().
-				Where(user.IDEQ(assigneeID), user.TenantIDEQ(tenantID), user.ActiveEQ(true)).
-				Exist(ctx)
-			if err != nil {
-				return nil, fmt.Errorf("验证处理人失败: %w", err)
-			}
-			if !exists {
-				return nil, fmt.Errorf("处理人不存在或不可用")
-			}
+		membershipID, err := membershipref.ResolveAssignable(ctx, s.client, assigneeID, tenantID)
+		if err != nil {
+			return nil, err
 		}
+		assigneeMembershipID = &membershipID
 	}
 	status := current.Status
 	updated, err := s.updateTicketWithFeishuCommand(ctx, ticketID, &ticket.UpdateParams{

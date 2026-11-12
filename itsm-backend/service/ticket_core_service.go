@@ -20,6 +20,7 @@ import (
 	"itsm-backend/ent/tickettemplate"
 	"itsm-backend/ent/tickettype"
 	"itsm-backend/ent/user"
+	"itsm-backend/handlers/common/membershipref"
 
 	"go.uber.org/zap"
 )
@@ -339,13 +340,24 @@ func (s *TicketCoreService) UpdateTicketBasic(ctx context.Context, ticketID int,
 		}
 		update = update.SetRequesterID(req.RequesterID)
 	}
-	if req.AssigneeID != 0 {
-		if req.AssigneeID > 0 {
-			if err := s.validateAssignee(ctx, req.AssigneeID, tenantID); err != nil {
+	if req.AssigneeID != nil {
+		if *req.AssigneeID < 0 {
+			return nil, common.NewBadRequestError("assigneeId 不能为负数", nil)
+		}
+		if *req.AssigneeID > 0 {
+			membershipID, err := membershipref.ResolveAssignable(ctx, s.client, *req.AssigneeID, tenantID)
+			if err != nil {
 				return nil, fmt.Errorf("验证分配人失败: %w", err)
 			}
+			update.SetAssigneeID(*req.AssigneeID)
+			if membershipID > 0 {
+				update.SetAssigneeMembershipID(membershipID)
+			} else {
+				update.ClearAssigneeMembershipID()
+			}
+		} else {
+			update.ClearAssigneeID().ClearAssigneeMembershipID()
 		}
-		update = update.SetAssigneeID(req.AssigneeID)
 	}
 
 	// 自动增加版本号

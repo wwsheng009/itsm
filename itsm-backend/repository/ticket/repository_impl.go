@@ -14,6 +14,7 @@ import (
 	"itsm-backend/database"
 	"itsm-backend/ent"
 	"itsm-backend/ent/ticket"
+	"itsm-backend/handlers/common/membershipref"
 	"itsm-backend/internal/notificationcleanup"
 	"itsm-backend/repository/base"
 
@@ -343,6 +344,39 @@ func (r *EntRepository) GetByNumber(ctx context.Context, ticketNumber string, te
 	return toDomainModel(entity), nil
 }
 
+// applyAssigneeUpdate owns the paired identity mutation for both update paths.
+// Membership IDs are resolved from the target account, never inherited from the
+// previous assignee or accepted independently from the corresponding user ID.
+func applyAssigneeUpdate(ctx context.Context, client *ent.Client, builder *ent.TicketUpdateOne, params *UpdateParams, tenantID int) error {
+	if params.AssigneeID == nil {
+		if params.AssigneeMembershipID != nil {
+			return common.NewBadRequestError("更新处理人身份必须同时提供 assigneeId", nil)
+		}
+		return nil
+	}
+	if *params.AssigneeID < 0 {
+		return common.NewBadRequestError("assigneeId 不能为负数", nil)
+	}
+	if *params.AssigneeID == 0 {
+		builder.ClearAssigneeID().ClearAssigneeMembershipID()
+		return nil
+	}
+	membershipID, err := membershipref.ResolveAssignable(ctx, client, *params.AssigneeID, tenantID)
+	if err != nil {
+		return err
+	}
+	if params.AssigneeMembershipID != nil && *params.AssigneeMembershipID > 0 && *params.AssigneeMembershipID != membershipID {
+		return common.NewBadRequestError("处理人与租户成员身份不一致", nil)
+	}
+	builder.SetAssigneeID(*params.AssigneeID)
+	if membershipID > 0 {
+		builder.SetAssigneeMembershipID(membershipID)
+	} else {
+		builder.ClearAssigneeMembershipID()
+	}
+	return nil
+}
+
 // Update 更新工单
 func (r *EntRepository) Update(ctx context.Context, id int, params *UpdateParams, tenantID int) (*Ticket, error) {
 	// 先获取当前工单（包含版本号）
@@ -389,15 +423,8 @@ func (r *EntRepository) Update(ctx context.Context, id int, params *UpdateParams
 	if params.Priority != nil {
 		builder.SetPriority(string(*params.Priority))
 	}
-	if params.AssigneeID != nil {
-		builder.SetAssigneeID(*params.AssigneeID)
-	}
-	if params.AssigneeMembershipID != nil {
-		if *params.AssigneeMembershipID <= 0 {
-			builder.ClearAssigneeMembershipID()
-		} else {
-			builder.SetAssigneeMembershipID(*params.AssigneeMembershipID)
-		}
+	if err := applyAssigneeUpdate(ctx, r.Client(), builder, params, tenantID); err != nil {
+		return nil, err
 	}
 	if params.CategoryID != nil {
 		if *params.CategoryID == 0 {
@@ -498,15 +525,8 @@ func (r *EntRepository) UpdateWithTxHook(ctx context.Context, id int, params *Up
 	if params.Priority != nil {
 		builder.SetPriority(string(*params.Priority))
 	}
-	if params.AssigneeID != nil {
-		builder.SetAssigneeID(*params.AssigneeID)
-	}
-	if params.AssigneeMembershipID != nil {
-		if *params.AssigneeMembershipID <= 0 {
-			builder.ClearAssigneeMembershipID()
-		} else {
-			builder.SetAssigneeMembershipID(*params.AssigneeMembershipID)
-		}
+	if err := applyAssigneeUpdate(ctx, tx.Client(), builder, params, tenantID); err != nil {
+		return nil, err
 	}
 	if params.CategoryID != nil {
 		if *params.CategoryID == 0 {
@@ -1046,7 +1066,7 @@ func (r *EntRepository) AssignTicket(ctx context.Context, id int, assigneeID int
 }
 
 // AssignTicketWithMembership 分配工单并同步目标租户内的 assignee membership。
-// membershipID<=0 时保持旧行为（仅写 assignee_id），兼容迁移窗口/测试调用。
+// membershipID<=0 时由统一更新入口重新解析；禁止沿用旧处理人的 membership。
 func (r *EntRepository) AssignTicketWithMembership(ctx context.Context, id int, assigneeID, assigneeMembershipID, tenantID int) (*Ticket, error) {
 	current, err := r.GetByID(ctx, id, tenantID)
 	if err != nil {

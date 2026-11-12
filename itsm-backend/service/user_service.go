@@ -170,13 +170,14 @@ func (s *UserService) resolveRoleID(ctx context.Context, tenantID int, code stri
 
 // SyncUserRoles 整体替换用户的 user_roles M2M 边（仅接受本租户内的角色 ID，防跨租户提权）。
 func (s *UserService) SyncUserRoles(ctx context.Context, userID, tenantID int, roleIDs []int) error {
-	if len(roleIDs) == 0 {
-		_, err := s.client.User.UpdateOneID(userID).ClearRoles().Save(ctx)
-		return err
+	account, err := s.client.User.Query().
+		Where(user.IDEQ(userID), user.TenantIDEQ(tenantID)).Only(ctx)
+	if err != nil {
+		return fmt.Errorf("查询租户用户失败: %w", err)
 	}
 	// 校验全部角色属于同一租户，避免恶意 roleIds 跨租户挂角色。
 	n, err := s.client.Role.Query().
-		Where(entrole.IDIn(roleIDs...), entrole.TenantIDEQ(tenantID)).
+		Where(entrole.IDIn(roleIDs...), entrole.TenantIDEQ(tenantID), entrole.IsActiveEQ(true)).
 		Count(ctx)
 	if err != nil {
 		return fmt.Errorf("校验角色失败: %w", err)
@@ -184,7 +185,14 @@ func (s *UserService) SyncUserRoles(ctx context.Context, userID, tenantID int, r
 	if n != len(roleIDs) {
 		return fmt.Errorf("存在不属于当前租户的角色: 期望 %d 个，匹配 %d 个", len(roleIDs), n)
 	}
-	_, err = s.client.User.UpdateOneID(userID).ClearRoles().AddRoleIDs(roleIDs...).Save(ctx)
+	currentIDs, err := account.QueryRoles().Where(entrole.TenantIDEQ(tenantID)).IDs(ctx)
+	if err != nil {
+		return fmt.Errorf("查询用户角色边失败: %w", err)
+	}
+	// Only replace this tenant's edges; a home-tenant edit must not erase
+	// separately granted roles in customer tenants.
+	_, err = s.client.User.UpdateOneID(userID).Where(user.TenantIDEQ(tenantID)).
+		RemoveRoleIDs(currentIDs...).AddRoleIDs(roleIDs...).Save(ctx)
 	return err
 }
 
@@ -455,6 +463,39 @@ func (s *UserService) GetUserByID(ctx context.Context, id int, tenantID int) (*e
 
 // UpdateUser 更新用户信息
 func (s *UserService) UpdateUser(ctx context.Context, id int, req *dto.UpdateUserRequest, tenantID int) (*ent.User, error) {
+	if req == nil || tenantID <= 0 || id <= 0 {
+		return nil, fmt.Errorf("无效的用户更新请求")
+	}
+	tx, err := s.client.Tx(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("开始用户更新事务失败: %w", err)
+	}
+	defer tx.Rollback()
+	txService := *s
+	txService.client = tx.Client()
+	updated, err := txService.updateUser(ctx, id, req, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("提交用户更新失败: %w", err)
+	}
+	updated.Unwrap()
+	if strings.TrimSpace(req.Role) != "" || req.RoleIDs != nil {
+		middleware.InvalidateMembershipPermissionCache(id, tenantID)
+		// Revoke only after all three identity representations commit. The
+		// request-time membership role also rejects stale JWT privileges if
+		// the revocation store is temporarily unavailable.
+		if err := middleware.InvalidateUserAccessTokens(ctx, id, time.Now()); err != nil {
+			s.logger.Errorw("用户权限变更后吊销存量token失败", "user_id", id, "error", err)
+		}
+	}
+	return updated, nil
+}
+
+// updateUser runs inside UpdateUser's transaction: account, role edges and
+// home-tenant membership must either change together or not at all.
+func (s *UserService) updateUser(ctx context.Context, id int, req *dto.UpdateUserRequest, tenantID int) (*ent.User, error) {
 	s.logger.Infof("更新用户: ID=%d", id)
 
 	// 验证用户属于当前租户，防止跨租户访问
@@ -537,15 +578,6 @@ func (s *UserService) UpdateUser(ctx context.Context, id int, req *dto.UpdateUse
 		}
 		if role != string(existingUser.Role) {
 			update = update.SetRole(user.Role(role))
-			// P1-2 修复：角色变更后立即吊销该用户全部存量 access token，
-			// 防止旧角色权限在 token 有效期内（15 分钟）继续生效。
-			if err := middleware.InvalidateUserAccessTokens(ctx, id, time.Now()); err != nil {
-				// 吊销失败不阻断角色变更本身，但必须记录：降权延迟窗口存在安全影响。
-				s.logger.Errorw("用户角色变更后吊销存量token失败（降权延迟风险）",
-					"user_id", id, "old_role", existingUser.Role, "new_role", role, "error", err)
-			} else {
-				s.logger.Infow("用户角色变更，已吊销存量access token", "user_id", id, "new_role", role)
-			}
 		}
 	}
 
@@ -560,15 +592,65 @@ func (s *UserService) UpdateUser(ctx context.Context, id int, req *dto.UpdateUse
 		if err := s.SyncUserRoles(ctx, id, tenantID, req.RoleIDs); err != nil {
 			return nil, fmt.Errorf("替换用户角色边失败: %w", err)
 		}
-		// 角色集合变更影响权限，与主角色变更同语义：吊销存量 token。
-		if err := middleware.InvalidateUserAccessTokens(ctx, id, time.Now()); err != nil {
-			s.logger.Errorw("用户多角色变更后吊销存量token失败（降权延迟风险）",
-				"user_id", id, "role_ids", req.RoleIDs, "error", err)
+	} else if userEntity.Role != existingUser.Role {
+		// CreateUser mirrors the primary role into user_roles. Replace that
+		// mirror on primary-role changes so the old admin edge cannot survive.
+		oldIDs, err := s.client.Role.Query().
+			Where(entrole.TenantIDEQ(tenantID), entrole.CodeEQ(string(existingUser.Role))).IDs(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("查询原主角色失败: %w", err)
+		}
+		newIDs, err := s.client.Role.Query().
+			Where(entrole.TenantIDEQ(tenantID), entrole.CodeEQ(string(userEntity.Role)), entrole.IsActiveEQ(true)).IDs(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("查询新主角色失败: %w", err)
+		}
+		if err := s.client.User.UpdateOneID(id).Where(user.TenantIDEQ(tenantID)).
+			RemoveRoleIDs(oldIDs...).AddRoleIDs(newIDs...).Exec(ctx); err != nil {
+			return nil, fmt.Errorf("更新主角色边失败: %w", err)
+		}
+	}
+	if strings.TrimSpace(req.Role) != "" || req.RoleIDs != nil {
+		if err := s.syncUpdatedMembershipRole(ctx, userEntity, req); err != nil {
+			return nil, err
 		}
 	}
 
 	s.logger.Infof("用户更新成功: ID=%d", id)
 	return userEntity, nil
+}
+
+func (s *UserService) syncUpdatedMembershipRole(ctx context.Context, account *ent.User, req *dto.UpdateUserRequest) error {
+	roleCode, mspRole := provisionMembershipRoles(account)
+	if strings.TrimSpace(req.Role) == "" && len(req.RoleIDs) > 0 && mspRole == "" {
+		roles, err := s.client.Role.Query().
+			Where(entrole.IDIn(req.RoleIDs...), entrole.TenantIDEQ(account.TenantID), entrole.IsActiveEQ(true)).
+			Order(ent.Asc(entrole.FieldCode)).All(ctx)
+		if err != nil {
+			return fmt.Errorf("解析成员角色失败: %w", err)
+		}
+		roleCode = highestRankRoleCode(roles)
+	}
+	roleEntity, err := s.client.Role.Query().
+		Where(entrole.CodeEQ(roleCode), entrole.TenantIDEQ(account.TenantID), entrole.IsActiveEQ(true)).Only(ctx)
+	if err != nil && !ent.IsNotFound(err) {
+		return fmt.Errorf("解析成员角色失败: %w", err)
+	}
+	update := s.client.UserTenantMembership.Update().
+		Where(usertenantmembership.UserIDEQ(account.ID), usertenantmembership.TenantIDEQ(account.TenantID),
+			usertenantmembership.DeletedAtIsNil())
+	if roleEntity == nil {
+		// Unconfigured legacy roles must not leave an earlier privileged role.
+		update.ClearRoleID()
+	} else {
+		update.SetRoleID(roleEntity.ID)
+	}
+	// Do not create memberships or change status/source/expiry here: updating
+	// an account is not authority to reinstate an explicitly revoked identity.
+	if err := update.Exec(ctx); err != nil {
+		return fmt.Errorf("同步租户成员角色失败: %w", err)
+	}
+	return nil
 }
 
 // DeleteUser 删除用户

@@ -55,8 +55,8 @@ type UpdateTicketRequest struct {
 	CategoryID      *int                   `json:"categoryId,omitempty"`
 	DepartmentID    *int                   `json:"departmentId,omitempty"`
 	CustomerID      *int                   `json:"customerId,omitempty"`
-	AssigneeID      int                    `json:"assigneeId"`
-	RequesterID     int                    `json:"requesterId"` // 创建人ID
+	AssigneeID      *int                   `json:"assigneeId,omitempty" binding:"omitempty,min=0"` // nil=保留，0=清空，正数=改派
+	RequesterID     int                    `json:"requesterId"`                                    // 创建人ID
 	Tags            []string               `json:"tags"`
 	Resolution      string                 `json:"resolution" binding:"omitempty"`
 	FormFields      map[string]interface{} `json:"formFields,omitempty"`

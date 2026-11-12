@@ -974,7 +974,7 @@ func RBACMiddleware(client *ent.Client) gin.HandlerFunc {
 		}
 
 		userID, ok := userIDInterface.(int)
-		if !ok {
+		if !ok || userID <= 0 {
 			zap.S().Warnw(
 				"RBACMiddleware: user_id format error",
 				"path", c.Request.URL.Path,
@@ -1029,7 +1029,7 @@ func RBACMiddleware(client *ent.Client) gin.HandlerFunc {
 			}
 		}
 		tenantID, ok := tenantIDInterface.(int)
-		if !ok {
+		if !ok || tenantID <= 0 {
 			zap.S().Warnw(
 				"RBACMiddleware: tenant_id format error",
 				"path", c.Request.URL.Path,
@@ -1048,6 +1048,11 @@ func RBACMiddleware(client *ent.Client) gin.HandlerFunc {
 		c.Request = c.Request.WithContext(
 			tenantctx.WithTenantID(c.Request.Context(), tenantID),
 		)
+		if client == nil {
+			common.Fail(c, common.AuthFailedCode, "身份验证服务不可用")
+			c.Abort()
+			return
+		}
 
 		// 从数据库获取用户最新角色信息
 		// P0-4：使用请求 ctx，随请求超时/取消传播
@@ -1068,8 +1073,15 @@ func RBACMiddleware(client *ent.Client) gin.HandlerFunc {
 			return
 		}
 
+		if !userEntity.Active {
+			common.Fail(c, common.ForbiddenCode, "用户已被禁用")
+			c.Abort()
+			return
+		}
+
 		// 物化全部生效角色（角色 code 列表）到上下文，供 RequirePermission/
 		// SmartCheckPermission 统一按并集判定。附加角色仅取启用且同租户的。
+		c.Set("roles", []string{})
 		if extraRoles := userEntity.Edges.Roles; len(extraRoles) > 0 {
 			roleCodes := make([]string, 0, len(extraRoles))
 			for _, r := range extraRoles {
@@ -1085,17 +1097,35 @@ func RBACMiddleware(client *ent.Client) gin.HandlerFunc {
 		// C 方案：membership 是租户内身份。一次解析同时完成：
 		//   1) membership_id/account_kind 写入请求上下文，供业务层做租户内引用；
 		//   2) 并入目标租户 membership 指向的角色 code（IP-P1-2 请求期单源收敛）。
-		// 无 membership / 角色行缺失时 fail-closed，不影响既有主角色与 m2m 判定。
+		// 身份资格必须先于权限、历史 owner/assignee 与 JWT 角色判断。
+		// 无效 membership 不得回落到 JWT 或 m2m 的旧权限。
 		membership, membershipErr := ResolveActiveMembership(c.Request.Context(), client, userID, tenantID)
 		if membershipErr != nil {
 			zap.S().Warnw("RBACMiddleware: resolve active membership failed",
 				"path", c.Request.URL.Path, "user_id", userID, "tenant_id", tenantID,
 				"error", membershipErr)
-		} else if membership != nil {
-			SetMembershipContext(c, membership)
+			common.Fail(c, common.AuthFailedCode, "租户身份验证失败")
+			c.Abort()
+			return
 		}
-		if membership != nil {
+		role := ""
+		if membership == nil {
+			allowed, err := allowMembershiplessRequest(c.Request.Context(), client, userEntity, tenantID, c.GetString("jwt_tenant_source"))
+			if err != nil || !allowed {
+				common.Fail(c, common.ForbiddenCode, "当前租户成员身份已失效")
+				c.Abort()
+				return
+			}
+			role = string(userEntity.Role)
+			if userEntity.TenantID == tenantID {
+				role = EffectiveTokenRole(role, string(userEntity.MspRole))
+			}
+		} else {
+			SetMembershipContext(c, membership)
 			membershipRoles := MembershipRoleCodes(c.Request.Context(), client, tenantID, membership)
+			if len(membershipRoles) > 0 {
+				role = membershipRoles[0]
+			}
 			existing, _ := c.Get("roles")
 			roleCodes, _ := existing.([]string)
 			merged := make([]string, 0, len(roleCodes)+len(membershipRoles))
@@ -1108,43 +1138,9 @@ func RBACMiddleware(client *ent.Client) gin.HandlerFunc {
 			}
 			c.Set("roles", merged)
 		}
-
-		// 检查用户是否被禁用
-		if !userEntity.Active {
-			zap.S().Warnw(
-				"RBACMiddleware: user is disabled",
-				"path", c.Request.URL.Path,
-				"user_id", userID,
-			)
-			common.Fail(c, common.ForbiddenCode, "用户已被禁用")
-			c.Abort()
-			return
-		}
-
-		// 从JWT中获取角色信息
-		roleInterface, exists := c.Get("role")
-		if !exists {
-			zap.S().Warnw(
-				"RBACMiddleware: role not found in context",
-				"path", c.Request.URL.Path,
-				"user_id", userID,
-			)
-			common.Fail(c, common.AuthFailedCode, "角色信息缺失")
-			c.Abort()
-			return
-		}
-
-		role, ok := roleInterface.(string)
-		if !ok {
-			zap.S().Warnw(
-				"RBACMiddleware: role format error",
-				"path", c.Request.URL.Path,
-				"role_interface", roleInterface,
-			)
-			common.Fail(c, common.AuthFailedCode, "角色格式错误")
-			c.Abort()
-			return
-		}
+		// JWT only identifies the session. Request-time authorization uses the
+		// current tenant role so a stale token cannot retain a downgraded role.
+		c.Set("role", role)
 
 		// 获取请求路径和方法
 		path := c.Request.URL.Path

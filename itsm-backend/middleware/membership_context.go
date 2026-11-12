@@ -2,13 +2,17 @@ package middleware
 
 import (
 	"context"
+	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 
 	"itsm-backend/common/tenantctx"
 	"itsm-backend/ent"
+	"itsm-backend/ent/user"
 	"itsm-backend/ent/usertenantmembership"
+	"itsm-backend/pkg/tenantmode"
 )
 
 // Membership context keys.
@@ -55,6 +59,36 @@ func ResolveActiveMembership(
 		return nil, err
 	}
 	return membership, nil
+}
+
+// allowMembershiplessRequest keeps only the explicit migration/governance
+// exceptions. A JWT role alone is never evidence of tenant membership.
+func allowMembershiplessRequest(ctx context.Context, client *ent.Client, account *ent.User, tenantID int, source string) (bool, error) {
+	if client == nil || account == nil || !account.Active || tenantID <= 0 {
+		return false, nil
+	}
+	if IsPlatformRole(string(account.Role)) &&
+		(account.TenantID == tenantID || (account.Role == user.RoleSuperAdmin && source == "switch")) {
+		home, err := client.Tenant.Get(tenantctx.WithTenantID(ctx, account.TenantID), account.TenantID)
+		if err != nil {
+			return false, err
+		}
+		// Platform switching is an explicitly audited governance path. Verify
+		// the stored home tenant, not merely the name of a token/attached role.
+		if (tenantmode.IsInternalTenantType(string(home.Type)) || strings.EqualFold(home.Code, "default")) &&
+			home.Status == "active" && (home.ExpiresAt.IsZero() || home.ExpiresAt.After(time.Now())) {
+			return true, nil
+		}
+	}
+	if !AuthzStaticFallbackEnabled() || account.TenantID != tenantID {
+		return false, nil
+	}
+	// Even the opt-in legacy window must not undo a suspension, expiry or
+	// revocation. Only a home account with no membership history can use it.
+	exists, err := client.UserTenantMembership.Query().
+		Where(usertenantmembership.UserIDEQ(account.ID), usertenantmembership.TenantIDEQ(tenantID)).
+		Exist(tenantctx.WithTenantID(ctx, tenantID))
+	return !exists && err == nil, err
 }
 
 // SetMembershipContext 把已解析的 membership 写入 gin 上下文。

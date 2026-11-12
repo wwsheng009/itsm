@@ -12,8 +12,10 @@ import (
 	"fmt"
 
 	"itsm-backend/common"
+	"itsm-backend/common/tenantctx"
 	"itsm-backend/ent"
 	"itsm-backend/ent/user"
+	"itsm-backend/ent/usertenantmembership"
 	"itsm-backend/middleware"
 )
 
@@ -61,9 +63,25 @@ func ResolveOptional(ctx context.Context, client *ent.Client, userID, tenantID i
 	return membership.ID, nil
 }
 
-// ResolveAssignable 解析业务处理人的 membership；无 membership 时回退旧校验：
-// 目标账号必须存在、active 且属于同一租户。返回值 0 表示走 user_id 兼容列。
+// ResolveAssignable validates the global account before resolving tenant identity.
+// The migration-only fallback is limited to an active home-tenant account with
+// no membership history in that tenant (including deleted/revoked/expired rows).
+// A historical membership never regains eligibility through users.tenant_id.
+// A zero result denotes that narrowly scoped legacy user_id representation.
 func ResolveAssignable(ctx context.Context, client *ent.Client, userID, tenantID int) (int, error) {
+	if client == nil || userID <= 0 || tenantID <= 0 {
+		return 0, common.NewBadRequestError("缺少解析处理人所需的账号或租户上下文", nil)
+	}
+	ctx = tenantctx.WithTenantID(ctx, tenantID)
+	account, err := client.User.Query().
+		Where(user.IDEQ(userID), user.ActiveEQ(true)).
+		Only(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return 0, common.NewBadRequestError("处理人不存在或不可用", nil)
+		}
+		return 0, fmt.Errorf("验证处理人失败: %w", err)
+	}
 	membershipID, err := ResolveOptional(ctx, client, userID, tenantID)
 	if err != nil {
 		return 0, err
@@ -71,16 +89,13 @@ func ResolveAssignable(ctx context.Context, client *ent.Client, userID, tenantID
 	if membershipID > 0 {
 		return membershipID, nil
 	}
-	if client == nil {
-		return 0, nil
-	}
-	exists, err := client.User.Query().
-		Where(user.IDEQ(userID), user.TenantIDEQ(tenantID), user.ActiveEQ(true)).
+	exists, err := client.UserTenantMembership.Query().
+		Where(usertenantmembership.UserIDEQ(userID), usertenantmembership.TenantIDEQ(tenantID)).
 		Exist(ctx)
 	if err != nil {
 		return 0, fmt.Errorf("验证处理人失败: %w", err)
 	}
-	if !exists {
+	if exists || account.TenantID != tenantID {
 		return 0, common.NewBadRequestError("处理人不存在或不可用", nil)
 	}
 	return 0, nil

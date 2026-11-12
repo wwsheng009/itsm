@@ -38,6 +38,7 @@ import (
 	"itsm-backend/ent/tenant"
 	"itsm-backend/ent/ticket"
 	"itsm-backend/ent/user"
+	"itsm-backend/ent/usertenantmembership"
 	mspHandler "itsm-backend/handlers/msp"
 	"itsm-backend/middleware"
 	ticketrepo "itsm-backend/repository/ticket"
@@ -205,22 +206,28 @@ func runScenario(t *testing.T, nProviders int) *mspE2EOutcome {
 	env.agent = mustMSPUser(t, client, "e2e-agent-1", env.provider.ID, role1.ID)
 	env.agent2 = mustMSPUser(t, client, "e2e-agent-2", env.provider.ID, role1.ID) // 故意不分配
 	env.providerAdmin = mustProviderAdmin(t, client, "e2e-provider-admin", env.provider.ID)
-	_, err := client.MSPAllocation.Create().SetMspUserID(env.agent.ID).
-		SetCustomerTenantID(env.customer.ID).SetProviderTenantID(env.provider.ID).SetRole("primary").Save(ctx)
-	require.NoError(t, err)
-	_, err = client.MSPAllocation.Create().SetMspUserID(env.agent.ID).
-		SetCustomerTenantID(env.customer2.ID).SetProviderTenantID(env.provider.ID).SetRole("primary").Save(ctx)
-	require.NoError(t, err)
+	// Mirror the production allocation write: the grant also creates the
+	// customer-scoped membership. A bare allocation is not tenant identity.
+	grantCustomer := func(agent *ent.User, customer *ent.Tenant) {
+		t.Helper()
+		allocation := client.MSPAllocation.Create().SetMspUserID(agent.ID).
+			SetCustomerTenantID(customer.ID).SetProviderTenantID(agent.TenantID).
+			SetRole("primary").SaveX(ctx)
+		_, err := service.NewMembershipSyncService(client, nil).SyncAllocationMembership(
+			ctx, allocation, service.MembershipAuditMeta{Trigger: "router.e2e.fixture"})
+		require.NoError(t, err)
+	}
+	grantCustomer(env.agent, env.customer)
+	grantCustomer(env.agent, env.customer2)
 	if nProviders == 2 {
 		env.agent3 = mustMSPUser(t, client, "e2e-agent-3", env.provider2.ID, role2.ID)
-		_, err = client.MSPAllocation.Create().SetMspUserID(env.agent3.ID).
-			SetCustomerTenantID(env.customer3.ID).SetProviderTenantID(env.provider2.ID).SetRole("primary").Save(ctx)
-		require.NoError(t, err)
+		grantCustomer(env.agent3, env.customer3)
 	}
 
 	// 4) 客户用户在 C1 建单（service 层，锁定 A12 快照派生）。
 	requester := mustCustomerUser(t, client, "e2e-requester-1", env.customer.ID)
 	ticketSvc := service.NewTicketServiceForTest(client, zaptest.NewLogger(t).Sugar())
+	var err error
 	env.ticket, err = ticketSvc.CreateTicket(ctx, &dto.CreateTicketRequest{
 		Title: "A12 端到端工单", Description: "e2e", Priority: "high", RequesterID: requester.ID,
 	}, env.customer.ID)
@@ -435,8 +442,8 @@ func mustTenant(t *testing.T, client *ent.Client, name, code, tenantType string,
 	return entity
 }
 
-// mustMSPUser 创建 provider 员工：账号 role=agent（JWT 主角色），并挂 m2m RBAC 角色
-// msp_tech（RBACMiddleware 的路径预检按 m2m 角色并集判定，见 Phase 1 多角色）。
+// mustMSPUser 创建 provider 员工：账号 role=agent，home membership 指向当前
+// msp_tech 角色；m2m 镜像本身不能代替成员身份。
 func mustMSPUser(t *testing.T, client *ent.Client, username string, tenantID, roleID int) *ent.User {
 	t.Helper()
 	ctx := context.Background()
@@ -448,6 +455,9 @@ func mustMSPUser(t *testing.T, client *ent.Client, username string, tenantID, ro
 	require.NoError(t, err)
 	_, err = client.User.UpdateOneID(entity.ID).AddRoleIDs(roleID).Save(ctx)
 	require.NoError(t, err)
+	client.UserTenantMembership.Create().SetUserID(entity.ID).SetTenantID(tenantID).
+		SetRoleID(roleID).SetAccountKind(usertenantmembership.AccountKindProvider).
+		SetSource(usertenantmembership.SourceHome).SetIsDefault(true).SetMspRole("msp_tech").SaveX(ctx)
 	return entity
 }
 

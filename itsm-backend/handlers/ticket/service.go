@@ -116,6 +116,7 @@ func (s *Service) Create(ctx context.Context, tenantID int, params *CreateParams
 		AssigneeID:            created.AssigneeID,
 		AssigneeMembershipID:  created.AssigneeMembershipID,
 		CreatedByMembershipID: created.CreatedByMembershipID,
+		ParentTicketID:        created.ParentTicketID,
 		TenantID:              created.TenantID,
 		Version:               created.Version,
 		CreatedAt:             created.CreatedAt,
@@ -472,8 +473,16 @@ func (s *Service) GetSubtasks(ctx context.Context, parentID int, tenantID int, c
 
 // CreateSubtask creates a child ticket.
 func (s *Service) CreateSubtask(ctx context.Context, tenantID int, parentID int, params *CreateParams) (*Ticket, error) {
+	if _, err := s.repo.GetByID(ctx, parentID, tenantID); err != nil {
+		if strings.Contains(err.Error(), "ticket not found") {
+			return nil, common.NewNotFoundError("父工单")
+		}
+		return nil, err
+	}
 	params.ParentTicketID = &parentID
-	return s.repo.Create(ctx, params, tenantID)
+	// Subtasks must use the same membership validation and transactional
+	// workflow/outbox creation path as ordinary tickets.
+	return s.Create(ctx, tenantID, params)
 }
 
 // UpdateSubtask updates a child ticket.

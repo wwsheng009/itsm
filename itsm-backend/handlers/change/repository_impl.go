@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"itsm-backend/common"
 	"itsm-backend/ent"
 	"itsm-backend/ent/change"
 	entuser "itsm-backend/ent/user"
@@ -347,24 +348,55 @@ func (r *EntRepository) UpdateStatusCAS(ctx context.Context, id, tenantID int, e
 }
 
 func (r *EntRepository) Update(ctx context.Context, c *Change) (*Change, error) {
+	if c == nil || c.ID <= 0 || c.TenantID <= 0 {
+		return nil, common.NewBadRequestError("缺少变更或租户上下文", nil)
+	}
+	current, err := r.client.Change.Query().
+		Where(change.IDEQ(c.ID), change.TenantIDEQ(c.TenantID)).
+		Only(ctx)
+	if err != nil {
+		return nil, err
+	}
+	// nil retains the repository's existing "not supplied" semantics; explicit
+	// zero unassigns. Compare the account before considering its current eligibility.
+	assigneeID := current.AssigneeID
 	if c.AssigneeID != nil {
-		if *c.AssigneeID > 0 {
-			assigneeMembershipID, err := membershipref.ResolveAssignable(
-				ctx, r.client, *c.AssigneeID, c.TenantID,
-			)
-			if err != nil {
-				return nil, err
-			}
-			c.AssigneeMembershipID = assigneeMembershipID
-		} else {
-			c.AssigneeMembershipID = 0
+		assigneeID = *c.AssigneeID
+	}
+	if assigneeID < 0 {
+		return nil, common.NewBadRequestError("处理人无效", nil)
+	}
+	assignmentChanged := assigneeID != current.AssigneeID
+	if assigneeID == 0 {
+		c.AssigneeMembershipID = 0
+		assignmentChanged = assignmentChanged || current.AssigneeMembershipID != 0
+	} else if assignmentChanged {
+		membershipID, err := membershipref.ResolveAssignable(ctx, r.client, assigneeID, c.TenantID)
+		if err != nil {
+			return nil, err
 		}
+		c.AssigneeMembershipID = membershipID
+	} else {
+		// Keep the historical pair even if membership was revoked/expired or the
+		// account disabled. Unrelated maintenance is not a new assignment.
+		if c.AssigneeMembershipID != 0 && c.AssigneeMembershipID != current.AssigneeMembershipID {
+			return nil, common.NewBadRequestError("处理人与历史租户身份不匹配", nil)
+		}
+		c.AssigneeMembershipID = current.AssigneeMembershipID
+	}
+	assigneeGuard := change.AssigneeIDEQ(current.AssigneeID)
+	if current.AssigneeID == 0 {
+		assigneeGuard = change.Or(assigneeGuard, change.AssigneeIDIsNil())
+	}
+	membershipGuard := change.AssigneeMembershipIDEQ(current.AssigneeMembershipID)
+	if current.AssigneeMembershipID == 0 {
+		membershipGuard = change.Or(membershipGuard, change.AssigneeMembershipIDIsNil())
 	}
 
 	// P1 修复：写路径强制租户隔离，避免越权更新跨租户变更。
 	// 注：change schema 无 deleted_at（物理删），故不附加 DeletedAtIsNil 守卫。
 	update := r.client.Change.UpdateOneID(c.ID).
-		Where(change.TenantIDEQ(c.TenantID)).
+		Where(change.TenantIDEQ(c.TenantID), assigneeGuard, membershipGuard).
 		SetTitle(c.Title).
 		SetDescription(c.Description).
 		SetJustification(c.Justification).
@@ -378,12 +410,16 @@ func (r *EntRepository) Update(ctx context.Context, c *Change) (*Change, error) 
 		SetAffectedCis(c.AffectedCIs).
 		SetRelatedTickets(c.RelatedTickets)
 
-	if c.AssigneeID != nil {
-		update.SetAssigneeID(*c.AssigneeID)
-		if c.AssigneeMembershipID > 0 {
-			update.SetAssigneeMembershipID(c.AssigneeMembershipID)
+	if assignmentChanged {
+		if assigneeID > 0 {
+			update.SetAssigneeID(assigneeID)
+			if c.AssigneeMembershipID > 0 {
+				update.SetAssigneeMembershipID(c.AssigneeMembershipID)
+			} else {
+				update.ClearAssigneeMembershipID()
+			}
 		} else {
-			update.ClearAssigneeMembershipID()
+			update.ClearAssigneeID().ClearAssigneeMembershipID()
 		}
 	}
 	if c.DepartmentID != nil {
@@ -406,6 +442,9 @@ func (r *EntRepository) Update(ctx context.Context, c *Change) (*Change, error) 
 	}
 
 	ec, err := update.Save(ctx)
+	if ent.IsNotFound(err) {
+		return nil, common.NewBusinessError(common.ConflictCode, "变更已被并发修改", "处理人身份已变化或变更已不可用，请刷新后重试")
+	}
 	if err != nil {
 		return nil, err
 	}

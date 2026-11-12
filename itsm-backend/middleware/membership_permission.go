@@ -32,8 +32,8 @@ import (
 // 本文件放在 middleware 包的理由：middleware 是现有 RBAC/权限缓存的既有归属层，
 // 且 service（menu_service.go）与 handlers 两侧都已依赖 middleware；解析器落在
 // 这里可被两端复用而不引入任何循环依赖（middleware 不反向依赖 service/handlers）。
-// 请求期 RBACMiddleware 的 4 层回退链（rbac.go/smart_permission.go）仍按 JWT 角色码
-// 判定，本次仅收敛「端点权限清单 + 菜单」；请求期单源切换见报告遗留项。
+// 请求期 RBACMiddleware 同样先校验有效成员身份，并从 membership 取得当前主角色，
+// 不再让旧 JWT 角色跨过撤权或降权边界。
 // =============================================================================
 
 // PermissionSource 描述一次权限解析结果的来源，便于日志与测试断言。
@@ -69,10 +69,19 @@ func AuthzStaticFallbackEnabled() bool {
 	return authzStaticFallback.Load()
 }
 
-// membershipPermission 用户-租户级权限解析缓存条目（key 含 user_id + tenant_id）。
+// membershipPermission 缓存 membership 主角色权限（key 含 user_id + tenant_id）。
+// 附加角色不在身份 revision 内，必须在每次解析时重新读取，不能缓存最终并集。
 type membershipPermission struct {
 	codes     []string
 	expiresAt time.Time
+	revision  membershipPermissionRevision
+}
+
+// Bind cached permissions to the authoritative identity revision. Local cache
+// eviction alone cannot propagate a role change to another API instance.
+type membershipPermissionRevision struct {
+	membershipID, roleID                                 int
+	accountUpdatedAt, membershipUpdatedAt, roleUpdatedAt int64
 }
 
 var (
@@ -86,14 +95,14 @@ func membershipPermissionCacheKey(userID, tenantID int) string {
 
 // loadMembershipPermissionFromCache 命中且未过期时返回缓存副本与 true。
 // 缓存 key 含 user_id + tenant_id：同一账号在 A/B 租户各自独立，不会串租户。
-func loadMembershipPermissionFromCache(userID, tenantID int) ([]string, bool) {
+func loadMembershipPermissionFromCache(userID, tenantID int, revision membershipPermissionRevision) ([]string, bool) {
 	if !PermissionConfig.EnableCache {
 		return nil, false
 	}
 	key := membershipPermissionCacheKey(userID, tenantID)
 	membershipPermissionCacheLock.RLock()
 	entry, ok := membershipPermissionCache[key]
-	if ok && time.Now().Before(entry.expiresAt) {
+	if ok && entry.revision == revision && time.Now().Before(entry.expiresAt) {
 		codes := append([]string(nil), entry.codes...)
 		membershipPermissionCacheLock.RUnlock()
 		return codes, true
@@ -102,7 +111,7 @@ func loadMembershipPermissionFromCache(userID, tenantID int) ([]string, bool) {
 	return nil, false
 }
 
-func storeMembershipPermissionToCache(userID, tenantID int, codes []string) {
+func storeMembershipPermissionToCache(userID, tenantID int, revision membershipPermissionRevision, codes []string) {
 	if !PermissionConfig.EnableCache {
 		return
 	}
@@ -112,6 +121,7 @@ func storeMembershipPermissionToCache(userID, tenantID int, codes []string) {
 	membershipPermissionCache[key] = &membershipPermission{
 		codes:     copied,
 		expiresAt: time.Now().Add(permissionCacheTTL),
+		revision:  revision,
 	}
 	membershipPermissionCacheLock.Unlock()
 }
@@ -185,13 +195,12 @@ func ResolvePermissions(ctx context.Context, client *ent.Client, userID, tenantI
 			"user_id", userID, "tenant_id", tenantID, "reason", "user_lookup_failed", "error", err)
 		return nil, PermissionSourceNone, err
 	}
+	if !userEntity.Active {
+		return nil, PermissionSourceNone, nil
+	}
 	// super_admin 硬编码直通（保持现状；不依赖 membership 与租户内角色行）。
 	if userEntity.Role == user.RoleSuperAdmin {
 		return []string{"*"}, PermissionSourceSuperAdmin, nil
-	}
-
-	if codes, ok := loadMembershipPermissionFromCache(userID, tenantID); ok {
-		return codes, PermissionSourceMembership, nil
 	}
 
 	membership, err := client.UserTenantMembership.Query().
@@ -210,6 +219,10 @@ func ResolvePermissions(ctx context.Context, client *ent.Client, userID, tenantI
 		return nil, PermissionSourceNone, err
 	}
 	if membership == nil {
+		allowed, err := allowMembershiplessRequest(ctx, client, userEntity, tenantID, "")
+		if err != nil || !allowed {
+			return nil, PermissionSourceNone, err
+		}
 		return resolveViaStaticFallbackOrDeny(userEntity, nil, userID, tenantID, "membership_missing")
 	}
 	if membership.RoleID == nil {
@@ -227,19 +240,36 @@ func ResolvePermissions(ctx context.Context, client *ent.Client, userID, tenantI
 		if err != nil && !ent.IsNotFound(err) {
 			zap.S().Warnw("ResolvePermissions: role lookup failed",
 				"user_id", userID, "tenant_id", tenantID, "role_id", *membership.RoleID, "error", err)
+			return nil, PermissionSourceNone, err
 		}
 		return resolveViaStaticFallbackOrDeny(userEntity, membership, userID, tenantID, reason)
+	}
+	if !roleEntity.IsActive {
+		return nil, PermissionSourceNone, nil
 	}
 	if roleEntity.Code == "super_admin" {
 		return []string{"*"}, PermissionSourceSuperAdmin, nil
 	}
-
-	codes, err := loadPermissionCodesByRoleID(ctx, client, roleEntity.ID, tenantID)
-	if err != nil {
-		zap.S().Warnw("ResolvePermissions: role_permissions load failed, fail-closed",
-			"user_id", userID, "tenant_id", tenantID, "role_id", roleEntity.ID,
-			"reason", "role_permissions_load_failed", "error", err)
-		return nil, PermissionSourceNone, err
+	// A cache hit is not evidence of current identity. Validate account,
+	// membership expiry/revocation and role state before reusing permissions.
+	revision := membershipPermissionRevision{
+		membershipID: membership.ID, roleID: roleEntity.ID,
+		accountUpdatedAt:    userEntity.UpdatedAt.UnixNano(),
+		membershipUpdatedAt: membership.UpdatedAt.UnixNano(),
+		roleUpdatedAt:       roleEntity.UpdatedAt.UnixNano(),
+	}
+	codes, cached := loadMembershipPermissionFromCache(userID, tenantID, revision)
+	if !cached {
+		codes, err = loadPermissionCodesByRoleID(ctx, client, roleEntity.ID, tenantID)
+		if err != nil {
+			zap.S().Warnw("ResolvePermissions: role_permissions load failed, fail-closed",
+				"user_id", userID, "tenant_id", tenantID, "role_id", roleEntity.ID,
+				"reason", "role_permissions_load_failed", "error", err)
+			return nil, PermissionSourceNone, err
+		}
+		// Store only the primary role, never the extra-role union. A role-side
+		// grant/revocation need not update users or the primary membership.
+		storeMembershipPermissionToCache(userID, tenantID, revision, codes)
 	}
 
 	// 2026-10-14 验收修复（IM-39）：并集「附加角色」（user_roles m2m，启用且同租户）——
@@ -255,7 +285,6 @@ func ResolvePermissions(ctx context.Context, client *ent.Client, userID, tenantI
 	}
 
 	// 角色行存在即视为已配置：空集 = 显式撤销，保持 fail-closed，不做静态回退。
-	storeMembershipPermissionToCache(userID, tenantID, codes)
 	return codes, PermissionSourceMembership, nil
 }
 
@@ -266,8 +295,7 @@ func ResolvePermissions(ctx context.Context, client *ent.Client, userID, tenantI
 // m2m 附加角色，未读取目标租户 membership 角色，导致深切换进客户租户的 MSP 员工
 // （JWT 角色保持 end_user）在展示面（/auth/me 经 ResolvePermissions 返回 C2 基线码）
 // 与判定面（RBACMiddleware）口径分叉：/cmdb/cis 等读面 403（2026-10-17 浏览器实测）。
-// RBACMiddleware 物化生效角色时并入本函数结果即可与展示面同源；无 membership /
-// 角色行缺失时返回 nil（fail-closed，不影响既有主角色与 m2m 判定）。
+// 无 membership / 角色行缺失或停用时返回 nil；请求期不得以旧 JWT 主角色补权。
 func ResolveMembershipRoleCodes(ctx context.Context, client *ent.Client, userID, tenantID int) []string {
 	membership, err := ResolveActiveMembership(ctx, client, userID, tenantID)
 	if err != nil || membership == nil {
@@ -295,6 +323,7 @@ func MembershipRoleCodes(
 		Where(
 			role.IDEQ(*membership.RoleID),
 			role.TenantID(tenantID),
+			role.IsActiveEQ(true),
 		).
 		Only(ctx)
 	if err != nil {

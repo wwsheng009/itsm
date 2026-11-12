@@ -34,7 +34,7 @@ func SetupTicketRoutes(tenant *gin.RouterGroup, config *RouterConfig) {
 		tickets.POST("/export", middleware.RequirePermission("ticket", "export"), config.TicketHandler.ExportTickets)
 		tickets.POST("/batch-delete", middleware.RequirePermission("ticket", "delete"), config.TicketHandler.BatchDeleteTickets)
 		if config.TicketWorkflowHandler != nil {
-			tickets.GET("/cc/my", middleware.RequirePermission("workflow", "read"), config.TicketWorkflowHandler.ListMyCCRecords)
+			tickets.GET("/cc/my", middleware.RequirePermission("ticket", "read"), config.TicketWorkflowHandler.ListMyCCRecords)
 		}
 
 		// 工单模板

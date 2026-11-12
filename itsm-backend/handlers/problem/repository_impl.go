@@ -349,22 +349,51 @@ func (r *EntRepository) List(ctx context.Context, tenantID int, page, size int, 
 }
 
 func (r *EntRepository) Update(ctx context.Context, p *Problem) (*Problem, error) {
+	if p == nil || p.ID <= 0 || p.TenantID <= 0 {
+		return nil, common.NewBadRequestError("缺少问题或租户上下文", nil)
+	}
+	current, err := r.client.Problem.Query().
+		Where(problem.IDEQ(p.ID), problem.TenantIDEQ(p.TenantID), problem.DeletedAtIsNil()).
+		Only(ctx)
+	if err != nil {
+		return nil, err
+	}
+	assigneeID := 0
 	if p.AssigneeID != nil {
-		if *p.AssigneeID > 0 {
-			assigneeMembershipID, err := membershipref.ResolveAssignable(
-				ctx, r.client, *p.AssigneeID, p.TenantID,
-			)
-			if err != nil {
-				return nil, err
-			}
-			p.AssigneeMembershipID = assigneeMembershipID
-		} else {
-			p.AssigneeMembershipID = 0
+		assigneeID = *p.AssigneeID
+	}
+	if assigneeID < 0 {
+		return nil, common.NewBadRequestError("处理人无效", nil)
+	}
+	assignmentChanged := assigneeID != current.AssigneeID
+	if assigneeID == 0 {
+		p.AssigneeMembershipID = 0
+		assignmentChanged = assignmentChanged || current.AssigneeMembershipID != 0
+	} else if assignmentChanged {
+		membershipID, err := membershipref.ResolveAssignable(ctx, r.client, assigneeID, p.TenantID)
+		if err != nil {
+			return nil, err
 		}
+		p.AssigneeMembershipID = membershipID
+	} else {
+		// A stored identity is historical evidence, not a fresh assignment.
+		// Never replace it with today's membership (or erase it after revocation).
+		if p.AssigneeMembershipID != 0 && p.AssigneeMembershipID != current.AssigneeMembershipID {
+			return nil, common.NewBadRequestError("处理人与历史租户身份不匹配", nil)
+		}
+		p.AssigneeMembershipID = current.AssigneeMembershipID
+	}
+	assigneeGuard := problem.AssigneeIDEQ(current.AssigneeID)
+	if current.AssigneeID == 0 {
+		assigneeGuard = problem.Or(assigneeGuard, problem.AssigneeIDIsNil())
+	}
+	membershipGuard := problem.AssigneeMembershipIDEQ(current.AssigneeMembershipID)
+	if current.AssigneeMembershipID == 0 {
+		membershipGuard = problem.Or(membershipGuard, problem.AssigneeMembershipIDIsNil())
 	}
 
 	update := r.client.Problem.UpdateOneID(p.ID).
-		Where(problem.TenantIDEQ(p.TenantID), problem.DeletedAtIsNil()).
+		Where(problem.TenantIDEQ(p.TenantID), problem.DeletedAtIsNil(), assigneeGuard, membershipGuard).
 		SetTitle(p.Title).
 		SetDescription(p.Description).
 		SetStatus(p.Status).
@@ -383,15 +412,17 @@ func (r *EntRepository) Update(ctx context.Context, p *Problem) (*Problem, error
 		update.SetNillableCustomerID(p.CustomerID)
 	}
 
-	if p.AssigneeID != nil {
-		update.SetAssigneeID(*p.AssigneeID)
-		if p.AssigneeMembershipID > 0 {
-			update.SetAssigneeMembershipID(p.AssigneeMembershipID)
+	if assignmentChanged {
+		if assigneeID > 0 {
+			update.SetAssigneeID(assigneeID)
+			if p.AssigneeMembershipID > 0 {
+				update.SetAssigneeMembershipID(p.AssigneeMembershipID)
+			} else {
+				update.ClearAssigneeMembershipID()
+			}
 		} else {
-			update.ClearAssigneeMembershipID()
+			update.ClearAssigneeID().ClearAssigneeMembershipID()
 		}
-	} else {
-		update.ClearAssigneeID()
 	}
 	if p.ResolvedAt != nil {
 		update.SetResolvedAt(*p.ResolvedAt)
@@ -405,6 +436,9 @@ func (r *EntRepository) Update(ctx context.Context, p *Problem) (*Problem, error
 	}
 
 	saved, err := update.Save(ctx)
+	if ent.IsNotFound(err) {
+		return nil, common.NewBusinessError(common.ConflictCode, "问题已被并发修改", "处理人身份已变化或问题已不可用，请刷新后重试")
+	}
 	if err != nil {
 		return nil, err
 	}

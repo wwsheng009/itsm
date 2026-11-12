@@ -114,19 +114,20 @@ func toRepoUpdateParams(p *UpdateParams) *ticket.UpdateParams {
 		return nil
 	}
 	rp := &ticket.UpdateParams{
-		Title:             p.Title,
-		Description:       p.Description,
-		DescriptionHTML:   p.DescriptionHTML,
-		DescriptionFormat: p.DescriptionFormat,
-		AssigneeID:        p.AssigneeID,
-		CategoryID:        p.CategoryID,
-		DepartmentID:      p.DepartmentID,
-		CustomerID:        p.CustomerID,
-		Resolution:        p.Resolution,
-		FormFields:        p.FormFields,
-		Version:           p.Version,
-		ReplaceTags:       p.ReplaceTags,
-		TagIDs:            p.TagIDs,
+		Title:                p.Title,
+		Description:          p.Description,
+		DescriptionHTML:      p.DescriptionHTML,
+		DescriptionFormat:    p.DescriptionFormat,
+		AssigneeID:           p.AssigneeID,
+		AssigneeMembershipID: p.AssigneeMembershipID,
+		CategoryID:           p.CategoryID,
+		DepartmentID:         p.DepartmentID,
+		CustomerID:           p.CustomerID,
+		Resolution:           p.Resolution,
+		FormFields:           p.FormFields,
+		Version:              p.Version,
+		ReplaceTags:          p.ReplaceTags,
+		TagIDs:               p.TagIDs,
 	}
 	if p.Status != nil {
 		s := ticket.Status(*p.Status)

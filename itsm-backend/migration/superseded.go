@@ -15,7 +15,7 @@ type supersededRule struct {
 	AdoptWhen string
 }
 
-// supersededMigrations 登记「在新库上必然失败、且已被 forward fix 迁移或播种等价覆盖」的历史版本。
+// supersededMigrations 登记「不应再重放、且已被 forward fix 迁移或播种覆盖」的历史版本。
 //
 // 背景（2026-10-12，FDB-B1 全新库实测）：20260501_rbac_endpoint_acls 面向历史单数表名
 // （role / role_permission / permission_definition）与 default 租户 id=1 口径编写，在
@@ -34,6 +34,16 @@ var supersededMigrations = map[string]supersededRule{
 	"20260616_security_role_permissions": {
 		AdoptWhen: "SELECT NOT EXISTS (SELECT 1 FROM information_schema.columns " +
 			"WHERE table_name='role_permissions' AND column_name='created_at')",
+	},
+	// 旧 SQL 只排除未软删 membership，会把已撤销的 invite 等关系恢复成
+	// source=migration。不能先执行再猜测删除；未执行的旧版本必须收养，
+	// 已执行版本仍保留原始 SQL/checksum。替代文件按版本排序位于
+	// business_actors_reconcile / constraints_validate 之前，提供其全部前置列。
+	"20261111_membership_tenant_identity": {
+		Replacement: "20261112_membership_backfill_safe",
+	},
+	"20261112_membership_business_actors": {
+		Replacement: "20261112_membership_backfill_safe",
 	},
 }
 
@@ -82,9 +92,10 @@ func (m *Migrator) reconcileSupersededMigrations(ctx context.Context, available 
 const legacyIncompatibleCutoff = "20260901"
 
 // legacyIncompatibleSQLStates：可安全判为「历史 schema 不兼容」的 SQLSTATE。
-//   42P01 undefined_table / 42703 undefined_column / 23502 not_null_violation /
-//   23505 unique_violation（重放历史脚本时基线已含同约束/数据）/ 42702 ambiguous_column /
-//   P0001 raise_exception（历史脚本按固定 ID/旧数据形态的前置断言，如 parent /tickets (id=2) not found）
+//
+//	42P01 undefined_table / 42703 undefined_column / 23502 not_null_violation /
+//	23505 unique_violation（重放历史脚本时基线已含同约束/数据）/ 42702 ambiguous_column /
+//	P0001 raise_exception（历史脚本按固定 ID/旧数据形态的前置断言，如 parent /tickets (id=2) not found）
 var legacyIncompatibleSQLStates = []string{"42P01", "42703", "23502", "23505", "42702", "P0001"}
 
 // isLegacyVersion 判断是否为「发现机制上线前」的历史版本：无日期前缀（如

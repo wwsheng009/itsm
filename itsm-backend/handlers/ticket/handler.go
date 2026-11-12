@@ -88,6 +88,9 @@ func ticketToResponse(t *Ticket) *dto.TicketResponse {
 	if t.CustomerID != nil {
 		resp.CustomerID = *t.CustomerID
 	}
+	if t.ParentTicketID != nil {
+		resp.ParentTicketID = *t.ParentTicketID
+	}
 	// 生命周期时间戳与解决方案（2026-10-14 缺口⑥修复）：resolve/close 成功后
 	// 前端拿不到 resolvedAt/closedAt/resolution，无法渲染解决时长与终态结果。
 	// 零值时间不输出（omitempty + 非 nil 判断），避免 0001-01-01 污染 JSON。
@@ -403,9 +406,7 @@ func (h *Handler) UpdateTicket(c *gin.Context) {
 	if req.Priority != "" {
 		params.Priority = &req.Priority
 	}
-	if req.AssigneeID > 0 {
-		params.AssigneeID = &req.AssigneeID
-	}
+	params.AssigneeID = req.AssigneeID
 	if req.CategoryID != nil {
 		params.CategoryID = req.CategoryID
 	}
@@ -604,17 +605,11 @@ func (h *Handler) AssignTicket(c *gin.Context) {
 		return
 	}
 
-	assigneeMembershipID := 0
-	if rawClient, exists := c.Get("client"); exists {
-		if client, ok := rawClient.(*ent.Client); ok && client != nil {
-			if membership, mErr := middleware.ResolveActiveMembership(c.Request.Context(), client, req.AssigneeID, tenantID); mErr == nil && membership != nil {
-				assigneeMembershipID = membership.ID
-			}
-		}
-	}
-	ticket, err := h.service.AssignTicketWithMembership(c.Request.Context(), id, req.AssigneeID, assigneeMembershipID, tenantID)
+	// Repository owns authoritative account/membership resolution and the
+	// paired identity update; do not trust or duplicate a handler-side lookup.
+	ticket, err := h.service.AssignTicket(c.Request.Context(), id, req.AssigneeID, tenantID)
 	if err != nil {
-		common.FailWithErr(c, err, "操作失败")
+		common.RespondError(c, err, "操作失败")
 		return
 	}
 
@@ -1142,10 +1137,17 @@ func (h *Handler) CreateSubtask(c *gin.Context) {
 	}
 	userID := c.GetInt("user_id")
 	requesterID := userID
+	if userID <= 0 {
+		common.Fail(c, common.AuthErrorCode, "User ID missing")
+		return
+	}
 	if middleware.IsProviderMembership(c) {
-		if parent, getErr := h.service.Get(c.Request.Context(), parentID, tenantID); getErr == nil && parent != nil {
-			requesterID = parent.RequesterID
+		parent, getErr := h.service.Get(c.Request.Context(), parentID, tenantID)
+		if getErr != nil || parent == nil {
+			common.Fail(c, common.NotFoundCode, "父工单不存在")
+			return
 		}
+		requesterID = parent.RequesterID
 	}
 
 	params := &CreateParams{
@@ -1165,6 +1167,10 @@ func (h *Handler) CreateSubtask(c *gin.Context) {
 	if err != nil {
 		if businessErr, ok := err.(*common.BusinessError); ok {
 			common.Fail(c, businessErr.Code, businessErr.Message)
+			return
+		}
+		if isAppError(err) {
+			common.RespondError(c, err, "创建子任务失败")
 			return
 		}
 		common.FailWithErr(c, err, "操作失败")
@@ -1223,9 +1229,10 @@ func (h *Handler) UpdateSubtask(c *gin.Context) {
 		params.Priority = &req.Priority
 	}
 
+	params.AssigneeID = req.AssigneeID
 	updated, err := h.service.Update(c.Request.Context(), tenantID, subtaskID, params, actorID, actorRole)
 	if err != nil {
-		common.FailWithErr(c, err, "操作失败")
+		common.RespondError(c, err, "操作失败")
 		return
 	}
 

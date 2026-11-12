@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"time"
 
+	"itsm-backend/common/tenantctx"
 	"itsm-backend/connector"
 	"itsm-backend/ent"
 	"itsm-backend/ent/change"
@@ -15,7 +16,7 @@ import (
 	"itsm-backend/ent/servicerequest"
 	"itsm-backend/ent/ticket"
 	"itsm-backend/ent/user"
-	"itsm-backend/middleware"
+	"itsm-backend/handlers/common/membershipref"
 
 	"go.uber.org/zap"
 )
@@ -34,6 +35,12 @@ func (h *NotificationDeliveryCommandHandler) Handle(ctx context.Context, cmd *en
 	if cmd == nil {
 		return fmt.Errorf("notification command is required")
 	}
+	if err := tenantctx.EnsureJobTenant(ctx, cmd.TenantID); err != nil {
+		return fmt.Errorf("notification command tenant: %w", err)
+	}
+	// The durable command, never its payload, supplies the consumer's scope.
+	// Worker already binds this context; direct callers follow the same rule.
+	ctx = tenantctx.WithTenantID(ctx, cmd.TenantID)
 	existing, err := h.client.NotificationDelivery.Query().
 		Where(notificationdelivery.OperationalCommandIDEQ(cmd.ID), notificationdelivery.TenantIDEQ(cmd.TenantID)).
 		Only(ctx)
@@ -98,7 +105,15 @@ func (h *NotificationDeliveryCommandHandler) Handle(ctx context.Context, cmd *en
 	if err != nil {
 		return fmt.Errorf("load notification %s: %w", resourceType, err)
 	}
-	recipient, err := h.client.User.Query().Where(user.IDEQ(recipientID), user.TenantIDEQ(cmd.TenantID), user.ActiveEQ(true)).Only(ctx)
+	membershipID, err := membershipref.ResolveAssignable(ctx, h.client, recipientID, cmd.TenantID)
+	if err != nil {
+		return fmt.Errorf("validate notification recipient: %w", err)
+	}
+	// users is the RLS-exempt global identity root; tenant_id is the account's
+	// home, not its delivery scope. Only read this exact account after checking
+	// its active membership (or the resolver's membershipless-home legacy case).
+	// Keep the command tenant context: no cross-tenant system bypass is needed.
+	recipient, err := h.client.User.Query().Where(user.IDEQ(recipientID), user.ActiveEQ(true)).Only(ctx)
 	if err != nil {
 		return fmt.Errorf("load notification recipient: %w", err)
 	}
@@ -126,9 +141,9 @@ func (h *NotificationDeliveryCommandHandler) Handle(ctx context.Context, cmd *en
 	}
 
 	if channel == "in_app" {
-		return h.deliverInApp(ctx, cmd, tk, recipient, notificationType, content, actionURL, actionText)
+		return h.deliverInApp(ctx, cmd, tk, recipient, membershipID, notificationType, content, actionURL, actionText)
 	}
-	return h.deliverConnector(ctx, cmd, tk, recipient, channel, notificationType, content, actionURL, actionText, resourceType, resourceID, existing)
+	return h.deliverConnector(ctx, cmd, tk, recipient, membershipID, channel, notificationType, content, actionURL, actionText, resourceType, resourceID, existing)
 }
 
 // normalizeNotificationEventType 将入箱载荷的短 event_type 归一化为偏好表长词表。
@@ -190,17 +205,13 @@ func (h *NotificationDeliveryCommandHandler) channelAllowedForEvent(ctx context.
 	}
 }
 
-func (h *NotificationDeliveryCommandHandler) deliverInApp(ctx context.Context, cmd *ent.OperationalCommand, tk *ent.Ticket, recipient *ent.User, notificationType, content, actionURL, actionText string) error {
+func (h *NotificationDeliveryCommandHandler) deliverInApp(ctx context.Context, cmd *ent.OperationalCommand, tk *ent.Ticket, recipient *ent.User, membershipID int, notificationType, content, actionURL, actionText string) error {
 	tx, err := h.client.Tx(ctx)
 	if err != nil {
 		return err
 	}
 	rollback := func(cause error) error { _ = tx.Rollback(); return cause }
 	now := time.Now()
-	membershipID := 0
-	if membership, mErr := middleware.ResolveActiveMembership(ctx, tx.Client(), recipient.ID, cmd.TenantID); mErr == nil && membership != nil {
-		membershipID = membership.ID
-	}
 	var ticketNotificationID *int
 	if tk != nil {
 		create := tx.TicketNotification.Create().
@@ -242,7 +253,7 @@ func (h *NotificationDeliveryCommandHandler) deliverInApp(ctx context.Context, c
 	return tx.Commit()
 }
 
-func (h *NotificationDeliveryCommandHandler) deliverConnector(ctx context.Context, cmd *ent.OperationalCommand, tk *ent.Ticket, recipient *ent.User, channel, notificationType, content, actionURL, actionText, resourceType string, resourceID int, existing *ent.NotificationDelivery) error {
+func (h *NotificationDeliveryCommandHandler) deliverConnector(ctx context.Context, cmd *ent.OperationalCommand, tk *ent.Ticket, recipient *ent.User, membershipID int, channel, notificationType, content, actionURL, actionText, resourceType string, resourceID int, existing *ent.NotificationDelivery) error {
 	if h.connectors == nil {
 		return fmt.Errorf("connector manager is not configured")
 	}
@@ -256,10 +267,6 @@ func (h *NotificationDeliveryCommandHandler) deliverConnector(ctx context.Contex
 		tx, err := h.client.Tx(ctx)
 		if err != nil {
 			return err
-		}
-		membershipID := 0
-		if membership, mErr := middleware.ResolveActiveMembership(ctx, tx.Client(), recipient.ID, cmd.TenantID); mErr == nil && membership != nil {
-			membershipID = membership.ID
 		}
 		if tk != nil {
 			create := tx.TicketNotification.Create().SetTicketID(tk.ID).SetUserID(recipient.ID).

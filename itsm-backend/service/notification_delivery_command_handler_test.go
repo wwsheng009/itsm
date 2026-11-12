@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"itsm-backend/common/tenantctx"
 	"itsm-backend/connector"
 	"itsm-backend/dto"
 	"itsm-backend/ent"
@@ -16,6 +17,7 @@ import (
 	"itsm-backend/ent/notificationdelivery"
 	"itsm-backend/ent/operationalcommand"
 	"itsm-backend/ent/ticket"
+	"itsm-backend/ent/usertenantmembership"
 	"itsm-backend/internal/commandbus"
 
 	"entgo.io/ent/dialect"
@@ -625,4 +627,241 @@ func TestNotifySLAAlertLevelChangedTxCommits(t *testing.T) {
 	require.Equal(t, commandbus.CommandDeliverNotification, commands[0].CommandType)
 	require.NotNil(t, commands[0].Payload)
 	require.Equal(t, "sla_alert", commands[0].Payload["type"])
+}
+
+func notificationMembershipTestCommand(t *testing.T, client *ent.Client, ctx context.Context, tenantID, userID, ticketID int, channel string) *ent.OperationalCommand {
+	t.Helper()
+	cmd, err := commandbus.Enqueue(ctx, client, commandbus.EnqueueRequest{
+		TenantID: tenantID, CommandType: commandbus.CommandDeliverNotification,
+		AggregateType: "ticket", AggregateID: ticketID, IdempotencyKey: "membership-delivery",
+		Payload: map[string]interface{}{
+			"ticketId": ticketID, "recipientId": userID, "type": "assigned", "channel": channel, "content": "membership notification",
+			// A payload claim must never authorize delivery or choose the stored reference.
+			"recipientMembershipId": 999999, "tenantId": tenantID + 999,
+		},
+	})
+	require.NoError(t, err)
+	cmd.Attempt = 1
+	return cmd
+}
+
+func notificationMembershipTestConnector(t *testing.T, ctx context.Context, tenantID int) (*notificationTestConnector, *connector.Manager) {
+	t.Helper()
+	fake := &notificationTestConnector{}
+	registry := connector.NewRegistry()
+	registry.Register(func() connector.Connector { return fake })
+	manager := connector.NewManager(registry, zap.NewNop().Sugar())
+	require.NoError(t, manager.Provision(ctx, connector.Config{TenantID: tenantID, Name: "feishu", Provider: "test", Enabled: true}))
+	return fake, manager
+}
+
+func assertNoMembershipNotificationDelivery(t *testing.T, client *ent.Client, ctx context.Context, fake *notificationTestConnector) {
+	t.Helper()
+	require.Zero(t, fake.sent.Load(), "ineligible recipients must not reach any connector")
+	require.Zero(t, client.Notification.Query().CountX(ctx))
+	require.Zero(t, client.TicketNotification.Query().CountX(ctx))
+	require.Zero(t, client.NotificationDelivery.Query().CountX(ctx))
+}
+
+// Exercise the registered worker handler, not only the shared membership helper.
+// In particular, a provider home account must be delivered in the customer scope.
+func TestNotificationDeliveryHandlerMembershipEligibility(t *testing.T) {
+	cases := []struct {
+		name       string
+		home       bool
+		membership string
+		disabled   bool
+		allow      bool
+	}{
+		{name: "provider_active", membership: "active", allow: true},
+		{name: "provider_nonmember"},
+		{name: "provider_suspended", membership: "suspended"},
+		{name: "provider_revoked", membership: "revoked"},
+		{name: "provider_expired", membership: "expired"},
+		{name: "provider_disabled", membership: "active", disabled: true},
+		{name: "membership_only_in_other_tenant", membership: "other_tenant"},
+		{name: "home_active", home: true, membership: "active", allow: true},
+		{name: "home_legacy_never_member", home: true, allow: true},
+		{name: "home_suspended_cannot_fallback", home: true, membership: "suspended"},
+		{name: "home_revoked_cannot_fallback", home: true, membership: "revoked"},
+		{name: "home_expired_cannot_fallback", home: true, membership: "expired"},
+		{name: "home_disabled_member", home: true, membership: "active", disabled: true},
+		{name: "home_disabled_legacy", home: true, disabled: true},
+	}
+	for _, tc := range cases {
+		for _, channel := range []string{"in_app", "feishu"} {
+			t.Run(tc.name+"/"+channel, func(t *testing.T) {
+				client, ctx, tenantID, userID, ticketID := notificationDeliveryFixture(t)
+				ctx = tenantctx.WithTenantID(ctx, tenantID)
+				provider := client.Tenant.Create().SetName("Provider").SetCode("provider").SaveX(ctx)
+				account := client.User.UpdateOneID(userID).SetFeishuOpenID("ou_member_target").SetActive(!tc.disabled)
+				if !tc.home {
+					account.SetTenantID(provider.ID)
+				}
+				account.SaveX(ctx)
+				membershipID := 0
+				if tc.membership != "" {
+					membershipTenantID := tenantID
+					if tc.membership == "other_tenant" {
+						membershipTenantID = provider.ID
+					}
+					create := client.UserTenantMembership.Create().SetUserID(userID).SetTenantID(membershipTenantID).
+						SetAccountKind(usertenantmembership.AccountKindProvider).SetSource(usertenantmembership.SourceAllocation)
+					switch tc.membership {
+					case "suspended":
+						create.SetStatus(usertenantmembership.StatusSuspended)
+					case "revoked":
+						create.SetDeletedAt(time.Now()).SetDeassignedAt(time.Now())
+					case "expired":
+						create.SetExpiresAt(time.Now().Add(-time.Hour))
+					default:
+						create.SetExpiresAt(time.Now().Add(time.Hour))
+					}
+					membershipID = create.SaveX(tenantctx.WithTenantID(ctx, membershipTenantID)).ID
+				}
+				fake, manager := notificationMembershipTestConnector(t, ctx, tenantID)
+				cmd := notificationMembershipTestCommand(t, client, ctx, tenantID, userID, ticketID, channel)
+				handler := NewNotificationDeliveryCommandHandler(client, manager, zap.NewNop().Sugar())
+				err := handler.Handle(ctx, cmd)
+				if !tc.allow {
+					require.Error(t, err)
+					assertNoMembershipNotificationDelivery(t, client, ctx, fake)
+					return
+				}
+				require.NoError(t, err)
+				require.NoError(t, handler.Handle(ctx, cmd), "same command replay remains idempotent")
+				tn := client.TicketNotification.Query().OnlyX(ctx)
+				require.Equal(t, userID, tn.UserID)
+				require.Equal(t, tenantID, tn.TenantID)
+				require.Equal(t, membershipID, tn.UserMembershipID, "persist authoritative membership, not payload claims")
+				delivery := client.NotificationDelivery.Query().OnlyX(ctx)
+				require.Equal(t, "sent", delivery.Status)
+				require.Equal(t, tenantID, delivery.TenantID)
+				require.Equal(t, userID, delivery.RecipientID)
+				if channel == "in_app" {
+					n := client.Notification.Query().OnlyX(ctx)
+					require.Equal(t, tenantID, n.TenantID)
+					require.Equal(t, membershipID, n.UserMembershipID)
+					require.Zero(t, fake.sent.Load())
+				} else {
+					require.Equal(t, int32(1), fake.sent.Load())
+					require.Equal(t, cmd.IdempotencyKey, delivery.ProviderMessageID)
+					require.Zero(t, client.Notification.Query().CountX(ctx))
+				}
+				client.User.UpdateOneID(userID).SetActive(false).SaveX(ctx)
+				require.NoError(t, handler.Handle(ctx, cmd), "already-sent replay stays a no-op even after eligibility changes")
+				require.Equal(t, 1, client.TicketNotification.Query().CountX(ctx))
+				require.Equal(t, 1, client.NotificationDelivery.Query().CountX(ctx))
+				if channel == "feishu" {
+					require.Equal(t, int32(1), fake.sent.Load())
+				} else {
+					require.Equal(t, 1, client.Notification.Query().CountX(ctx))
+				}
+			})
+		}
+	}
+}
+
+func TestNotificationDeliveryHandlerMembershipLookupErrorsFailClosed(t *testing.T) {
+	for _, failAt := range []int{1, 2} {
+		for _, channel := range []string{"in_app", "feishu"} {
+			t.Run(fmt.Sprintf("lookup_%d/%s", failAt, channel), func(t *testing.T) {
+				client, ctx, tenantID, userID, ticketID := notificationDeliveryFixture(t)
+				fake, manager := notificationMembershipTestConnector(t, ctx, tenantID)
+				cmd := notificationMembershipTestCommand(t, client, ctx, tenantID, userID, ticketID, channel)
+				lookupErr := errors.New("membership storage unavailable")
+				queries := 0
+				client.UserTenantMembership.Intercept(ent.InterceptFunc(func(next ent.Querier) ent.Querier {
+					return ent.QuerierFunc(func(ctx context.Context, query ent.Query) (ent.Value, error) {
+						queries++
+						if queries == failAt {
+							return nil, lookupErr
+						}
+						return next.Query(ctx, query)
+					})
+				}))
+				err := NewNotificationDeliveryCommandHandler(client, manager, zap.NewNop().Sugar()).Handle(ctx, cmd)
+				require.ErrorIs(t, err, lookupErr, "neither active lookup nor legacy-history lookup errors may be swallowed")
+				assertNoMembershipNotificationDelivery(t, client, ctx, fake)
+			})
+		}
+	}
+}
+
+func TestNotificationDeliveryHandlerCommandTenantGuard(t *testing.T) {
+	client, ctx, tenantID, userID, ticketID := notificationDeliveryFixture(t)
+	fake, manager := notificationMembershipTestConnector(t, ctx, tenantID)
+	cmd := notificationMembershipTestCommand(t, client, ctx, tenantID, userID, ticketID, "in_app")
+	handler := NewNotificationDeliveryCommandHandler(client, manager, zap.NewNop().Sugar())
+	require.Error(t, handler.Handle(ctx, nil))
+	for _, invalidTenantID := range []int{0, -1} {
+		invalid := *cmd
+		invalid.TenantID = invalidTenantID
+		require.ErrorIs(t, handler.Handle(ctx, &invalid), tenantctx.ErrNoTenant)
+	}
+	require.ErrorIs(t, handler.Handle(tenantctx.WithTenantID(ctx, tenantID+1), cmd), tenantctx.ErrTenantMismatch)
+	assertNoMembershipNotificationDelivery(t, client, ctx, fake)
+
+	// Direct consumer calls bind the trusted command scope even without an HTTP
+	// context. This checks the context contract used by the production RLS driver.
+	client.Intercept(ent.InterceptFunc(func(next ent.Querier) ent.Querier {
+		return ent.QuerierFunc(func(queryCtx context.Context, query ent.Query) (ent.Value, error) {
+			actual, ok := tenantctx.TenantID(queryCtx)
+			require.True(t, ok)
+			require.Equal(t, tenantID, actual)
+			require.False(t, tenantctx.IsSystemBypass(queryCtx))
+			return next.Query(queryCtx, query)
+		})
+	}))
+	client.Use(func(next ent.Mutator) ent.Mutator {
+		return ent.MutateFunc(func(mutationCtx context.Context, mutation ent.Mutation) (ent.Value, error) {
+			actual, ok := tenantctx.TenantID(mutationCtx)
+			require.True(t, ok)
+			require.Equal(t, tenantID, actual)
+			require.False(t, tenantctx.IsSystemBypass(mutationCtx))
+			return next.Mutate(mutationCtx, mutation)
+		})
+	})
+	require.NoError(t, handler.Handle(ctx, cmd))
+}
+
+func TestNotificationDeliveryWorkerRevalidatesMembershipBeforeRetry(t *testing.T) {
+	client, ctx, tenantID, userID, ticketID := notificationDeliveryFixture(t)
+	provider := client.Tenant.Create().SetName("Provider").SetCode("retry-provider").SaveX(ctx)
+	client.User.UpdateOneID(userID).SetTenantID(provider.ID).SetFeishuOpenID("ou_retry_member").SaveX(ctx)
+	membership := client.UserTenantMembership.Create().SetUserID(userID).SetTenantID(tenantID).
+		SetAccountKind(usertenantmembership.AccountKindProvider).SetSource(usertenantmembership.SourceAllocation).SaveX(ctx)
+	fake, manager := notificationMembershipTestConnector(t, ctx, tenantID)
+	fake.fail = true
+	cmd := notificationMembershipTestCommand(t, client, ctx, tenantID, userID, ticketID, "feishu")
+	client.OperationalCommand.UpdateOneID(cmd.ID).SetMaxAttempts(2).SaveX(ctx)
+	registry := commandbus.NewRegistry()
+	handler := NewNotificationDeliveryCommandHandler(client, manager, zap.NewNop().Sugar())
+	require.NoError(t, registry.Register(commandbus.CommandDeliverNotification, handler.Handle))
+	worker := commandbus.NewWorker(client, registry, zap.NewNop().Sugar(), "membership-retry-worker")
+	processed, err := worker.RunOnce(ctx)
+	require.NoError(t, err)
+	require.True(t, processed)
+	require.Equal(t, int32(1), fake.sent.Load())
+	before := client.NotificationDelivery.Query().OnlyX(ctx)
+	require.Equal(t, "failed", before.Status)
+	require.Equal(t, membership.ID, client.TicketNotification.Query().OnlyX(ctx).UserMembershipID)
+
+	// Revocation after enqueue/first send must prevent the next external call.
+	client.UserTenantMembership.UpdateOneID(membership.ID).SetDeletedAt(time.Now()).SaveX(ctx)
+	client.OperationalCommand.UpdateOneID(cmd.ID).SetAvailableAt(time.Now().Add(-time.Second)).SaveX(ctx)
+	fake.fail = false
+	processed, err = worker.RunOnce(ctx)
+	require.NoError(t, err)
+	require.True(t, processed)
+	require.Equal(t, int32(1), fake.sent.Load())
+	after := client.NotificationDelivery.Query().OnlyX(ctx)
+	require.Equal(t, before.ID, after.ID)
+	require.Equal(t, before.Status, after.Status)
+	require.Equal(t, before.Attempt, after.Attempt)
+	require.Equal(t, 1, client.TicketNotification.Query().CountX(ctx))
+	require.Zero(t, client.Notification.Query().CountX(ctx))
+	stored := client.OperationalCommand.GetX(ctx, cmd.ID)
+	require.Equal(t, commandbus.StatusDeadLetter, stored.Status)
+	require.Contains(t, stored.LastError, "validate notification recipient")
 }

@@ -23,6 +23,7 @@ import (
 	"itsm-backend/ent/enttest"
 	entNotification "itsm-backend/ent/notification"
 	"itsm-backend/ent/user"
+	"itsm-backend/ent/usertenantmembership"
 	domainCommon "itsm-backend/handlers/common"
 	tenantHandler "itsm-backend/handlers/tenant"
 	"itsm-backend/middleware"
@@ -63,6 +64,15 @@ func newTUME2EEnv(t *testing.T) *tumE2EEnv {
 	adminA2 := mustTUMUser(t, client, "tum-a-admin2", tenantA.ID, user.RoleAdmin, "Acpt@2026Admin2!")
 	normalA := mustTUMUser(t, client, "tum-a-user1", tenantA.ID, user.RoleEndUser, "OldPass123")
 	normalB := mustTUMUser(t, client, "tum-b-user", tenantB.ID, user.RoleEndUser, "OldPass123")
+	// The negative actor must have a valid customer identity so the assertions
+	// exercise platform-only authorization, not an earlier membership denial.
+	adminRole := client.Role.Create().SetCode("admin").SetName("Customer admin").
+		SetTenantID(tenantA.ID).SaveX(context.Background())
+	client.UserTenantMembership.Create().SetUserID(adminA1.ID).SetTenantID(tenantA.ID).
+		SetRoleID(adminRole.ID).SetAccountKind(usertenantmembership.AccountKindCustomer).
+		SetSource(usertenantmembership.SourceHome).SetIsDefault(true).SaveX(context.Background())
+	middleware.InvalidateAllPermissionCaches()
+	t.Cleanup(middleware.InvalidateAllPermissionCaches)
 
 	userSvc := service.NewUserService(client, logger)
 	tumSvc := service.NewTenantUserAdminService(client, userSvc, logger)

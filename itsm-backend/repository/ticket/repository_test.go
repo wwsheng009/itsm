@@ -11,6 +11,8 @@ import (
 	"itsm-backend/ent"
 	"itsm-backend/ent/enttest"
 	"itsm-backend/ent/notification"
+	entticket "itsm-backend/ent/ticket"
+	"itsm-backend/ent/usertenantmembership"
 	"itsm-backend/repository/base"
 
 	"github.com/stretchr/testify/assert"
@@ -137,6 +139,93 @@ func TestRepository_UpdateWithTxHookRollsBackTicketWhenHookFails(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "Before", stored.Title)
 	assert.Equal(t, created.Version, stored.Version)
+}
+
+func TestRepository_AssigneeIdentityUpdatePaths(t *testing.T) {
+	for _, transactional := range []bool{false, true} {
+		t.Run(fmt.Sprintf("tx=%t", transactional), func(t *testing.T) {
+			fx := newRepoFixture(t)
+			t.Cleanup(func() { _ = fx.client.Close() })
+			repo := fx.repo.(*EntRepository)
+			newAccount := func(name string, tenantID int) *ent.User {
+				return fx.client.User.Create().SetUsername(name).SetName(name).
+					SetEmail(name + "@example.com").SetPasswordHash("hash").
+					SetTenantID(tenantID).SetActive(true).SaveX(fx.ctx)
+			}
+			membership := func(account *ent.User) *ent.UserTenantMembership {
+				return fx.client.UserTenantMembership.Create().SetUserID(account.ID).
+					SetTenantID(fx.tenant.ID).SetAccountKind(usertenantmembership.AccountKindCustomer).
+					SetSource(usertenantmembership.SourceHome).SaveX(fx.ctx)
+			}
+			oldMembership := membership(fx.user)
+			next := newAccount("next", fx.tenant.ID)
+			nextMembership := membership(next)
+			legacy := newAccount("legacy", fx.tenant.ID)
+			other := fx.client.Tenant.Create().SetCode("other").SetName("other").SaveX(fx.ctx)
+			foreign := newAccount("foreign", other.ID)
+			tkt := fx.client.Ticket.Create().SetTicketNumber("IDENTITY-UPDATE").
+				SetTitle("before").SetRequesterID(fx.user.ID).SetTenantID(fx.tenant.ID).
+				SetAssigneeID(fx.user.ID).SetAssigneeMembershipID(oldMembership.ID).SaveX(fx.ctx)
+			update := func(params *UpdateParams, failHook bool) (*Ticket, error) {
+				if transactional {
+					return repo.UpdateWithTxHook(fx.ctx, tkt.ID, params, fx.tenant.ID, func(_ *ent.Tx, stored *Ticket) error {
+						if failHook {
+							return fmt.Errorf("outbox unavailable")
+						}
+						return nil
+					})
+				}
+				return repo.Update(fx.ctx, tkt.ID, params, fx.tenant.ID)
+			}
+			stored, err := update(&UpdateParams{AssigneeID: &next.ID, Version: tkt.Version}, false)
+			require.NoError(t, err)
+			require.Equal(t, nextMembership.ID, stored.AssigneeMembershipID)
+			require.Equal(t, next.ID, *stored.AssigneeID)
+
+			for _, invalid := range []struct {
+				name string
+				id   int
+			}{
+				{"cross-tenant", foreign.ID},
+				{"disabled", next.ID},
+			} {
+				if invalid.name == "disabled" {
+					fx.client.User.UpdateOneID(next.ID).SetActive(false).ExecX(fx.ctx)
+				}
+				title := "must not commit"
+				_, err = update(&UpdateParams{Title: &title, AssigneeID: &invalid.id, Version: stored.Version}, false)
+				require.Error(t, err, invalid.name)
+				fresh := fx.client.Ticket.GetX(fx.ctx, tkt.ID)
+				require.Equal(t, "before", fresh.Title)
+				require.Equal(t, stored.Version, fresh.Version)
+				require.Equal(t, next.ID, fresh.AssigneeID)
+				require.Equal(t, nextMembership.ID, fresh.AssigneeMembershipID)
+			}
+			fx.client.User.UpdateOneID(next.ID).SetActive(true).ExecX(fx.ctx)
+			if transactional {
+				_, err = update(&UpdateParams{AssigneeID: &legacy.ID, Version: stored.Version}, true)
+				require.ErrorContains(t, err, "outbox unavailable")
+				fresh := fx.client.Ticket.GetX(fx.ctx, tkt.ID)
+				require.Equal(t, next.ID, fresh.AssigneeID)
+				require.Equal(t, nextMembership.ID, fresh.AssigneeMembershipID)
+				require.Equal(t, stored.Version, fresh.Version)
+			}
+
+			stored, err = update(&UpdateParams{AssigneeID: &legacy.ID, Version: stored.Version}, false)
+			require.NoError(t, err)
+			require.Equal(t, legacy.ID, *stored.AssigneeID)
+			require.Zero(t, stored.AssigneeMembershipID, "legacy assignment must not inherit the previous identity")
+			stored, err = update(&UpdateParams{AssigneeID: &next.ID, Version: stored.Version}, false)
+			require.NoError(t, err)
+			zero := 0
+			stored, err = update(&UpdateParams{AssigneeID: &zero, Version: stored.Version}, false)
+			require.NoError(t, err)
+			require.Nil(t, stored.AssigneeID)
+			require.Zero(t, stored.AssigneeMembershipID)
+			require.True(t, fx.client.Ticket.Query().Where(entticket.IDEQ(tkt.ID),
+				entticket.AssigneeIDIsNil(), entticket.AssigneeMembershipIDIsNil()).ExistX(fx.ctx))
+		})
+	}
 }
 
 func TestRepository_Create_GeneratesTicketNumber(t *testing.T) {

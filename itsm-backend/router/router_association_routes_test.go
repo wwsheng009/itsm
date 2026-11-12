@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"itsm-backend/ent/enttest"
+	"itsm-backend/ent/usertenantmembership"
 	approvalHandler "itsm-backend/handlers/approval"
 	ticketCommentHandler "itsm-backend/handlers/ticket_comment"
 	ticketTagHandler "itsm-backend/handlers/ticket_tag"
@@ -63,6 +64,19 @@ func TestTicketAssociationRoutes_ReadsURLParamNotContext(t *testing.T) {
 		SetActive(true).
 		SetTenantID(tenant.ID).
 		SaveX(ctx)
+	// The reader is a real tenant member with only ticket:read, not an old
+	// JWT role bypass. Keep the administrative approval-list denial meaningful.
+	readerRole := client.Role.Create().SetCode("end_user").SetName("End user").
+		SetTenantID(tenant.ID).SaveX(ctx)
+	readPermission := client.Permission.Create().SetCode("ticket:read").SetName("Read tickets").
+		SetResource("ticket").SetAction("read").SetTenantID(tenant.ID).SaveX(ctx)
+	client.RolePermission.Create().SetRoleID(readerRole.ID).SetPermissionID(readPermission.ID).
+		SetTenantID(tenant.ID).SaveX(ctx)
+	client.UserTenantMembership.Create().SetUserID(endUser.ID).SetTenantID(tenant.ID).
+		SetRoleID(readerRole.ID).SetAccountKind(usertenantmembership.AccountKindCustomer).
+		SetSource(usertenantmembership.SourceHome).SetIsDefault(true).SaveX(ctx)
+	middleware.InvalidateAllPermissionCaches()
+	t.Cleanup(middleware.InvalidateAllPermissionCaches)
 	ciType := client.CIType.Create().
 		SetName("server").
 		SetTenantID(tenant.ID).

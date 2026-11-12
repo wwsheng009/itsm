@@ -22,7 +22,8 @@ import (
 	"itsm-backend/ent/ticketcc"
 	"itsm-backend/ent/ticketworkflowrecord"
 	"itsm-backend/ent/user"
-	"itsm-backend/middleware"
+	"itsm-backend/ent/usertenantmembership"
+	"itsm-backend/handlers/common/membershipref"
 	"itsm-backend/service/bpmn"
 
 	"go.uber.org/zap"
@@ -79,17 +80,27 @@ func (s *TicketWorkflowService) AcceptTicket(ctx context.Context, req *dto.Accep
 	}()
 
 	txClient := tx.Client()
+	assigneeMembershipID, err := membershipref.ResolveAssignable(ctx, txClient, userID, tenantID)
+	if err != nil {
+		txErr = err
+		return txErr
+	}
 
 	// 更新工单状态和分配人
 	// P1-07 修复：接单同时设置 first_response_at，供 SLA 计时使用
 	now := time.Now()
-	_, err = txClient.Ticket.UpdateOneID(req.TicketID).
+	update := txClient.Ticket.UpdateOneID(req.TicketID).
 		Where(ticket.TenantIDEQ(tenantID), ticket.DeletedAtIsNil(), ticket.VersionEQ(tk.Version), ticket.StatusIn("new", "open")).
 		SetAssigneeID(userID).
 		SetStatus("in_progress").
 		SetFirstResponseAt(now).
-		SetVersion(tk.Version + 1).
-		Save(ctx)
+		SetVersion(tk.Version + 1)
+	if assigneeMembershipID > 0 {
+		update.SetAssigneeMembershipID(assigneeMembershipID)
+	} else {
+		update.ClearAssigneeMembershipID()
+	}
+	_, err = update.Save(ctx)
 	if err != nil {
 		txErr = fmt.Errorf("failed to accept ticket: %w", err)
 		return txErr
@@ -224,23 +235,41 @@ func (s *TicketWorkflowService) WithdrawTicket(ctx context.Context, req *dto.Wit
 func (s *TicketWorkflowService) ForwardTicket(ctx context.Context, req *dto.ForwardTicketRequest, userID, tenantID int) error {
 	s.logger.Infow("Forwarding ticket", "ticket_id", req.TicketID, "to_user_id", req.ToUserID, "user_id", userID)
 
-	_, err := s.getTicket(ctx, req.TicketID, tenantID)
+	tk, err := s.getTicket(ctx, req.TicketID, tenantID)
+	if err != nil {
+		return err
+	}
+
+	tx, err := s.client.Tx(ctx)
+	if err != nil {
+		return fmt.Errorf("开启转发事务失败: %w", err)
+	}
+	defer tx.Rollback()
+	txClient := tx.Client()
+	assigneeMembershipID, err := membershipref.ResolveAssignable(ctx, txClient, req.ToUserID, tenantID)
 	if err != nil {
 		return err
 	}
 
 	// 如果转移所有权，更新assignee
 	if req.TransferOwnership {
-		_, err = s.client.Ticket.UpdateOneID(req.TicketID).
+		update := txClient.Ticket.UpdateOneID(req.TicketID).
+			Where(ticket.TenantIDEQ(tenantID), ticket.DeletedAtIsNil(), ticket.VersionEQ(tk.Version)).
 			SetAssigneeID(req.ToUserID).
-			Save(ctx)
+			SetVersion(tk.Version + 1)
+		if assigneeMembershipID > 0 {
+			update.SetAssigneeMembershipID(assigneeMembershipID)
+		} else {
+			update.ClearAssigneeMembershipID()
+		}
+		_, err = update.Save(ctx)
 		if err != nil {
 			return fmt.Errorf("failed to forward ticket: %w", err)
 		}
 	}
 
 	// 记录流转记录
-	err = s.createWorkflowRecord(ctx, &dto.TicketWorkflowRecord{
+	err = s.createWorkflowRecordWithClient(ctx, txClient, &dto.TicketWorkflowRecord{
 		TicketID:  req.TicketID,
 		Action:    dto.WorkflowActionForward,
 		Operator:  dto.WorkflowUserInfo{ID: userID},
@@ -253,7 +282,10 @@ func (s *TicketWorkflowService) ForwardTicket(ctx context.Context, req *dto.Forw
 		},
 	}, tenantID)
 
-	return err
+	if err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 // CCTicket 抄送工单
@@ -280,16 +312,12 @@ func (s *TicketWorkflowService) CCTicket(ctx context.Context, req *dto.CCTicketR
 		return fmt.Errorf("抄送用户不存在或未激活")
 	}
 
-	// C 方案：home tenant 用户沿用兼容窗口；跨租户用户必须存在当前租户
-	// active membership（provider 在客户租户内不复制 users 行）。
+	// Reuse the same account/membership lifecycle validation as assignee writes.
 	ccMemberships := make(map[int]*ent.UserTenantMembership, len(targetUsers))
 	for _, target := range targetUsers {
-		membership, mErr := middleware.ResolveActiveMembership(ctx, s.client, target.ID, tenantID)
+		_, membership, mErr := s.resolveTenantActor(ctx, target.ID, tenantID)
 		if mErr != nil {
-			return fmt.Errorf("校验抄送用户租户身份失败: %w", mErr)
-		}
-		if membership == nil && target.TenantID != tenantID {
-			return fmt.Errorf("抄送用户 %d 不属于当前租户", target.ID)
+			return fmt.Errorf("抄送用户 %d 不属于当前租户或不可用: %w", target.ID, mErr)
 		}
 		ccMemberships[target.ID] = membership
 	}
@@ -367,6 +395,9 @@ func (s *TicketWorkflowService) CCTicket(ctx context.Context, req *dto.CCTicketR
 
 // ListMyCCRecords 查询当前用户收到的抄送记录
 func (s *TicketWorkflowService) ListMyCCRecords(ctx context.Context, userID, tenantID int) (*dto.TicketCCListResponse, error) {
+	if _, _, err := s.resolveTenantActor(ctx, userID, tenantID); err != nil {
+		return nil, fmt.Errorf("用户不存在或无权限: %w", err)
+	}
 	records, err := s.client.TicketCC.Query().
 		Where(ticketcc.UserID(userID), ticketcc.TenantID(tenantID), ticketcc.IsActive(true)).
 		Order(ent.Desc(ticketcc.FieldAddedAt)).
@@ -418,7 +449,12 @@ func (s *TicketWorkflowService) RemoveTicketCCRecord(ctx context.Context, ticket
 		}
 		return fmt.Errorf("查询抄送记录失败: %w", err)
 	}
-	if record.UserID != userID {
+	if record.UserID == userID {
+		// Self-removal is not an exemption from account/membership revocation.
+		if _, _, err := s.resolveTenantActor(ctx, userID, tenantID); err != nil {
+			return fmt.Errorf("用户不存在或无权限: %w", err)
+		}
+	} else {
 		if err := s.ensureCanManageTicketCC(ctx, tk, userID, tenantID); err != nil {
 			return err
 		}
@@ -1549,7 +1585,8 @@ func parseBpmnProcessGraph(xmlBytes []byte) (*bpmnProcessGraph, error) {
 }
 
 // resolveTenantActor 解析当前租户内的活跃操作人。
-// home tenant 用户保留兼容窗口；跨租户账号必须有当前租户 active membership。
+// Legacy home users are accepted only when the shared resolver finds no
+// membership history. Role names never create a cross-tenant exception here.
 func (s *TicketWorkflowService) resolveTenantActor(ctx context.Context, userID, tenantID int) (*ent.User, *ent.UserTenantMembership, error) {
 	if userID <= 0 || tenantID <= 0 {
 		return nil, nil, fmt.Errorf("用户或租户不能为空")
@@ -1564,12 +1601,18 @@ func (s *TicketWorkflowService) resolveTenantActor(ctx context.Context, userID, 
 		return nil, nil, fmt.Errorf("查询用户失败: %w", err)
 	}
 
-	membership, err := middleware.ResolveActiveMembership(ctx, s.client, userID, tenantID)
+	membershipID, err := membershipref.ResolveAssignable(ctx, s.client, userID, tenantID)
 	if err != nil {
 		return nil, nil, fmt.Errorf("校验租户身份失败: %w", err)
 	}
-	if membership == nil && currentUser.TenantID != tenantID {
-		return nil, nil, fmt.Errorf("用户不属于当前租户")
+	var membership *ent.UserTenantMembership
+	if membershipID > 0 {
+		membership, err = s.client.UserTenantMembership.Query().
+			Where(usertenantmembership.IDEQ(membershipID), usertenantmembership.TenantIDEQ(tenantID)).
+			Only(ctx)
+		if err != nil {
+			return nil, nil, fmt.Errorf("查询租户身份失败: %w", err)
+		}
 	}
 	return currentUser, membership, nil
 }
@@ -1627,16 +1670,16 @@ func (s *TicketWorkflowService) ensureCanCCTicket(ctx context.Context, tk *ent.T
 }
 
 func (s *TicketWorkflowService) ensureCanViewTicketCC(ctx context.Context, tk *ent.Ticket, userID, tenantID int) error {
-	if tk == nil {
+	if tk == nil || tk.TenantID != tenantID {
 		return fmt.Errorf("工单不存在")
-	}
-	if tk.RequesterID == userID || tk.AssigneeID == userID {
-		return nil
 	}
 
 	currentUser, membership, err := s.resolveTenantActor(ctx, userID, tenantID)
 	if err != nil {
 		return fmt.Errorf("用户不存在或无权限")
+	}
+	if tk.RequesterID == userID || tk.AssigneeID == userID {
+		return nil
 	}
 	if s.canManageTenantScope(ctx, membership, currentUser, tenantID) {
 		return nil
@@ -1682,15 +1725,15 @@ func (s *TicketWorkflowService) ensureCanViewTicketCC(ctx context.Context, tk *e
 }
 
 func (s *TicketWorkflowService) ensureCanManageTicketCC(ctx context.Context, tk *ent.Ticket, userID, tenantID int) error {
-	if tk == nil {
+	if tk == nil || tk.TenantID != tenantID {
 		return fmt.Errorf("工单不存在")
-	}
-	if tk.RequesterID == userID || (tk.AssigneeID != 0 && tk.AssigneeID == userID) {
-		return nil
 	}
 	currentUser, membership, err := s.resolveTenantActor(ctx, userID, tenantID)
 	if err != nil {
 		return fmt.Errorf("用户不存在或无权限")
+	}
+	if tk.RequesterID == userID || (tk.AssigneeID != 0 && tk.AssigneeID == userID) {
+		return nil
 	}
 	if s.canManageTenantScope(ctx, membership, currentUser, tenantID) {
 		return nil
