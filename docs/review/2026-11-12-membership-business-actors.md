@@ -1,7 +1,7 @@
 # Phase 4 第二批：问题/变更/服务请求 membership 与约束 VALIDATE
 
 > 日期：2026-11-12
-> 状态：已发布 238（`1.8.0-dev.47bd56dc5`），E2E 46/46
+> 状态：已发布 238（`1.8.0-dev.cb55a4e69`），E2E 46/46
 > 关联：[C 方案主文档](../multi-tenant/plan/membership-tenant-identity-c-plan.md) ·
 > [Phase 4 第一批验证](2026-11-12-tenant-recipient-validation.md)
 
@@ -184,8 +184,8 @@ WHERE t.processor_membership_id IS NOT NULL
 
 ```text
 URL=http://172.18.3.238:8089
-version=1.8.0-dev.47bd56dc5
-commit=47bd56dc5f2f7707fcdb015d9a7ae25acd40e072
+version=1.8.0-dev.cb55a4e69
+commit=cb55a4e695644515c6f4191e06cb398c6bc8ec5f
 readyz={"ready":true,"schemaVersion":"20261112_membership_constraints_validate"}
 demo containers=6/6 healthy
 ```
@@ -193,7 +193,7 @@ demo containers=6/6 healthy
 发布备份：
 
 ```text
-/home/n9e/itsm/repo-e2e-6745c998/backups/demo-release-1.8.0-dev.47bd56dc5-20261112T025423Z
+/home/n9e/itsm/repo-e2e-6745c998/backups/demo-release-1.8.0-dev.cb55a4e69-20261112T031731Z
 ```
 
 迁移账本：
@@ -208,12 +208,12 @@ demo containers=6/6 healthy
 
 ```text
 membership 复合外键        21/21 convalidated=true
-problems.created_by        0 missing / 195
-problems.assignee          0 missing / 195
+problems.created_by        0 missing / 204
+problems.assignee          0 missing / 204
 changes.created_by         0 missing / 14
 changes.assignee           0 missing / 14
-service_requests.requester 0 missing / 126
-service_requests.processor 0 missing / 126
+service_requests.requester 0 missing / 132
+service_requests.processor 0 missing / 132
 跨租户 membership 错配     0
 ```
 
@@ -229,18 +229,44 @@ E2E：`00-smoke 6 + 01-permissions 8 + 02-associations 8 + 03-workflows 8 +
 | 变更分配给 `demo.mfg.agent`（user 6） | `assigneeMembershipId=5` |
 | 创建服务请求 | `id=123`, `requesterMembershipId=4` |
 
+### 实际业务操作验证（最终版 `cb55a4e69`）
+
+在 238 上通过真实登录、CSRF 和业务 API 完成以下操作，并逐条回查 DB：
+
+| 场景 | 操作 | 结果 |
+|---|---|---|
+| 客户问题 | `demo.mfg.admin` 创建问题 | `id=198`, `createdByMembershipId=4` |
+| 客户变更 | 创建变更并分配给 `demo.mfg.agent` | `id=226`, creator=4, assignee=`5` |
+| 客户变更持久化 | 再次创建并查 DB | `id=228`, creator=4, assignee=`5` |
+| 客户服务请求 | `demo.mfg.user` 创建 SR | `id=128`, `requesterMembershipId=7` |
+| SR 三级审批 | lead → itadmin → secadmin | `manager_approved → it_approved → security_approved` |
+| SR 进入履约 | `demo.mfg.admin` 置 `provisioning` | `processorId=5`, `processorMembershipId=4` |
+| provider 深度切换 | `demo.msp.manager` 切入 demo-mfg | `membershipId=22`, `accountKind=provider`, `mspRole=provider_admin` |
+| provider 建问题 | provider 在客户租户创建问题 | `id=199`, `createdByMembershipId=22` |
+| provider 建变更 | provider 在客户租户创建变更 | `id=227`, `createdByMembershipId=22` |
+| provider 分配 | 分配给客户 `demo.mfg.agent` | `assigneeMembershipId=5` |
+| 跨租户处理人 | 分配给医疗 `demo.med.agent`（user 12） | HTTP 400 / code 4000「处理人不存在或不可用」 |
+| provider 建 SR | provider 在客户租户创建 SR | `id=129`, `requesterId=2`, `requesterMembershipId=22` |
+
+所有验证数据均已按业务 API 清理（SR cancel/delete、problem/change delete），
+变更 228 在删除前已回查 DB 确认 creator/assignee membership 落库。
+
 ### 发布中发现并修复的缺陷
 
 | 缺陷 | 修复 |
 |---|---|
 | 事件转问题走 `RootCauseAnalysisService` 直接 ent 创建，绕过 HTTP 写路径，`created_by_membership_id` 为 NULL | 创建时解析 membership；新增 `20261112_membership_business_actors_reconcile` 幂等回填发布窗口内的 NULL 行 |
+| 变更跨租户处理人返回 HTTP 500 / code 5001，而不是客户端错误 | `membershipref` 返回 typed `AppError`（400/403），problem/change create handler 改用 `RespondError`；实测返回 400 / code 4000 |
+| provider 深度切换后创建服务请求失败「Requester not found or inactive」 | `GetUserContext` 在 `users.tenant_id != 目标租户` 时回落查询 active membership；实测 provider SR 创建成功并写入 `requester_membership_id=22` |
 
 首版 `4847f7c03` 的 E2E 生成 6 条新问题，其中 3 条事件转问题行缺少 creator membership；
 修复版 `47bd56dc5` 发布后 reconcile 迁移将其补齐，复跑 E2E 新生成的事件转问题行
 （problem 191–194）全部带 `created_by_membership_id=4`。
 
+最终版 `cb55a4e69` 在 `47bd56dc5` 基础上增加错误分类与 provider SR 创建能力。
+
 发布证据详见
-[`evidence/2026-11-12-demo-full-deploy-47bd56dc5.md`](evidence/2026-11-12-demo-full-deploy-47bd56dc5.md)。
+[`evidence/2026-11-12-demo-full-deploy-cb55a4e69.md`](evidence/2026-11-12-demo-full-deploy-cb55a4e69.md)。
 
 ## 7. 回滚
 

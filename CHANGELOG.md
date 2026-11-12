@@ -56,8 +56,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   PostgreSQL 约束巡检（`integration_rls`）。本地验证：`go test -p 1 ./handlers/problem
   ./handlers/change ./handlers/service_request ./handlers/msp ./service ./tests/multi_tenant
   ./dto`、`go test ./middleware ./router ./dto ./internal/bootstrap ./ent/...` 通过；
-  238 发布 `1.8.0-dev.47bd56dc5`，6/6 healthy，E2E **46/46**。发布中发现事件转问题直连
-  ent 写入缺少 creator membership，已修复并新增
+  238 发布 `1.8.0-dev.cb55a4e69`，6/6 healthy，E2E **46/46**。发布及实际业务操作验证中
+  发现并修复事件转问题直连 ent 写入缺 creator membership、跨租户变更处理人返回 500、
+  provider 深度态创建服务请求失败；新增
   `20261112_membership_business_actors_reconcile` 幂等回填；最终巡检 21/21 约束
   VALIDATED、6 类业务引用 missing=0、跨租户错配 0。
 
