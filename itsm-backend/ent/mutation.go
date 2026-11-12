@@ -198395,36 +198395,40 @@ func (m *ServiceRequestMutation) ResetEdge(name string) error {
 // ServiceRequestApprovalMutation represents an operation that mutates the ServiceRequestApproval nodes in the graph.
 type ServiceRequestApprovalMutation struct {
 	config
-	op                    Op
-	typ                   string
-	id                    *int
-	tenant_id             *int
-	addtenant_id          *int
-	service_request_id    *int
-	addservice_request_id *int
-	level                 *int
-	addlevel              *int
-	step                  *string
-	node                  *map[string]interface{}
-	status                *string
-	approver_id           *int
-	addapprover_id        *int
-	approver_name         *string
-	action                *string
-	comment               *string
-	timeout_hours         *int
-	addtimeout_hours      *int
-	due_at                *time.Time
-	is_escalated          *bool
-	delegated_to_id       *int
-	adddelegated_to_id    *int
-	escalation_reason     *string
-	created_at            *time.Time
-	processed_at          *time.Time
-	clearedFields         map[string]struct{}
-	done                  bool
-	oldValue              func(context.Context) (*ServiceRequestApproval, error)
-	predicates            []predicate.ServiceRequestApproval
+	op                            Op
+	typ                           string
+	id                            *int
+	tenant_id                     *int
+	addtenant_id                  *int
+	service_request_id            *int
+	addservice_request_id         *int
+	level                         *int
+	addlevel                      *int
+	step                          *string
+	node                          *map[string]interface{}
+	status                        *string
+	approver_id                   *int
+	addapprover_id                *int
+	approver_membership_id        *int
+	addapprover_membership_id     *int
+	approver_name                 *string
+	action                        *string
+	comment                       *string
+	timeout_hours                 *int
+	addtimeout_hours              *int
+	due_at                        *time.Time
+	is_escalated                  *bool
+	delegated_to_id               *int
+	adddelegated_to_id            *int
+	delegated_to_membership_id    *int
+	adddelegated_to_membership_id *int
+	escalation_reason             *string
+	created_at                    *time.Time
+	processed_at                  *time.Time
+	clearedFields                 map[string]struct{}
+	done                          bool
+	oldValue                      func(context.Context) (*ServiceRequestApproval, error)
+	predicates                    []predicate.ServiceRequestApproval
 }
 
 var _ ent.Mutation = (*ServiceRequestApprovalMutation)(nil)
@@ -198897,6 +198901,76 @@ func (m *ServiceRequestApprovalMutation) ResetApproverID() {
 	delete(m.clearedFields, servicerequestapproval.FieldApproverID)
 }
 
+// SetApproverMembershipID sets the "approver_membership_id" field.
+func (m *ServiceRequestApprovalMutation) SetApproverMembershipID(i int) {
+	m.approver_membership_id = &i
+	m.addapprover_membership_id = nil
+}
+
+// ApproverMembershipID returns the value of the "approver_membership_id" field in the mutation.
+func (m *ServiceRequestApprovalMutation) ApproverMembershipID() (r int, exists bool) {
+	v := m.approver_membership_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldApproverMembershipID returns the old "approver_membership_id" field's value of the ServiceRequestApproval entity.
+// If the ServiceRequestApproval object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ServiceRequestApprovalMutation) OldApproverMembershipID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldApproverMembershipID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldApproverMembershipID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldApproverMembershipID: %w", err)
+	}
+	return oldValue.ApproverMembershipID, nil
+}
+
+// AddApproverMembershipID adds i to the "approver_membership_id" field.
+func (m *ServiceRequestApprovalMutation) AddApproverMembershipID(i int) {
+	if m.addapprover_membership_id != nil {
+		*m.addapprover_membership_id += i
+	} else {
+		m.addapprover_membership_id = &i
+	}
+}
+
+// AddedApproverMembershipID returns the value that was added to the "approver_membership_id" field in this mutation.
+func (m *ServiceRequestApprovalMutation) AddedApproverMembershipID() (r int, exists bool) {
+	v := m.addapprover_membership_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearApproverMembershipID clears the value of the "approver_membership_id" field.
+func (m *ServiceRequestApprovalMutation) ClearApproverMembershipID() {
+	m.approver_membership_id = nil
+	m.addapprover_membership_id = nil
+	m.clearedFields[servicerequestapproval.FieldApproverMembershipID] = struct{}{}
+}
+
+// ApproverMembershipIDCleared returns if the "approver_membership_id" field was cleared in this mutation.
+func (m *ServiceRequestApprovalMutation) ApproverMembershipIDCleared() bool {
+	_, ok := m.clearedFields[servicerequestapproval.FieldApproverMembershipID]
+	return ok
+}
+
+// ResetApproverMembershipID resets all changes to the "approver_membership_id" field.
+func (m *ServiceRequestApprovalMutation) ResetApproverMembershipID() {
+	m.approver_membership_id = nil
+	m.addapprover_membership_id = nil
+	delete(m.clearedFields, servicerequestapproval.FieldApproverMembershipID)
+}
+
 // SetApproverName sets the "approver_name" field.
 func (m *ServiceRequestApprovalMutation) SetApproverName(s string) {
 	m.approver_name = &s
@@ -199255,6 +199329,76 @@ func (m *ServiceRequestApprovalMutation) ResetDelegatedToID() {
 	delete(m.clearedFields, servicerequestapproval.FieldDelegatedToID)
 }
 
+// SetDelegatedToMembershipID sets the "delegated_to_membership_id" field.
+func (m *ServiceRequestApprovalMutation) SetDelegatedToMembershipID(i int) {
+	m.delegated_to_membership_id = &i
+	m.adddelegated_to_membership_id = nil
+}
+
+// DelegatedToMembershipID returns the value of the "delegated_to_membership_id" field in the mutation.
+func (m *ServiceRequestApprovalMutation) DelegatedToMembershipID() (r int, exists bool) {
+	v := m.delegated_to_membership_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDelegatedToMembershipID returns the old "delegated_to_membership_id" field's value of the ServiceRequestApproval entity.
+// If the ServiceRequestApproval object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ServiceRequestApprovalMutation) OldDelegatedToMembershipID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDelegatedToMembershipID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDelegatedToMembershipID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDelegatedToMembershipID: %w", err)
+	}
+	return oldValue.DelegatedToMembershipID, nil
+}
+
+// AddDelegatedToMembershipID adds i to the "delegated_to_membership_id" field.
+func (m *ServiceRequestApprovalMutation) AddDelegatedToMembershipID(i int) {
+	if m.adddelegated_to_membership_id != nil {
+		*m.adddelegated_to_membership_id += i
+	} else {
+		m.adddelegated_to_membership_id = &i
+	}
+}
+
+// AddedDelegatedToMembershipID returns the value that was added to the "delegated_to_membership_id" field in this mutation.
+func (m *ServiceRequestApprovalMutation) AddedDelegatedToMembershipID() (r int, exists bool) {
+	v := m.adddelegated_to_membership_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearDelegatedToMembershipID clears the value of the "delegated_to_membership_id" field.
+func (m *ServiceRequestApprovalMutation) ClearDelegatedToMembershipID() {
+	m.delegated_to_membership_id = nil
+	m.adddelegated_to_membership_id = nil
+	m.clearedFields[servicerequestapproval.FieldDelegatedToMembershipID] = struct{}{}
+}
+
+// DelegatedToMembershipIDCleared returns if the "delegated_to_membership_id" field was cleared in this mutation.
+func (m *ServiceRequestApprovalMutation) DelegatedToMembershipIDCleared() bool {
+	_, ok := m.clearedFields[servicerequestapproval.FieldDelegatedToMembershipID]
+	return ok
+}
+
+// ResetDelegatedToMembershipID resets all changes to the "delegated_to_membership_id" field.
+func (m *ServiceRequestApprovalMutation) ResetDelegatedToMembershipID() {
+	m.delegated_to_membership_id = nil
+	m.adddelegated_to_membership_id = nil
+	delete(m.clearedFields, servicerequestapproval.FieldDelegatedToMembershipID)
+}
+
 // SetEscalationReason sets the "escalation_reason" field.
 func (m *ServiceRequestApprovalMutation) SetEscalationReason(s string) {
 	m.escalation_reason = &s
@@ -199423,7 +199567,7 @@ func (m *ServiceRequestApprovalMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *ServiceRequestApprovalMutation) Fields() []string {
-	fields := make([]string, 0, 17)
+	fields := make([]string, 0, 19)
 	if m.tenant_id != nil {
 		fields = append(fields, servicerequestapproval.FieldTenantID)
 	}
@@ -199445,6 +199589,9 @@ func (m *ServiceRequestApprovalMutation) Fields() []string {
 	if m.approver_id != nil {
 		fields = append(fields, servicerequestapproval.FieldApproverID)
 	}
+	if m.approver_membership_id != nil {
+		fields = append(fields, servicerequestapproval.FieldApproverMembershipID)
+	}
 	if m.approver_name != nil {
 		fields = append(fields, servicerequestapproval.FieldApproverName)
 	}
@@ -199465,6 +199612,9 @@ func (m *ServiceRequestApprovalMutation) Fields() []string {
 	}
 	if m.delegated_to_id != nil {
 		fields = append(fields, servicerequestapproval.FieldDelegatedToID)
+	}
+	if m.delegated_to_membership_id != nil {
+		fields = append(fields, servicerequestapproval.FieldDelegatedToMembershipID)
 	}
 	if m.escalation_reason != nil {
 		fields = append(fields, servicerequestapproval.FieldEscalationReason)
@@ -199497,6 +199647,8 @@ func (m *ServiceRequestApprovalMutation) Field(name string) (ent.Value, bool) {
 		return m.Status()
 	case servicerequestapproval.FieldApproverID:
 		return m.ApproverID()
+	case servicerequestapproval.FieldApproverMembershipID:
+		return m.ApproverMembershipID()
 	case servicerequestapproval.FieldApproverName:
 		return m.ApproverName()
 	case servicerequestapproval.FieldAction:
@@ -199511,6 +199663,8 @@ func (m *ServiceRequestApprovalMutation) Field(name string) (ent.Value, bool) {
 		return m.IsEscalated()
 	case servicerequestapproval.FieldDelegatedToID:
 		return m.DelegatedToID()
+	case servicerequestapproval.FieldDelegatedToMembershipID:
+		return m.DelegatedToMembershipID()
 	case servicerequestapproval.FieldEscalationReason:
 		return m.EscalationReason()
 	case servicerequestapproval.FieldCreatedAt:
@@ -199540,6 +199694,8 @@ func (m *ServiceRequestApprovalMutation) OldField(ctx context.Context, name stri
 		return m.OldStatus(ctx)
 	case servicerequestapproval.FieldApproverID:
 		return m.OldApproverID(ctx)
+	case servicerequestapproval.FieldApproverMembershipID:
+		return m.OldApproverMembershipID(ctx)
 	case servicerequestapproval.FieldApproverName:
 		return m.OldApproverName(ctx)
 	case servicerequestapproval.FieldAction:
@@ -199554,6 +199710,8 @@ func (m *ServiceRequestApprovalMutation) OldField(ctx context.Context, name stri
 		return m.OldIsEscalated(ctx)
 	case servicerequestapproval.FieldDelegatedToID:
 		return m.OldDelegatedToID(ctx)
+	case servicerequestapproval.FieldDelegatedToMembershipID:
+		return m.OldDelegatedToMembershipID(ctx)
 	case servicerequestapproval.FieldEscalationReason:
 		return m.OldEscalationReason(ctx)
 	case servicerequestapproval.FieldCreatedAt:
@@ -199618,6 +199776,13 @@ func (m *ServiceRequestApprovalMutation) SetField(name string, value ent.Value) 
 		}
 		m.SetApproverID(v)
 		return nil
+	case servicerequestapproval.FieldApproverMembershipID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetApproverMembershipID(v)
+		return nil
 	case servicerequestapproval.FieldApproverName:
 		v, ok := value.(string)
 		if !ok {
@@ -199667,6 +199832,13 @@ func (m *ServiceRequestApprovalMutation) SetField(name string, value ent.Value) 
 		}
 		m.SetDelegatedToID(v)
 		return nil
+	case servicerequestapproval.FieldDelegatedToMembershipID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDelegatedToMembershipID(v)
+		return nil
 	case servicerequestapproval.FieldEscalationReason:
 		v, ok := value.(string)
 		if !ok {
@@ -199708,11 +199880,17 @@ func (m *ServiceRequestApprovalMutation) AddedFields() []string {
 	if m.addapprover_id != nil {
 		fields = append(fields, servicerequestapproval.FieldApproverID)
 	}
+	if m.addapprover_membership_id != nil {
+		fields = append(fields, servicerequestapproval.FieldApproverMembershipID)
+	}
 	if m.addtimeout_hours != nil {
 		fields = append(fields, servicerequestapproval.FieldTimeoutHours)
 	}
 	if m.adddelegated_to_id != nil {
 		fields = append(fields, servicerequestapproval.FieldDelegatedToID)
+	}
+	if m.adddelegated_to_membership_id != nil {
+		fields = append(fields, servicerequestapproval.FieldDelegatedToMembershipID)
 	}
 	return fields
 }
@@ -199730,10 +199908,14 @@ func (m *ServiceRequestApprovalMutation) AddedField(name string) (ent.Value, boo
 		return m.AddedLevel()
 	case servicerequestapproval.FieldApproverID:
 		return m.AddedApproverID()
+	case servicerequestapproval.FieldApproverMembershipID:
+		return m.AddedApproverMembershipID()
 	case servicerequestapproval.FieldTimeoutHours:
 		return m.AddedTimeoutHours()
 	case servicerequestapproval.FieldDelegatedToID:
 		return m.AddedDelegatedToID()
+	case servicerequestapproval.FieldDelegatedToMembershipID:
+		return m.AddedDelegatedToMembershipID()
 	}
 	return nil, false
 }
@@ -199771,6 +199953,13 @@ func (m *ServiceRequestApprovalMutation) AddField(name string, value ent.Value) 
 		}
 		m.AddApproverID(v)
 		return nil
+	case servicerequestapproval.FieldApproverMembershipID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddApproverMembershipID(v)
+		return nil
 	case servicerequestapproval.FieldTimeoutHours:
 		v, ok := value.(int)
 		if !ok {
@@ -199784,6 +199973,13 @@ func (m *ServiceRequestApprovalMutation) AddField(name string, value ent.Value) 
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddDelegatedToID(v)
+		return nil
+	case servicerequestapproval.FieldDelegatedToMembershipID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddDelegatedToMembershipID(v)
 		return nil
 	}
 	return fmt.Errorf("unknown ServiceRequestApproval numeric field %s", name)
@@ -199802,6 +199998,9 @@ func (m *ServiceRequestApprovalMutation) ClearedFields() []string {
 	if m.FieldCleared(servicerequestapproval.FieldApproverID) {
 		fields = append(fields, servicerequestapproval.FieldApproverID)
 	}
+	if m.FieldCleared(servicerequestapproval.FieldApproverMembershipID) {
+		fields = append(fields, servicerequestapproval.FieldApproverMembershipID)
+	}
 	if m.FieldCleared(servicerequestapproval.FieldApproverName) {
 		fields = append(fields, servicerequestapproval.FieldApproverName)
 	}
@@ -199816,6 +200015,9 @@ func (m *ServiceRequestApprovalMutation) ClearedFields() []string {
 	}
 	if m.FieldCleared(servicerequestapproval.FieldDelegatedToID) {
 		fields = append(fields, servicerequestapproval.FieldDelegatedToID)
+	}
+	if m.FieldCleared(servicerequestapproval.FieldDelegatedToMembershipID) {
+		fields = append(fields, servicerequestapproval.FieldDelegatedToMembershipID)
 	}
 	if m.FieldCleared(servicerequestapproval.FieldEscalationReason) {
 		fields = append(fields, servicerequestapproval.FieldEscalationReason)
@@ -199846,6 +200048,9 @@ func (m *ServiceRequestApprovalMutation) ClearField(name string) error {
 	case servicerequestapproval.FieldApproverID:
 		m.ClearApproverID()
 		return nil
+	case servicerequestapproval.FieldApproverMembershipID:
+		m.ClearApproverMembershipID()
+		return nil
 	case servicerequestapproval.FieldApproverName:
 		m.ClearApproverName()
 		return nil
@@ -199860,6 +200065,9 @@ func (m *ServiceRequestApprovalMutation) ClearField(name string) error {
 		return nil
 	case servicerequestapproval.FieldDelegatedToID:
 		m.ClearDelegatedToID()
+		return nil
+	case servicerequestapproval.FieldDelegatedToMembershipID:
+		m.ClearDelegatedToMembershipID()
 		return nil
 	case servicerequestapproval.FieldEscalationReason:
 		m.ClearEscalationReason()
@@ -199896,6 +200104,9 @@ func (m *ServiceRequestApprovalMutation) ResetField(name string) error {
 	case servicerequestapproval.FieldApproverID:
 		m.ResetApproverID()
 		return nil
+	case servicerequestapproval.FieldApproverMembershipID:
+		m.ResetApproverMembershipID()
+		return nil
 	case servicerequestapproval.FieldApproverName:
 		m.ResetApproverName()
 		return nil
@@ -199916,6 +200127,9 @@ func (m *ServiceRequestApprovalMutation) ResetField(name string) error {
 		return nil
 	case servicerequestapproval.FieldDelegatedToID:
 		m.ResetDelegatedToID()
+		return nil
+	case servicerequestapproval.FieldDelegatedToMembershipID:
+		m.ResetDelegatedToMembershipID()
 		return nil
 	case servicerequestapproval.FieldEscalationReason:
 		m.ResetEscalationReason()

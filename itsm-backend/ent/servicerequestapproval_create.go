@@ -86,6 +86,20 @@ func (_c *ServiceRequestApprovalCreate) SetNillableApproverID(v *int) *ServiceRe
 	return _c
 }
 
+// SetApproverMembershipID sets the "approver_membership_id" field.
+func (_c *ServiceRequestApprovalCreate) SetApproverMembershipID(v int) *ServiceRequestApprovalCreate {
+	_c.mutation.SetApproverMembershipID(v)
+	return _c
+}
+
+// SetNillableApproverMembershipID sets the "approver_membership_id" field if the given value is not nil.
+func (_c *ServiceRequestApprovalCreate) SetNillableApproverMembershipID(v *int) *ServiceRequestApprovalCreate {
+	if v != nil {
+		_c.SetApproverMembershipID(*v)
+	}
+	return _c
+}
+
 // SetApproverName sets the "approver_name" field.
 func (_c *ServiceRequestApprovalCreate) SetApproverName(v string) *ServiceRequestApprovalCreate {
 	_c.mutation.SetApproverName(v)
@@ -180,6 +194,20 @@ func (_c *ServiceRequestApprovalCreate) SetDelegatedToID(v int) *ServiceRequestA
 func (_c *ServiceRequestApprovalCreate) SetNillableDelegatedToID(v *int) *ServiceRequestApprovalCreate {
 	if v != nil {
 		_c.SetDelegatedToID(*v)
+	}
+	return _c
+}
+
+// SetDelegatedToMembershipID sets the "delegated_to_membership_id" field.
+func (_c *ServiceRequestApprovalCreate) SetDelegatedToMembershipID(v int) *ServiceRequestApprovalCreate {
+	_c.mutation.SetDelegatedToMembershipID(v)
+	return _c
+}
+
+// SetNillableDelegatedToMembershipID sets the "delegated_to_membership_id" field if the given value is not nil.
+func (_c *ServiceRequestApprovalCreate) SetNillableDelegatedToMembershipID(v *int) *ServiceRequestApprovalCreate {
+	if v != nil {
+		_c.SetDelegatedToMembershipID(*v)
 	}
 	return _c
 }
@@ -371,6 +399,10 @@ func (_c *ServiceRequestApprovalCreate) createSpec() (*ServiceRequestApproval, *
 		_spec.SetField(servicerequestapproval.FieldApproverID, field.TypeInt, value)
 		_node.ApproverID = &value
 	}
+	if value, ok := _c.mutation.ApproverMembershipID(); ok {
+		_spec.SetField(servicerequestapproval.FieldApproverMembershipID, field.TypeInt, value)
+		_node.ApproverMembershipID = value
+	}
 	if value, ok := _c.mutation.ApproverName(); ok {
 		_spec.SetField(servicerequestapproval.FieldApproverName, field.TypeString, value)
 		_node.ApproverName = value
@@ -398,6 +430,10 @@ func (_c *ServiceRequestApprovalCreate) createSpec() (*ServiceRequestApproval, *
 	if value, ok := _c.mutation.DelegatedToID(); ok {
 		_spec.SetField(servicerequestapproval.FieldDelegatedToID, field.TypeInt, value)
 		_node.DelegatedToID = &value
+	}
+	if value, ok := _c.mutation.DelegatedToMembershipID(); ok {
+		_spec.SetField(servicerequestapproval.FieldDelegatedToMembershipID, field.TypeInt, value)
+		_node.DelegatedToMembershipID = value
 	}
 	if value, ok := _c.mutation.EscalationReason(); ok {
 		_spec.SetField(servicerequestapproval.FieldEscalationReason, field.TypeString, value)

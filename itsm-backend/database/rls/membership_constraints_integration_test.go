@@ -41,6 +41,8 @@ var membershipConstraints = []membershipConstraint{
 	{"changes", "fk_changes_assignee_membership_tenant", "assignee_membership_id"},
 	{"service_requests", "fk_service_requests_requester_membership_tenant", "requester_membership_id"},
 	{"service_requests", "fk_service_requests_processor_membership_tenant", "processor_membership_id"},
+	{"service_request_approvals", "fk_service_request_approvals_approver_membership_tenant", "approver_membership_id"},
+	{"service_request_approvals", "fk_service_request_approvals_delegate_membership_tenant", "delegated_to_membership_id"},
 }
 
 // TestMembershipCompositeForeignKeysValidated 锁定 Phase 4 的约束收敛结果：

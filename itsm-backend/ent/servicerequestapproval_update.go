@@ -164,6 +164,33 @@ func (_u *ServiceRequestApprovalUpdate) ClearApproverID() *ServiceRequestApprova
 	return _u
 }
 
+// SetApproverMembershipID sets the "approver_membership_id" field.
+func (_u *ServiceRequestApprovalUpdate) SetApproverMembershipID(v int) *ServiceRequestApprovalUpdate {
+	_u.mutation.ResetApproverMembershipID()
+	_u.mutation.SetApproverMembershipID(v)
+	return _u
+}
+
+// SetNillableApproverMembershipID sets the "approver_membership_id" field if the given value is not nil.
+func (_u *ServiceRequestApprovalUpdate) SetNillableApproverMembershipID(v *int) *ServiceRequestApprovalUpdate {
+	if v != nil {
+		_u.SetApproverMembershipID(*v)
+	}
+	return _u
+}
+
+// AddApproverMembershipID adds value to the "approver_membership_id" field.
+func (_u *ServiceRequestApprovalUpdate) AddApproverMembershipID(v int) *ServiceRequestApprovalUpdate {
+	_u.mutation.AddApproverMembershipID(v)
+	return _u
+}
+
+// ClearApproverMembershipID clears the value of the "approver_membership_id" field.
+func (_u *ServiceRequestApprovalUpdate) ClearApproverMembershipID() *ServiceRequestApprovalUpdate {
+	_u.mutation.ClearApproverMembershipID()
+	return _u
+}
+
 // SetApproverName sets the "approver_name" field.
 func (_u *ServiceRequestApprovalUpdate) SetApproverName(v string) *ServiceRequestApprovalUpdate {
 	_u.mutation.SetApproverName(v)
@@ -303,6 +330,33 @@ func (_u *ServiceRequestApprovalUpdate) AddDelegatedToID(v int) *ServiceRequestA
 // ClearDelegatedToID clears the value of the "delegated_to_id" field.
 func (_u *ServiceRequestApprovalUpdate) ClearDelegatedToID() *ServiceRequestApprovalUpdate {
 	_u.mutation.ClearDelegatedToID()
+	return _u
+}
+
+// SetDelegatedToMembershipID sets the "delegated_to_membership_id" field.
+func (_u *ServiceRequestApprovalUpdate) SetDelegatedToMembershipID(v int) *ServiceRequestApprovalUpdate {
+	_u.mutation.ResetDelegatedToMembershipID()
+	_u.mutation.SetDelegatedToMembershipID(v)
+	return _u
+}
+
+// SetNillableDelegatedToMembershipID sets the "delegated_to_membership_id" field if the given value is not nil.
+func (_u *ServiceRequestApprovalUpdate) SetNillableDelegatedToMembershipID(v *int) *ServiceRequestApprovalUpdate {
+	if v != nil {
+		_u.SetDelegatedToMembershipID(*v)
+	}
+	return _u
+}
+
+// AddDelegatedToMembershipID adds value to the "delegated_to_membership_id" field.
+func (_u *ServiceRequestApprovalUpdate) AddDelegatedToMembershipID(v int) *ServiceRequestApprovalUpdate {
+	_u.mutation.AddDelegatedToMembershipID(v)
+	return _u
+}
+
+// ClearDelegatedToMembershipID clears the value of the "delegated_to_membership_id" field.
+func (_u *ServiceRequestApprovalUpdate) ClearDelegatedToMembershipID() *ServiceRequestApprovalUpdate {
+	_u.mutation.ClearDelegatedToMembershipID()
 	return _u
 }
 
@@ -466,6 +520,15 @@ func (_u *ServiceRequestApprovalUpdate) sqlSave(ctx context.Context) (_node int,
 	if _u.mutation.ApproverIDCleared() {
 		_spec.ClearField(servicerequestapproval.FieldApproverID, field.TypeInt)
 	}
+	if value, ok := _u.mutation.ApproverMembershipID(); ok {
+		_spec.SetField(servicerequestapproval.FieldApproverMembershipID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedApproverMembershipID(); ok {
+		_spec.AddField(servicerequestapproval.FieldApproverMembershipID, field.TypeInt, value)
+	}
+	if _u.mutation.ApproverMembershipIDCleared() {
+		_spec.ClearField(servicerequestapproval.FieldApproverMembershipID, field.TypeInt)
+	}
 	if value, ok := _u.mutation.ApproverName(); ok {
 		_spec.SetField(servicerequestapproval.FieldApproverName, field.TypeString, value)
 	}
@@ -507,6 +570,15 @@ func (_u *ServiceRequestApprovalUpdate) sqlSave(ctx context.Context) (_node int,
 	}
 	if _u.mutation.DelegatedToIDCleared() {
 		_spec.ClearField(servicerequestapproval.FieldDelegatedToID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.DelegatedToMembershipID(); ok {
+		_spec.SetField(servicerequestapproval.FieldDelegatedToMembershipID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedDelegatedToMembershipID(); ok {
+		_spec.AddField(servicerequestapproval.FieldDelegatedToMembershipID, field.TypeInt, value)
+	}
+	if _u.mutation.DelegatedToMembershipIDCleared() {
+		_spec.ClearField(servicerequestapproval.FieldDelegatedToMembershipID, field.TypeInt)
 	}
 	if value, ok := _u.mutation.EscalationReason(); ok {
 		_spec.SetField(servicerequestapproval.FieldEscalationReason, field.TypeString, value)
@@ -679,6 +751,33 @@ func (_u *ServiceRequestApprovalUpdateOne) ClearApproverID() *ServiceRequestAppr
 	return _u
 }
 
+// SetApproverMembershipID sets the "approver_membership_id" field.
+func (_u *ServiceRequestApprovalUpdateOne) SetApproverMembershipID(v int) *ServiceRequestApprovalUpdateOne {
+	_u.mutation.ResetApproverMembershipID()
+	_u.mutation.SetApproverMembershipID(v)
+	return _u
+}
+
+// SetNillableApproverMembershipID sets the "approver_membership_id" field if the given value is not nil.
+func (_u *ServiceRequestApprovalUpdateOne) SetNillableApproverMembershipID(v *int) *ServiceRequestApprovalUpdateOne {
+	if v != nil {
+		_u.SetApproverMembershipID(*v)
+	}
+	return _u
+}
+
+// AddApproverMembershipID adds value to the "approver_membership_id" field.
+func (_u *ServiceRequestApprovalUpdateOne) AddApproverMembershipID(v int) *ServiceRequestApprovalUpdateOne {
+	_u.mutation.AddApproverMembershipID(v)
+	return _u
+}
+
+// ClearApproverMembershipID clears the value of the "approver_membership_id" field.
+func (_u *ServiceRequestApprovalUpdateOne) ClearApproverMembershipID() *ServiceRequestApprovalUpdateOne {
+	_u.mutation.ClearApproverMembershipID()
+	return _u
+}
+
 // SetApproverName sets the "approver_name" field.
 func (_u *ServiceRequestApprovalUpdateOne) SetApproverName(v string) *ServiceRequestApprovalUpdateOne {
 	_u.mutation.SetApproverName(v)
@@ -818,6 +917,33 @@ func (_u *ServiceRequestApprovalUpdateOne) AddDelegatedToID(v int) *ServiceReque
 // ClearDelegatedToID clears the value of the "delegated_to_id" field.
 func (_u *ServiceRequestApprovalUpdateOne) ClearDelegatedToID() *ServiceRequestApprovalUpdateOne {
 	_u.mutation.ClearDelegatedToID()
+	return _u
+}
+
+// SetDelegatedToMembershipID sets the "delegated_to_membership_id" field.
+func (_u *ServiceRequestApprovalUpdateOne) SetDelegatedToMembershipID(v int) *ServiceRequestApprovalUpdateOne {
+	_u.mutation.ResetDelegatedToMembershipID()
+	_u.mutation.SetDelegatedToMembershipID(v)
+	return _u
+}
+
+// SetNillableDelegatedToMembershipID sets the "delegated_to_membership_id" field if the given value is not nil.
+func (_u *ServiceRequestApprovalUpdateOne) SetNillableDelegatedToMembershipID(v *int) *ServiceRequestApprovalUpdateOne {
+	if v != nil {
+		_u.SetDelegatedToMembershipID(*v)
+	}
+	return _u
+}
+
+// AddDelegatedToMembershipID adds value to the "delegated_to_membership_id" field.
+func (_u *ServiceRequestApprovalUpdateOne) AddDelegatedToMembershipID(v int) *ServiceRequestApprovalUpdateOne {
+	_u.mutation.AddDelegatedToMembershipID(v)
+	return _u
+}
+
+// ClearDelegatedToMembershipID clears the value of the "delegated_to_membership_id" field.
+func (_u *ServiceRequestApprovalUpdateOne) ClearDelegatedToMembershipID() *ServiceRequestApprovalUpdateOne {
+	_u.mutation.ClearDelegatedToMembershipID()
 	return _u
 }
 
@@ -1011,6 +1137,15 @@ func (_u *ServiceRequestApprovalUpdateOne) sqlSave(ctx context.Context) (_node *
 	if _u.mutation.ApproverIDCleared() {
 		_spec.ClearField(servicerequestapproval.FieldApproverID, field.TypeInt)
 	}
+	if value, ok := _u.mutation.ApproverMembershipID(); ok {
+		_spec.SetField(servicerequestapproval.FieldApproverMembershipID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedApproverMembershipID(); ok {
+		_spec.AddField(servicerequestapproval.FieldApproverMembershipID, field.TypeInt, value)
+	}
+	if _u.mutation.ApproverMembershipIDCleared() {
+		_spec.ClearField(servicerequestapproval.FieldApproverMembershipID, field.TypeInt)
+	}
 	if value, ok := _u.mutation.ApproverName(); ok {
 		_spec.SetField(servicerequestapproval.FieldApproverName, field.TypeString, value)
 	}
@@ -1052,6 +1187,15 @@ func (_u *ServiceRequestApprovalUpdateOne) sqlSave(ctx context.Context) (_node *
 	}
 	if _u.mutation.DelegatedToIDCleared() {
 		_spec.ClearField(servicerequestapproval.FieldDelegatedToID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.DelegatedToMembershipID(); ok {
+		_spec.SetField(servicerequestapproval.FieldDelegatedToMembershipID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedDelegatedToMembershipID(); ok {
+		_spec.AddField(servicerequestapproval.FieldDelegatedToMembershipID, field.TypeInt, value)
+	}
+	if _u.mutation.DelegatedToMembershipIDCleared() {
+		_spec.ClearField(servicerequestapproval.FieldDelegatedToMembershipID, field.TypeInt)
 	}
 	if value, ok := _u.mutation.EscalationReason(); ok {
 		_spec.SetField(servicerequestapproval.FieldEscalationReason, field.TypeString, value)

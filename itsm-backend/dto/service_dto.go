@@ -157,24 +157,26 @@ type ServiceRequestResponse struct {
 
 // ServiceRequestApprovalResponse 服务请求审批记录响应
 type ServiceRequestApprovalResponse struct {
-	ID               int        `json:"id"`
-	ServiceRequestID int        `json:"serviceRequestId"`
-	Level            int        `json:"level"`
-	Step             string     `json:"step"`
-	Status           string     `json:"status"`
-	ApproverID       *int       `json:"approverId,omitempty"`
-	ApproverName     string     `json:"approverName,omitempty"`
-	Action           string     `json:"action,omitempty"`
-	Comment          string     `json:"comment,omitempty"`
-	CreatedAt        time.Time  `json:"createdAt"`
-	ProcessedAt      *time.Time `json:"processedAt,omitempty"`
+	ID                   int        `json:"id"`
+	ServiceRequestID     int        `json:"serviceRequestId"`
+	Level                int        `json:"level"`
+	Step                 string     `json:"step"`
+	Status               string     `json:"status"`
+	ApproverID           *int       `json:"approverId,omitempty"`
+	ApproverMembershipID int        `json:"approverMembershipId,omitempty"`
+	ApproverName         string     `json:"approverName,omitempty"`
+	Action               string     `json:"action,omitempty"`
+	Comment              string     `json:"comment,omitempty"`
+	CreatedAt            time.Time  `json:"createdAt"`
+	ProcessedAt          *time.Time `json:"processedAt,omitempty"`
 
 	// V1 新增字段
-	TimeoutHours     int        `json:"timeoutHours,omitempty"`     // 审批时限（小时）
-	DueAt            *time.Time `json:"dueAt,omitempty"`            // 到期时间
-	IsEscalated      bool       `json:"isEscalated,omitempty"`      // 是否已升级
-	DelegatedToID    *int       `json:"delegatedToId,omitempty"`    // 转交审批人ID
-	EscalationReason string     `json:"escalationReason,omitempty"` // 升级原因
+	TimeoutHours            int        `json:"timeoutHours,omitempty"`  // 审批时限（小时）
+	DueAt                   *time.Time `json:"dueAt,omitempty"`         // 到期时间
+	IsEscalated             bool       `json:"isEscalated,omitempty"`   // 是否已升级
+	DelegatedToID           *int       `json:"delegatedToId,omitempty"` // 转交审批人ID
+	DelegatedToMembershipID int        `json:"delegatedToMembershipId,omitempty"`
+	EscalationReason        string     `json:"escalationReason,omitempty"` // 升级原因
 }
 
 // ServiceRequestApprovalActionRequest 审批动作请求

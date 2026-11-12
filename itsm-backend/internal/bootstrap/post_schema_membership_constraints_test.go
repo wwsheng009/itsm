@@ -35,6 +35,8 @@ var requiredMembershipConstraints = []string{
 	"fk_changes_assignee_membership_tenant",
 	"fk_service_requests_requester_membership_tenant",
 	"fk_service_requests_processor_membership_tenant",
+	"fk_service_request_approvals_approver_membership_tenant",
+	"fk_service_request_approvals_delegate_membership_tenant",
 }
 
 func TestPostSchemaConstraintsCoverMembershipReferences(t *testing.T) {
@@ -54,6 +56,7 @@ func TestVersionedMigrationsCoverMembershipReferences(t *testing.T) {
 		"20261111_membership_tenant_identity.sql",
 		"20261111_membership_actor_references.sql",
 		"20261112_membership_business_actors.sql",
+		"20261112_service_request_approval_membership.sql",
 		"20261112_membership_constraints_validate.sql",
 	} {
 		body, err := os.ReadFile(filepath.Join(migrationsDir, file))

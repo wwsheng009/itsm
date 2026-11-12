@@ -209,6 +209,10 @@ CREATE INDEX IF NOT EXISTS idx_service_requests_requester_membership
   ON service_requests (tenant_id, requester_membership_id);
 CREATE INDEX IF NOT EXISTS idx_service_requests_processor_membership
   ON service_requests (tenant_id, processor_membership_id);
+CREATE INDEX IF NOT EXISTS idx_service_request_approvals_approver_membership
+  ON service_request_approvals (tenant_id, approver_membership_id);
+CREATE INDEX IF NOT EXISTS idx_service_request_approvals_delegate_membership
+  ON service_request_approvals (tenant_id, delegated_to_membership_id);
 
 DO $$
 DECLARE
@@ -238,7 +242,9 @@ BEGIN
             ('changes', 'fk_changes_created_by_membership_tenant', 'created_by_membership_id'),
             ('changes', 'fk_changes_assignee_membership_tenant', 'assignee_membership_id'),
             ('service_requests', 'fk_service_requests_requester_membership_tenant', 'requester_membership_id'),
-            ('service_requests', 'fk_service_requests_processor_membership_tenant', 'processor_membership_id')
+            ('service_requests', 'fk_service_requests_processor_membership_tenant', 'processor_membership_id'),
+            ('service_request_approvals', 'fk_service_request_approvals_approver_membership_tenant', 'approver_membership_id'),
+            ('service_request_approvals', 'fk_service_request_approvals_delegate_membership_tenant', 'delegated_to_membership_id')
         ) AS v(tbl, conname, colname)
     LOOP
         SELECT convalidated INTO is_valid

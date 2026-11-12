@@ -27,6 +27,8 @@ const (
 	FieldStatus = "status"
 	// FieldApproverID holds the string denoting the approver_id field in the database.
 	FieldApproverID = "approver_id"
+	// FieldApproverMembershipID holds the string denoting the approver_membership_id field in the database.
+	FieldApproverMembershipID = "approver_membership_id"
 	// FieldApproverName holds the string denoting the approver_name field in the database.
 	FieldApproverName = "approver_name"
 	// FieldAction holds the string denoting the action field in the database.
@@ -41,6 +43,8 @@ const (
 	FieldIsEscalated = "is_escalated"
 	// FieldDelegatedToID holds the string denoting the delegated_to_id field in the database.
 	FieldDelegatedToID = "delegated_to_id"
+	// FieldDelegatedToMembershipID holds the string denoting the delegated_to_membership_id field in the database.
+	FieldDelegatedToMembershipID = "delegated_to_membership_id"
 	// FieldEscalationReason holds the string denoting the escalation_reason field in the database.
 	FieldEscalationReason = "escalation_reason"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
@@ -61,6 +65,7 @@ var Columns = []string{
 	FieldNode,
 	FieldStatus,
 	FieldApproverID,
+	FieldApproverMembershipID,
 	FieldApproverName,
 	FieldAction,
 	FieldComment,
@@ -68,6 +73,7 @@ var Columns = []string{
 	FieldDueAt,
 	FieldIsEscalated,
 	FieldDelegatedToID,
+	FieldDelegatedToMembershipID,
 	FieldEscalationReason,
 	FieldCreatedAt,
 	FieldProcessedAt,
@@ -138,6 +144,11 @@ func ByApproverID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldApproverID, opts...).ToFunc()
 }
 
+// ByApproverMembershipID orders the results by the approver_membership_id field.
+func ByApproverMembershipID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldApproverMembershipID, opts...).ToFunc()
+}
+
 // ByApproverName orders the results by the approver_name field.
 func ByApproverName(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldApproverName, opts...).ToFunc()
@@ -171,6 +182,11 @@ func ByIsEscalated(opts ...sql.OrderTermOption) OrderOption {
 // ByDelegatedToID orders the results by the delegated_to_id field.
 func ByDelegatedToID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldDelegatedToID, opts...).ToFunc()
+}
+
+// ByDelegatedToMembershipID orders the results by the delegated_to_membership_id field.
+func ByDelegatedToMembershipID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldDelegatedToMembershipID, opts...).ToFunc()
 }
 
 // ByEscalationReason orders the results by the escalation_reason field.

@@ -12,6 +12,7 @@ import (
 	"itsm-backend/ent"
 	"itsm-backend/ent/enttest"
 	entuser "itsm-backend/ent/user"
+	"itsm-backend/ent/usertenantmembership"
 	"itsm-backend/handlers/cmdb"
 	"itsm-backend/handlers/service_catalog"
 	"itsm-backend/service"
@@ -119,6 +120,38 @@ func TestServiceRequest_ApprovalChain_SerialProgression(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, SRStatusSecurityApproved, req.Status, "末级审批应落到 security_approved（履约门禁）")
 	require.Equal(t, 2, req.CurrentLevel, "末级后 CurrentLevel 应等于 TotalLevels(2)")
+}
+
+func TestServiceRequest_ApplyApprovalRecordsActorMembership(t *testing.T) {
+	svc, client, tenantID, catalogID := setupApprovalChainTest(t)
+	ctx := context.Background()
+
+	mgr := mkChainUser(t, client, tenantID, "manager", "IT")
+	requester := mkChainUser(t, client, tenantID, "end_user", "IT")
+	mgrMembership := client.UserTenantMembership.Create().
+		SetUserID(mgr).SetTenantID(tenantID).
+		SetAccountKind(usertenantmembership.AccountKindCustomer).
+		SetSource(usertenantmembership.SourceHome).
+		SetStatus(usertenantmembership.StatusActive).SetIsDefault(true).SaveX(ctx)
+
+	created, err := svc.Create(ctx, tenantID, requester, catalogID, chainReqData("Approval membership SR"))
+	require.NoError(t, err)
+
+	_, approvals, err := svc.ApplyApprovalWithMembership(
+		ctx, created.ID, tenantID, mgr, mgrMembership.ID,
+		"approve", "ok", "manager", "IT",
+	)
+	require.NoError(t, err)
+
+	var level1 *ServiceRequestApproval
+	for _, approval := range approvals {
+		if approval.Level == 1 {
+			level1 = approval
+			break
+		}
+	}
+	require.NotNil(t, level1)
+	require.Equal(t, mgrMembership.ID, level1.ApproverMembershipID)
 }
 
 // TestServiceRequest_ApprovalChain_ParallelQuorum 验证：会签层级（阈值=审批人数）

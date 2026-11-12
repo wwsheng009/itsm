@@ -315,8 +315,13 @@ func (s *Service) Get(ctx context.Context, id, tenantID int) (*ServiceRequest, [
 	return req, approvals, nil
 }
 
-// ApplyApproval processes an approval action
+// ApplyApproval processes an approval action (legacy callers without membership context).
 func (s *Service) ApplyApproval(ctx context.Context, id, tenantID, actorID int, action, comment string, userRole, userDept string) (*ServiceRequest, []*ServiceRequestApproval, error) {
+	return s.ApplyApprovalWithMembership(ctx, id, tenantID, actorID, 0, action, comment, userRole, userDept)
+}
+
+// ApplyApprovalWithMembership processes an approval action and records the actor membership.
+func (s *Service) ApplyApprovalWithMembership(ctx context.Context, id, tenantID, actorID, actorMembershipID int, action, comment string, userRole, userDept string) (*ServiceRequest, []*ServiceRequestApproval, error) {
 	// 1. Validate Inputs
 	if action != "approve" && action != "reject" {
 		return nil, nil, common.NewBadRequestError("Invalid action: "+action, nil)
@@ -428,6 +433,7 @@ func (s *Service) ApplyApproval(ctx context.Context, id, tenantID, actorID int, 
 				currentApproval.Action = action
 				currentApproval.Comment = comment
 				currentApproval.ApproverID = &actorID
+				currentApproval.ApproverMembershipID = actorMembershipID
 				currentApproval.ApproverName = actorName
 				currentApproval.ProcessedAt = &now
 				if err := s.repo.UpdateApproval(ctx, currentApproval); err != nil {
@@ -456,6 +462,7 @@ func (s *Service) ApplyApproval(ctx context.Context, id, tenantID, actorID int, 
 	currentApproval.Action = action
 	currentApproval.Comment = comment
 	currentApproval.ApproverID = &actorID
+	currentApproval.ApproverMembershipID = actorMembershipID
 	currentApproval.ApproverName = actorName
 	currentApproval.ProcessedAt = &now
 

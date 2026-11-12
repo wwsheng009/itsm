@@ -30,6 +30,7 @@ import type { ServiceRequest, ServiceRequestApproval } from '@/types/biz/service
 import { useI18n } from '@/lib/i18n/useI18n';
 import RichTextContent from '@/components/common/rich-text/RichTextContent';
 import { PermissionGate, useCan } from '@/components/auth/PermissionGate';
+import MembershipBadge from '@/components/common/MembershipBadge';
 import RecordProjectLink from '@/components/business/RecordProjectLink';
 import { DepartmentName } from '@/components/business/DepartmentSelect';
 import { CustomerName } from '@/components/business/CustomerSelect';
@@ -157,6 +158,7 @@ const ServiceRequestDetail: React.FC = () => {
                   {t(approvalStatusLabelKeys[app.status] || app.status)}
                 </Tag>
                 {app.approverName && <Text type="secondary">by {app.approverName}</Text>}
+                <MembershipBadge membershipId={app.approverMembershipId} />
               </div>
               {app.comment && (
                 <Text type="secondary" italic>

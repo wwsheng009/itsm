@@ -6347,6 +6347,7 @@ var (
 		{Name: "node", Type: field.TypeJSON, Nullable: true},
 		{Name: "status", Type: field.TypeString, Default: "pending"},
 		{Name: "approver_id", Type: field.TypeInt, Nullable: true},
+		{Name: "approver_membership_id", Type: field.TypeInt, Nullable: true},
 		{Name: "approver_name", Type: field.TypeString, Nullable: true},
 		{Name: "action", Type: field.TypeString, Nullable: true},
 		{Name: "comment", Type: field.TypeString, Nullable: true, Size: 2147483647},
@@ -6354,6 +6355,7 @@ var (
 		{Name: "due_at", Type: field.TypeTime, Nullable: true},
 		{Name: "is_escalated", Type: field.TypeBool, Default: false},
 		{Name: "delegated_to_id", Type: field.TypeInt, Nullable: true},
+		{Name: "delegated_to_membership_id", Type: field.TypeInt, Nullable: true},
 		{Name: "escalation_reason", Type: field.TypeString, Nullable: true},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "processed_at", Type: field.TypeTime, Nullable: true},
@@ -6377,12 +6379,22 @@ var (
 			{
 				Name:    "servicerequestapproval_due_at",
 				Unique:  false,
-				Columns: []*schema.Column{ServiceRequestApprovalsColumns[12]},
+				Columns: []*schema.Column{ServiceRequestApprovalsColumns[13]},
 			},
 			{
 				Name:    "servicerequestapproval_status_due_at",
 				Unique:  false,
-				Columns: []*schema.Column{ServiceRequestApprovalsColumns[6], ServiceRequestApprovalsColumns[12]},
+				Columns: []*schema.Column{ServiceRequestApprovalsColumns[6], ServiceRequestApprovalsColumns[13]},
+			},
+			{
+				Name:    "servicerequestapproval_tenant_id_approver_membership_id",
+				Unique:  false,
+				Columns: []*schema.Column{ServiceRequestApprovalsColumns[1], ServiceRequestApprovalsColumns[8]},
+			},
+			{
+				Name:    "servicerequestapproval_tenant_id_delegated_to_membership_id",
+				Unique:  false,
+				Columns: []*schema.Column{ServiceRequestApprovalsColumns[1], ServiceRequestApprovalsColumns[16]},
 			},
 		},
 	}

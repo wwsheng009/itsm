@@ -6888,15 +6888,15 @@ func init() {
 	// servicerequestapproval.DefaultStatus holds the default value on creation for the status field.
 	servicerequestapproval.DefaultStatus = servicerequestapprovalDescStatus.Default.(string)
 	// servicerequestapprovalDescTimeoutHours is the schema descriptor for timeout_hours field.
-	servicerequestapprovalDescTimeoutHours := servicerequestapprovalFields[10].Descriptor()
+	servicerequestapprovalDescTimeoutHours := servicerequestapprovalFields[11].Descriptor()
 	// servicerequestapproval.DefaultTimeoutHours holds the default value on creation for the timeout_hours field.
 	servicerequestapproval.DefaultTimeoutHours = servicerequestapprovalDescTimeoutHours.Default.(int)
 	// servicerequestapprovalDescIsEscalated is the schema descriptor for is_escalated field.
-	servicerequestapprovalDescIsEscalated := servicerequestapprovalFields[12].Descriptor()
+	servicerequestapprovalDescIsEscalated := servicerequestapprovalFields[13].Descriptor()
 	// servicerequestapproval.DefaultIsEscalated holds the default value on creation for the is_escalated field.
 	servicerequestapproval.DefaultIsEscalated = servicerequestapprovalDescIsEscalated.Default.(bool)
 	// servicerequestapprovalDescCreatedAt is the schema descriptor for created_at field.
-	servicerequestapprovalDescCreatedAt := servicerequestapprovalFields[15].Descriptor()
+	servicerequestapprovalDescCreatedAt := servicerequestapprovalFields[17].Descriptor()
 	// servicerequestapproval.DefaultCreatedAt holds the default value on creation for the created_at field.
 	servicerequestapproval.DefaultCreatedAt = servicerequestapprovalDescCreatedAt.Default.(func() time.Time)
 	sourceorganizationFields := schema.SourceOrganization{}.Fields()

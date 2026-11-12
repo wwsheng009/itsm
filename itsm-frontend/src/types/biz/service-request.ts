@@ -34,6 +34,7 @@ export interface ServiceRequestApproval {
   step: ApprovalStep | string;
   status: ApprovalStatus | string;
   approverId?: number;
+  approverMembershipId?: number;
   approverName?: string;
   action?: ApprovalAction | string;
   comment?: string;
@@ -45,6 +46,7 @@ export interface ServiceRequestApproval {
   dueAt?: string;
   isEscalated?: boolean;
   delegatedToId?: number;
+  delegatedToMembershipId?: number;
   escalationReason?: string;
 }
 

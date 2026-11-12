@@ -47,19 +47,21 @@ type ServiceRequest struct {
 
 // ServiceRequestApproval represents an approval step for a request
 type ServiceRequestApproval struct {
-	ID               int
-	TenantID         int
-	ServiceRequestID int
-	Level            int
-	Step             string
-	Status           string
-	ApproverID       *int
-	ApproverName     string
-	Comment          string
-	Action           string
-	TimeoutHours     int
-	DueAt            *time.Time
-	ProcessedAt      *time.Time
+	ID                      int
+	TenantID                int
+	ServiceRequestID        int
+	Level                   int
+	Step                    string
+	Status                  string
+	ApproverID              *int
+	ApproverMembershipID    int
+	ApproverName            string
+	Comment                 string
+	Action                  string
+	TimeoutHours            int
+	DueAt                   *time.Time
+	ProcessedAt             *time.Time
+	DelegatedToMembershipID int
 	// Node 承载审批链求值结果（审批人ID、会签阈值、已批准ID等），用于 quorum/层级求值。
 	Node      map[string]interface{}
 	CreatedAt time.Time

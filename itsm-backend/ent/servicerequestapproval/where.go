@@ -84,6 +84,11 @@ func ApproverID(v int) predicate.ServiceRequestApproval {
 	return predicate.ServiceRequestApproval(sql.FieldEQ(FieldApproverID, v))
 }
 
+// ApproverMembershipID applies equality check predicate on the "approver_membership_id" field. It's identical to ApproverMembershipIDEQ.
+func ApproverMembershipID(v int) predicate.ServiceRequestApproval {
+	return predicate.ServiceRequestApproval(sql.FieldEQ(FieldApproverMembershipID, v))
+}
+
 // ApproverName applies equality check predicate on the "approver_name" field. It's identical to ApproverNameEQ.
 func ApproverName(v string) predicate.ServiceRequestApproval {
 	return predicate.ServiceRequestApproval(sql.FieldEQ(FieldApproverName, v))
@@ -117,6 +122,11 @@ func IsEscalated(v bool) predicate.ServiceRequestApproval {
 // DelegatedToID applies equality check predicate on the "delegated_to_id" field. It's identical to DelegatedToIDEQ.
 func DelegatedToID(v int) predicate.ServiceRequestApproval {
 	return predicate.ServiceRequestApproval(sql.FieldEQ(FieldDelegatedToID, v))
+}
+
+// DelegatedToMembershipID applies equality check predicate on the "delegated_to_membership_id" field. It's identical to DelegatedToMembershipIDEQ.
+func DelegatedToMembershipID(v int) predicate.ServiceRequestApproval {
+	return predicate.ServiceRequestApproval(sql.FieldEQ(FieldDelegatedToMembershipID, v))
 }
 
 // EscalationReason applies equality check predicate on the "escalation_reason" field. It's identical to EscalationReasonEQ.
@@ -452,6 +462,56 @@ func ApproverIDIsNil() predicate.ServiceRequestApproval {
 // ApproverIDNotNil applies the NotNil predicate on the "approver_id" field.
 func ApproverIDNotNil() predicate.ServiceRequestApproval {
 	return predicate.ServiceRequestApproval(sql.FieldNotNull(FieldApproverID))
+}
+
+// ApproverMembershipIDEQ applies the EQ predicate on the "approver_membership_id" field.
+func ApproverMembershipIDEQ(v int) predicate.ServiceRequestApproval {
+	return predicate.ServiceRequestApproval(sql.FieldEQ(FieldApproverMembershipID, v))
+}
+
+// ApproverMembershipIDNEQ applies the NEQ predicate on the "approver_membership_id" field.
+func ApproverMembershipIDNEQ(v int) predicate.ServiceRequestApproval {
+	return predicate.ServiceRequestApproval(sql.FieldNEQ(FieldApproverMembershipID, v))
+}
+
+// ApproverMembershipIDIn applies the In predicate on the "approver_membership_id" field.
+func ApproverMembershipIDIn(vs ...int) predicate.ServiceRequestApproval {
+	return predicate.ServiceRequestApproval(sql.FieldIn(FieldApproverMembershipID, vs...))
+}
+
+// ApproverMembershipIDNotIn applies the NotIn predicate on the "approver_membership_id" field.
+func ApproverMembershipIDNotIn(vs ...int) predicate.ServiceRequestApproval {
+	return predicate.ServiceRequestApproval(sql.FieldNotIn(FieldApproverMembershipID, vs...))
+}
+
+// ApproverMembershipIDGT applies the GT predicate on the "approver_membership_id" field.
+func ApproverMembershipIDGT(v int) predicate.ServiceRequestApproval {
+	return predicate.ServiceRequestApproval(sql.FieldGT(FieldApproverMembershipID, v))
+}
+
+// ApproverMembershipIDGTE applies the GTE predicate on the "approver_membership_id" field.
+func ApproverMembershipIDGTE(v int) predicate.ServiceRequestApproval {
+	return predicate.ServiceRequestApproval(sql.FieldGTE(FieldApproverMembershipID, v))
+}
+
+// ApproverMembershipIDLT applies the LT predicate on the "approver_membership_id" field.
+func ApproverMembershipIDLT(v int) predicate.ServiceRequestApproval {
+	return predicate.ServiceRequestApproval(sql.FieldLT(FieldApproverMembershipID, v))
+}
+
+// ApproverMembershipIDLTE applies the LTE predicate on the "approver_membership_id" field.
+func ApproverMembershipIDLTE(v int) predicate.ServiceRequestApproval {
+	return predicate.ServiceRequestApproval(sql.FieldLTE(FieldApproverMembershipID, v))
+}
+
+// ApproverMembershipIDIsNil applies the IsNil predicate on the "approver_membership_id" field.
+func ApproverMembershipIDIsNil() predicate.ServiceRequestApproval {
+	return predicate.ServiceRequestApproval(sql.FieldIsNull(FieldApproverMembershipID))
+}
+
+// ApproverMembershipIDNotNil applies the NotNil predicate on the "approver_membership_id" field.
+func ApproverMembershipIDNotNil() predicate.ServiceRequestApproval {
+	return predicate.ServiceRequestApproval(sql.FieldNotNull(FieldApproverMembershipID))
 }
 
 // ApproverNameEQ applies the EQ predicate on the "approver_name" field.
@@ -827,6 +887,56 @@ func DelegatedToIDIsNil() predicate.ServiceRequestApproval {
 // DelegatedToIDNotNil applies the NotNil predicate on the "delegated_to_id" field.
 func DelegatedToIDNotNil() predicate.ServiceRequestApproval {
 	return predicate.ServiceRequestApproval(sql.FieldNotNull(FieldDelegatedToID))
+}
+
+// DelegatedToMembershipIDEQ applies the EQ predicate on the "delegated_to_membership_id" field.
+func DelegatedToMembershipIDEQ(v int) predicate.ServiceRequestApproval {
+	return predicate.ServiceRequestApproval(sql.FieldEQ(FieldDelegatedToMembershipID, v))
+}
+
+// DelegatedToMembershipIDNEQ applies the NEQ predicate on the "delegated_to_membership_id" field.
+func DelegatedToMembershipIDNEQ(v int) predicate.ServiceRequestApproval {
+	return predicate.ServiceRequestApproval(sql.FieldNEQ(FieldDelegatedToMembershipID, v))
+}
+
+// DelegatedToMembershipIDIn applies the In predicate on the "delegated_to_membership_id" field.
+func DelegatedToMembershipIDIn(vs ...int) predicate.ServiceRequestApproval {
+	return predicate.ServiceRequestApproval(sql.FieldIn(FieldDelegatedToMembershipID, vs...))
+}
+
+// DelegatedToMembershipIDNotIn applies the NotIn predicate on the "delegated_to_membership_id" field.
+func DelegatedToMembershipIDNotIn(vs ...int) predicate.ServiceRequestApproval {
+	return predicate.ServiceRequestApproval(sql.FieldNotIn(FieldDelegatedToMembershipID, vs...))
+}
+
+// DelegatedToMembershipIDGT applies the GT predicate on the "delegated_to_membership_id" field.
+func DelegatedToMembershipIDGT(v int) predicate.ServiceRequestApproval {
+	return predicate.ServiceRequestApproval(sql.FieldGT(FieldDelegatedToMembershipID, v))
+}
+
+// DelegatedToMembershipIDGTE applies the GTE predicate on the "delegated_to_membership_id" field.
+func DelegatedToMembershipIDGTE(v int) predicate.ServiceRequestApproval {
+	return predicate.ServiceRequestApproval(sql.FieldGTE(FieldDelegatedToMembershipID, v))
+}
+
+// DelegatedToMembershipIDLT applies the LT predicate on the "delegated_to_membership_id" field.
+func DelegatedToMembershipIDLT(v int) predicate.ServiceRequestApproval {
+	return predicate.ServiceRequestApproval(sql.FieldLT(FieldDelegatedToMembershipID, v))
+}
+
+// DelegatedToMembershipIDLTE applies the LTE predicate on the "delegated_to_membership_id" field.
+func DelegatedToMembershipIDLTE(v int) predicate.ServiceRequestApproval {
+	return predicate.ServiceRequestApproval(sql.FieldLTE(FieldDelegatedToMembershipID, v))
+}
+
+// DelegatedToMembershipIDIsNil applies the IsNil predicate on the "delegated_to_membership_id" field.
+func DelegatedToMembershipIDIsNil() predicate.ServiceRequestApproval {
+	return predicate.ServiceRequestApproval(sql.FieldIsNull(FieldDelegatedToMembershipID))
+}
+
+// DelegatedToMembershipIDNotNil applies the NotNil predicate on the "delegated_to_membership_id" field.
+func DelegatedToMembershipIDNotNil() predicate.ServiceRequestApproval {
+	return predicate.ServiceRequestApproval(sql.FieldNotNull(FieldDelegatedToMembershipID))
 }
 
 // EscalationReasonEQ applies the EQ predicate on the "escalation_reason" field.

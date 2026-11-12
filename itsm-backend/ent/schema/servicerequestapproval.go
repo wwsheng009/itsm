@@ -29,6 +29,9 @@ func (ServiceRequestApproval) Fields() []ent.Field {
 
 		// 审批人信息（pending 时可为空）
 		field.Int("approver_id").Comment("审批人ID").Optional().Nillable(),
+		field.Int("approver_membership_id").
+			Comment("审批人租户内身份ID（C 方案；user_tenant_memberships.id，过渡期可空）").
+			Optional(),
 		field.String("approver_name").Comment("审批人姓名").Optional(),
 
 		field.String("action").Comment("动作：approve|reject|delegate").Optional(),
@@ -39,6 +42,9 @@ func (ServiceRequestApproval) Fields() []ent.Field {
 		field.Time("due_at").Comment("到期时间（自动计算）").Optional(),
 		field.Bool("is_escalated").Comment("是否已升级").Default(false),
 		field.Int("delegated_to_id").Comment("转交审批人ID").Optional().Nillable(),
+		field.Int("delegated_to_membership_id").
+			Comment("转交审批人租户内身份ID（C 方案；user_tenant_memberships.id，过渡期可空）").
+			Optional(),
 		field.String("escalation_reason").Comment("升级原因").Optional(),
 
 		field.Time("created_at").Comment("创建时间").Default(time.Now),
@@ -55,5 +61,7 @@ func (ServiceRequestApproval) Indexes() []ent.Index {
 		// V1 新增索引：用于查询超时审批
 		index.Fields("due_at"),
 		index.Fields("status", "due_at"),
+		index.Fields("tenant_id", "approver_membership_id"),
+		index.Fields("tenant_id", "delegated_to_membership_id"),
 	}
 }

@@ -83,21 +83,23 @@ func (r *EntRepository) toDomainApproval(app *ent.ServiceRequestApproval) *Servi
 		return nil
 	}
 	return &ServiceRequestApproval{
-		ID:               app.ID,
-		TenantID:         app.TenantID,
-		ServiceRequestID: app.ServiceRequestID,
-		Level:            app.Level,
-		Step:             app.Step,
-		Status:           app.Status,
-		ApproverID:       app.ApproverID,
-		ApproverName:     app.ApproverName,
-		Comment:          app.Comment,
-		Action:           app.Action,
-		TimeoutHours:     app.TimeoutHours,
-		DueAt:            itemOrNil(app.DueAt),
-		ProcessedAt:      itemOrNil(app.ProcessedAt),
-		Node:             app.Node,
-		CreatedAt:        app.CreatedAt,
+		ID:                      app.ID,
+		TenantID:                app.TenantID,
+		ServiceRequestID:        app.ServiceRequestID,
+		Level:                   app.Level,
+		Step:                    app.Step,
+		Status:                  app.Status,
+		ApproverID:              app.ApproverID,
+		ApproverMembershipID:    app.ApproverMembershipID,
+		ApproverName:            app.ApproverName,
+		Comment:                 app.Comment,
+		Action:                  app.Action,
+		TimeoutHours:            app.TimeoutHours,
+		DueAt:                   itemOrNil(app.DueAt),
+		ProcessedAt:             itemOrNil(app.ProcessedAt),
+		DelegatedToMembershipID: app.DelegatedToMembershipID,
+		Node:                    app.Node,
+		CreatedAt:               app.CreatedAt,
 		// UpdatedAt not in ent schema
 	}
 }
@@ -504,11 +506,17 @@ func (r *EntRepository) UpdateApproval(ctx context.Context, approval *ServiceReq
 	if approval.ApproverID != nil {
 		update.SetApproverID(*approval.ApproverID)
 	}
+	if approval.ApproverMembershipID > 0 {
+		update.SetApproverMembershipID(approval.ApproverMembershipID)
+	}
 	if approval.ApproverName != "" {
 		update.SetApproverName(approval.ApproverName)
 	}
 	if approval.ProcessedAt != nil {
 		update.SetProcessedAt(*approval.ProcessedAt)
+	}
+	if approval.DelegatedToMembershipID > 0 {
+		update.SetDelegatedToMembershipID(approval.DelegatedToMembershipID)
 	}
 	if approval.Node != nil {
 		update.SetNode(approval.Node)
@@ -555,11 +563,17 @@ func (r *EntRepository) UpdateRequestAndApproval(ctx context.Context, req *Servi
 	if approval.ApproverID != nil {
 		appUpdate.SetApproverID(*approval.ApproverID)
 	}
+	if approval.ApproverMembershipID > 0 {
+		appUpdate.SetApproverMembershipID(approval.ApproverMembershipID)
+	}
 	if approval.ApproverName != "" {
 		appUpdate.SetApproverName(approval.ApproverName)
 	}
 	if approval.ProcessedAt != nil {
 		appUpdate.SetProcessedAt(*approval.ProcessedAt)
+	}
+	if approval.DelegatedToMembershipID > 0 {
+		appUpdate.SetDelegatedToMembershipID(approval.DelegatedToMembershipID)
 	}
 	if approval.Node != nil {
 		appUpdate.SetNode(approval.Node)

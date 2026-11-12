@@ -32,6 +32,8 @@ type ServiceRequestApproval struct {
 	Status string `json:"status,omitempty"`
 	// 审批人ID
 	ApproverID *int `json:"approver_id,omitempty"`
+	// 审批人租户内身份ID（C 方案；user_tenant_memberships.id，过渡期可空）
+	ApproverMembershipID int `json:"approver_membership_id,omitempty"`
 	// 审批人姓名
 	ApproverName string `json:"approver_name,omitempty"`
 	// 动作：approve|reject|delegate
@@ -46,6 +48,8 @@ type ServiceRequestApproval struct {
 	IsEscalated bool `json:"is_escalated,omitempty"`
 	// 转交审批人ID
 	DelegatedToID *int `json:"delegated_to_id,omitempty"`
+	// 转交审批人租户内身份ID（C 方案；user_tenant_memberships.id，过渡期可空）
+	DelegatedToMembershipID int `json:"delegated_to_membership_id,omitempty"`
 	// 升级原因
 	EscalationReason string `json:"escalation_reason,omitempty"`
 	// 创建时间
@@ -64,7 +68,7 @@ func (*ServiceRequestApproval) scanValues(columns []string) ([]any, error) {
 			values[i] = new([]byte)
 		case servicerequestapproval.FieldIsEscalated:
 			values[i] = new(sql.NullBool)
-		case servicerequestapproval.FieldID, servicerequestapproval.FieldTenantID, servicerequestapproval.FieldServiceRequestID, servicerequestapproval.FieldLevel, servicerequestapproval.FieldApproverID, servicerequestapproval.FieldTimeoutHours, servicerequestapproval.FieldDelegatedToID:
+		case servicerequestapproval.FieldID, servicerequestapproval.FieldTenantID, servicerequestapproval.FieldServiceRequestID, servicerequestapproval.FieldLevel, servicerequestapproval.FieldApproverID, servicerequestapproval.FieldApproverMembershipID, servicerequestapproval.FieldTimeoutHours, servicerequestapproval.FieldDelegatedToID, servicerequestapproval.FieldDelegatedToMembershipID:
 			values[i] = new(sql.NullInt64)
 		case servicerequestapproval.FieldStep, servicerequestapproval.FieldStatus, servicerequestapproval.FieldApproverName, servicerequestapproval.FieldAction, servicerequestapproval.FieldComment, servicerequestapproval.FieldEscalationReason:
 			values[i] = new(sql.NullString)
@@ -136,6 +140,12 @@ func (_m *ServiceRequestApproval) assignValues(columns []string, values []any) e
 				_m.ApproverID = new(int)
 				*_m.ApproverID = int(value.Int64)
 			}
+		case servicerequestapproval.FieldApproverMembershipID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field approver_membership_id", values[i])
+			} else if value.Valid {
+				_m.ApproverMembershipID = int(value.Int64)
+			}
 		case servicerequestapproval.FieldApproverName:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field approver_name", values[i])
@@ -178,6 +188,12 @@ func (_m *ServiceRequestApproval) assignValues(columns []string, values []any) e
 			} else if value.Valid {
 				_m.DelegatedToID = new(int)
 				*_m.DelegatedToID = int(value.Int64)
+			}
+		case servicerequestapproval.FieldDelegatedToMembershipID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field delegated_to_membership_id", values[i])
+			} else if value.Valid {
+				_m.DelegatedToMembershipID = int(value.Int64)
 			}
 		case servicerequestapproval.FieldEscalationReason:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -256,6 +272,9 @@ func (_m *ServiceRequestApproval) String() string {
 		builder.WriteString(fmt.Sprintf("%v", *v))
 	}
 	builder.WriteString(", ")
+	builder.WriteString("approver_membership_id=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ApproverMembershipID))
+	builder.WriteString(", ")
 	builder.WriteString("approver_name=")
 	builder.WriteString(_m.ApproverName)
 	builder.WriteString(", ")
@@ -278,6 +297,9 @@ func (_m *ServiceRequestApproval) String() string {
 		builder.WriteString("delegated_to_id=")
 		builder.WriteString(fmt.Sprintf("%v", *v))
 	}
+	builder.WriteString(", ")
+	builder.WriteString("delegated_to_membership_id=")
+	builder.WriteString(fmt.Sprintf("%v", _m.DelegatedToMembershipID))
 	builder.WriteString(", ")
 	builder.WriteString("escalation_reason=")
 	builder.WriteString(_m.EscalationReason)

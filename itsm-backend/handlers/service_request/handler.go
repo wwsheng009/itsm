@@ -108,19 +108,21 @@ func toApprovalDTOs(approvals []*ServiceRequestApproval) []dto.ServiceRequestApp
 	responses := make([]dto.ServiceRequestApprovalResponse, len(approvals))
 	for i, app := range approvals {
 		responses[i] = dto.ServiceRequestApprovalResponse{
-			ID:               app.ID,
-			ServiceRequestID: app.ServiceRequestID,
-			Level:            app.Level,
-			Step:             app.Step,
-			Status:           app.Status,
-			ApproverID:       app.ApproverID,
-			ApproverName:     app.ApproverName,
-			Comment:          app.Comment,
-			Action:           app.Action,
-			TimeoutHours:     app.TimeoutHours,
-			DueAt:            app.DueAt,
-			ProcessedAt:      app.ProcessedAt,
-			CreatedAt:        app.CreatedAt,
+			ID:                      app.ID,
+			ServiceRequestID:        app.ServiceRequestID,
+			Level:                   app.Level,
+			Step:                    app.Step,
+			Status:                  app.Status,
+			ApproverID:              app.ApproverID,
+			ApproverMembershipID:    app.ApproverMembershipID,
+			ApproverName:            app.ApproverName,
+			Comment:                 app.Comment,
+			Action:                  app.Action,
+			TimeoutHours:            app.TimeoutHours,
+			DueAt:                   app.DueAt,
+			ProcessedAt:             app.ProcessedAt,
+			DelegatedToMembershipID: app.DelegatedToMembershipID,
+			CreatedAt:               app.CreatedAt,
 		}
 	}
 	return responses
@@ -316,7 +318,10 @@ func (h *Handler) ApplyApproval(c *gin.Context) {
 	roleStr, _ := role.(string)
 	deptStr, _ := dept.(string)
 
-	res, approvals, err := h.service.ApplyApproval(c.Request.Context(), id, tenantID, userID, req.Action, req.Comment, roleStr, deptStr)
+	res, approvals, err := h.service.ApplyApprovalWithMembership(
+		c.Request.Context(), id, tenantID, userID, middleware.GetMembershipID(c),
+		req.Action, req.Comment, roleStr, deptStr,
+	)
 	if err != nil {
 		failServiceRequest(c, err)
 		return
