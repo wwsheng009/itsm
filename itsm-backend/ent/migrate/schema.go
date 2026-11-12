@@ -1089,6 +1089,8 @@ var (
 		{Name: "risk_level", Type: field.TypeString, Default: "medium"},
 		{Name: "assignee_id", Type: field.TypeInt, Nullable: true},
 		{Name: "created_by", Type: field.TypeInt},
+		{Name: "created_by_membership_id", Type: field.TypeInt, Nullable: true},
+		{Name: "assignee_membership_id", Type: field.TypeInt, Nullable: true},
 		{Name: "tenant_id", Type: field.TypeInt},
 		{Name: "project_id", Type: field.TypeInt, Nullable: true},
 		{Name: "department_id", Type: field.TypeInt, Nullable: true},
@@ -1113,7 +1115,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "changes_standard_changes_changes",
-				Columns:    []*schema.Column{ChangesColumns[26]},
+				Columns:    []*schema.Column{ChangesColumns[28]},
 				RefColumns: []*schema.Column{StandardChangesColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
@@ -1122,12 +1124,22 @@ var (
 			{
 				Name:    "change_tenant_id_department_id",
 				Unique:  false,
-				Columns: []*schema.Column{ChangesColumns[12], ChangesColumns[14]},
+				Columns: []*schema.Column{ChangesColumns[14], ChangesColumns[16]},
 			},
 			{
 				Name:    "change_tenant_id_customer_id",
 				Unique:  false,
-				Columns: []*schema.Column{ChangesColumns[12], ChangesColumns[15]},
+				Columns: []*schema.Column{ChangesColumns[14], ChangesColumns[17]},
+			},
+			{
+				Name:    "change_tenant_id_created_by_membership_id",
+				Unique:  false,
+				Columns: []*schema.Column{ChangesColumns[14], ChangesColumns[12]},
+			},
+			{
+				Name:    "change_tenant_id_assignee_membership_id",
+				Unique:  false,
+				Columns: []*schema.Column{ChangesColumns[14], ChangesColumns[13]},
 			},
 		},
 	}
@@ -4117,6 +4129,8 @@ var (
 		{Name: "department_id", Type: field.TypeInt, Nullable: true},
 		{Name: "customer_id", Type: field.TypeInt, Nullable: true},
 		{Name: "created_by", Type: field.TypeInt},
+		{Name: "created_by_membership_id", Type: field.TypeInt, Nullable: true},
+		{Name: "assignee_membership_id", Type: field.TypeInt, Nullable: true},
 		{Name: "tenant_id", Type: field.TypeInt},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "updated_at", Type: field.TypeTime},
@@ -4133,7 +4147,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "problems_known_errors_problem",
-				Columns:    []*schema.Column{ProblemsColumns[22]},
+				Columns:    []*schema.Column{ProblemsColumns[24]},
 				RefColumns: []*schema.Column{KnownErrorsColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
@@ -4142,12 +4156,22 @@ var (
 			{
 				Name:    "problem_tenant_id_department_id",
 				Unique:  false,
-				Columns: []*schema.Column{ProblemsColumns[16], ProblemsColumns[13]},
+				Columns: []*schema.Column{ProblemsColumns[18], ProblemsColumns[13]},
 			},
 			{
 				Name:    "problem_tenant_id_customer_id",
 				Unique:  false,
-				Columns: []*schema.Column{ProblemsColumns[16], ProblemsColumns[14]},
+				Columns: []*schema.Column{ProblemsColumns[18], ProblemsColumns[14]},
+			},
+			{
+				Name:    "problem_tenant_id_created_by_membership_id",
+				Unique:  false,
+				Columns: []*schema.Column{ProblemsColumns[18], ProblemsColumns[16]},
+			},
+			{
+				Name:    "problem_tenant_id_assignee_membership_id",
+				Unique:  false,
+				Columns: []*schema.Column{ProblemsColumns[18], ProblemsColumns[17]},
 			},
 		},
 	}
@@ -6232,6 +6256,7 @@ var (
 		{Name: "department_id", Type: field.TypeInt, Nullable: true},
 		{Name: "customer_id", Type: field.TypeInt, Nullable: true},
 		{Name: "requester_id", Type: field.TypeInt},
+		{Name: "requester_membership_id", Type: field.TypeInt, Nullable: true},
 		{Name: "status", Type: field.TypeString, Default: "submitted"},
 		{Name: "title", Type: field.TypeString, Nullable: true},
 		{Name: "reason", Type: field.TypeString, Nullable: true, Size: 2147483647},
@@ -6249,6 +6274,7 @@ var (
 		{Name: "approver_comment", Type: field.TypeString, Nullable: true},
 		{Name: "approval_history", Type: field.TypeJSON, Nullable: true},
 		{Name: "processor_id", Type: field.TypeInt, Nullable: true},
+		{Name: "processor_membership_id", Type: field.TypeInt, Nullable: true},
 		{Name: "started_at", Type: field.TypeTime, Nullable: true},
 		{Name: "completed_at", Type: field.TypeTime, Nullable: true},
 		{Name: "completion_note", Type: field.TypeString, Nullable: true, Size: 2147483647},
@@ -6267,17 +6293,22 @@ var (
 			{
 				Name:    "servicerequest_tenant_id_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{ServiceRequestsColumns[1], ServiceRequestsColumns[30]},
+				Columns: []*schema.Column{ServiceRequestsColumns[1], ServiceRequestsColumns[32]},
 			},
 			{
 				Name:    "servicerequest_tenant_id_requester_id_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{ServiceRequestsColumns[1], ServiceRequestsColumns[7], ServiceRequestsColumns[30]},
+				Columns: []*schema.Column{ServiceRequestsColumns[1], ServiceRequestsColumns[7], ServiceRequestsColumns[32]},
+			},
+			{
+				Name:    "servicerequest_tenant_id_requester_membership_id",
+				Unique:  false,
+				Columns: []*schema.Column{ServiceRequestsColumns[1], ServiceRequestsColumns[8]},
 			},
 			{
 				Name:    "servicerequest_tenant_id_status_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{ServiceRequestsColumns[1], ServiceRequestsColumns[8], ServiceRequestsColumns[30]},
+				Columns: []*schema.Column{ServiceRequestsColumns[1], ServiceRequestsColumns[9], ServiceRequestsColumns[32]},
 			},
 			{
 				Name:    "servicerequest_tenant_id_ci_id",
@@ -6287,7 +6318,7 @@ var (
 			{
 				Name:    "servicerequest_tenant_id_current_level",
 				Unique:  false,
-				Columns: []*schema.Column{ServiceRequestsColumns[1], ServiceRequestsColumns[18]},
+				Columns: []*schema.Column{ServiceRequestsColumns[1], ServiceRequestsColumns[19]},
 			},
 			{
 				Name:    "servicerequest_tenant_id_department_id",
@@ -6298,6 +6329,11 @@ var (
 				Name:    "servicerequest_tenant_id_customer_id",
 				Unique:  false,
 				Columns: []*schema.Column{ServiceRequestsColumns[1], ServiceRequestsColumns[6]},
+			},
+			{
+				Name:    "servicerequest_tenant_id_processor_membership_id",
+				Unique:  false,
+				Columns: []*schema.Column{ServiceRequestsColumns[1], ServiceRequestsColumns[26]},
 			},
 		},
 	}

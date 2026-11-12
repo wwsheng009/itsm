@@ -342,6 +342,60 @@ func (_u *ProblemUpdate) AddCreatedBy(v int) *ProblemUpdate {
 	return _u
 }
 
+// SetCreatedByMembershipID sets the "created_by_membership_id" field.
+func (_u *ProblemUpdate) SetCreatedByMembershipID(v int) *ProblemUpdate {
+	_u.mutation.ResetCreatedByMembershipID()
+	_u.mutation.SetCreatedByMembershipID(v)
+	return _u
+}
+
+// SetNillableCreatedByMembershipID sets the "created_by_membership_id" field if the given value is not nil.
+func (_u *ProblemUpdate) SetNillableCreatedByMembershipID(v *int) *ProblemUpdate {
+	if v != nil {
+		_u.SetCreatedByMembershipID(*v)
+	}
+	return _u
+}
+
+// AddCreatedByMembershipID adds value to the "created_by_membership_id" field.
+func (_u *ProblemUpdate) AddCreatedByMembershipID(v int) *ProblemUpdate {
+	_u.mutation.AddCreatedByMembershipID(v)
+	return _u
+}
+
+// ClearCreatedByMembershipID clears the value of the "created_by_membership_id" field.
+func (_u *ProblemUpdate) ClearCreatedByMembershipID() *ProblemUpdate {
+	_u.mutation.ClearCreatedByMembershipID()
+	return _u
+}
+
+// SetAssigneeMembershipID sets the "assignee_membership_id" field.
+func (_u *ProblemUpdate) SetAssigneeMembershipID(v int) *ProblemUpdate {
+	_u.mutation.ResetAssigneeMembershipID()
+	_u.mutation.SetAssigneeMembershipID(v)
+	return _u
+}
+
+// SetNillableAssigneeMembershipID sets the "assignee_membership_id" field if the given value is not nil.
+func (_u *ProblemUpdate) SetNillableAssigneeMembershipID(v *int) *ProblemUpdate {
+	if v != nil {
+		_u.SetAssigneeMembershipID(*v)
+	}
+	return _u
+}
+
+// AddAssigneeMembershipID adds value to the "assignee_membership_id" field.
+func (_u *ProblemUpdate) AddAssigneeMembershipID(v int) *ProblemUpdate {
+	_u.mutation.AddAssigneeMembershipID(v)
+	return _u
+}
+
+// ClearAssigneeMembershipID clears the value of the "assignee_membership_id" field.
+func (_u *ProblemUpdate) ClearAssigneeMembershipID() *ProblemUpdate {
+	_u.mutation.ClearAssigneeMembershipID()
+	return _u
+}
+
 // SetTenantID sets the "tenant_id" field.
 func (_u *ProblemUpdate) SetTenantID(v int) *ProblemUpdate {
 	_u.mutation.ResetTenantID()
@@ -721,6 +775,24 @@ func (_u *ProblemUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.AddedCreatedBy(); ok {
 		_spec.AddField(problem.FieldCreatedBy, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.CreatedByMembershipID(); ok {
+		_spec.SetField(problem.FieldCreatedByMembershipID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedCreatedByMembershipID(); ok {
+		_spec.AddField(problem.FieldCreatedByMembershipID, field.TypeInt, value)
+	}
+	if _u.mutation.CreatedByMembershipIDCleared() {
+		_spec.ClearField(problem.FieldCreatedByMembershipID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.AssigneeMembershipID(); ok {
+		_spec.SetField(problem.FieldAssigneeMembershipID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedAssigneeMembershipID(); ok {
+		_spec.AddField(problem.FieldAssigneeMembershipID, field.TypeInt, value)
+	}
+	if _u.mutation.AssigneeMembershipIDCleared() {
+		_spec.ClearField(problem.FieldAssigneeMembershipID, field.TypeInt)
 	}
 	if value, ok := _u.mutation.TenantID(); ok {
 		_spec.SetField(problem.FieldTenantID, field.TypeInt, value)
@@ -1218,6 +1290,60 @@ func (_u *ProblemUpdateOne) AddCreatedBy(v int) *ProblemUpdateOne {
 	return _u
 }
 
+// SetCreatedByMembershipID sets the "created_by_membership_id" field.
+func (_u *ProblemUpdateOne) SetCreatedByMembershipID(v int) *ProblemUpdateOne {
+	_u.mutation.ResetCreatedByMembershipID()
+	_u.mutation.SetCreatedByMembershipID(v)
+	return _u
+}
+
+// SetNillableCreatedByMembershipID sets the "created_by_membership_id" field if the given value is not nil.
+func (_u *ProblemUpdateOne) SetNillableCreatedByMembershipID(v *int) *ProblemUpdateOne {
+	if v != nil {
+		_u.SetCreatedByMembershipID(*v)
+	}
+	return _u
+}
+
+// AddCreatedByMembershipID adds value to the "created_by_membership_id" field.
+func (_u *ProblemUpdateOne) AddCreatedByMembershipID(v int) *ProblemUpdateOne {
+	_u.mutation.AddCreatedByMembershipID(v)
+	return _u
+}
+
+// ClearCreatedByMembershipID clears the value of the "created_by_membership_id" field.
+func (_u *ProblemUpdateOne) ClearCreatedByMembershipID() *ProblemUpdateOne {
+	_u.mutation.ClearCreatedByMembershipID()
+	return _u
+}
+
+// SetAssigneeMembershipID sets the "assignee_membership_id" field.
+func (_u *ProblemUpdateOne) SetAssigneeMembershipID(v int) *ProblemUpdateOne {
+	_u.mutation.ResetAssigneeMembershipID()
+	_u.mutation.SetAssigneeMembershipID(v)
+	return _u
+}
+
+// SetNillableAssigneeMembershipID sets the "assignee_membership_id" field if the given value is not nil.
+func (_u *ProblemUpdateOne) SetNillableAssigneeMembershipID(v *int) *ProblemUpdateOne {
+	if v != nil {
+		_u.SetAssigneeMembershipID(*v)
+	}
+	return _u
+}
+
+// AddAssigneeMembershipID adds value to the "assignee_membership_id" field.
+func (_u *ProblemUpdateOne) AddAssigneeMembershipID(v int) *ProblemUpdateOne {
+	_u.mutation.AddAssigneeMembershipID(v)
+	return _u
+}
+
+// ClearAssigneeMembershipID clears the value of the "assignee_membership_id" field.
+func (_u *ProblemUpdateOne) ClearAssigneeMembershipID() *ProblemUpdateOne {
+	_u.mutation.ClearAssigneeMembershipID()
+	return _u
+}
+
 // SetTenantID sets the "tenant_id" field.
 func (_u *ProblemUpdateOne) SetTenantID(v int) *ProblemUpdateOne {
 	_u.mutation.ResetTenantID()
@@ -1627,6 +1753,24 @@ func (_u *ProblemUpdateOne) sqlSave(ctx context.Context) (_node *Problem, err er
 	}
 	if value, ok := _u.mutation.AddedCreatedBy(); ok {
 		_spec.AddField(problem.FieldCreatedBy, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.CreatedByMembershipID(); ok {
+		_spec.SetField(problem.FieldCreatedByMembershipID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedCreatedByMembershipID(); ok {
+		_spec.AddField(problem.FieldCreatedByMembershipID, field.TypeInt, value)
+	}
+	if _u.mutation.CreatedByMembershipIDCleared() {
+		_spec.ClearField(problem.FieldCreatedByMembershipID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.AssigneeMembershipID(); ok {
+		_spec.SetField(problem.FieldAssigneeMembershipID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedAssigneeMembershipID(); ok {
+		_spec.AddField(problem.FieldAssigneeMembershipID, field.TypeInt, value)
+	}
+	if _u.mutation.AssigneeMembershipIDCleared() {
+		_spec.ClearField(problem.FieldAssigneeMembershipID, field.TypeInt)
 	}
 	if value, ok := _u.mutation.TenantID(); ok {
 		_spec.SetField(problem.FieldTenantID, field.TypeInt, value)

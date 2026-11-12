@@ -32999,52 +32999,56 @@ func (m *CMDBSavedViewMutation) ResetEdge(name string) error {
 // ChangeMutation represents an operation that mutates the Change nodes in the graph.
 type ChangeMutation struct {
 	config
-	op                    Op
-	typ                   string
-	id                    *int
-	change_number         *string
-	title                 *string
-	description           *string
-	justification         *string
-	_type                 *string
-	status                *string
-	priority              *string
-	impact_scope          *string
-	risk_level            *string
-	assignee_id           *int
-	addassignee_id        *int
-	created_by            *int
-	addcreated_by         *int
-	tenant_id             *int
-	addtenant_id          *int
-	project_id            *int
-	addproject_id         *int
-	department_id         *int
-	adddepartment_id      *int
-	customer_id           *int
-	addcustomer_id        *int
-	planned_start_date    *time.Time
-	planned_end_date      *time.Time
-	actual_start_date     *time.Time
-	actual_end_date       *time.Time
-	implementation_plan   *string
-	rollback_plan         *string
-	affected_cis          *[]string
-	appendaffected_cis    []string
-	related_tickets       *[]string
-	appendrelated_tickets []string
-	created_at            *time.Time
-	updated_at            *time.Time
-	clearedFields         map[string]struct{}
-	problems              map[int]struct{}
-	removedproblems       map[int]struct{}
-	clearedproblems       bool
-	pir                   map[int]struct{}
-	removedpir            map[int]struct{}
-	clearedpir            bool
-	done                  bool
-	oldValue              func(context.Context) (*Change, error)
-	predicates            []predicate.Change
+	op                          Op
+	typ                         string
+	id                          *int
+	change_number               *string
+	title                       *string
+	description                 *string
+	justification               *string
+	_type                       *string
+	status                      *string
+	priority                    *string
+	impact_scope                *string
+	risk_level                  *string
+	assignee_id                 *int
+	addassignee_id              *int
+	created_by                  *int
+	addcreated_by               *int
+	created_by_membership_id    *int
+	addcreated_by_membership_id *int
+	assignee_membership_id      *int
+	addassignee_membership_id   *int
+	tenant_id                   *int
+	addtenant_id                *int
+	project_id                  *int
+	addproject_id               *int
+	department_id               *int
+	adddepartment_id            *int
+	customer_id                 *int
+	addcustomer_id              *int
+	planned_start_date          *time.Time
+	planned_end_date            *time.Time
+	actual_start_date           *time.Time
+	actual_end_date             *time.Time
+	implementation_plan         *string
+	rollback_plan               *string
+	affected_cis                *[]string
+	appendaffected_cis          []string
+	related_tickets             *[]string
+	appendrelated_tickets       []string
+	created_at                  *time.Time
+	updated_at                  *time.Time
+	clearedFields               map[string]struct{}
+	problems                    map[int]struct{}
+	removedproblems             map[int]struct{}
+	clearedproblems             bool
+	pir                         map[int]struct{}
+	removedpir                  map[int]struct{}
+	clearedpir                  bool
+	done                        bool
+	oldValue                    func(context.Context) (*Change, error)
+	predicates                  []predicate.Change
 }
 
 var _ ent.Mutation = (*ChangeMutation)(nil)
@@ -33632,6 +33636,146 @@ func (m *ChangeMutation) AddedCreatedBy() (r int, exists bool) {
 func (m *ChangeMutation) ResetCreatedBy() {
 	m.created_by = nil
 	m.addcreated_by = nil
+}
+
+// SetCreatedByMembershipID sets the "created_by_membership_id" field.
+func (m *ChangeMutation) SetCreatedByMembershipID(i int) {
+	m.created_by_membership_id = &i
+	m.addcreated_by_membership_id = nil
+}
+
+// CreatedByMembershipID returns the value of the "created_by_membership_id" field in the mutation.
+func (m *ChangeMutation) CreatedByMembershipID() (r int, exists bool) {
+	v := m.created_by_membership_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedByMembershipID returns the old "created_by_membership_id" field's value of the Change entity.
+// If the Change object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ChangeMutation) OldCreatedByMembershipID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedByMembershipID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedByMembershipID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedByMembershipID: %w", err)
+	}
+	return oldValue.CreatedByMembershipID, nil
+}
+
+// AddCreatedByMembershipID adds i to the "created_by_membership_id" field.
+func (m *ChangeMutation) AddCreatedByMembershipID(i int) {
+	if m.addcreated_by_membership_id != nil {
+		*m.addcreated_by_membership_id += i
+	} else {
+		m.addcreated_by_membership_id = &i
+	}
+}
+
+// AddedCreatedByMembershipID returns the value that was added to the "created_by_membership_id" field in this mutation.
+func (m *ChangeMutation) AddedCreatedByMembershipID() (r int, exists bool) {
+	v := m.addcreated_by_membership_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearCreatedByMembershipID clears the value of the "created_by_membership_id" field.
+func (m *ChangeMutation) ClearCreatedByMembershipID() {
+	m.created_by_membership_id = nil
+	m.addcreated_by_membership_id = nil
+	m.clearedFields[change.FieldCreatedByMembershipID] = struct{}{}
+}
+
+// CreatedByMembershipIDCleared returns if the "created_by_membership_id" field was cleared in this mutation.
+func (m *ChangeMutation) CreatedByMembershipIDCleared() bool {
+	_, ok := m.clearedFields[change.FieldCreatedByMembershipID]
+	return ok
+}
+
+// ResetCreatedByMembershipID resets all changes to the "created_by_membership_id" field.
+func (m *ChangeMutation) ResetCreatedByMembershipID() {
+	m.created_by_membership_id = nil
+	m.addcreated_by_membership_id = nil
+	delete(m.clearedFields, change.FieldCreatedByMembershipID)
+}
+
+// SetAssigneeMembershipID sets the "assignee_membership_id" field.
+func (m *ChangeMutation) SetAssigneeMembershipID(i int) {
+	m.assignee_membership_id = &i
+	m.addassignee_membership_id = nil
+}
+
+// AssigneeMembershipID returns the value of the "assignee_membership_id" field in the mutation.
+func (m *ChangeMutation) AssigneeMembershipID() (r int, exists bool) {
+	v := m.assignee_membership_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAssigneeMembershipID returns the old "assignee_membership_id" field's value of the Change entity.
+// If the Change object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ChangeMutation) OldAssigneeMembershipID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAssigneeMembershipID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAssigneeMembershipID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAssigneeMembershipID: %w", err)
+	}
+	return oldValue.AssigneeMembershipID, nil
+}
+
+// AddAssigneeMembershipID adds i to the "assignee_membership_id" field.
+func (m *ChangeMutation) AddAssigneeMembershipID(i int) {
+	if m.addassignee_membership_id != nil {
+		*m.addassignee_membership_id += i
+	} else {
+		m.addassignee_membership_id = &i
+	}
+}
+
+// AddedAssigneeMembershipID returns the value that was added to the "assignee_membership_id" field in this mutation.
+func (m *ChangeMutation) AddedAssigneeMembershipID() (r int, exists bool) {
+	v := m.addassignee_membership_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearAssigneeMembershipID clears the value of the "assignee_membership_id" field.
+func (m *ChangeMutation) ClearAssigneeMembershipID() {
+	m.assignee_membership_id = nil
+	m.addassignee_membership_id = nil
+	m.clearedFields[change.FieldAssigneeMembershipID] = struct{}{}
+}
+
+// AssigneeMembershipIDCleared returns if the "assignee_membership_id" field was cleared in this mutation.
+func (m *ChangeMutation) AssigneeMembershipIDCleared() bool {
+	_, ok := m.clearedFields[change.FieldAssigneeMembershipID]
+	return ok
+}
+
+// ResetAssigneeMembershipID resets all changes to the "assignee_membership_id" field.
+func (m *ChangeMutation) ResetAssigneeMembershipID() {
+	m.assignee_membership_id = nil
+	m.addassignee_membership_id = nil
+	delete(m.clearedFields, change.FieldAssigneeMembershipID)
 }
 
 // SetTenantID sets the "tenant_id" field.
@@ -34538,7 +34682,7 @@ func (m *ChangeMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *ChangeMutation) Fields() []string {
-	fields := make([]string, 0, 25)
+	fields := make([]string, 0, 27)
 	if m.change_number != nil {
 		fields = append(fields, change.FieldChangeNumber)
 	}
@@ -34571,6 +34715,12 @@ func (m *ChangeMutation) Fields() []string {
 	}
 	if m.created_by != nil {
 		fields = append(fields, change.FieldCreatedBy)
+	}
+	if m.created_by_membership_id != nil {
+		fields = append(fields, change.FieldCreatedByMembershipID)
+	}
+	if m.assignee_membership_id != nil {
+		fields = append(fields, change.FieldAssigneeMembershipID)
 	}
 	if m.tenant_id != nil {
 		fields = append(fields, change.FieldTenantID)
@@ -34644,6 +34794,10 @@ func (m *ChangeMutation) Field(name string) (ent.Value, bool) {
 		return m.AssigneeID()
 	case change.FieldCreatedBy:
 		return m.CreatedBy()
+	case change.FieldCreatedByMembershipID:
+		return m.CreatedByMembershipID()
+	case change.FieldAssigneeMembershipID:
+		return m.AssigneeMembershipID()
 	case change.FieldTenantID:
 		return m.TenantID()
 	case change.FieldProjectID:
@@ -34703,6 +34857,10 @@ func (m *ChangeMutation) OldField(ctx context.Context, name string) (ent.Value, 
 		return m.OldAssigneeID(ctx)
 	case change.FieldCreatedBy:
 		return m.OldCreatedBy(ctx)
+	case change.FieldCreatedByMembershipID:
+		return m.OldCreatedByMembershipID(ctx)
+	case change.FieldAssigneeMembershipID:
+		return m.OldAssigneeMembershipID(ctx)
 	case change.FieldTenantID:
 		return m.OldTenantID(ctx)
 	case change.FieldProjectID:
@@ -34817,6 +34975,20 @@ func (m *ChangeMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetCreatedBy(v)
 		return nil
+	case change.FieldCreatedByMembershipID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedByMembershipID(v)
+		return nil
+	case change.FieldAssigneeMembershipID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAssigneeMembershipID(v)
+		return nil
 	case change.FieldTenantID:
 		v, ok := value.(int)
 		if !ok {
@@ -34929,6 +35101,12 @@ func (m *ChangeMutation) AddedFields() []string {
 	if m.addcreated_by != nil {
 		fields = append(fields, change.FieldCreatedBy)
 	}
+	if m.addcreated_by_membership_id != nil {
+		fields = append(fields, change.FieldCreatedByMembershipID)
+	}
+	if m.addassignee_membership_id != nil {
+		fields = append(fields, change.FieldAssigneeMembershipID)
+	}
 	if m.addtenant_id != nil {
 		fields = append(fields, change.FieldTenantID)
 	}
@@ -34953,6 +35131,10 @@ func (m *ChangeMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedAssigneeID()
 	case change.FieldCreatedBy:
 		return m.AddedCreatedBy()
+	case change.FieldCreatedByMembershipID:
+		return m.AddedCreatedByMembershipID()
+	case change.FieldAssigneeMembershipID:
+		return m.AddedAssigneeMembershipID()
 	case change.FieldTenantID:
 		return m.AddedTenantID()
 	case change.FieldProjectID:
@@ -34983,6 +35165,20 @@ func (m *ChangeMutation) AddField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddCreatedBy(v)
+		return nil
+	case change.FieldCreatedByMembershipID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddCreatedByMembershipID(v)
+		return nil
+	case change.FieldAssigneeMembershipID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddAssigneeMembershipID(v)
 		return nil
 	case change.FieldTenantID:
 		v, ok := value.(int)
@@ -35031,6 +35227,12 @@ func (m *ChangeMutation) ClearedFields() []string {
 	}
 	if m.FieldCleared(change.FieldAssigneeID) {
 		fields = append(fields, change.FieldAssigneeID)
+	}
+	if m.FieldCleared(change.FieldCreatedByMembershipID) {
+		fields = append(fields, change.FieldCreatedByMembershipID)
+	}
+	if m.FieldCleared(change.FieldAssigneeMembershipID) {
+		fields = append(fields, change.FieldAssigneeMembershipID)
 	}
 	if m.FieldCleared(change.FieldProjectID) {
 		fields = append(fields, change.FieldProjectID)
@@ -35090,6 +35292,12 @@ func (m *ChangeMutation) ClearField(name string) error {
 		return nil
 	case change.FieldAssigneeID:
 		m.ClearAssigneeID()
+		return nil
+	case change.FieldCreatedByMembershipID:
+		m.ClearCreatedByMembershipID()
+		return nil
+	case change.FieldAssigneeMembershipID:
+		m.ClearAssigneeMembershipID()
 		return nil
 	case change.FieldProjectID:
 		m.ClearProjectID()
@@ -35164,6 +35372,12 @@ func (m *ChangeMutation) ResetField(name string) error {
 		return nil
 	case change.FieldCreatedBy:
 		m.ResetCreatedBy()
+		return nil
+	case change.FieldCreatedByMembershipID:
+		m.ResetCreatedByMembershipID()
+		return nil
+	case change.FieldAssigneeMembershipID:
+		m.ResetAssigneeMembershipID()
 		return nil
 	case change.FieldTenantID:
 		m.ResetTenantID()
@@ -129707,49 +129921,53 @@ func (m *PersonalAccessTokenMutation) ResetEdge(name string) error {
 // ProblemMutation represents an operation that mutates the Problem nodes in the graph.
 type ProblemMutation struct {
 	config
-	op               Op
-	typ              string
-	id               *int
-	problem_number   *string
-	title            *string
-	description      *string
-	status           *string
-	priority         *string
-	category         *string
-	root_cause       *string
-	workaround       *string
-	resolution       *string
-	impact           *string
-	assignee_id      *int
-	addassignee_id   *int
-	project_id       *int
-	addproject_id    *int
-	department_id    *int
-	adddepartment_id *int
-	customer_id      *int
-	addcustomer_id   *int
-	created_by       *int
-	addcreated_by    *int
-	tenant_id        *int
-	addtenant_id     *int
-	created_at       *time.Time
-	updated_at       *time.Time
-	resolved_at      *time.Time
-	closed_at        *time.Time
-	deleted_at       *time.Time
-	clearedFields    map[string]struct{}
-	tickets          map[int]struct{}
-	removedtickets   map[int]struct{}
-	clearedtickets   bool
-	incidents        map[int]struct{}
-	removedincidents map[int]struct{}
-	clearedincidents bool
-	changes          map[int]struct{}
-	removedchanges   map[int]struct{}
-	clearedchanges   bool
-	done             bool
-	oldValue         func(context.Context) (*Problem, error)
-	predicates       []predicate.Problem
+	op                          Op
+	typ                         string
+	id                          *int
+	problem_number              *string
+	title                       *string
+	description                 *string
+	status                      *string
+	priority                    *string
+	category                    *string
+	root_cause                  *string
+	workaround                  *string
+	resolution                  *string
+	impact                      *string
+	assignee_id                 *int
+	addassignee_id              *int
+	project_id                  *int
+	addproject_id               *int
+	department_id               *int
+	adddepartment_id            *int
+	customer_id                 *int
+	addcustomer_id              *int
+	created_by                  *int
+	addcreated_by               *int
+	created_by_membership_id    *int
+	addcreated_by_membership_id *int
+	assignee_membership_id      *int
+	addassignee_membership_id   *int
+	tenant_id                   *int
+	addtenant_id                *int
+	created_at                  *time.Time
+	updated_at                  *time.Time
+	resolved_at                 *time.Time
+	closed_at                   *time.Time
+	deleted_at                  *time.Time
+	clearedFields               map[string]struct{}
+	tickets                     map[int]struct{}
+	removedtickets              map[int]struct{}
+	clearedtickets              bool
+	incidents                   map[int]struct{}
+	removedincidents            map[int]struct{}
+	clearedincidents            bool
+	changes                     map[int]struct{}
+	removedchanges              map[int]struct{}
+	clearedchanges              bool
+	done                        bool
+	oldValue                    func(context.Context) (*Problem, error)
+	predicates                  []predicate.Problem
 }
 
 var _ ent.Mutation = (*ProblemMutation)(nil)
@@ -130637,6 +130855,146 @@ func (m *ProblemMutation) ResetCreatedBy() {
 	m.addcreated_by = nil
 }
 
+// SetCreatedByMembershipID sets the "created_by_membership_id" field.
+func (m *ProblemMutation) SetCreatedByMembershipID(i int) {
+	m.created_by_membership_id = &i
+	m.addcreated_by_membership_id = nil
+}
+
+// CreatedByMembershipID returns the value of the "created_by_membership_id" field in the mutation.
+func (m *ProblemMutation) CreatedByMembershipID() (r int, exists bool) {
+	v := m.created_by_membership_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedByMembershipID returns the old "created_by_membership_id" field's value of the Problem entity.
+// If the Problem object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ProblemMutation) OldCreatedByMembershipID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedByMembershipID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedByMembershipID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedByMembershipID: %w", err)
+	}
+	return oldValue.CreatedByMembershipID, nil
+}
+
+// AddCreatedByMembershipID adds i to the "created_by_membership_id" field.
+func (m *ProblemMutation) AddCreatedByMembershipID(i int) {
+	if m.addcreated_by_membership_id != nil {
+		*m.addcreated_by_membership_id += i
+	} else {
+		m.addcreated_by_membership_id = &i
+	}
+}
+
+// AddedCreatedByMembershipID returns the value that was added to the "created_by_membership_id" field in this mutation.
+func (m *ProblemMutation) AddedCreatedByMembershipID() (r int, exists bool) {
+	v := m.addcreated_by_membership_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearCreatedByMembershipID clears the value of the "created_by_membership_id" field.
+func (m *ProblemMutation) ClearCreatedByMembershipID() {
+	m.created_by_membership_id = nil
+	m.addcreated_by_membership_id = nil
+	m.clearedFields[problem.FieldCreatedByMembershipID] = struct{}{}
+}
+
+// CreatedByMembershipIDCleared returns if the "created_by_membership_id" field was cleared in this mutation.
+func (m *ProblemMutation) CreatedByMembershipIDCleared() bool {
+	_, ok := m.clearedFields[problem.FieldCreatedByMembershipID]
+	return ok
+}
+
+// ResetCreatedByMembershipID resets all changes to the "created_by_membership_id" field.
+func (m *ProblemMutation) ResetCreatedByMembershipID() {
+	m.created_by_membership_id = nil
+	m.addcreated_by_membership_id = nil
+	delete(m.clearedFields, problem.FieldCreatedByMembershipID)
+}
+
+// SetAssigneeMembershipID sets the "assignee_membership_id" field.
+func (m *ProblemMutation) SetAssigneeMembershipID(i int) {
+	m.assignee_membership_id = &i
+	m.addassignee_membership_id = nil
+}
+
+// AssigneeMembershipID returns the value of the "assignee_membership_id" field in the mutation.
+func (m *ProblemMutation) AssigneeMembershipID() (r int, exists bool) {
+	v := m.assignee_membership_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAssigneeMembershipID returns the old "assignee_membership_id" field's value of the Problem entity.
+// If the Problem object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ProblemMutation) OldAssigneeMembershipID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAssigneeMembershipID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAssigneeMembershipID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAssigneeMembershipID: %w", err)
+	}
+	return oldValue.AssigneeMembershipID, nil
+}
+
+// AddAssigneeMembershipID adds i to the "assignee_membership_id" field.
+func (m *ProblemMutation) AddAssigneeMembershipID(i int) {
+	if m.addassignee_membership_id != nil {
+		*m.addassignee_membership_id += i
+	} else {
+		m.addassignee_membership_id = &i
+	}
+}
+
+// AddedAssigneeMembershipID returns the value that was added to the "assignee_membership_id" field in this mutation.
+func (m *ProblemMutation) AddedAssigneeMembershipID() (r int, exists bool) {
+	v := m.addassignee_membership_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearAssigneeMembershipID clears the value of the "assignee_membership_id" field.
+func (m *ProblemMutation) ClearAssigneeMembershipID() {
+	m.assignee_membership_id = nil
+	m.addassignee_membership_id = nil
+	m.clearedFields[problem.FieldAssigneeMembershipID] = struct{}{}
+}
+
+// AssigneeMembershipIDCleared returns if the "assignee_membership_id" field was cleared in this mutation.
+func (m *ProblemMutation) AssigneeMembershipIDCleared() bool {
+	_, ok := m.clearedFields[problem.FieldAssigneeMembershipID]
+	return ok
+}
+
+// ResetAssigneeMembershipID resets all changes to the "assignee_membership_id" field.
+func (m *ProblemMutation) ResetAssigneeMembershipID() {
+	m.assignee_membership_id = nil
+	m.addassignee_membership_id = nil
+	delete(m.clearedFields, problem.FieldAssigneeMembershipID)
+}
+
 // SetTenantID sets the "tenant_id" field.
 func (m *ProblemMutation) SetTenantID(i int) {
 	m.tenant_id = &i
@@ -131108,7 +131466,7 @@ func (m *ProblemMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *ProblemMutation) Fields() []string {
-	fields := make([]string, 0, 21)
+	fields := make([]string, 0, 23)
 	if m.problem_number != nil {
 		fields = append(fields, problem.FieldProblemNumber)
 	}
@@ -131153,6 +131511,12 @@ func (m *ProblemMutation) Fields() []string {
 	}
 	if m.created_by != nil {
 		fields = append(fields, problem.FieldCreatedBy)
+	}
+	if m.created_by_membership_id != nil {
+		fields = append(fields, problem.FieldCreatedByMembershipID)
+	}
+	if m.assignee_membership_id != nil {
+		fields = append(fields, problem.FieldAssigneeMembershipID)
 	}
 	if m.tenant_id != nil {
 		fields = append(fields, problem.FieldTenantID)
@@ -131210,6 +131574,10 @@ func (m *ProblemMutation) Field(name string) (ent.Value, bool) {
 		return m.CustomerID()
 	case problem.FieldCreatedBy:
 		return m.CreatedBy()
+	case problem.FieldCreatedByMembershipID:
+		return m.CreatedByMembershipID()
+	case problem.FieldAssigneeMembershipID:
+		return m.AssigneeMembershipID()
 	case problem.FieldTenantID:
 		return m.TenantID()
 	case problem.FieldCreatedAt:
@@ -131261,6 +131629,10 @@ func (m *ProblemMutation) OldField(ctx context.Context, name string) (ent.Value,
 		return m.OldCustomerID(ctx)
 	case problem.FieldCreatedBy:
 		return m.OldCreatedBy(ctx)
+	case problem.FieldCreatedByMembershipID:
+		return m.OldCreatedByMembershipID(ctx)
+	case problem.FieldAssigneeMembershipID:
+		return m.OldAssigneeMembershipID(ctx)
 	case problem.FieldTenantID:
 		return m.OldTenantID(ctx)
 	case problem.FieldCreatedAt:
@@ -131387,6 +131759,20 @@ func (m *ProblemMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetCreatedBy(v)
 		return nil
+	case problem.FieldCreatedByMembershipID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedByMembershipID(v)
+		return nil
+	case problem.FieldAssigneeMembershipID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAssigneeMembershipID(v)
+		return nil
 	case problem.FieldTenantID:
 		v, ok := value.(int)
 		if !ok {
@@ -131452,6 +131838,12 @@ func (m *ProblemMutation) AddedFields() []string {
 	if m.addcreated_by != nil {
 		fields = append(fields, problem.FieldCreatedBy)
 	}
+	if m.addcreated_by_membership_id != nil {
+		fields = append(fields, problem.FieldCreatedByMembershipID)
+	}
+	if m.addassignee_membership_id != nil {
+		fields = append(fields, problem.FieldAssigneeMembershipID)
+	}
 	if m.addtenant_id != nil {
 		fields = append(fields, problem.FieldTenantID)
 	}
@@ -131473,6 +131865,10 @@ func (m *ProblemMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedCustomerID()
 	case problem.FieldCreatedBy:
 		return m.AddedCreatedBy()
+	case problem.FieldCreatedByMembershipID:
+		return m.AddedCreatedByMembershipID()
+	case problem.FieldAssigneeMembershipID:
+		return m.AddedAssigneeMembershipID()
 	case problem.FieldTenantID:
 		return m.AddedTenantID()
 	}
@@ -131518,6 +131914,20 @@ func (m *ProblemMutation) AddField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddCreatedBy(v)
+		return nil
+	case problem.FieldCreatedByMembershipID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddCreatedByMembershipID(v)
+		return nil
+	case problem.FieldAssigneeMembershipID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddAssigneeMembershipID(v)
 		return nil
 	case problem.FieldTenantID:
 		v, ok := value.(int)
@@ -131566,6 +131976,12 @@ func (m *ProblemMutation) ClearedFields() []string {
 	}
 	if m.FieldCleared(problem.FieldCustomerID) {
 		fields = append(fields, problem.FieldCustomerID)
+	}
+	if m.FieldCleared(problem.FieldCreatedByMembershipID) {
+		fields = append(fields, problem.FieldCreatedByMembershipID)
+	}
+	if m.FieldCleared(problem.FieldAssigneeMembershipID) {
+		fields = append(fields, problem.FieldAssigneeMembershipID)
 	}
 	if m.FieldCleared(problem.FieldResolvedAt) {
 		fields = append(fields, problem.FieldResolvedAt)
@@ -131622,6 +132038,12 @@ func (m *ProblemMutation) ClearField(name string) error {
 		return nil
 	case problem.FieldCustomerID:
 		m.ClearCustomerID()
+		return nil
+	case problem.FieldCreatedByMembershipID:
+		m.ClearCreatedByMembershipID()
+		return nil
+	case problem.FieldAssigneeMembershipID:
+		m.ClearAssigneeMembershipID()
 		return nil
 	case problem.FieldResolvedAt:
 		m.ClearResolvedAt()
@@ -131684,6 +132106,12 @@ func (m *ProblemMutation) ResetField(name string) error {
 		return nil
 	case problem.FieldCreatedBy:
 		m.ResetCreatedBy()
+		return nil
+	case problem.FieldCreatedByMembershipID:
+		m.ResetCreatedByMembershipID()
+		return nil
+	case problem.FieldAssigneeMembershipID:
+		m.ResetAssigneeMembershipID()
 		return nil
 	case problem.FieldTenantID:
 		m.ResetTenantID()
@@ -194965,58 +195393,62 @@ func (m *ServiceCustomerMutation) ResetEdge(name string) error {
 // ServiceRequestMutation represents an operation that mutates the ServiceRequest nodes in the graph.
 type ServiceRequestMutation struct {
 	config
-	op                        Op
-	typ                       string
-	id                        *int
-	tenant_id                 *int
-	addtenant_id              *int
-	catalog_id                *int
-	addcatalog_id             *int
-	ci_id                     *int
-	addci_id                  *int
-	project_id                *int
-	addproject_id             *int
-	department_id             *int
-	adddepartment_id          *int
-	customer_id               *int
-	addcustomer_id            *int
-	requester_id              *int
-	addrequester_id           *int
-	status                    *string
-	title                     *string
-	reason                    *string
-	form_data                 *map[string]interface{}
-	cost_center               *string
-	data_classification       *string
-	needs_public_ip           *bool
-	source_ip_whitelist       *[]string
-	appendsource_ip_whitelist []string
-	expire_at                 *time.Time
-	compliance_ack            *bool
-	current_level             *int
-	addcurrent_level          *int
-	total_levels              *int
-	addtotal_levels           *int
-	current_approver          *string
-	approved_at               *time.Time
-	approver_comment          *string
-	approval_history          *[]map[string]interface{}
-	appendapproval_history    []map[string]interface{}
-	processor_id              *int
-	addprocessor_id           *int
-	started_at                *time.Time
-	completed_at              *time.Time
-	completion_note           *string
-	last_error                *string
-	version                   *int
-	addversion                *int
-	created_at                *time.Time
-	updated_at                *time.Time
-	deleted_at                *time.Time
-	clearedFields             map[string]struct{}
-	done                      bool
-	oldValue                  func(context.Context) (*ServiceRequest, error)
-	predicates                []predicate.ServiceRequest
+	op                         Op
+	typ                        string
+	id                         *int
+	tenant_id                  *int
+	addtenant_id               *int
+	catalog_id                 *int
+	addcatalog_id              *int
+	ci_id                      *int
+	addci_id                   *int
+	project_id                 *int
+	addproject_id              *int
+	department_id              *int
+	adddepartment_id           *int
+	customer_id                *int
+	addcustomer_id             *int
+	requester_id               *int
+	addrequester_id            *int
+	requester_membership_id    *int
+	addrequester_membership_id *int
+	status                     *string
+	title                      *string
+	reason                     *string
+	form_data                  *map[string]interface{}
+	cost_center                *string
+	data_classification        *string
+	needs_public_ip            *bool
+	source_ip_whitelist        *[]string
+	appendsource_ip_whitelist  []string
+	expire_at                  *time.Time
+	compliance_ack             *bool
+	current_level              *int
+	addcurrent_level           *int
+	total_levels               *int
+	addtotal_levels            *int
+	current_approver           *string
+	approved_at                *time.Time
+	approver_comment           *string
+	approval_history           *[]map[string]interface{}
+	appendapproval_history     []map[string]interface{}
+	processor_id               *int
+	addprocessor_id            *int
+	processor_membership_id    *int
+	addprocessor_membership_id *int
+	started_at                 *time.Time
+	completed_at               *time.Time
+	completion_note            *string
+	last_error                 *string
+	version                    *int
+	addversion                 *int
+	created_at                 *time.Time
+	updated_at                 *time.Time
+	deleted_at                 *time.Time
+	clearedFields              map[string]struct{}
+	done                       bool
+	oldValue                   func(context.Context) (*ServiceRequest, error)
+	predicates                 []predicate.ServiceRequest
 }
 
 var _ ent.Mutation = (*ServiceRequestMutation)(nil)
@@ -195563,6 +195995,76 @@ func (m *ServiceRequestMutation) AddedRequesterID() (r int, exists bool) {
 func (m *ServiceRequestMutation) ResetRequesterID() {
 	m.requester_id = nil
 	m.addrequester_id = nil
+}
+
+// SetRequesterMembershipID sets the "requester_membership_id" field.
+func (m *ServiceRequestMutation) SetRequesterMembershipID(i int) {
+	m.requester_membership_id = &i
+	m.addrequester_membership_id = nil
+}
+
+// RequesterMembershipID returns the value of the "requester_membership_id" field in the mutation.
+func (m *ServiceRequestMutation) RequesterMembershipID() (r int, exists bool) {
+	v := m.requester_membership_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRequesterMembershipID returns the old "requester_membership_id" field's value of the ServiceRequest entity.
+// If the ServiceRequest object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ServiceRequestMutation) OldRequesterMembershipID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRequesterMembershipID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRequesterMembershipID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRequesterMembershipID: %w", err)
+	}
+	return oldValue.RequesterMembershipID, nil
+}
+
+// AddRequesterMembershipID adds i to the "requester_membership_id" field.
+func (m *ServiceRequestMutation) AddRequesterMembershipID(i int) {
+	if m.addrequester_membership_id != nil {
+		*m.addrequester_membership_id += i
+	} else {
+		m.addrequester_membership_id = &i
+	}
+}
+
+// AddedRequesterMembershipID returns the value that was added to the "requester_membership_id" field in this mutation.
+func (m *ServiceRequestMutation) AddedRequesterMembershipID() (r int, exists bool) {
+	v := m.addrequester_membership_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearRequesterMembershipID clears the value of the "requester_membership_id" field.
+func (m *ServiceRequestMutation) ClearRequesterMembershipID() {
+	m.requester_membership_id = nil
+	m.addrequester_membership_id = nil
+	m.clearedFields[servicerequest.FieldRequesterMembershipID] = struct{}{}
+}
+
+// RequesterMembershipIDCleared returns if the "requester_membership_id" field was cleared in this mutation.
+func (m *ServiceRequestMutation) RequesterMembershipIDCleared() bool {
+	_, ok := m.clearedFields[servicerequest.FieldRequesterMembershipID]
+	return ok
+}
+
+// ResetRequesterMembershipID resets all changes to the "requester_membership_id" field.
+func (m *ServiceRequestMutation) ResetRequesterMembershipID() {
+	m.requester_membership_id = nil
+	m.addrequester_membership_id = nil
+	delete(m.clearedFields, servicerequest.FieldRequesterMembershipID)
 }
 
 // SetStatus sets the "status" field.
@@ -196413,6 +196915,76 @@ func (m *ServiceRequestMutation) ResetProcessorID() {
 	delete(m.clearedFields, servicerequest.FieldProcessorID)
 }
 
+// SetProcessorMembershipID sets the "processor_membership_id" field.
+func (m *ServiceRequestMutation) SetProcessorMembershipID(i int) {
+	m.processor_membership_id = &i
+	m.addprocessor_membership_id = nil
+}
+
+// ProcessorMembershipID returns the value of the "processor_membership_id" field in the mutation.
+func (m *ServiceRequestMutation) ProcessorMembershipID() (r int, exists bool) {
+	v := m.processor_membership_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldProcessorMembershipID returns the old "processor_membership_id" field's value of the ServiceRequest entity.
+// If the ServiceRequest object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ServiceRequestMutation) OldProcessorMembershipID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldProcessorMembershipID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldProcessorMembershipID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldProcessorMembershipID: %w", err)
+	}
+	return oldValue.ProcessorMembershipID, nil
+}
+
+// AddProcessorMembershipID adds i to the "processor_membership_id" field.
+func (m *ServiceRequestMutation) AddProcessorMembershipID(i int) {
+	if m.addprocessor_membership_id != nil {
+		*m.addprocessor_membership_id += i
+	} else {
+		m.addprocessor_membership_id = &i
+	}
+}
+
+// AddedProcessorMembershipID returns the value that was added to the "processor_membership_id" field in this mutation.
+func (m *ServiceRequestMutation) AddedProcessorMembershipID() (r int, exists bool) {
+	v := m.addprocessor_membership_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearProcessorMembershipID clears the value of the "processor_membership_id" field.
+func (m *ServiceRequestMutation) ClearProcessorMembershipID() {
+	m.processor_membership_id = nil
+	m.addprocessor_membership_id = nil
+	m.clearedFields[servicerequest.FieldProcessorMembershipID] = struct{}{}
+}
+
+// ProcessorMembershipIDCleared returns if the "processor_membership_id" field was cleared in this mutation.
+func (m *ServiceRequestMutation) ProcessorMembershipIDCleared() bool {
+	_, ok := m.clearedFields[servicerequest.FieldProcessorMembershipID]
+	return ok
+}
+
+// ResetProcessorMembershipID resets all changes to the "processor_membership_id" field.
+func (m *ServiceRequestMutation) ResetProcessorMembershipID() {
+	m.processor_membership_id = nil
+	m.addprocessor_membership_id = nil
+	delete(m.clearedFields, servicerequest.FieldProcessorMembershipID)
+}
+
 // SetStartedAt sets the "started_at" field.
 func (m *ServiceRequestMutation) SetStartedAt(t time.Time) {
 	m.started_at = &t
@@ -196820,7 +197392,7 @@ func (m *ServiceRequestMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *ServiceRequestMutation) Fields() []string {
-	fields := make([]string, 0, 32)
+	fields := make([]string, 0, 34)
 	if m.tenant_id != nil {
 		fields = append(fields, servicerequest.FieldTenantID)
 	}
@@ -196841,6 +197413,9 @@ func (m *ServiceRequestMutation) Fields() []string {
 	}
 	if m.requester_id != nil {
 		fields = append(fields, servicerequest.FieldRequesterID)
+	}
+	if m.requester_membership_id != nil {
+		fields = append(fields, servicerequest.FieldRequesterMembershipID)
 	}
 	if m.status != nil {
 		fields = append(fields, servicerequest.FieldStatus)
@@ -196893,6 +197468,9 @@ func (m *ServiceRequestMutation) Fields() []string {
 	if m.processor_id != nil {
 		fields = append(fields, servicerequest.FieldProcessorID)
 	}
+	if m.processor_membership_id != nil {
+		fields = append(fields, servicerequest.FieldProcessorMembershipID)
+	}
 	if m.started_at != nil {
 		fields = append(fields, servicerequest.FieldStartedAt)
 	}
@@ -196939,6 +197517,8 @@ func (m *ServiceRequestMutation) Field(name string) (ent.Value, bool) {
 		return m.CustomerID()
 	case servicerequest.FieldRequesterID:
 		return m.RequesterID()
+	case servicerequest.FieldRequesterMembershipID:
+		return m.RequesterMembershipID()
 	case servicerequest.FieldStatus:
 		return m.Status()
 	case servicerequest.FieldTitle:
@@ -196973,6 +197553,8 @@ func (m *ServiceRequestMutation) Field(name string) (ent.Value, bool) {
 		return m.ApprovalHistory()
 	case servicerequest.FieldProcessorID:
 		return m.ProcessorID()
+	case servicerequest.FieldProcessorMembershipID:
+		return m.ProcessorMembershipID()
 	case servicerequest.FieldStartedAt:
 		return m.StartedAt()
 	case servicerequest.FieldCompletedAt:
@@ -197012,6 +197594,8 @@ func (m *ServiceRequestMutation) OldField(ctx context.Context, name string) (ent
 		return m.OldCustomerID(ctx)
 	case servicerequest.FieldRequesterID:
 		return m.OldRequesterID(ctx)
+	case servicerequest.FieldRequesterMembershipID:
+		return m.OldRequesterMembershipID(ctx)
 	case servicerequest.FieldStatus:
 		return m.OldStatus(ctx)
 	case servicerequest.FieldTitle:
@@ -197046,6 +197630,8 @@ func (m *ServiceRequestMutation) OldField(ctx context.Context, name string) (ent
 		return m.OldApprovalHistory(ctx)
 	case servicerequest.FieldProcessorID:
 		return m.OldProcessorID(ctx)
+	case servicerequest.FieldProcessorMembershipID:
+		return m.OldProcessorMembershipID(ctx)
 	case servicerequest.FieldStartedAt:
 		return m.OldStartedAt(ctx)
 	case servicerequest.FieldCompletedAt:
@@ -197119,6 +197705,13 @@ func (m *ServiceRequestMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetRequesterID(v)
+		return nil
+	case servicerequest.FieldRequesterMembershipID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRequesterMembershipID(v)
 		return nil
 	case servicerequest.FieldStatus:
 		v, ok := value.(string)
@@ -197239,6 +197832,13 @@ func (m *ServiceRequestMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetProcessorID(v)
 		return nil
+	case servicerequest.FieldProcessorMembershipID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetProcessorMembershipID(v)
+		return nil
 	case servicerequest.FieldStartedAt:
 		v, ok := value.(time.Time)
 		if !ok {
@@ -197324,6 +197924,9 @@ func (m *ServiceRequestMutation) AddedFields() []string {
 	if m.addrequester_id != nil {
 		fields = append(fields, servicerequest.FieldRequesterID)
 	}
+	if m.addrequester_membership_id != nil {
+		fields = append(fields, servicerequest.FieldRequesterMembershipID)
+	}
 	if m.addcurrent_level != nil {
 		fields = append(fields, servicerequest.FieldCurrentLevel)
 	}
@@ -197332,6 +197935,9 @@ func (m *ServiceRequestMutation) AddedFields() []string {
 	}
 	if m.addprocessor_id != nil {
 		fields = append(fields, servicerequest.FieldProcessorID)
+	}
+	if m.addprocessor_membership_id != nil {
+		fields = append(fields, servicerequest.FieldProcessorMembershipID)
 	}
 	if m.addversion != nil {
 		fields = append(fields, servicerequest.FieldVersion)
@@ -197358,12 +197964,16 @@ func (m *ServiceRequestMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedCustomerID()
 	case servicerequest.FieldRequesterID:
 		return m.AddedRequesterID()
+	case servicerequest.FieldRequesterMembershipID:
+		return m.AddedRequesterMembershipID()
 	case servicerequest.FieldCurrentLevel:
 		return m.AddedCurrentLevel()
 	case servicerequest.FieldTotalLevels:
 		return m.AddedTotalLevels()
 	case servicerequest.FieldProcessorID:
 		return m.AddedProcessorID()
+	case servicerequest.FieldProcessorMembershipID:
+		return m.AddedProcessorMembershipID()
 	case servicerequest.FieldVersion:
 		return m.AddedVersion()
 	}
@@ -197424,6 +198034,13 @@ func (m *ServiceRequestMutation) AddField(name string, value ent.Value) error {
 		}
 		m.AddRequesterID(v)
 		return nil
+	case servicerequest.FieldRequesterMembershipID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddRequesterMembershipID(v)
+		return nil
 	case servicerequest.FieldCurrentLevel:
 		v, ok := value.(int)
 		if !ok {
@@ -197444,6 +198061,13 @@ func (m *ServiceRequestMutation) AddField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddProcessorID(v)
+		return nil
+	case servicerequest.FieldProcessorMembershipID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddProcessorMembershipID(v)
 		return nil
 	case servicerequest.FieldVersion:
 		v, ok := value.(int)
@@ -197471,6 +198095,9 @@ func (m *ServiceRequestMutation) ClearedFields() []string {
 	}
 	if m.FieldCleared(servicerequest.FieldCustomerID) {
 		fields = append(fields, servicerequest.FieldCustomerID)
+	}
+	if m.FieldCleared(servicerequest.FieldRequesterMembershipID) {
+		fields = append(fields, servicerequest.FieldRequesterMembershipID)
 	}
 	if m.FieldCleared(servicerequest.FieldTitle) {
 		fields = append(fields, servicerequest.FieldTitle)
@@ -197504,6 +198131,9 @@ func (m *ServiceRequestMutation) ClearedFields() []string {
 	}
 	if m.FieldCleared(servicerequest.FieldProcessorID) {
 		fields = append(fields, servicerequest.FieldProcessorID)
+	}
+	if m.FieldCleared(servicerequest.FieldProcessorMembershipID) {
+		fields = append(fields, servicerequest.FieldProcessorMembershipID)
 	}
 	if m.FieldCleared(servicerequest.FieldStartedAt) {
 		fields = append(fields, servicerequest.FieldStartedAt)
@@ -197546,6 +198176,9 @@ func (m *ServiceRequestMutation) ClearField(name string) error {
 	case servicerequest.FieldCustomerID:
 		m.ClearCustomerID()
 		return nil
+	case servicerequest.FieldRequesterMembershipID:
+		m.ClearRequesterMembershipID()
+		return nil
 	case servicerequest.FieldTitle:
 		m.ClearTitle()
 		return nil
@@ -197578,6 +198211,9 @@ func (m *ServiceRequestMutation) ClearField(name string) error {
 		return nil
 	case servicerequest.FieldProcessorID:
 		m.ClearProcessorID()
+		return nil
+	case servicerequest.FieldProcessorMembershipID:
+		m.ClearProcessorMembershipID()
 		return nil
 	case servicerequest.FieldStartedAt:
 		m.ClearStartedAt()
@@ -197622,6 +198258,9 @@ func (m *ServiceRequestMutation) ResetField(name string) error {
 		return nil
 	case servicerequest.FieldRequesterID:
 		m.ResetRequesterID()
+		return nil
+	case servicerequest.FieldRequesterMembershipID:
+		m.ResetRequesterMembershipID()
 		return nil
 	case servicerequest.FieldStatus:
 		m.ResetStatus()
@@ -197673,6 +198312,9 @@ func (m *ServiceRequestMutation) ResetField(name string) error {
 		return nil
 	case servicerequest.FieldProcessorID:
 		m.ResetProcessorID()
+		return nil
+	case servicerequest.FieldProcessorMembershipID:
+		m.ResetProcessorMembershipID()
 		return nil
 	case servicerequest.FieldStartedAt:
 		m.ResetStartedAt()

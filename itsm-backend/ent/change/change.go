@@ -36,6 +36,10 @@ const (
 	FieldAssigneeID = "assignee_id"
 	// FieldCreatedBy holds the string denoting the created_by field in the database.
 	FieldCreatedBy = "created_by"
+	// FieldCreatedByMembershipID holds the string denoting the created_by_membership_id field in the database.
+	FieldCreatedByMembershipID = "created_by_membership_id"
+	// FieldAssigneeMembershipID holds the string denoting the assignee_membership_id field in the database.
+	FieldAssigneeMembershipID = "assignee_membership_id"
 	// FieldTenantID holds the string denoting the tenant_id field in the database.
 	FieldTenantID = "tenant_id"
 	// FieldProjectID holds the string denoting the project_id field in the database.
@@ -98,6 +102,8 @@ var Columns = []string{
 	FieldRiskLevel,
 	FieldAssigneeID,
 	FieldCreatedBy,
+	FieldCreatedByMembershipID,
+	FieldAssigneeMembershipID,
 	FieldTenantID,
 	FieldProjectID,
 	FieldDepartmentID,
@@ -229,6 +235,16 @@ func ByAssigneeID(opts ...sql.OrderTermOption) OrderOption {
 // ByCreatedBy orders the results by the created_by field.
 func ByCreatedBy(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldCreatedBy, opts...).ToFunc()
+}
+
+// ByCreatedByMembershipID orders the results by the created_by_membership_id field.
+func ByCreatedByMembershipID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCreatedByMembershipID, opts...).ToFunc()
+}
+
+// ByAssigneeMembershipID orders the results by the assignee_membership_id field.
+func ByAssigneeMembershipID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldAssigneeMembershipID, opts...).ToFunc()
 }
 
 // ByTenantID orders the results by the tenant_id field.

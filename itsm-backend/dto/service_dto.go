@@ -115,19 +115,20 @@ type ServiceCatalogResponse struct {
 //   - FormData:    原生气表字段（DB 映射）
 //   - FormFields:  兼容别名（与工单 formFields 命名一致）
 type ServiceRequestResponse struct {
-	ID            int            `json:"id"`
-	RequestNumber string         `json:"requestNumber"`
-	TicketNumber  string         `json:"ticketNumber,omitempty"`
-	CatalogID     int            `json:"catalogId"`
-	RequesterID   int            `json:"requesterId"`
-	CIID          int            `json:"ciId,omitempty"`
-	DepartmentID  *int           `json:"departmentId,omitempty"`
-	CustomerID    *int           `json:"customerId,omitempty"`
-	Status        string         `json:"status"`
-	Title         string         `json:"title,omitempty"`
-	Reason        string         `json:"reason,omitempty"`
-	FormData      map[string]any `json:"formData,omitempty"`
-	FormFields    map[string]any `json:"formFields,omitempty"`
+	ID                    int            `json:"id"`
+	RequestNumber         string         `json:"requestNumber"`
+	TicketNumber          string         `json:"ticketNumber,omitempty"`
+	CatalogID             int            `json:"catalogId"`
+	RequesterID           int            `json:"requesterId"`
+	RequesterMembershipID int            `json:"requesterMembershipId,omitempty"`
+	CIID                  int            `json:"ciId,omitempty"`
+	DepartmentID          *int           `json:"departmentId,omitempty"`
+	CustomerID            *int           `json:"customerId,omitempty"`
+	Status                string         `json:"status"`
+	Title                 string         `json:"title,omitempty"`
+	Reason                string         `json:"reason,omitempty"`
+	FormData              map[string]any `json:"formData,omitempty"`
+	FormFields            map[string]any `json:"formFields,omitempty"`
 
 	CostCenter         string     `json:"costCenter,omitempty"`
 	DataClassification string     `json:"dataClassification,omitempty"`
@@ -136,17 +137,18 @@ type ServiceRequestResponse struct {
 	ExpireAt           *time.Time `json:"expireAt,omitempty"`
 	ComplianceAck      bool       `json:"complianceAck"`
 
-	CurrentLevel   int        `json:"currentLevel"`
-	TotalLevels    int        `json:"totalLevels"`
-	Version        int        `json:"version"`
-	ProcessorID    *int       `json:"processorId,omitempty"`
-	ApprovedAt     *time.Time `json:"approvedAt,omitempty"`
-	StartedAt      *time.Time `json:"startedAt,omitempty"`
-	CompletedAt    *time.Time `json:"completedAt,omitempty"`
-	CompletionNote string     `json:"completionNote,omitempty"`
-	LastError      string     `json:"lastError,omitempty"`
-	CreatedAt      time.Time  `json:"createdAt"`
-	UpdatedAt      time.Time  `json:"updatedAt"`
+	CurrentLevel          int        `json:"currentLevel"`
+	TotalLevels           int        `json:"totalLevels"`
+	Version               int        `json:"version"`
+	ProcessorID           *int       `json:"processorId,omitempty"`
+	ProcessorMembershipID int        `json:"processorMembershipId,omitempty"`
+	ApprovedAt            *time.Time `json:"approvedAt,omitempty"`
+	StartedAt             *time.Time `json:"startedAt,omitempty"`
+	CompletedAt           *time.Time `json:"completedAt,omitempty"`
+	CompletionNote        string     `json:"completionNote,omitempty"`
+	LastError             string     `json:"lastError,omitempty"`
+	CreatedAt             time.Time  `json:"createdAt"`
+	UpdatedAt             time.Time  `json:"updatedAt"`
 
 	Approvals []ServiceRequestApprovalResponse `json:"approvals,omitempty"`
 	Catalog   *ServiceCatalogResponse          `json:"catalog,omitempty"`
@@ -242,27 +244,29 @@ func ToServiceRequestResponse(request *ent.ServiceRequest) *ServiceRequestRespon
 		expireAt = &t
 	}
 	resp := &ServiceRequestResponse{
-		ID:                 request.ID,
-		RequestNumber:      GenerateServiceRequestNumber(request.ID, request.CreatedAt),
-		TicketNumber:       GenerateServiceRequestNumber(request.ID, request.CreatedAt),
-		CatalogID:          request.CatalogID,
-		RequesterID:        request.RequesterID,
-		CIID:               request.CiID,
-		Status:             string(request.Status),
-		Title:              request.Title,
-		Reason:             request.Reason,
-		FormData:           request.FormData,
-		FormFields:         request.FormData,
-		CostCenter:         request.CostCenter,
-		DataClassification: request.DataClassification,
-		NeedsPublicIP:      request.NeedsPublicIP,
-		SourceIPWhitelist:  request.SourceIPWhitelist,
-		ExpireAt:           expireAt,
-		ComplianceAck:      request.ComplianceAck,
-		CurrentLevel:       request.CurrentLevel,
-		TotalLevels:        request.TotalLevels,
-		CreatedAt:          request.CreatedAt,
-		UpdatedAt:          request.UpdatedAt,
+		ID:                    request.ID,
+		RequestNumber:         GenerateServiceRequestNumber(request.ID, request.CreatedAt),
+		TicketNumber:          GenerateServiceRequestNumber(request.ID, request.CreatedAt),
+		CatalogID:             request.CatalogID,
+		RequesterID:           request.RequesterID,
+		RequesterMembershipID: request.RequesterMembershipID,
+		CIID:                  request.CiID,
+		Status:                string(request.Status),
+		Title:                 request.Title,
+		Reason:                request.Reason,
+		FormData:              request.FormData,
+		FormFields:            request.FormData,
+		CostCenter:            request.CostCenter,
+		DataClassification:    request.DataClassification,
+		NeedsPublicIP:         request.NeedsPublicIP,
+		SourceIPWhitelist:     request.SourceIPWhitelist,
+		ExpireAt:              expireAt,
+		ComplianceAck:         request.ComplianceAck,
+		CurrentLevel:          request.CurrentLevel,
+		TotalLevels:           request.TotalLevels,
+		ProcessorMembershipID: request.ProcessorMembershipID,
+		CreatedAt:             request.CreatedAt,
+		UpdatedAt:             request.UpdatedAt,
 	}
 
 	return resp

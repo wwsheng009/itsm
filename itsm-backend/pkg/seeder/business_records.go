@@ -21,7 +21,16 @@ import (
 	"itsm-backend/ent/problem"
 	"itsm-backend/ent/tenant"
 	"itsm-backend/ent/user"
+	"itsm-backend/handlers/common/membershipref"
 )
+
+// membershipPointer 把 0 归一为 NULL，供 ent 的可空 membership 列使用。
+func membershipPointer(id int) *int {
+	if id <= 0 {
+		return nil
+	}
+	return &id
+}
 
 // seedBusinessRecords 在 default 租户下播种演示业务记录。
 // 依赖 seedDefaultTenant / seedAdmin 先行执行（SeedAll 顺序保证）。
@@ -103,12 +112,14 @@ func (s *Seeder) seedProblemRecords(ctx context.Context, tenantID, adminID int) 
 			s.sugar.Infow("demo problem already exists; skip", "number", seed.ProblemNumber)
 			continue
 		}
+		createdByMembershipID, _ := membershipref.ResolveOptional(ctx, s.client, adminID, tenantID)
 		builder := s.client.Problem.Create().
 			SetTitle(seed.Title).
 			SetStatus(seed.Status).
 			SetPriority(seed.Priority).
 			SetTenantID(tenantID).
-			SetCreatedBy(adminID)
+			SetCreatedBy(adminID).
+			SetNillableCreatedByMembershipID(membershipPointer(createdByMembershipID))
 		if seed.ProblemNumber != "" {
 			builder.SetProblemNumber(seed.ProblemNumber)
 		}
@@ -147,13 +158,15 @@ func (s *Seeder) seedChangeRecords(ctx context.Context, tenantID, adminID int) {
 			s.sugar.Infow("demo change already exists; skip", "number", seed.ChangeNumber)
 			continue
 		}
+		createdByMembershipID, _ := membershipref.ResolveOptional(ctx, s.client, adminID, tenantID)
 		builder := s.client.Change.Create().
 			SetTitle(seed.Title).
 			SetType(seed.Type).
 			SetStatus(seed.Status).
 			SetPriority(seed.Priority).
 			SetTenantID(tenantID).
-			SetCreatedBy(adminID)
+			SetCreatedBy(adminID).
+			SetNillableCreatedByMembershipID(membershipPointer(createdByMembershipID))
 		if seed.ChangeNumber != "" {
 			builder.SetChangeNumber(seed.ChangeNumber)
 		}

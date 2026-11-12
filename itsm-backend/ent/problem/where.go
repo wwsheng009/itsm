@@ -130,6 +130,16 @@ func CreatedBy(v int) predicate.Problem {
 	return predicate.Problem(sql.FieldEQ(FieldCreatedBy, v))
 }
 
+// CreatedByMembershipID applies equality check predicate on the "created_by_membership_id" field. It's identical to CreatedByMembershipIDEQ.
+func CreatedByMembershipID(v int) predicate.Problem {
+	return predicate.Problem(sql.FieldEQ(FieldCreatedByMembershipID, v))
+}
+
+// AssigneeMembershipID applies equality check predicate on the "assignee_membership_id" field. It's identical to AssigneeMembershipIDEQ.
+func AssigneeMembershipID(v int) predicate.Problem {
+	return predicate.Problem(sql.FieldEQ(FieldAssigneeMembershipID, v))
+}
+
 // TenantID applies equality check predicate on the "tenant_id" field. It's identical to TenantIDEQ.
 func TenantID(v int) predicate.Problem {
 	return predicate.Problem(sql.FieldEQ(FieldTenantID, v))
@@ -1118,6 +1128,106 @@ func CreatedByLT(v int) predicate.Problem {
 // CreatedByLTE applies the LTE predicate on the "created_by" field.
 func CreatedByLTE(v int) predicate.Problem {
 	return predicate.Problem(sql.FieldLTE(FieldCreatedBy, v))
+}
+
+// CreatedByMembershipIDEQ applies the EQ predicate on the "created_by_membership_id" field.
+func CreatedByMembershipIDEQ(v int) predicate.Problem {
+	return predicate.Problem(sql.FieldEQ(FieldCreatedByMembershipID, v))
+}
+
+// CreatedByMembershipIDNEQ applies the NEQ predicate on the "created_by_membership_id" field.
+func CreatedByMembershipIDNEQ(v int) predicate.Problem {
+	return predicate.Problem(sql.FieldNEQ(FieldCreatedByMembershipID, v))
+}
+
+// CreatedByMembershipIDIn applies the In predicate on the "created_by_membership_id" field.
+func CreatedByMembershipIDIn(vs ...int) predicate.Problem {
+	return predicate.Problem(sql.FieldIn(FieldCreatedByMembershipID, vs...))
+}
+
+// CreatedByMembershipIDNotIn applies the NotIn predicate on the "created_by_membership_id" field.
+func CreatedByMembershipIDNotIn(vs ...int) predicate.Problem {
+	return predicate.Problem(sql.FieldNotIn(FieldCreatedByMembershipID, vs...))
+}
+
+// CreatedByMembershipIDGT applies the GT predicate on the "created_by_membership_id" field.
+func CreatedByMembershipIDGT(v int) predicate.Problem {
+	return predicate.Problem(sql.FieldGT(FieldCreatedByMembershipID, v))
+}
+
+// CreatedByMembershipIDGTE applies the GTE predicate on the "created_by_membership_id" field.
+func CreatedByMembershipIDGTE(v int) predicate.Problem {
+	return predicate.Problem(sql.FieldGTE(FieldCreatedByMembershipID, v))
+}
+
+// CreatedByMembershipIDLT applies the LT predicate on the "created_by_membership_id" field.
+func CreatedByMembershipIDLT(v int) predicate.Problem {
+	return predicate.Problem(sql.FieldLT(FieldCreatedByMembershipID, v))
+}
+
+// CreatedByMembershipIDLTE applies the LTE predicate on the "created_by_membership_id" field.
+func CreatedByMembershipIDLTE(v int) predicate.Problem {
+	return predicate.Problem(sql.FieldLTE(FieldCreatedByMembershipID, v))
+}
+
+// CreatedByMembershipIDIsNil applies the IsNil predicate on the "created_by_membership_id" field.
+func CreatedByMembershipIDIsNil() predicate.Problem {
+	return predicate.Problem(sql.FieldIsNull(FieldCreatedByMembershipID))
+}
+
+// CreatedByMembershipIDNotNil applies the NotNil predicate on the "created_by_membership_id" field.
+func CreatedByMembershipIDNotNil() predicate.Problem {
+	return predicate.Problem(sql.FieldNotNull(FieldCreatedByMembershipID))
+}
+
+// AssigneeMembershipIDEQ applies the EQ predicate on the "assignee_membership_id" field.
+func AssigneeMembershipIDEQ(v int) predicate.Problem {
+	return predicate.Problem(sql.FieldEQ(FieldAssigneeMembershipID, v))
+}
+
+// AssigneeMembershipIDNEQ applies the NEQ predicate on the "assignee_membership_id" field.
+func AssigneeMembershipIDNEQ(v int) predicate.Problem {
+	return predicate.Problem(sql.FieldNEQ(FieldAssigneeMembershipID, v))
+}
+
+// AssigneeMembershipIDIn applies the In predicate on the "assignee_membership_id" field.
+func AssigneeMembershipIDIn(vs ...int) predicate.Problem {
+	return predicate.Problem(sql.FieldIn(FieldAssigneeMembershipID, vs...))
+}
+
+// AssigneeMembershipIDNotIn applies the NotIn predicate on the "assignee_membership_id" field.
+func AssigneeMembershipIDNotIn(vs ...int) predicate.Problem {
+	return predicate.Problem(sql.FieldNotIn(FieldAssigneeMembershipID, vs...))
+}
+
+// AssigneeMembershipIDGT applies the GT predicate on the "assignee_membership_id" field.
+func AssigneeMembershipIDGT(v int) predicate.Problem {
+	return predicate.Problem(sql.FieldGT(FieldAssigneeMembershipID, v))
+}
+
+// AssigneeMembershipIDGTE applies the GTE predicate on the "assignee_membership_id" field.
+func AssigneeMembershipIDGTE(v int) predicate.Problem {
+	return predicate.Problem(sql.FieldGTE(FieldAssigneeMembershipID, v))
+}
+
+// AssigneeMembershipIDLT applies the LT predicate on the "assignee_membership_id" field.
+func AssigneeMembershipIDLT(v int) predicate.Problem {
+	return predicate.Problem(sql.FieldLT(FieldAssigneeMembershipID, v))
+}
+
+// AssigneeMembershipIDLTE applies the LTE predicate on the "assignee_membership_id" field.
+func AssigneeMembershipIDLTE(v int) predicate.Problem {
+	return predicate.Problem(sql.FieldLTE(FieldAssigneeMembershipID, v))
+}
+
+// AssigneeMembershipIDIsNil applies the IsNil predicate on the "assignee_membership_id" field.
+func AssigneeMembershipIDIsNil() predicate.Problem {
+	return predicate.Problem(sql.FieldIsNull(FieldAssigneeMembershipID))
+}
+
+// AssigneeMembershipIDNotNil applies the NotNil predicate on the "assignee_membership_id" field.
+func AssigneeMembershipIDNotNil() predicate.Problem {
+	return predicate.Problem(sql.FieldNotNull(FieldAssigneeMembershipID))
 }
 
 // TenantIDEQ applies the EQ predicate on the "tenant_id" field.

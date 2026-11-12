@@ -200,6 +200,33 @@ func (_u *ServiceRequestUpdate) AddRequesterID(v int) *ServiceRequestUpdate {
 	return _u
 }
 
+// SetRequesterMembershipID sets the "requester_membership_id" field.
+func (_u *ServiceRequestUpdate) SetRequesterMembershipID(v int) *ServiceRequestUpdate {
+	_u.mutation.ResetRequesterMembershipID()
+	_u.mutation.SetRequesterMembershipID(v)
+	return _u
+}
+
+// SetNillableRequesterMembershipID sets the "requester_membership_id" field if the given value is not nil.
+func (_u *ServiceRequestUpdate) SetNillableRequesterMembershipID(v *int) *ServiceRequestUpdate {
+	if v != nil {
+		_u.SetRequesterMembershipID(*v)
+	}
+	return _u
+}
+
+// AddRequesterMembershipID adds value to the "requester_membership_id" field.
+func (_u *ServiceRequestUpdate) AddRequesterMembershipID(v int) *ServiceRequestUpdate {
+	_u.mutation.AddRequesterMembershipID(v)
+	return _u
+}
+
+// ClearRequesterMembershipID clears the value of the "requester_membership_id" field.
+func (_u *ServiceRequestUpdate) ClearRequesterMembershipID() *ServiceRequestUpdate {
+	_u.mutation.ClearRequesterMembershipID()
+	return _u
+}
+
 // SetStatus sets the "status" field.
 func (_u *ServiceRequestUpdate) SetStatus(v string) *ServiceRequestUpdate {
 	_u.mutation.SetStatus(v)
@@ -513,6 +540,33 @@ func (_u *ServiceRequestUpdate) ClearProcessorID() *ServiceRequestUpdate {
 	return _u
 }
 
+// SetProcessorMembershipID sets the "processor_membership_id" field.
+func (_u *ServiceRequestUpdate) SetProcessorMembershipID(v int) *ServiceRequestUpdate {
+	_u.mutation.ResetProcessorMembershipID()
+	_u.mutation.SetProcessorMembershipID(v)
+	return _u
+}
+
+// SetNillableProcessorMembershipID sets the "processor_membership_id" field if the given value is not nil.
+func (_u *ServiceRequestUpdate) SetNillableProcessorMembershipID(v *int) *ServiceRequestUpdate {
+	if v != nil {
+		_u.SetProcessorMembershipID(*v)
+	}
+	return _u
+}
+
+// AddProcessorMembershipID adds value to the "processor_membership_id" field.
+func (_u *ServiceRequestUpdate) AddProcessorMembershipID(v int) *ServiceRequestUpdate {
+	_u.mutation.AddProcessorMembershipID(v)
+	return _u
+}
+
+// ClearProcessorMembershipID clears the value of the "processor_membership_id" field.
+func (_u *ServiceRequestUpdate) ClearProcessorMembershipID() *ServiceRequestUpdate {
+	_u.mutation.ClearProcessorMembershipID()
+	return _u
+}
+
 // SetStartedAt sets the "started_at" field.
 func (_u *ServiceRequestUpdate) SetStartedAt(v time.Time) *ServiceRequestUpdate {
 	_u.mutation.SetStartedAt(v)
@@ -786,6 +840,15 @@ func (_u *ServiceRequestUpdate) sqlSave(ctx context.Context) (_node int, err err
 	if value, ok := _u.mutation.AddedRequesterID(); ok {
 		_spec.AddField(servicerequest.FieldRequesterID, field.TypeInt, value)
 	}
+	if value, ok := _u.mutation.RequesterMembershipID(); ok {
+		_spec.SetField(servicerequest.FieldRequesterMembershipID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedRequesterMembershipID(); ok {
+		_spec.AddField(servicerequest.FieldRequesterMembershipID, field.TypeInt, value)
+	}
+	if _u.mutation.RequesterMembershipIDCleared() {
+		_spec.ClearField(servicerequest.FieldRequesterMembershipID, field.TypeInt)
+	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(servicerequest.FieldStatus, field.TypeString, value)
 	}
@@ -888,6 +951,15 @@ func (_u *ServiceRequestUpdate) sqlSave(ctx context.Context) (_node int, err err
 	}
 	if _u.mutation.ProcessorIDCleared() {
 		_spec.ClearField(servicerequest.FieldProcessorID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.ProcessorMembershipID(); ok {
+		_spec.SetField(servicerequest.FieldProcessorMembershipID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedProcessorMembershipID(); ok {
+		_spec.AddField(servicerequest.FieldProcessorMembershipID, field.TypeInt, value)
+	}
+	if _u.mutation.ProcessorMembershipIDCleared() {
+		_spec.ClearField(servicerequest.FieldProcessorMembershipID, field.TypeInt)
 	}
 	if value, ok := _u.mutation.StartedAt(); ok {
 		_spec.SetField(servicerequest.FieldStartedAt, field.TypeTime, value)
@@ -1119,6 +1191,33 @@ func (_u *ServiceRequestUpdateOne) SetNillableRequesterID(v *int) *ServiceReques
 // AddRequesterID adds value to the "requester_id" field.
 func (_u *ServiceRequestUpdateOne) AddRequesterID(v int) *ServiceRequestUpdateOne {
 	_u.mutation.AddRequesterID(v)
+	return _u
+}
+
+// SetRequesterMembershipID sets the "requester_membership_id" field.
+func (_u *ServiceRequestUpdateOne) SetRequesterMembershipID(v int) *ServiceRequestUpdateOne {
+	_u.mutation.ResetRequesterMembershipID()
+	_u.mutation.SetRequesterMembershipID(v)
+	return _u
+}
+
+// SetNillableRequesterMembershipID sets the "requester_membership_id" field if the given value is not nil.
+func (_u *ServiceRequestUpdateOne) SetNillableRequesterMembershipID(v *int) *ServiceRequestUpdateOne {
+	if v != nil {
+		_u.SetRequesterMembershipID(*v)
+	}
+	return _u
+}
+
+// AddRequesterMembershipID adds value to the "requester_membership_id" field.
+func (_u *ServiceRequestUpdateOne) AddRequesterMembershipID(v int) *ServiceRequestUpdateOne {
+	_u.mutation.AddRequesterMembershipID(v)
+	return _u
+}
+
+// ClearRequesterMembershipID clears the value of the "requester_membership_id" field.
+func (_u *ServiceRequestUpdateOne) ClearRequesterMembershipID() *ServiceRequestUpdateOne {
+	_u.mutation.ClearRequesterMembershipID()
 	return _u
 }
 
@@ -1435,6 +1534,33 @@ func (_u *ServiceRequestUpdateOne) ClearProcessorID() *ServiceRequestUpdateOne {
 	return _u
 }
 
+// SetProcessorMembershipID sets the "processor_membership_id" field.
+func (_u *ServiceRequestUpdateOne) SetProcessorMembershipID(v int) *ServiceRequestUpdateOne {
+	_u.mutation.ResetProcessorMembershipID()
+	_u.mutation.SetProcessorMembershipID(v)
+	return _u
+}
+
+// SetNillableProcessorMembershipID sets the "processor_membership_id" field if the given value is not nil.
+func (_u *ServiceRequestUpdateOne) SetNillableProcessorMembershipID(v *int) *ServiceRequestUpdateOne {
+	if v != nil {
+		_u.SetProcessorMembershipID(*v)
+	}
+	return _u
+}
+
+// AddProcessorMembershipID adds value to the "processor_membership_id" field.
+func (_u *ServiceRequestUpdateOne) AddProcessorMembershipID(v int) *ServiceRequestUpdateOne {
+	_u.mutation.AddProcessorMembershipID(v)
+	return _u
+}
+
+// ClearProcessorMembershipID clears the value of the "processor_membership_id" field.
+func (_u *ServiceRequestUpdateOne) ClearProcessorMembershipID() *ServiceRequestUpdateOne {
+	_u.mutation.ClearProcessorMembershipID()
+	return _u
+}
+
 // SetStartedAt sets the "started_at" field.
 func (_u *ServiceRequestUpdateOne) SetStartedAt(v time.Time) *ServiceRequestUpdateOne {
 	_u.mutation.SetStartedAt(v)
@@ -1738,6 +1864,15 @@ func (_u *ServiceRequestUpdateOne) sqlSave(ctx context.Context) (_node *ServiceR
 	if value, ok := _u.mutation.AddedRequesterID(); ok {
 		_spec.AddField(servicerequest.FieldRequesterID, field.TypeInt, value)
 	}
+	if value, ok := _u.mutation.RequesterMembershipID(); ok {
+		_spec.SetField(servicerequest.FieldRequesterMembershipID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedRequesterMembershipID(); ok {
+		_spec.AddField(servicerequest.FieldRequesterMembershipID, field.TypeInt, value)
+	}
+	if _u.mutation.RequesterMembershipIDCleared() {
+		_spec.ClearField(servicerequest.FieldRequesterMembershipID, field.TypeInt)
+	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(servicerequest.FieldStatus, field.TypeString, value)
 	}
@@ -1840,6 +1975,15 @@ func (_u *ServiceRequestUpdateOne) sqlSave(ctx context.Context) (_node *ServiceR
 	}
 	if _u.mutation.ProcessorIDCleared() {
 		_spec.ClearField(servicerequest.FieldProcessorID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.ProcessorMembershipID(); ok {
+		_spec.SetField(servicerequest.FieldProcessorMembershipID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedProcessorMembershipID(); ok {
+		_spec.AddField(servicerequest.FieldProcessorMembershipID, field.TypeInt, value)
+	}
+	if _u.mutation.ProcessorMembershipIDCleared() {
+		_spec.ClearField(servicerequest.FieldProcessorMembershipID, field.TypeInt)
 	}
 	if value, ok := _u.mutation.StartedAt(); ok {
 		_spec.SetField(servicerequest.FieldStartedAt, field.TypeTime, value)

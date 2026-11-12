@@ -33,13 +33,16 @@ type ServiceRequest struct {
 	TotalLevels        int
 	Version            int
 	ProcessorID        *int
-	ApprovedAt         *time.Time
-	StartedAt          *time.Time
-	CompletedAt        *time.Time
-	CompletionNote     string
-	LastError          string
-	CreatedAt          time.Time
-	UpdatedAt          time.Time
+	// C 方案：租户内身份引用（0 表示过渡期未解析，读路径回退 user_id）。
+	RequesterMembershipID int
+	ProcessorMembershipID int
+	ApprovedAt            *time.Time
+	StartedAt             *time.Time
+	CompletedAt           *time.Time
+	CompletionNote        string
+	LastError             string
+	CreatedAt             time.Time
+	UpdatedAt             time.Time
 }
 
 // ServiceRequestApproval represents an approval step for a request
@@ -63,6 +66,14 @@ type ServiceRequestApproval struct {
 	UpdatedAt time.Time
 }
 
+// membershipPointer 把 0 归一为 NULL，供 ent 的可空 membership 列使用。
+func membershipPointer(id int) *int {
+	if id <= 0 {
+		return nil
+	}
+	return &id
+}
+
 // ListFilters defines filters for listing service requests
 type ListFilters struct {
 	Status string
@@ -83,7 +94,7 @@ type Repository interface {
 	Get(ctx context.Context, id, tenantID int) (*ServiceRequest, error)
 	GetWithApprovals(ctx context.Context, id, tenantID int) (*ServiceRequest, []*ServiceRequestApproval, error)
 	List(ctx context.Context, tenantID int, filters ListFilters) ([]*ServiceRequest, int, error)
-	UpdateStatus(ctx context.Context, req *ServiceRequest, status string, actorID int) error
+	UpdateStatus(ctx context.Context, req *ServiceRequest, status string, actorID, actorMembershipID int) error
 	Update(ctx context.Context, req *ServiceRequest) error
 	Delete(ctx context.Context, req *ServiceRequest) error
 

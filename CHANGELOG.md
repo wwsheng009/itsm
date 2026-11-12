@@ -45,6 +45,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `1.8.0-dev.5639c21c9`（commit `5639c21c9`），6/6 healthy，分组 E2E **46/46**，
   新增 CC 行 membership 5/5、租户错配 0。
 
+- **C 方案 Phase 4 第二批：问题/变更/服务请求 actors membership 与约束 VALIDATE（后端 + 迁移，2026-11-12）** —
+  ① `problems`/`changes` 新增 `created_by_membership_id`、`assignee_membership_id`，
+  `service_requests` 新增 `requester_membership_id`、`processor_membership_id`，按
+  `(user_id, tenant_id)` 回填并保留 user_id 兼容列；② 创建、分配、进入履约与 BPMN 服务任务
+  统一经 `membershipref` 解析：handler 已提供 membership 时解析失败/租户不一致即 fail-closed，
+  旧直调路径保持能解析则双写；③ 迁移 `20261112_membership_constraints_validate` 清理 21 条
+  membership 复合外键的跨租户脏指针后逐条 VALIDATE，post-schema 补建改为直接 VALID 并支持
+  自愈；④ 新增三业务跨租户读写/伪造 membership 矩阵、17 表 tenant_id 结构校验与真实
+  PostgreSQL 约束巡检（`integration_rls`）。本地验证：`go test -p 1 ./handlers/problem
+  ./handlers/change ./handlers/service_request ./handlers/msp ./service ./tests/multi_tenant
+  ./dto`、`go test ./middleware ./router ./dto ./internal/bootstrap ./ent/...` 通过；
+  待 238 发布验证。
+
 - **工单详情契约修复：空数组、标签空列表与工单级审批读取（后端，2026-11-10）** —
   ① `GET /api/v1/tickets/:id/tags` 在无绑定标签时返回 `items: []`（DTO 映射与服务层均
   不再返回 `nil`），路由回归测试覆盖租户/工单过滤与空数组；② 评论响应初始化

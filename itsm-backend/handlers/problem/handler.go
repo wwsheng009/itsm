@@ -36,26 +36,30 @@ func (h *Handler) toDTOWithUsers(p *Problem, userMap map[int]string) *dto.Proble
 	}
 
 	resp := dto.ProblemResponse{
-		ID:            p.ID,
-		ProblemNumber: p.ProblemNumber,
-		Title:         p.Title,
-		Description:   p.Description,
-		Status:        p.Status,
-		Priority:      p.Priority,
-		Category:      p.Category,
-		RootCause:     p.RootCause,
-		Workaround:    p.Workaround,
-		Resolution:    p.Resolution,
-		Impact:        p.Impact,
-		CreatedBy:     p.CreatedBy,
-		DepartmentID:  p.DepartmentID,
-		CustomerID:    p.CustomerID,
-		TenantID:      p.TenantID,
-		CreatedAt:     p.CreatedAt,
-		UpdatedAt:     p.UpdatedAt,
+		ID:                    p.ID,
+		ProblemNumber:         p.ProblemNumber,
+		Title:                 p.Title,
+		Description:           p.Description,
+		Status:                p.Status,
+		Priority:              p.Priority,
+		Category:              p.Category,
+		RootCause:             p.RootCause,
+		Workaround:            p.Workaround,
+		Resolution:            p.Resolution,
+		Impact:                p.Impact,
+		CreatedBy:             p.CreatedBy,
+		CreatedByMembershipID: p.CreatedByMembershipID,
+		DepartmentID:          p.DepartmentID,
+		CustomerID:            p.CustomerID,
+		TenantID:              p.TenantID,
+		CreatedAt:             p.CreatedAt,
+		UpdatedAt:             p.UpdatedAt,
 	}
 	if p.AssigneeID != nil {
 		resp.AssigneeID = p.AssigneeID
+	}
+	if p.AssigneeMembershipID > 0 {
+		resp.AssigneeMembershipID = p.AssigneeMembershipID
 	}
 	if userMap != nil {
 		if p.CreatedBy > 0 {
@@ -171,17 +175,18 @@ func (h *Handler) Create(c *gin.Context) {
 	}
 
 	problem := &Problem{
-		Title:        req.Title,
-		Description:  req.Description,
-		Priority:     req.Priority,
-		Status:       "open",
-		Category:     req.Category,
-		RootCause:    req.RootCause,
-		Impact:       req.Impact,
-		CreatedBy:    createdBy,
-		ProjectID:    req.ProjectID,
-		DepartmentID: req.DepartmentID,
-		CustomerID:   req.CustomerID,
+		Title:                 req.Title,
+		Description:           req.Description,
+		Priority:              req.Priority,
+		Status:                "open",
+		Category:              req.Category,
+		RootCause:             req.RootCause,
+		Impact:                req.Impact,
+		CreatedBy:             createdBy,
+		CreatedByMembershipID: middleware.GetMembershipID(c),
+		ProjectID:             req.ProjectID,
+		DepartmentID:          req.DepartmentID,
+		CustomerID:            req.CustomerID,
 	}
 
 	created, err := h.service.Create(c.Request.Context(), tenantID, problem)

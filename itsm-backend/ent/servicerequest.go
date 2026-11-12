@@ -32,6 +32,8 @@ type ServiceRequest struct {
 	CustomerID int `json:"customer_id,omitempty"`
 	// 申请人ID
 	RequesterID int `json:"requester_id,omitempty"`
+	// 申请人租户内身份ID（C 方案；user_tenant_memberships.id，过渡期可空）
+	RequesterMembershipID int `json:"requester_membership_id,omitempty"`
 	// 状态: submitted|approved|rejected|in_progress|completed|cancelled
 	Status string `json:"status,omitempty"`
 	// 请求标题
@@ -66,6 +68,8 @@ type ServiceRequest struct {
 	ApprovalHistory []map[string]interface{} `json:"approval_history,omitempty"`
 	// 处理人ID
 	ProcessorID int `json:"processor_id,omitempty"`
+	// 处理人租户内身份ID（C 方案；user_tenant_memberships.id，过渡期可空）
+	ProcessorMembershipID int `json:"processor_membership_id,omitempty"`
 	// 开始处理时间
 	StartedAt time.Time `json:"started_at,omitempty"`
 	// 完成时间
@@ -94,7 +98,7 @@ func (*ServiceRequest) scanValues(columns []string) ([]any, error) {
 			values[i] = new([]byte)
 		case servicerequest.FieldNeedsPublicIP, servicerequest.FieldComplianceAck:
 			values[i] = new(sql.NullBool)
-		case servicerequest.FieldID, servicerequest.FieldTenantID, servicerequest.FieldCatalogID, servicerequest.FieldCiID, servicerequest.FieldProjectID, servicerequest.FieldDepartmentID, servicerequest.FieldCustomerID, servicerequest.FieldRequesterID, servicerequest.FieldCurrentLevel, servicerequest.FieldTotalLevels, servicerequest.FieldProcessorID, servicerequest.FieldVersion:
+		case servicerequest.FieldID, servicerequest.FieldTenantID, servicerequest.FieldCatalogID, servicerequest.FieldCiID, servicerequest.FieldProjectID, servicerequest.FieldDepartmentID, servicerequest.FieldCustomerID, servicerequest.FieldRequesterID, servicerequest.FieldRequesterMembershipID, servicerequest.FieldCurrentLevel, servicerequest.FieldTotalLevels, servicerequest.FieldProcessorID, servicerequest.FieldProcessorMembershipID, servicerequest.FieldVersion:
 			values[i] = new(sql.NullInt64)
 		case servicerequest.FieldStatus, servicerequest.FieldTitle, servicerequest.FieldReason, servicerequest.FieldCostCenter, servicerequest.FieldDataClassification, servicerequest.FieldCurrentApprover, servicerequest.FieldApproverComment, servicerequest.FieldCompletionNote, servicerequest.FieldLastError:
 			values[i] = new(sql.NullString)
@@ -162,6 +166,12 @@ func (_m *ServiceRequest) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field requester_id", values[i])
 			} else if value.Valid {
 				_m.RequesterID = int(value.Int64)
+			}
+		case servicerequest.FieldRequesterMembershipID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field requester_membership_id", values[i])
+			} else if value.Valid {
+				_m.RequesterMembershipID = int(value.Int64)
 			}
 		case servicerequest.FieldStatus:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -271,6 +281,12 @@ func (_m *ServiceRequest) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.ProcessorID = int(value.Int64)
 			}
+		case servicerequest.FieldProcessorMembershipID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field processor_membership_id", values[i])
+			} else if value.Valid {
+				_m.ProcessorMembershipID = int(value.Int64)
+			}
 		case servicerequest.FieldStartedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
 				return fmt.Errorf("unexpected type %T for field started_at", values[i])
@@ -377,6 +393,9 @@ func (_m *ServiceRequest) String() string {
 	builder.WriteString("requester_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.RequesterID))
 	builder.WriteString(", ")
+	builder.WriteString("requester_membership_id=")
+	builder.WriteString(fmt.Sprintf("%v", _m.RequesterMembershipID))
+	builder.WriteString(", ")
 	builder.WriteString("status=")
 	builder.WriteString(_m.Status)
 	builder.WriteString(", ")
@@ -427,6 +446,9 @@ func (_m *ServiceRequest) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("processor_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.ProcessorID))
+	builder.WriteString(", ")
+	builder.WriteString("processor_membership_id=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ProcessorMembershipID))
 	builder.WriteString(", ")
 	builder.WriteString("started_at=")
 	builder.WriteString(_m.StartedAt.Format(time.ANSIC))

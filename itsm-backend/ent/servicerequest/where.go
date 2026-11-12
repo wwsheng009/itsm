@@ -89,6 +89,11 @@ func RequesterID(v int) predicate.ServiceRequest {
 	return predicate.ServiceRequest(sql.FieldEQ(FieldRequesterID, v))
 }
 
+// RequesterMembershipID applies equality check predicate on the "requester_membership_id" field. It's identical to RequesterMembershipIDEQ.
+func RequesterMembershipID(v int) predicate.ServiceRequest {
+	return predicate.ServiceRequest(sql.FieldEQ(FieldRequesterMembershipID, v))
+}
+
 // Status applies equality check predicate on the "status" field. It's identical to StatusEQ.
 func Status(v string) predicate.ServiceRequest {
 	return predicate.ServiceRequest(sql.FieldEQ(FieldStatus, v))
@@ -157,6 +162,11 @@ func ApproverComment(v string) predicate.ServiceRequest {
 // ProcessorID applies equality check predicate on the "processor_id" field. It's identical to ProcessorIDEQ.
 func ProcessorID(v int) predicate.ServiceRequest {
 	return predicate.ServiceRequest(sql.FieldEQ(FieldProcessorID, v))
+}
+
+// ProcessorMembershipID applies equality check predicate on the "processor_membership_id" field. It's identical to ProcessorMembershipIDEQ.
+func ProcessorMembershipID(v int) predicate.ServiceRequest {
+	return predicate.ServiceRequest(sql.FieldEQ(FieldProcessorMembershipID, v))
 }
 
 // StartedAt applies equality check predicate on the "started_at" field. It's identical to StartedAtEQ.
@@ -517,6 +527,56 @@ func RequesterIDLT(v int) predicate.ServiceRequest {
 // RequesterIDLTE applies the LTE predicate on the "requester_id" field.
 func RequesterIDLTE(v int) predicate.ServiceRequest {
 	return predicate.ServiceRequest(sql.FieldLTE(FieldRequesterID, v))
+}
+
+// RequesterMembershipIDEQ applies the EQ predicate on the "requester_membership_id" field.
+func RequesterMembershipIDEQ(v int) predicate.ServiceRequest {
+	return predicate.ServiceRequest(sql.FieldEQ(FieldRequesterMembershipID, v))
+}
+
+// RequesterMembershipIDNEQ applies the NEQ predicate on the "requester_membership_id" field.
+func RequesterMembershipIDNEQ(v int) predicate.ServiceRequest {
+	return predicate.ServiceRequest(sql.FieldNEQ(FieldRequesterMembershipID, v))
+}
+
+// RequesterMembershipIDIn applies the In predicate on the "requester_membership_id" field.
+func RequesterMembershipIDIn(vs ...int) predicate.ServiceRequest {
+	return predicate.ServiceRequest(sql.FieldIn(FieldRequesterMembershipID, vs...))
+}
+
+// RequesterMembershipIDNotIn applies the NotIn predicate on the "requester_membership_id" field.
+func RequesterMembershipIDNotIn(vs ...int) predicate.ServiceRequest {
+	return predicate.ServiceRequest(sql.FieldNotIn(FieldRequesterMembershipID, vs...))
+}
+
+// RequesterMembershipIDGT applies the GT predicate on the "requester_membership_id" field.
+func RequesterMembershipIDGT(v int) predicate.ServiceRequest {
+	return predicate.ServiceRequest(sql.FieldGT(FieldRequesterMembershipID, v))
+}
+
+// RequesterMembershipIDGTE applies the GTE predicate on the "requester_membership_id" field.
+func RequesterMembershipIDGTE(v int) predicate.ServiceRequest {
+	return predicate.ServiceRequest(sql.FieldGTE(FieldRequesterMembershipID, v))
+}
+
+// RequesterMembershipIDLT applies the LT predicate on the "requester_membership_id" field.
+func RequesterMembershipIDLT(v int) predicate.ServiceRequest {
+	return predicate.ServiceRequest(sql.FieldLT(FieldRequesterMembershipID, v))
+}
+
+// RequesterMembershipIDLTE applies the LTE predicate on the "requester_membership_id" field.
+func RequesterMembershipIDLTE(v int) predicate.ServiceRequest {
+	return predicate.ServiceRequest(sql.FieldLTE(FieldRequesterMembershipID, v))
+}
+
+// RequesterMembershipIDIsNil applies the IsNil predicate on the "requester_membership_id" field.
+func RequesterMembershipIDIsNil() predicate.ServiceRequest {
+	return predicate.ServiceRequest(sql.FieldIsNull(FieldRequesterMembershipID))
+}
+
+// RequesterMembershipIDNotNil applies the NotNil predicate on the "requester_membership_id" field.
+func RequesterMembershipIDNotNil() predicate.ServiceRequest {
+	return predicate.ServiceRequest(sql.FieldNotNull(FieldRequesterMembershipID))
 }
 
 // StatusEQ applies the EQ predicate on the "status" field.
@@ -1302,6 +1362,56 @@ func ProcessorIDIsNil() predicate.ServiceRequest {
 // ProcessorIDNotNil applies the NotNil predicate on the "processor_id" field.
 func ProcessorIDNotNil() predicate.ServiceRequest {
 	return predicate.ServiceRequest(sql.FieldNotNull(FieldProcessorID))
+}
+
+// ProcessorMembershipIDEQ applies the EQ predicate on the "processor_membership_id" field.
+func ProcessorMembershipIDEQ(v int) predicate.ServiceRequest {
+	return predicate.ServiceRequest(sql.FieldEQ(FieldProcessorMembershipID, v))
+}
+
+// ProcessorMembershipIDNEQ applies the NEQ predicate on the "processor_membership_id" field.
+func ProcessorMembershipIDNEQ(v int) predicate.ServiceRequest {
+	return predicate.ServiceRequest(sql.FieldNEQ(FieldProcessorMembershipID, v))
+}
+
+// ProcessorMembershipIDIn applies the In predicate on the "processor_membership_id" field.
+func ProcessorMembershipIDIn(vs ...int) predicate.ServiceRequest {
+	return predicate.ServiceRequest(sql.FieldIn(FieldProcessorMembershipID, vs...))
+}
+
+// ProcessorMembershipIDNotIn applies the NotIn predicate on the "processor_membership_id" field.
+func ProcessorMembershipIDNotIn(vs ...int) predicate.ServiceRequest {
+	return predicate.ServiceRequest(sql.FieldNotIn(FieldProcessorMembershipID, vs...))
+}
+
+// ProcessorMembershipIDGT applies the GT predicate on the "processor_membership_id" field.
+func ProcessorMembershipIDGT(v int) predicate.ServiceRequest {
+	return predicate.ServiceRequest(sql.FieldGT(FieldProcessorMembershipID, v))
+}
+
+// ProcessorMembershipIDGTE applies the GTE predicate on the "processor_membership_id" field.
+func ProcessorMembershipIDGTE(v int) predicate.ServiceRequest {
+	return predicate.ServiceRequest(sql.FieldGTE(FieldProcessorMembershipID, v))
+}
+
+// ProcessorMembershipIDLT applies the LT predicate on the "processor_membership_id" field.
+func ProcessorMembershipIDLT(v int) predicate.ServiceRequest {
+	return predicate.ServiceRequest(sql.FieldLT(FieldProcessorMembershipID, v))
+}
+
+// ProcessorMembershipIDLTE applies the LTE predicate on the "processor_membership_id" field.
+func ProcessorMembershipIDLTE(v int) predicate.ServiceRequest {
+	return predicate.ServiceRequest(sql.FieldLTE(FieldProcessorMembershipID, v))
+}
+
+// ProcessorMembershipIDIsNil applies the IsNil predicate on the "processor_membership_id" field.
+func ProcessorMembershipIDIsNil() predicate.ServiceRequest {
+	return predicate.ServiceRequest(sql.FieldIsNull(FieldProcessorMembershipID))
+}
+
+// ProcessorMembershipIDNotNil applies the NotNil predicate on the "processor_membership_id" field.
+func ProcessorMembershipIDNotNil() predicate.ServiceRequest {
+	return predicate.ServiceRequest(sql.FieldNotNull(FieldProcessorMembershipID))
 }
 
 // StartedAtEQ applies the EQ predicate on the "started_at" field.

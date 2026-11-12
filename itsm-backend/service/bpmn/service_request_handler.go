@@ -8,6 +8,7 @@ import (
 	"itsm-backend/dto"
 	"itsm-backend/ent"
 	"itsm-backend/ent/servicerequest"
+	"itsm-backend/handlers/common/membershipref"
 	"itsm-backend/handlers/common/projectlink"
 
 	"go.uber.org/zap"
@@ -121,10 +122,16 @@ func (h *ServiceRequestServiceTaskHandler) createRequest(ctx context.Context, va
 		return nil, errProjectAttach(err)
 	}
 
+	requesterMembershipID, err := membershipref.ResolveOptional(ctx, h.client, requesterID, tenantID)
+	if err != nil {
+		return nil, fmt.Errorf("解析服务请求申请人身份失败: %w", err)
+	}
+
 	sr, err := h.client.ServiceRequest.Create().
 		SetTenantID(tenantID).
 		SetCatalogID(catalogID).
 		SetRequesterID(requesterID).
+		SetNillableRequesterMembershipID(membershipIDPointer(requesterMembershipID)).
 		SetTitle(title).
 		SetReason(reason).
 		SetStatus("submitted").
@@ -264,10 +271,20 @@ func (h *ServiceRequestServiceTaskHandler) assignRequest(ctx context.Context, va
 		return nil, err
 	}
 
-	_, err = h.client.ServiceRequest.UpdateOneID(requestID).
+	processorMembershipID, err := membershipref.ResolveAssignable(ctx, h.client, assigneeID, tenantID)
+	if err != nil {
+		return nil, fmt.Errorf("解析服务请求处理人身份失败: %w", err)
+	}
+
+	update := h.client.ServiceRequest.UpdateOneID(requestID).
 		SetProcessorID(assigneeID).
-		SetStatus("in_progress").
-		Save(ctx)
+		SetStatus("in_progress")
+	if processorMembershipID > 0 {
+		update.SetProcessorMembershipID(processorMembershipID)
+	} else {
+		update.ClearProcessorMembershipID()
+	}
+	_, err = update.Save(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("分配服务请求失败: %w", err)
 	}

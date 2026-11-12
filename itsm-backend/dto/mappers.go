@@ -479,32 +479,34 @@ func ToChangeResponse(change *ent.Change) *ChangeResponse {
 	}
 
 	response := &ChangeResponse{
-		ID:                 change.ID,
-		Title:              change.Title,
-		Description:        change.Description,
-		Justification:      change.Justification,
-		Type:               ChangeType(change.Type),
-		Status:             ChangeStatus(change.Status),
-		Priority:           ChangePriority(change.Priority),
-		ImpactScope:        ChangeImpact(change.ImpactScope),
-		RiskLevel:          ChangeRisk(change.RiskLevel),
-		CreatedBy:          change.CreatedBy,
-		TenantID:           change.TenantID,
-		ImplementationPlan: change.ImplementationPlan,
-		RollbackPlan:       change.RollbackPlan,
-		AffectedCIs:        change.AffectedCis,
-		RelatedTickets:     change.RelatedTickets,
-		CreatedAt:          change.CreatedAt,
-		UpdatedAt:          change.UpdatedAt,
-		PlannedStartDate:   &change.PlannedStartDate,
-		PlannedEndDate:     &change.PlannedEndDate,
-		ActualStartDate:    &change.ActualStartDate,
-		ActualEndDate:      &change.ActualEndDate,
+		ID:                    change.ID,
+		Title:                 change.Title,
+		Description:           change.Description,
+		Justification:         change.Justification,
+		Type:                  ChangeType(change.Type),
+		Status:                ChangeStatus(change.Status),
+		Priority:              ChangePriority(change.Priority),
+		ImpactScope:           ChangeImpact(change.ImpactScope),
+		RiskLevel:             ChangeRisk(change.RiskLevel),
+		CreatedBy:             change.CreatedBy,
+		CreatedByMembershipID: change.CreatedByMembershipID,
+		TenantID:              change.TenantID,
+		ImplementationPlan:    change.ImplementationPlan,
+		RollbackPlan:          change.RollbackPlan,
+		AffectedCIs:           change.AffectedCis,
+		RelatedTickets:        change.RelatedTickets,
+		CreatedAt:             change.CreatedAt,
+		UpdatedAt:             change.UpdatedAt,
+		PlannedStartDate:      &change.PlannedStartDate,
+		PlannedEndDate:        &change.PlannedEndDate,
+		ActualStartDate:       &change.ActualStartDate,
+		ActualEndDate:         &change.ActualEndDate,
 	}
 
 	if change.AssigneeID > 0 {
 		response.AssigneeID = &change.AssigneeID
 	}
+	response.AssigneeMembershipID = change.AssigneeMembershipID
 
 	return response
 }
@@ -542,18 +544,19 @@ func ToProblemResponseWithUsers(problem *ent.Problem, userMap map[int]string) *P
 	}
 
 	response := &ProblemResponse{
-		ID:          problem.ID,
-		Title:       problem.Title,
-		Description: problem.Description,
-		Status:      problem.Status,
-		Priority:    problem.Priority,
-		Category:    problem.Category,
-		RootCause:   problem.RootCause,
-		Impact:      problem.Impact,
-		CreatedBy:   problem.CreatedBy,
-		TenantID:    problem.TenantID,
-		CreatedAt:   problem.CreatedAt,
-		UpdatedAt:   problem.UpdatedAt,
+		ID:                    problem.ID,
+		Title:                 problem.Title,
+		Description:           problem.Description,
+		Status:                problem.Status,
+		Priority:              problem.Priority,
+		Category:              problem.Category,
+		RootCause:             problem.RootCause,
+		Impact:                problem.Impact,
+		CreatedBy:             problem.CreatedBy,
+		CreatedByMembershipID: problem.CreatedByMembershipID,
+		TenantID:              problem.TenantID,
+		CreatedAt:             problem.CreatedAt,
+		UpdatedAt:             problem.UpdatedAt,
 	}
 
 	if userMap != nil {
@@ -565,6 +568,7 @@ func ToProblemResponseWithUsers(problem *ent.Problem, userMap map[int]string) *P
 
 	if problem.AssigneeID > 0 {
 		response.AssigneeID = &problem.AssigneeID
+		response.AssigneeMembershipID = problem.AssigneeMembershipID
 		if userMap != nil {
 			if name, ok := userMap[problem.AssigneeID]; ok && name != "" {
 				n := name

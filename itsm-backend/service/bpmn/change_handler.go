@@ -8,6 +8,7 @@ import (
 	"itsm-backend/dto"
 	"itsm-backend/ent"
 	"itsm-backend/ent/change"
+	"itsm-backend/handlers/common/membershipref"
 	"itsm-backend/handlers/common/projectlink"
 
 	"go.uber.org/zap"
@@ -123,13 +124,20 @@ func (h *ChangeServiceTaskHandler) createChange(ctx context.Context, variables m
 		return nil, errProjectAttach(err)
 	}
 
+	createdBy := GetIntFromVars(variables, "created_by")
+	createdByMembershipID, err := membershipref.ResolveOptional(ctx, h.client, createdBy, tenantID)
+	if err != nil {
+		return nil, fmt.Errorf("解析变更创建人身份失败: %w", err)
+	}
+
 	change, err := h.client.Change.Create().
 		SetTitle(title).
 		SetDescription(description).
 		SetType(changeType).
 		SetPriority(priority).
 		SetStatus("draft").
-		SetCreatedBy(GetIntFromVars(variables, "created_by")).
+		SetCreatedBy(createdBy).
+		SetNillableCreatedByMembershipID(membershipIDPointer(createdByMembershipID)).
 		SetTenantID(tenantID).
 		SetNillableProjectID(projectID).
 		Save(ctx)

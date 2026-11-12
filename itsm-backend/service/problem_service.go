@@ -135,6 +135,7 @@ func (s *ProblemService) CreateProblem(ctx context.Context, req *dto.CreateProbl
 		SetImpact(req.Impact).
 		SetTenantID(tenantID).
 		SetCreatedBy(createdBy).
+		SetNillableCreatedByMembershipID(optionalInt(activeMembershipID(ctx, s.client, createdBy, tenantID))).
 		SetNillableProjectID(req.ProjectID).
 		Save(ctx)
 	if err != nil {

@@ -223,6 +223,60 @@ func (_u *ChangeUpdate) AddCreatedBy(v int) *ChangeUpdate {
 	return _u
 }
 
+// SetCreatedByMembershipID sets the "created_by_membership_id" field.
+func (_u *ChangeUpdate) SetCreatedByMembershipID(v int) *ChangeUpdate {
+	_u.mutation.ResetCreatedByMembershipID()
+	_u.mutation.SetCreatedByMembershipID(v)
+	return _u
+}
+
+// SetNillableCreatedByMembershipID sets the "created_by_membership_id" field if the given value is not nil.
+func (_u *ChangeUpdate) SetNillableCreatedByMembershipID(v *int) *ChangeUpdate {
+	if v != nil {
+		_u.SetCreatedByMembershipID(*v)
+	}
+	return _u
+}
+
+// AddCreatedByMembershipID adds value to the "created_by_membership_id" field.
+func (_u *ChangeUpdate) AddCreatedByMembershipID(v int) *ChangeUpdate {
+	_u.mutation.AddCreatedByMembershipID(v)
+	return _u
+}
+
+// ClearCreatedByMembershipID clears the value of the "created_by_membership_id" field.
+func (_u *ChangeUpdate) ClearCreatedByMembershipID() *ChangeUpdate {
+	_u.mutation.ClearCreatedByMembershipID()
+	return _u
+}
+
+// SetAssigneeMembershipID sets the "assignee_membership_id" field.
+func (_u *ChangeUpdate) SetAssigneeMembershipID(v int) *ChangeUpdate {
+	_u.mutation.ResetAssigneeMembershipID()
+	_u.mutation.SetAssigneeMembershipID(v)
+	return _u
+}
+
+// SetNillableAssigneeMembershipID sets the "assignee_membership_id" field if the given value is not nil.
+func (_u *ChangeUpdate) SetNillableAssigneeMembershipID(v *int) *ChangeUpdate {
+	if v != nil {
+		_u.SetAssigneeMembershipID(*v)
+	}
+	return _u
+}
+
+// AddAssigneeMembershipID adds value to the "assignee_membership_id" field.
+func (_u *ChangeUpdate) AddAssigneeMembershipID(v int) *ChangeUpdate {
+	_u.mutation.AddAssigneeMembershipID(v)
+	return _u
+}
+
+// ClearAssigneeMembershipID clears the value of the "assignee_membership_id" field.
+func (_u *ChangeUpdate) ClearAssigneeMembershipID() *ChangeUpdate {
+	_u.mutation.ClearAssigneeMembershipID()
+	return _u
+}
+
 // SetTenantID sets the "tenant_id" field.
 func (_u *ChangeUpdate) SetTenantID(v int) *ChangeUpdate {
 	_u.mutation.ResetTenantID()
@@ -702,6 +756,24 @@ func (_u *ChangeUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if value, ok := _u.mutation.AddedCreatedBy(); ok {
 		_spec.AddField(change.FieldCreatedBy, field.TypeInt, value)
 	}
+	if value, ok := _u.mutation.CreatedByMembershipID(); ok {
+		_spec.SetField(change.FieldCreatedByMembershipID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedCreatedByMembershipID(); ok {
+		_spec.AddField(change.FieldCreatedByMembershipID, field.TypeInt, value)
+	}
+	if _u.mutation.CreatedByMembershipIDCleared() {
+		_spec.ClearField(change.FieldCreatedByMembershipID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.AssigneeMembershipID(); ok {
+		_spec.SetField(change.FieldAssigneeMembershipID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedAssigneeMembershipID(); ok {
+		_spec.AddField(change.FieldAssigneeMembershipID, field.TypeInt, value)
+	}
+	if _u.mutation.AssigneeMembershipIDCleared() {
+		_spec.ClearField(change.FieldAssigneeMembershipID, field.TypeInt)
+	}
 	if value, ok := _u.mutation.TenantID(); ok {
 		_spec.SetField(change.FieldTenantID, field.TypeInt, value)
 	}
@@ -1098,6 +1170,60 @@ func (_u *ChangeUpdateOne) SetNillableCreatedBy(v *int) *ChangeUpdateOne {
 // AddCreatedBy adds value to the "created_by" field.
 func (_u *ChangeUpdateOne) AddCreatedBy(v int) *ChangeUpdateOne {
 	_u.mutation.AddCreatedBy(v)
+	return _u
+}
+
+// SetCreatedByMembershipID sets the "created_by_membership_id" field.
+func (_u *ChangeUpdateOne) SetCreatedByMembershipID(v int) *ChangeUpdateOne {
+	_u.mutation.ResetCreatedByMembershipID()
+	_u.mutation.SetCreatedByMembershipID(v)
+	return _u
+}
+
+// SetNillableCreatedByMembershipID sets the "created_by_membership_id" field if the given value is not nil.
+func (_u *ChangeUpdateOne) SetNillableCreatedByMembershipID(v *int) *ChangeUpdateOne {
+	if v != nil {
+		_u.SetCreatedByMembershipID(*v)
+	}
+	return _u
+}
+
+// AddCreatedByMembershipID adds value to the "created_by_membership_id" field.
+func (_u *ChangeUpdateOne) AddCreatedByMembershipID(v int) *ChangeUpdateOne {
+	_u.mutation.AddCreatedByMembershipID(v)
+	return _u
+}
+
+// ClearCreatedByMembershipID clears the value of the "created_by_membership_id" field.
+func (_u *ChangeUpdateOne) ClearCreatedByMembershipID() *ChangeUpdateOne {
+	_u.mutation.ClearCreatedByMembershipID()
+	return _u
+}
+
+// SetAssigneeMembershipID sets the "assignee_membership_id" field.
+func (_u *ChangeUpdateOne) SetAssigneeMembershipID(v int) *ChangeUpdateOne {
+	_u.mutation.ResetAssigneeMembershipID()
+	_u.mutation.SetAssigneeMembershipID(v)
+	return _u
+}
+
+// SetNillableAssigneeMembershipID sets the "assignee_membership_id" field if the given value is not nil.
+func (_u *ChangeUpdateOne) SetNillableAssigneeMembershipID(v *int) *ChangeUpdateOne {
+	if v != nil {
+		_u.SetAssigneeMembershipID(*v)
+	}
+	return _u
+}
+
+// AddAssigneeMembershipID adds value to the "assignee_membership_id" field.
+func (_u *ChangeUpdateOne) AddAssigneeMembershipID(v int) *ChangeUpdateOne {
+	_u.mutation.AddAssigneeMembershipID(v)
+	return _u
+}
+
+// ClearAssigneeMembershipID clears the value of the "assignee_membership_id" field.
+func (_u *ChangeUpdateOne) ClearAssigneeMembershipID() *ChangeUpdateOne {
+	_u.mutation.ClearAssigneeMembershipID()
 	return _u
 }
 
@@ -1609,6 +1735,24 @@ func (_u *ChangeUpdateOne) sqlSave(ctx context.Context) (_node *Change, err erro
 	}
 	if value, ok := _u.mutation.AddedCreatedBy(); ok {
 		_spec.AddField(change.FieldCreatedBy, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.CreatedByMembershipID(); ok {
+		_spec.SetField(change.FieldCreatedByMembershipID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedCreatedByMembershipID(); ok {
+		_spec.AddField(change.FieldCreatedByMembershipID, field.TypeInt, value)
+	}
+	if _u.mutation.CreatedByMembershipIDCleared() {
+		_spec.ClearField(change.FieldCreatedByMembershipID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.AssigneeMembershipID(); ok {
+		_spec.SetField(change.FieldAssigneeMembershipID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedAssigneeMembershipID(); ok {
+		_spec.AddField(change.FieldAssigneeMembershipID, field.TypeInt, value)
+	}
+	if _u.mutation.AssigneeMembershipIDCleared() {
+		_spec.ClearField(change.FieldAssigneeMembershipID, field.TypeInt)
 	}
 	if value, ok := _u.mutation.TenantID(); ok {
 		_spec.SetField(change.FieldTenantID, field.TypeInt, value)

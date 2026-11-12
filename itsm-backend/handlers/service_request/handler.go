@@ -61,35 +61,37 @@ func (h *Handler) toDTO(req *ServiceRequest, approvals []*ServiceRequestApproval
 		return nil
 	}
 	resp := &dto.ServiceRequestResponse{
-		ID:                 req.ID,
-		RequestNumber:      dto.GenerateServiceRequestNumber(req.ID, req.CreatedAt),
-		TicketNumber:       dto.GenerateServiceRequestNumber(req.ID, req.CreatedAt),
-		CatalogID:          req.CatalogID,
-		RequesterID:        req.RequesterID,
-		CIID:               req.CiID,
-		DepartmentID:       req.DepartmentID,
-		CustomerID:         req.CustomerID,
-		Status:             req.Status,
-		Title:              req.Title,
-		Reason:             req.Reason,
-		FormData:           req.FormData,
-		FormFields:         req.FormData,
-		CostCenter:         req.CostCenter,
-		DataClassification: req.DataClassification,
-		NeedsPublicIP:      req.NeedsPublicIP,
-		SourceIPWhitelist:  req.SourceIPWhitelist,
-		ComplianceAck:      req.ComplianceAck,
-		CurrentLevel:       req.CurrentLevel,
-		TotalLevels:        req.TotalLevels,
-		Version:            req.Version,
-		ProcessorID:        req.ProcessorID,
-		ApprovedAt:         req.ApprovedAt,
-		StartedAt:          req.StartedAt,
-		CompletedAt:        req.CompletedAt,
-		CompletionNote:     req.CompletionNote,
-		LastError:          req.LastError,
-		CreatedAt:          req.CreatedAt,
-		UpdatedAt:          req.UpdatedAt,
+		ID:                    req.ID,
+		RequestNumber:         dto.GenerateServiceRequestNumber(req.ID, req.CreatedAt),
+		TicketNumber:          dto.GenerateServiceRequestNumber(req.ID, req.CreatedAt),
+		CatalogID:             req.CatalogID,
+		RequesterID:           req.RequesterID,
+		RequesterMembershipID: req.RequesterMembershipID,
+		CIID:                  req.CiID,
+		DepartmentID:          req.DepartmentID,
+		CustomerID:            req.CustomerID,
+		Status:                req.Status,
+		Title:                 req.Title,
+		Reason:                req.Reason,
+		FormData:              req.FormData,
+		FormFields:            req.FormData,
+		CostCenter:            req.CostCenter,
+		DataClassification:    req.DataClassification,
+		NeedsPublicIP:         req.NeedsPublicIP,
+		SourceIPWhitelist:     req.SourceIPWhitelist,
+		ComplianceAck:         req.ComplianceAck,
+		CurrentLevel:          req.CurrentLevel,
+		TotalLevels:           req.TotalLevels,
+		Version:               req.Version,
+		ProcessorID:           req.ProcessorID,
+		ProcessorMembershipID: req.ProcessorMembershipID,
+		ApprovedAt:            req.ApprovedAt,
+		StartedAt:             req.StartedAt,
+		CompletedAt:           req.CompletedAt,
+		CompletionNote:        req.CompletionNote,
+		LastError:             req.LastError,
+		CreatedAt:             req.CreatedAt,
+		UpdatedAt:             req.UpdatedAt,
 	}
 	if req.ExpireAt != nil {
 		t := *req.ExpireAt
@@ -156,18 +158,19 @@ func (h *Handler) Create(c *gin.Context) {
 	expireAt := req.ExpireAt
 
 	domainReq := &ServiceRequest{
-		ComplianceAck:      req.ComplianceAck,
-		NeedsPublicIP:      req.NeedsPublicIP,
-		DataClassification: req.DataClassification,
-		Title:              req.Title,
-		Reason:             req.Reason,
-		FormData:           req.FormData,
-		CostCenter:         req.CostCenter,
-		SourceIPWhitelist:  req.SourceIPWhitelist,
-		ExpireAt:           expireAt,
-		ProjectID:          req.ProjectID,
-		DepartmentID:       req.DepartmentID,
-		CustomerID:         req.CustomerID,
+		ComplianceAck:         req.ComplianceAck,
+		NeedsPublicIP:         req.NeedsPublicIP,
+		DataClassification:    req.DataClassification,
+		Title:                 req.Title,
+		Reason:                req.Reason,
+		FormData:              req.FormData,
+		CostCenter:            req.CostCenter,
+		SourceIPWhitelist:     req.SourceIPWhitelist,
+		ExpireAt:              expireAt,
+		ProjectID:             req.ProjectID,
+		DepartmentID:          req.DepartmentID,
+		CustomerID:            req.CustomerID,
+		RequesterMembershipID: middleware.GetMembershipID(c),
 	}
 
 	created, err := h.service.Create(c.Request.Context(), tenantID, userID, req.CatalogID, domainReq)
@@ -446,7 +449,7 @@ func (h *Handler) UpdateStatus(c *gin.Context) {
 
 	userID := c.GetInt("user_id")
 	role := c.GetString("role")
-	if err := h.service.UpdateStatus(c.Request.Context(), id, tenantID, userID, role, status); err != nil {
+	if err := h.service.UpdateStatus(c.Request.Context(), id, tenantID, userID, middleware.GetMembershipID(c), role, status); err != nil {
 		failServiceRequest(c, err)
 		return
 	}

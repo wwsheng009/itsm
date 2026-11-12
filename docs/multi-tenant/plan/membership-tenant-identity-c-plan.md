@@ -1,6 +1,7 @@
 # C 方案：membership 作为租户内身份（2026-11-12）
 
-> **状态**：implemented-deployed（Phase 1–3 工单域已完成；Phase 4 接收人校验与 RBAC 预检同源已发布 238）
+> **状态**：implemented（Phase 1–3 工单域已发布 238；Phase 4 第一批接收人校验已发布；
+> 第二批问题/变更/服务请求 actors 迁移与约束 VALIDATE 已完成待发布）
 > **背景**：provider 深度切换到客户租户后，JWT 的 `tenant_id` 已指向客户租户，但工单仍以
 > `users.id` 作为申请人引用；provider 的 `users.tenant_id` 仍在 provider 租户，导致
 > “权限通过、申请人 404”。
@@ -152,15 +153,18 @@ tickets.assignee_id
 `(user_id, tenant_id) -> user_tenant_memberships`，无匹配行保持 NULL。
 复合外键先以 `NOT VALID` 上线，并同步写入
 `internal/bootstrap/post_schema_constraints.sql`，避免 `ent.Schema.Create` 重建表后丢失。
-当前未做：`VALIDATE CONSTRAINT`、问题/变更/服务请求的同口径迁移、membership 身份的
-前端显式展示与租户级 RLS 全矩阵。
+当前未做：membership 身份的前端显式展示、BPMN `ccType=group/role` 对 provider
+客户租户组织/角色的选人支持、home tenant 无 membership 兼容窗口收口。
+`VALIDATE CONSTRAINT` 与问题/变更/服务请求的同口径迁移已由 Phase 4 第二批补齐。
 
 ### Phase 4：约束与清理（后续）
 
-- 补齐复合外键并 `VALIDATE CONSTRAINT`；
-- 删除旧 `user_id` 业务引用或保留为兼容列；
-- 完成 RLS/cross-tenant 测试矩阵；
-- 统一 `allowedActions`、列表、通知、统计、审计按 membership 口径。
+- [x] 补齐复合外键并 `VALIDATE CONSTRAINT`（第二批，21 条约束）；
+- [x] 问题/变更/服务请求创建人、处理人 membership 迁移（第二批）；
+- [x] 新增业务域 cross-tenant 行为矩阵与真实 PostgreSQL 约束巡检；
+- [ ] 删除旧 `user_id` 业务引用或最终确定兼容列去留；
+- [ ] 扩展 17 张 tenant 表的全量行为矩阵（当前为结构性占位 + 本批三域实测）；
+- [ ] 统一 `allowedActions`、列表、通知、统计、审计按 membership 口径。
 
 #### Phase 4 第一批：接收人租户校验（2026-11-12）
 
@@ -177,6 +181,47 @@ tickets.assignee_id
 - 无新增数据库迁移，复用 Phase 3 已落地的 membership 列与复合外键；
 - 验证与边界见
   [2026-11-12-tenant-recipient-validation.md](../../review/2026-11-12-tenant-recipient-validation.md)。
+
+#### Phase 4 第二批：业务创建人/处理人 membership 与约束 VALIDATE（2026-11-12）
+
+**A. 问题 / 变更 / 服务请求 actors 迁移**
+
+新增 `20261112_membership_business_actors`（含 `_down`）：
+
+| 表 | membership 引用 | 写路径 |
+|---|---|---|
+| `problems` | `created_by_membership_id` / `assignee_membership_id` | 问题创建 / 处理人分配 |
+| `changes` | `created_by_membership_id` / `assignee_membership_id` | 变更创建 / 分配处理人 |
+| `service_requests` | `requester_membership_id` / `processor_membership_id` | 服务请求创建 / 进入履约 |
+
+- 回填按 `(user_id, tenant_id) -> user_tenant_memberships`；无匹配保持 NULL；
+- 新写入由 `handlers/common/membershipref` 统一解析：
+  - handler 已从 RBAC 上下文取得 membership 时，解析失败或与目标租户不一致 → fail-closed；
+  - 旧 service/repository 直接调用没有 membership 上下文时保持兼容，能解析则双写；
+- 处理人/履约人无 membership 时回退旧校验（同租户 active 用户），保留迁移窗口；
+- API 响应新增 `createdByMembershipId` / `assigneeMembershipId` /
+  `requesterMembershipId` / `processorMembershipId`（`omitempty`），旧字段不变。
+
+**B. 复合外键 VALIDATE 与跨租户矩阵**
+
+新增 `20261112_membership_constraints_validate`：
+
+- 覆盖 Phase 2–4 全部 21 条 membership 复合外键（工单/评论/附件/CC/审批/通知/审计 +
+  问题/变更/服务请求）；
+- 先清理“引用不存在或跨租户”的脏指针（置 NULL，保留 user_id 兼容列），再逐条
+  `VALIDATE CONSTRAINT`，失败即报错，不静默降级；
+- `post_schema_constraints.sql` 同步升级：Schema.Create 重建后补建约束时先清理脏引用，
+  直接以 VALID 状态创建；已有 NOT VALID 约束自动清理并 VALIDATE；
+- 新增 `tests/multi_tenant/business_membership_isolation_test.go`：覆盖问题/变更/
+  服务请求的跨租户读、跨租户写、伪造 membership 引用与跨租户处理人分配；
+- 新增 `database/rls/membership_constraints_integration_test.go`（`integration_rls`）：
+  对真实 PostgreSQL 断言 21 条约束全部 `convalidated = true` 且无跨租户脏引用。
+
+**本批不做**
+
+- 前端对创建人/处理人 membership 身份的显式展示；
+- 服务请求审批记录（`service_request_approvals`）的 membership 迁移；
+- PostgreSQL RLS policy 的全表启用（当前仍为应用层租户隔离 + 约束矩阵）。
 
 ## 5. 兼容与迁移
 

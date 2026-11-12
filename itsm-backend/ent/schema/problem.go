@@ -63,6 +63,12 @@ func (Problem) Fields() []ent.Field {
 		field.Int("created_by").
 			Comment("创建人ID").
 			Positive(),
+		field.Int("created_by_membership_id").
+			Comment("创建人租户内身份ID（C 方案；user_tenant_memberships.id，过渡期可空）").
+			Optional(),
+		field.Int("assignee_membership_id").
+			Comment("处理人租户内身份ID（C 方案；user_tenant_memberships.id，过渡期可空）").
+			Optional(),
 		field.Int("tenant_id").
 			Comment("租户ID").
 			Positive(),
@@ -107,5 +113,7 @@ func (Problem) Indexes() []ent.Index {
 	return []ent.Index{
 		index.Fields("tenant_id", "department_id"),
 		index.Fields("tenant_id", "customer_id"),
+		index.Fields("tenant_id", "created_by_membership_id"),
+		index.Fields("tenant_id", "assignee_membership_id"),
 	}
 }

@@ -50,6 +50,7 @@
 | `2026-11-11-role-whitelist-audit.md` | **current** | 硬编码角色白名单专项审计：修复 Header AI `isAdmin()` 旁路、AI 通知/审批 fallback 无效角色码、工单数据范围/MSP 写权限重复白名单、provider allowedActions 行级误判；内部备注限制复核保留；CC 管理、旧前端角色守卫、平台租户页 `super_admin` 条件列为待产品决策 |
 | `2026-11-11-membership-actor-reference-phase3.md` | **current** | C 方案 Phase 3 发布验证：评论/附件/CC/审批/通知/审计/BPMN 决策的 membership 引用、回填迁移、复合外键 post-schema 重建；238 `bf131540` 六容器 healthy、迁移台账/15 外键/租户错配 0、E2E 45/45（含评论/CC/附件 membership 断言） |
 | `2026-11-12-tenant-recipient-validation.md` | **current** | C 方案 Phase 4 第一批：CC / BPMN CC / 审批委派 / BPMN 任务 actor-target 的跨租户 membership 校验；provider 客户租户身份放行、无 membership 外部账号 fail-closed；CC 路由权限与 RBAC 预检同源修复；238 `5639c21c9` 46/46 E2E |
+| `2026-11-12-membership-business-actors.md` | **implemented（待发布）** | C 方案 Phase 4 第二批：问题/变更/服务请求创建人与处理人 membership 双写与回填；21 条 membership 复合外键清理脏引用后 VALIDATE；post-schema 约束自愈；跨租户读写/伪造引用矩阵与真实 PostgreSQL 约束巡检；代码完成、本地测试通过，待 238 发布验证 |
 | `evidence/2026-11-11-demo-full-deploy-44faf311.md` | historical | 2026-11-11 第一轮全量部署 8089 的证据（`44faf311`，40/40 E2E）；已被后续 `af3cba9c` 取代 |
 | `evidence/2026-11-11-demo-full-deploy-5699b5a8.md` | historical | 2026-11-11 第二轮全量部署 8089 的证据（`5699b5a8`，43/43 E2E）；已被 `af3cba9c` 取代 |
 | `evidence/2026-11-11-demo-full-deploy-af3cba9c.md` | historical | 2026-11-11 第三轮全量部署 8089 的证据（`af3cba9c`）：44/44 E2E、D18 附件访问修复；已被 `a0d4240a` / `91eb6e82` 取代 |

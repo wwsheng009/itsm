@@ -11,6 +11,7 @@ import (
 	"itsm-backend/ent/servicerequestapproval"
 	"itsm-backend/ent/user"
 	"itsm-backend/handlers/common/datascope"
+	"itsm-backend/handlers/common/membershipref"
 	"itsm-backend/internal/commandbus"
 )
 
@@ -28,35 +29,37 @@ func (r *EntRepository) toDomain(req *ent.ServiceRequest) *ServiceRequest {
 		return nil
 	}
 	return &ServiceRequest{
-		ID:                 req.ID,
-		TenantID:           req.TenantID,
-		CatalogID:          req.CatalogID,
-		RequesterID:        req.RequesterID,
-		CiID:               req.CiID,
-		ProjectID:          optionalInt(req.ProjectID),
-		DepartmentID:       optionalInt(req.DepartmentID),
-		CustomerID:         optionalInt(req.CustomerID),
-		Status:             req.Status,
-		Title:              req.Title,
-		Reason:             req.Reason,
-		FormData:           req.FormData,
-		CostCenter:         req.CostCenter,
-		DataClassification: req.DataClassification,
-		NeedsPublicIP:      req.NeedsPublicIP,
-		SourceIPWhitelist:  req.SourceIPWhitelist,
-		ExpireAt:           itemOrNil(req.ExpireAt),
-		ComplianceAck:      req.ComplianceAck,
-		CurrentLevel:       req.CurrentLevel,
-		TotalLevels:        req.TotalLevels,
-		Version:            req.Version,
-		ProcessorID:        optionalInt(req.ProcessorID),
-		ApprovedAt:         itemOrNil(req.ApprovedAt),
-		StartedAt:          itemOrNil(req.StartedAt),
-		CompletedAt:        itemOrNil(req.CompletedAt),
-		CompletionNote:     req.CompletionNote,
-		LastError:          req.LastError,
-		CreatedAt:          req.CreatedAt,
-		UpdatedAt:          req.UpdatedAt,
+		ID:                    req.ID,
+		TenantID:              req.TenantID,
+		CatalogID:             req.CatalogID,
+		RequesterID:           req.RequesterID,
+		CiID:                  req.CiID,
+		ProjectID:             optionalInt(req.ProjectID),
+		DepartmentID:          optionalInt(req.DepartmentID),
+		CustomerID:            optionalInt(req.CustomerID),
+		Status:                req.Status,
+		Title:                 req.Title,
+		Reason:                req.Reason,
+		FormData:              req.FormData,
+		CostCenter:            req.CostCenter,
+		DataClassification:    req.DataClassification,
+		NeedsPublicIP:         req.NeedsPublicIP,
+		SourceIPWhitelist:     req.SourceIPWhitelist,
+		ExpireAt:              itemOrNil(req.ExpireAt),
+		ComplianceAck:         req.ComplianceAck,
+		CurrentLevel:          req.CurrentLevel,
+		TotalLevels:           req.TotalLevels,
+		Version:               req.Version,
+		ProcessorID:           optionalInt(req.ProcessorID),
+		RequesterMembershipID: req.RequesterMembershipID,
+		ProcessorMembershipID: req.ProcessorMembershipID,
+		ApprovedAt:            itemOrNil(req.ApprovedAt),
+		StartedAt:             itemOrNil(req.StartedAt),
+		CompletedAt:           itemOrNil(req.CompletedAt),
+		CompletionNote:        req.CompletionNote,
+		LastError:             req.LastError,
+		CreatedAt:             req.CreatedAt,
+		UpdatedAt:             req.UpdatedAt,
 	}
 }
 
@@ -99,7 +102,23 @@ func (r *EntRepository) toDomainApproval(app *ent.ServiceRequestApproval) *Servi
 	}
 }
 
+// resolveRequesterMembership 解析申请人的租户内身份。
+// handler 已提供 membership 时 fail-closed；旧调用方无上下文时保留 user_id 兼容。
+func (r *EntRepository) resolveRequesterMembership(ctx context.Context, req *ServiceRequest) error {
+	membershipID, err := membershipref.ResolveActor(
+		ctx, r.client, req.RequesterID, req.TenantID, req.RequesterMembershipID,
+	)
+	if err != nil {
+		return err
+	}
+	req.RequesterMembershipID = membershipID
+	return nil
+}
+
 func (r *EntRepository) Create(ctx context.Context, req *ServiceRequest, approvals []*ServiceRequestApproval) (*ServiceRequest, error) {
+	if err := r.resolveRequesterMembership(ctx, req); err != nil {
+		return nil, err
+	}
 	tx, err := r.client.Tx(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("starting transaction: %w", err)
@@ -111,6 +130,7 @@ func (r *EntRepository) Create(ctx context.Context, req *ServiceRequest, approva
 		SetTenantID(req.TenantID).
 		SetCatalogID(req.CatalogID).
 		SetRequesterID(req.RequesterID).
+		SetNillableRequesterMembershipID(membershipPointer(req.RequesterMembershipID)).
 		SetStatus(req.Status).
 		SetCurrentLevel(req.CurrentLevel).
 		SetTotalLevels(req.TotalLevels).
@@ -189,6 +209,9 @@ func (r *EntRepository) Create(ctx context.Context, req *ServiceRequest, approva
 // CreateWithWorkflowCommand atomically persists the service request, its approval
 // steps, and a CommandStartBPMN outbox command in a single transaction.
 func (r *EntRepository) CreateWithWorkflowCommand(ctx context.Context, req *ServiceRequest, approvals []*ServiceRequestApproval) (*ServiceRequest, error) {
+	if err := r.resolveRequesterMembership(ctx, req); err != nil {
+		return nil, err
+	}
 	tx, err := r.client.Tx(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("starting transaction: %w", err)
@@ -204,6 +227,7 @@ func (r *EntRepository) CreateWithWorkflowCommand(ctx context.Context, req *Serv
 		SetTenantID(req.TenantID).
 		SetCatalogID(req.CatalogID).
 		SetRequesterID(req.RequesterID).
+		SetNillableRequesterMembershipID(membershipPointer(req.RequesterMembershipID)).
 		SetStatus(req.Status).
 		SetCurrentLevel(req.CurrentLevel).
 		SetTotalLevels(req.TotalLevels).
@@ -380,7 +404,7 @@ func (r *EntRepository) List(ctx context.Context, tenantID int, filters ListFilt
 	return results, total, nil
 }
 
-func (r *EntRepository) UpdateStatus(ctx context.Context, req *ServiceRequest, status string, actorID int) error {
+func (r *EntRepository) UpdateStatus(ctx context.Context, req *ServiceRequest, status string, actorID, actorMembershipID int) error {
 	update := r.client.ServiceRequest.UpdateOneID(req.ID).
 		Where(
 			servicerequest.TenantIDEQ(req.TenantID),
@@ -392,7 +416,18 @@ func (r *EntRepository) UpdateStatus(ctx context.Context, req *ServiceRequest, s
 	now := time.Now()
 	switch status {
 	case SRStatusProvisioning:
+		resolvedMembershipID, err := membershipref.ResolveActor(
+			ctx, r.client, actorID, req.TenantID, actorMembershipID,
+		)
+		if err != nil {
+			return err
+		}
 		update.SetProcessorID(actorID).SetStartedAt(now)
+		if resolvedMembershipID > 0 {
+			update.SetProcessorMembershipID(resolvedMembershipID)
+		} else {
+			update.ClearProcessorMembershipID()
+		}
 	case SRStatusDelivered:
 		update.SetCompletedAt(now)
 	}

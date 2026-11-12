@@ -137,24 +137,25 @@ func (s *Service) Create(ctx context.Context, tenantID, requesterID int, catalog
 
 	// 3. Prepare Service Request
 	newReq := &ServiceRequest{
-		TenantID:           tenantID,
-		CatalogID:          catalogID,
-		RequesterID:        requesterID,
-		ProjectID:          reqData.ProjectID,
-		DepartmentID:       reqData.DepartmentID,
-		CustomerID:         reqData.CustomerID,
-		Status:             SRStatusSubmitted,
-		CurrentLevel:       1,
-		TotalLevels:        3,
-		ComplianceAck:      reqData.ComplianceAck,
-		NeedsPublicIP:      reqData.NeedsPublicIP,
-		DataClassification: reqData.DataClassification,
-		Title:              reqData.Title,
-		Reason:             reqData.Reason,
-		FormData:           reqData.FormData,
-		CostCenter:         reqData.CostCenter,
-		SourceIPWhitelist:  reqData.SourceIPWhitelist,
-		ExpireAt:           reqData.ExpireAt,
+		TenantID:              tenantID,
+		CatalogID:             catalogID,
+		RequesterID:           requesterID,
+		RequesterMembershipID: reqData.RequesterMembershipID,
+		ProjectID:             reqData.ProjectID,
+		DepartmentID:          reqData.DepartmentID,
+		CustomerID:            reqData.CustomerID,
+		Status:                SRStatusSubmitted,
+		CurrentLevel:          1,
+		TotalLevels:           3,
+		ComplianceAck:         reqData.ComplianceAck,
+		NeedsPublicIP:         reqData.NeedsPublicIP,
+		DataClassification:    reqData.DataClassification,
+		Title:                 reqData.Title,
+		Reason:                reqData.Reason,
+		FormData:              reqData.FormData,
+		CostCenter:            reqData.CostCenter,
+		SourceIPWhitelist:     reqData.SourceIPWhitelist,
+		ExpireAt:              reqData.ExpireAt,
 	}
 
 	if cat.CITypeID > 0 {
@@ -753,7 +754,7 @@ func (s *Service) Update(ctx context.Context, id, tenantID, actorID int, actorRo
 }
 
 // UpdateStatus updates a service request status with tenant isolation.
-func (s *Service) UpdateStatus(ctx context.Context, id, tenantID, actorID int, actorRole, status string) error {
+func (s *Service) UpdateStatus(ctx context.Context, id, tenantID, actorID, actorMembershipID int, actorRole, status string) error {
 	req, _, err := s.repo.GetWithApprovals(ctx, id, tenantID)
 	if err != nil {
 		return common.NewNotFoundError("Service Request not found")
@@ -771,7 +772,7 @@ func (s *Service) UpdateStatus(ctx context.Context, id, tenantID, actorID int, a
 	} else if !isServiceRequestOperator(actorRole) && !hasFullDataScope(ctx) {
 		return common.NewForbiddenError("Only service operators can update fulfillment status")
 	}
-	if err := s.repo.UpdateStatus(ctx, req, status, actorID); err != nil {
+	if err := s.repo.UpdateStatus(ctx, req, status, actorID, actorMembershipID); err != nil {
 		s.logger.Errorw("Failed to update service request status", "error", err, "id", id, "status", status)
 		return common.NewInternalError("Failed to update service request status", err)
 	}

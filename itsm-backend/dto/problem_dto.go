@@ -66,27 +66,29 @@ type ListProblemsRequest struct {
 
 // ProblemResponse 问题响应
 type ProblemResponse struct {
-	ID            int     `json:"id"`
-	ProblemNumber string  `json:"problemNumber,omitempty"`
-	Title         string  `json:"title"`
-	Description   string  `json:"description"`
-	Status        string  `json:"status"`
-	Priority      string  `json:"priority"`
-	Category      string  `json:"category"`
-	RootCause     string  `json:"rootCause"`
-	Workaround    string  `json:"workaround"`
-	Resolution    string  `json:"resolution"`
-	Impact        string  `json:"impact"`
-	AssigneeID    *int    `json:"assigneeId,omitempty"`
-	AssigneeName  *string `json:"assigneeName,omitempty"`
-	DepartmentID  *int    `json:"departmentId,omitempty"`
-	CustomerID    *int    `json:"customerId,omitempty"`
+	ID                   int     `json:"id"`
+	ProblemNumber        string  `json:"problemNumber,omitempty"`
+	Title                string  `json:"title"`
+	Description          string  `json:"description"`
+	Status               string  `json:"status"`
+	Priority             string  `json:"priority"`
+	Category             string  `json:"category"`
+	RootCause            string  `json:"rootCause"`
+	Workaround           string  `json:"workaround"`
+	Resolution           string  `json:"resolution"`
+	Impact               string  `json:"impact"`
+	AssigneeID           *int    `json:"assigneeId,omitempty"`
+	AssigneeName         *string `json:"assigneeName,omitempty"`
+	AssigneeMembershipID int     `json:"assigneeMembershipId,omitempty"`
+	DepartmentID         *int    `json:"departmentId,omitempty"`
+	CustomerID           *int    `json:"customerId,omitempty"`
 	// 创建人/报告人字段（ID + 名字。名字由 service 层 join user 表填充，避免前端再调一次 user API）
-	CreatedBy     int       `json:"createdBy"`
-	CreatedByName *string   `json:"createdByName,omitempty"`
-	TenantID      int       `json:"tenantId"`
-	CreatedAt     time.Time `json:"createdAt"`
-	UpdatedAt     time.Time `json:"updatedAt"`
+	CreatedBy             int       `json:"createdBy"`
+	CreatedByName         *string   `json:"createdByName,omitempty"`
+	CreatedByMembershipID int       `json:"createdByMembershipId,omitempty"`
+	TenantID              int       `json:"tenantId"`
+	CreatedAt             time.Time `json:"createdAt"`
+	UpdatedAt             time.Time `json:"updatedAt"`
 	// 关联数据
 	AssociatedTickets   []*AssociatedItemResponse `json:"associatedTickets,omitempty"`
 	AssociatedIncidents []*AssociatedItemResponse `json:"associatedIncidents,omitempty"`

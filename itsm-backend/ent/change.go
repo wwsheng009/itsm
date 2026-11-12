@@ -40,6 +40,10 @@ type Change struct {
 	AssigneeID int `json:"assignee_id,omitempty"`
 	// 创建人ID
 	CreatedBy int `json:"created_by,omitempty"`
+	// 创建人租户内身份ID（C 方案；user_tenant_memberships.id，过渡期可空）
+	CreatedByMembershipID int `json:"created_by_membership_id,omitempty"`
+	// 处理人租户内身份ID（C 方案；user_tenant_memberships.id，过渡期可空）
+	AssigneeMembershipID int `json:"assignee_membership_id,omitempty"`
 	// 租户ID
 	TenantID int `json:"tenant_id,omitempty"`
 	// 所属项目ID（P0；同租户）
@@ -111,7 +115,7 @@ func (*Change) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case change.FieldAffectedCis, change.FieldRelatedTickets:
 			values[i] = new([]byte)
-		case change.FieldID, change.FieldAssigneeID, change.FieldCreatedBy, change.FieldTenantID, change.FieldProjectID, change.FieldDepartmentID, change.FieldCustomerID:
+		case change.FieldID, change.FieldAssigneeID, change.FieldCreatedBy, change.FieldCreatedByMembershipID, change.FieldAssigneeMembershipID, change.FieldTenantID, change.FieldProjectID, change.FieldDepartmentID, change.FieldCustomerID:
 			values[i] = new(sql.NullInt64)
 		case change.FieldChangeNumber, change.FieldTitle, change.FieldDescription, change.FieldJustification, change.FieldType, change.FieldStatus, change.FieldPriority, change.FieldImpactScope, change.FieldRiskLevel, change.FieldImplementationPlan, change.FieldRollbackPlan:
 			values[i] = new(sql.NullString)
@@ -205,6 +209,18 @@ func (_m *Change) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field created_by", values[i])
 			} else if value.Valid {
 				_m.CreatedBy = int(value.Int64)
+			}
+		case change.FieldCreatedByMembershipID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field created_by_membership_id", values[i])
+			} else if value.Valid {
+				_m.CreatedByMembershipID = int(value.Int64)
+			}
+		case change.FieldAssigneeMembershipID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field assignee_membership_id", values[i])
+			} else if value.Valid {
+				_m.AssigneeMembershipID = int(value.Int64)
 			}
 		case change.FieldTenantID:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -379,6 +395,12 @@ func (_m *Change) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("created_by=")
 	builder.WriteString(fmt.Sprintf("%v", _m.CreatedBy))
+	builder.WriteString(", ")
+	builder.WriteString("created_by_membership_id=")
+	builder.WriteString(fmt.Sprintf("%v", _m.CreatedByMembershipID))
+	builder.WriteString(", ")
+	builder.WriteString("assignee_membership_id=")
+	builder.WriteString(fmt.Sprintf("%v", _m.AssigneeMembershipID))
 	builder.WriteString(", ")
 	builder.WriteString("tenant_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.TenantID))

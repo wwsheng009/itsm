@@ -21,6 +21,9 @@ type Change struct {
 	CreatedBy     int
 	CreatedByUser *User
 	TenantID      int
+	// C 方案：租户内身份引用（0 表示过渡期未解析，读路径回退 user_id）。
+	CreatedByMembershipID int
+	AssigneeMembershipID  int
 	// ProjectID 创建时挂接的项目（nil=不挂接；随 INSERT 一次写入；前置校验由 handler 调 projectlink.GuardCreate）。
 	ProjectID          *int
 	DepartmentID       *int
@@ -43,6 +46,14 @@ type Change struct {
 type User struct {
 	ID   int
 	Name string
+}
+
+// membershipPointer 把 0 归一为 NULL，供 ent 的可空 membership 列使用。
+func membershipPointer(id int) *int {
+	if id <= 0 {
+		return nil
+	}
+	return &id
 }
 
 // ApprovalChain represents an item in the approval workflow

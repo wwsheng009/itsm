@@ -70,6 +70,7 @@ func (s *ChangeService) CreateChange(ctx context.Context, req *dto.CreateChangeR
 	}
 	// 注：若需更细粒度控制，可在 Change 表增加 approval_required 字段并在模板/配置中设置
 
+	createdByMembershipID := activeMembershipID(ctx, s.client, createdBy, tenantID)
 	tx, err := s.client.Tx(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to begin change transaction: %w", err)
@@ -85,6 +86,7 @@ func (s *ChangeService) CreateChange(ctx context.Context, req *dto.CreateChangeR
 		SetImpactScope(req.ImpactScope).
 		SetRiskLevel(req.RiskLevel).
 		SetCreatedBy(createdBy).
+		SetNillableCreatedByMembershipID(optionalInt(createdByMembershipID)).
 		SetTenantID(tenantID).
 		SetNillableProjectID(req.ProjectID).
 		SetImplementationPlan(req.ImplementationPlan).
@@ -112,23 +114,24 @@ func (s *ChangeService) CreateChange(ctx context.Context, req *dto.CreateChangeR
 
 	// 构建响应（先填充实体数据，状态后续可能更新）
 	response := &dto.ChangeResponse{
-		ID:                 changeEntity.ID,
-		Title:              changeEntity.Title,
-		Description:        changeEntity.Description,
-		Justification:      changeEntity.Justification,
-		Type:               dto.ChangeType(changeEntity.Type),
-		Status:             dto.ChangeStatus(changeEntity.Status),
-		Priority:           dto.ChangePriority(changeEntity.Priority),
-		ImpactScope:        dto.ChangeImpact(changeEntity.ImpactScope),
-		RiskLevel:          dto.ChangeRisk(changeEntity.RiskLevel),
-		CreatedBy:          changeEntity.CreatedBy,
-		TenantID:           changeEntity.TenantID,
-		PlannedStartDate:   optionalTime(changeEntity.PlannedStartDate),
-		PlannedEndDate:     optionalTime(changeEntity.PlannedEndDate),
-		ImplementationPlan: changeEntity.ImplementationPlan,
-		RollbackPlan:       changeEntity.RollbackPlan,
-		CreatedAt:          changeEntity.CreatedAt,
-		UpdatedAt:          changeEntity.UpdatedAt,
+		ID:                    changeEntity.ID,
+		Title:                 changeEntity.Title,
+		Description:           changeEntity.Description,
+		Justification:         changeEntity.Justification,
+		Type:                  dto.ChangeType(changeEntity.Type),
+		Status:                dto.ChangeStatus(changeEntity.Status),
+		Priority:              dto.ChangePriority(changeEntity.Priority),
+		ImpactScope:           dto.ChangeImpact(changeEntity.ImpactScope),
+		RiskLevel:             dto.ChangeRisk(changeEntity.RiskLevel),
+		CreatedBy:             changeEntity.CreatedBy,
+		CreatedByMembershipID: changeEntity.CreatedByMembershipID,
+		TenantID:              changeEntity.TenantID,
+		PlannedStartDate:      optionalTime(changeEntity.PlannedStartDate),
+		PlannedEndDate:        optionalTime(changeEntity.PlannedEndDate),
+		ImplementationPlan:    changeEntity.ImplementationPlan,
+		RollbackPlan:          changeEntity.RollbackPlan,
+		CreatedAt:             changeEntity.CreatedAt,
+		UpdatedAt:             changeEntity.UpdatedAt,
 	}
 
 	if req.Type == string(dto.ChangeTypeEmergency) {
@@ -315,28 +318,30 @@ func (s *ChangeService) GetChange(ctx context.Context, id int, tenantID int) (*d
 		createdByName = creator.Name
 	}
 	response := &dto.ChangeResponse{
-		ID:                 changeEntity.ID,
-		Title:              changeEntity.Title,
-		Description:        changeEntity.Description,
-		Justification:      changeEntity.Justification,
-		Type:               dto.ChangeType(changeEntity.Type),
-		Status:             apiChangeStatus(changeEntity.Status),
-		Priority:           dto.ChangePriority(changeEntity.Priority),
-		ImpactScope:        dto.ChangeImpact(changeEntity.ImpactScope),
-		RiskLevel:          dto.ChangeRisk(changeEntity.RiskLevel),
-		AssigneeID:         optionalInt(changeEntity.AssigneeID),
-		AssigneeName:       assigneeName,
-		CreatedBy:          changeEntity.CreatedBy,
-		CreatedByName:      createdByName,
-		TenantID:           changeEntity.TenantID,
-		PlannedStartDate:   optionalTime(changeEntity.PlannedStartDate),
-		PlannedEndDate:     optionalTime(changeEntity.PlannedEndDate),
-		ActualStartDate:    optionalTime(changeEntity.ActualStartDate),
-		ActualEndDate:      optionalTime(changeEntity.ActualEndDate),
-		ImplementationPlan: changeEntity.ImplementationPlan,
-		RollbackPlan:       changeEntity.RollbackPlan,
-		CreatedAt:          changeEntity.CreatedAt,
-		UpdatedAt:          changeEntity.UpdatedAt,
+		ID:                    changeEntity.ID,
+		Title:                 changeEntity.Title,
+		Description:           changeEntity.Description,
+		Justification:         changeEntity.Justification,
+		Type:                  dto.ChangeType(changeEntity.Type),
+		Status:                apiChangeStatus(changeEntity.Status),
+		Priority:              dto.ChangePriority(changeEntity.Priority),
+		ImpactScope:           dto.ChangeImpact(changeEntity.ImpactScope),
+		RiskLevel:             dto.ChangeRisk(changeEntity.RiskLevel),
+		AssigneeID:            optionalInt(changeEntity.AssigneeID),
+		AssigneeName:          assigneeName,
+		AssigneeMembershipID:  changeEntity.AssigneeMembershipID,
+		CreatedBy:             changeEntity.CreatedBy,
+		CreatedByName:         createdByName,
+		CreatedByMembershipID: changeEntity.CreatedByMembershipID,
+		TenantID:              changeEntity.TenantID,
+		PlannedStartDate:      optionalTime(changeEntity.PlannedStartDate),
+		PlannedEndDate:        optionalTime(changeEntity.PlannedEndDate),
+		ActualStartDate:       optionalTime(changeEntity.ActualStartDate),
+		ActualEndDate:         optionalTime(changeEntity.ActualEndDate),
+		ImplementationPlan:    changeEntity.ImplementationPlan,
+		RollbackPlan:          changeEntity.RollbackPlan,
+		CreatedAt:             changeEntity.CreatedAt,
+		UpdatedAt:             changeEntity.UpdatedAt,
 	}
 
 	// 设置受影响的配置项
@@ -414,28 +419,30 @@ func (s *ChangeService) ListChanges(ctx context.Context, tenantID int, page, pag
 			}
 		}
 		response := dto.ChangeResponse{
-			ID:                 changeEntity.ID,
-			Title:              changeEntity.Title,
-			Description:        changeEntity.Description,
-			Justification:      changeEntity.Justification,
-			Type:               dto.ChangeType(changeEntity.Type),
-			Status:             apiChangeStatus(changeEntity.Status),
-			Priority:           dto.ChangePriority(changeEntity.Priority),
-			ImpactScope:        dto.ChangeImpact(changeEntity.ImpactScope),
-			RiskLevel:          dto.ChangeRisk(changeEntity.RiskLevel),
-			AssigneeID:         optionalInt(changeEntity.AssigneeID),
-			AssigneeName:       assigneeName,
-			CreatedBy:          changeEntity.CreatedBy,
-			CreatedByName:      createdByName,
-			TenantID:           changeEntity.TenantID,
-			PlannedStartDate:   optionalTime(changeEntity.PlannedStartDate),
-			PlannedEndDate:     optionalTime(changeEntity.PlannedEndDate),
-			ActualStartDate:    optionalTime(changeEntity.ActualStartDate),
-			ActualEndDate:      optionalTime(changeEntity.ActualEndDate),
-			ImplementationPlan: changeEntity.ImplementationPlan,
-			RollbackPlan:       changeEntity.RollbackPlan,
-			CreatedAt:          changeEntity.CreatedAt,
-			UpdatedAt:          changeEntity.UpdatedAt,
+			ID:                    changeEntity.ID,
+			Title:                 changeEntity.Title,
+			Description:           changeEntity.Description,
+			Justification:         changeEntity.Justification,
+			Type:                  dto.ChangeType(changeEntity.Type),
+			Status:                apiChangeStatus(changeEntity.Status),
+			Priority:              dto.ChangePriority(changeEntity.Priority),
+			ImpactScope:           dto.ChangeImpact(changeEntity.ImpactScope),
+			RiskLevel:             dto.ChangeRisk(changeEntity.RiskLevel),
+			AssigneeID:            optionalInt(changeEntity.AssigneeID),
+			AssigneeName:          assigneeName,
+			AssigneeMembershipID:  changeEntity.AssigneeMembershipID,
+			CreatedBy:             changeEntity.CreatedBy,
+			CreatedByName:         createdByName,
+			CreatedByMembershipID: changeEntity.CreatedByMembershipID,
+			TenantID:              changeEntity.TenantID,
+			PlannedStartDate:      optionalTime(changeEntity.PlannedStartDate),
+			PlannedEndDate:        optionalTime(changeEntity.PlannedEndDate),
+			ActualStartDate:       optionalTime(changeEntity.ActualStartDate),
+			ActualEndDate:         optionalTime(changeEntity.ActualEndDate),
+			ImplementationPlan:    changeEntity.ImplementationPlan,
+			RollbackPlan:          changeEntity.RollbackPlan,
+			CreatedAt:             changeEntity.CreatedAt,
+			UpdatedAt:             changeEntity.UpdatedAt,
 		}
 
 		// 设置受影响的配置项

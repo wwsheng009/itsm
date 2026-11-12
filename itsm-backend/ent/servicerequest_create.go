@@ -94,6 +94,20 @@ func (_c *ServiceRequestCreate) SetRequesterID(v int) *ServiceRequestCreate {
 	return _c
 }
 
+// SetRequesterMembershipID sets the "requester_membership_id" field.
+func (_c *ServiceRequestCreate) SetRequesterMembershipID(v int) *ServiceRequestCreate {
+	_c.mutation.SetRequesterMembershipID(v)
+	return _c
+}
+
+// SetNillableRequesterMembershipID sets the "requester_membership_id" field if the given value is not nil.
+func (_c *ServiceRequestCreate) SetNillableRequesterMembershipID(v *int) *ServiceRequestCreate {
+	if v != nil {
+		_c.SetRequesterMembershipID(*v)
+	}
+	return _c
+}
+
 // SetStatus sets the "status" field.
 func (_c *ServiceRequestCreate) SetStatus(v string) *ServiceRequestCreate {
 	_c.mutation.SetStatus(v)
@@ -304,6 +318,20 @@ func (_c *ServiceRequestCreate) SetProcessorID(v int) *ServiceRequestCreate {
 func (_c *ServiceRequestCreate) SetNillableProcessorID(v *int) *ServiceRequestCreate {
 	if v != nil {
 		_c.SetProcessorID(*v)
+	}
+	return _c
+}
+
+// SetProcessorMembershipID sets the "processor_membership_id" field.
+func (_c *ServiceRequestCreate) SetProcessorMembershipID(v int) *ServiceRequestCreate {
+	_c.mutation.SetProcessorMembershipID(v)
+	return _c
+}
+
+// SetNillableProcessorMembershipID sets the "processor_membership_id" field if the given value is not nil.
+func (_c *ServiceRequestCreate) SetNillableProcessorMembershipID(v *int) *ServiceRequestCreate {
+	if v != nil {
+		_c.SetProcessorMembershipID(*v)
 	}
 	return _c
 }
@@ -605,6 +633,10 @@ func (_c *ServiceRequestCreate) createSpec() (*ServiceRequest, *sqlgraph.CreateS
 		_spec.SetField(servicerequest.FieldRequesterID, field.TypeInt, value)
 		_node.RequesterID = value
 	}
+	if value, ok := _c.mutation.RequesterMembershipID(); ok {
+		_spec.SetField(servicerequest.FieldRequesterMembershipID, field.TypeInt, value)
+		_node.RequesterMembershipID = value
+	}
 	if value, ok := _c.mutation.Status(); ok {
 		_spec.SetField(servicerequest.FieldStatus, field.TypeString, value)
 		_node.Status = value
@@ -672,6 +704,10 @@ func (_c *ServiceRequestCreate) createSpec() (*ServiceRequest, *sqlgraph.CreateS
 	if value, ok := _c.mutation.ProcessorID(); ok {
 		_spec.SetField(servicerequest.FieldProcessorID, field.TypeInt, value)
 		_node.ProcessorID = value
+	}
+	if value, ok := _c.mutation.ProcessorMembershipID(); ok {
+		_spec.SetField(servicerequest.FieldProcessorMembershipID, field.TypeInt, value)
+		_node.ProcessorMembershipID = value
 	}
 	if value, ok := _c.mutation.StartedAt(); ok {
 		_spec.SetField(servicerequest.FieldStartedAt, field.TypeTime, value)

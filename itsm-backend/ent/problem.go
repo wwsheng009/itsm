@@ -47,6 +47,10 @@ type Problem struct {
 	CustomerID int `json:"customer_id,omitempty"`
 	// 创建人ID
 	CreatedBy int `json:"created_by,omitempty"`
+	// 创建人租户内身份ID（C 方案；user_tenant_memberships.id，过渡期可空）
+	CreatedByMembershipID int `json:"created_by_membership_id,omitempty"`
+	// 处理人租户内身份ID（C 方案；user_tenant_memberships.id，过渡期可空）
+	AssigneeMembershipID int `json:"assignee_membership_id,omitempty"`
 	// 租户ID
 	TenantID int `json:"tenant_id,omitempty"`
 	// 创建时间
@@ -111,7 +115,7 @@ func (*Problem) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case problem.FieldID, problem.FieldAssigneeID, problem.FieldProjectID, problem.FieldDepartmentID, problem.FieldCustomerID, problem.FieldCreatedBy, problem.FieldTenantID:
+		case problem.FieldID, problem.FieldAssigneeID, problem.FieldProjectID, problem.FieldDepartmentID, problem.FieldCustomerID, problem.FieldCreatedBy, problem.FieldCreatedByMembershipID, problem.FieldAssigneeMembershipID, problem.FieldTenantID:
 			values[i] = new(sql.NullInt64)
 		case problem.FieldProblemNumber, problem.FieldTitle, problem.FieldDescription, problem.FieldStatus, problem.FieldPriority, problem.FieldCategory, problem.FieldRootCause, problem.FieldWorkaround, problem.FieldResolution, problem.FieldImpact:
 			values[i] = new(sql.NullString)
@@ -229,6 +233,18 @@ func (_m *Problem) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field created_by", values[i])
 			} else if value.Valid {
 				_m.CreatedBy = int(value.Int64)
+			}
+		case problem.FieldCreatedByMembershipID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field created_by_membership_id", values[i])
+			} else if value.Valid {
+				_m.CreatedByMembershipID = int(value.Int64)
+			}
+		case problem.FieldAssigneeMembershipID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field assignee_membership_id", values[i])
+			} else if value.Valid {
+				_m.AssigneeMembershipID = int(value.Int64)
 			}
 		case problem.FieldTenantID:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -371,6 +387,12 @@ func (_m *Problem) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("created_by=")
 	builder.WriteString(fmt.Sprintf("%v", _m.CreatedBy))
+	builder.WriteString(", ")
+	builder.WriteString("created_by_membership_id=")
+	builder.WriteString(fmt.Sprintf("%v", _m.CreatedByMembershipID))
+	builder.WriteString(", ")
+	builder.WriteString("assignee_membership_id=")
+	builder.WriteString(fmt.Sprintf("%v", _m.AssigneeMembershipID))
 	builder.WriteString(", ")
 	builder.WriteString("tenant_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.TenantID))

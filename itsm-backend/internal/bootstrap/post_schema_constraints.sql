@@ -197,10 +197,24 @@ CREATE INDEX IF NOT EXISTS idx_process_approval_decisions_actor_membership
   ON process_approval_decisions (tenant_id, actor_membership_id);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_membership
   ON audit_logs (tenant_id, membership_id);
+CREATE INDEX IF NOT EXISTS idx_problems_created_by_membership
+  ON problems (tenant_id, created_by_membership_id);
+CREATE INDEX IF NOT EXISTS idx_problems_assignee_membership
+  ON problems (tenant_id, assignee_membership_id);
+CREATE INDEX IF NOT EXISTS idx_changes_created_by_membership
+  ON changes (tenant_id, created_by_membership_id);
+CREATE INDEX IF NOT EXISTS idx_changes_assignee_membership
+  ON changes (tenant_id, assignee_membership_id);
+CREATE INDEX IF NOT EXISTS idx_service_requests_requester_membership
+  ON service_requests (tenant_id, requester_membership_id);
+CREATE INDEX IF NOT EXISTS idx_service_requests_processor_membership
+  ON service_requests (tenant_id, processor_membership_id);
 
 DO $$
 DECLARE
     r record;
+    is_valid boolean;
+    cleaned bigint;
 BEGIN
     FOR r IN
         SELECT * FROM (VALUES
@@ -218,16 +232,47 @@ BEGIN
             ('notifications', 'fk_notifications_user_membership_tenant', 'user_membership_id'),
             ('ticket_notifications', 'fk_ticket_notifications_user_membership_tenant', 'user_membership_id'),
             ('process_approval_decisions', 'fk_process_approval_decisions_actor_membership_tenant', 'actor_membership_id'),
-            ('audit_logs', 'fk_audit_logs_membership_tenant', 'membership_id')
+            ('audit_logs', 'fk_audit_logs_membership_tenant', 'membership_id'),
+            ('problems', 'fk_problems_created_by_membership_tenant', 'created_by_membership_id'),
+            ('problems', 'fk_problems_assignee_membership_tenant', 'assignee_membership_id'),
+            ('changes', 'fk_changes_created_by_membership_tenant', 'created_by_membership_id'),
+            ('changes', 'fk_changes_assignee_membership_tenant', 'assignee_membership_id'),
+            ('service_requests', 'fk_service_requests_requester_membership_tenant', 'requester_membership_id'),
+            ('service_requests', 'fk_service_requests_processor_membership_tenant', 'processor_membership_id')
         ) AS v(tbl, conname, colname)
     LOOP
-        IF NOT EXISTS (
-            SELECT 1 FROM pg_constraint WHERE conname = r.conname
-        ) THEN
+        SELECT convalidated INTO is_valid
+        FROM pg_constraint
+        WHERE conname = r.conname;
+
+        IF NOT FOUND THEN
+            -- 重建后的新约束：先清掉不可校验的脏指针，再直接以 VALID 状态补建。
             EXECUTE format(
-                'ALTER TABLE %I ADD CONSTRAINT %I FOREIGN KEY (%I, tenant_id) REFERENCES user_tenant_memberships (id, tenant_id) NOT VALID',
+                'UPDATE %I t SET %I = NULL ' ||
+                'WHERE t.%I IS NOT NULL AND NOT EXISTS (' ||
+                '  SELECT 1 FROM user_tenant_memberships m ' ||
+                '  WHERE m.id = t.%I AND m.tenant_id = t.tenant_id)',
+                r.tbl, r.colname, r.colname, r.colname
+            );
+            EXECUTE format(
+                'ALTER TABLE %I ADD CONSTRAINT %I FOREIGN KEY (%I, tenant_id) REFERENCES user_tenant_memberships (id, tenant_id)',
                 r.tbl, r.conname, r.colname
             );
+        ELSIF NOT is_valid THEN
+            -- 历史 NOT VALID 约束：清理脏引用后 VALIDATE。
+            EXECUTE format(
+                'UPDATE %I t SET %I = NULL ' ||
+                'WHERE t.%I IS NOT NULL AND NOT EXISTS (' ||
+                '  SELECT 1 FROM user_tenant_memberships m ' ||
+                '  WHERE m.id = t.%I AND m.tenant_id = t.tenant_id)',
+                r.tbl, r.colname, r.colname, r.colname
+            );
+            GET DIAGNOSTICS cleaned = ROW_COUNT;
+            IF cleaned > 0 THEN
+                RAISE NOTICE 'membership constraint cleanup: table=% column=% invalid_rows=%',
+                    r.tbl, r.colname, cleaned;
+            END IF;
+            EXECUTE format('ALTER TABLE %I VALIDATE CONSTRAINT %I', r.tbl, r.conname);
         END IF;
     END LOOP;
 END $$;

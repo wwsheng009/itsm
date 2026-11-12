@@ -160,6 +160,34 @@ func (_c *ChangeCreate) SetCreatedBy(v int) *ChangeCreate {
 	return _c
 }
 
+// SetCreatedByMembershipID sets the "created_by_membership_id" field.
+func (_c *ChangeCreate) SetCreatedByMembershipID(v int) *ChangeCreate {
+	_c.mutation.SetCreatedByMembershipID(v)
+	return _c
+}
+
+// SetNillableCreatedByMembershipID sets the "created_by_membership_id" field if the given value is not nil.
+func (_c *ChangeCreate) SetNillableCreatedByMembershipID(v *int) *ChangeCreate {
+	if v != nil {
+		_c.SetCreatedByMembershipID(*v)
+	}
+	return _c
+}
+
+// SetAssigneeMembershipID sets the "assignee_membership_id" field.
+func (_c *ChangeCreate) SetAssigneeMembershipID(v int) *ChangeCreate {
+	_c.mutation.SetAssigneeMembershipID(v)
+	return _c
+}
+
+// SetNillableAssigneeMembershipID sets the "assignee_membership_id" field if the given value is not nil.
+func (_c *ChangeCreate) SetNillableAssigneeMembershipID(v *int) *ChangeCreate {
+	if v != nil {
+		_c.SetAssigneeMembershipID(*v)
+	}
+	return _c
+}
+
 // SetTenantID sets the "tenant_id" field.
 func (_c *ChangeCreate) SetTenantID(v int) *ChangeCreate {
 	_c.mutation.SetTenantID(v)
@@ -548,6 +576,14 @@ func (_c *ChangeCreate) createSpec() (*Change, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.CreatedBy(); ok {
 		_spec.SetField(change.FieldCreatedBy, field.TypeInt, value)
 		_node.CreatedBy = value
+	}
+	if value, ok := _c.mutation.CreatedByMembershipID(); ok {
+		_spec.SetField(change.FieldCreatedByMembershipID, field.TypeInt, value)
+		_node.CreatedByMembershipID = value
+	}
+	if value, ok := _c.mutation.AssigneeMembershipID(); ok {
+		_spec.SetField(change.FieldAssigneeMembershipID, field.TypeInt, value)
+		_node.AssigneeMembershipID = value
 	}
 	if value, ok := _c.mutation.TenantID(); ok {
 		_spec.SetField(change.FieldTenantID, field.TypeInt, value)

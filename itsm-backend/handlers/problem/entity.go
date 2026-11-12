@@ -18,6 +18,9 @@ type Problem struct {
 	Resolution    string
 	Impact        string
 	AssigneeID    *int
+	// C 方案：租户内身份引用（0 表示过渡期未解析，读路径回退 user_id）。
+	CreatedByMembershipID int
+	AssigneeMembershipID  int
 	// ProjectID 创建时挂接的项目（随 INSERT 一次写入；前置校验由 handler 调 projectlink.GuardCreate）。
 	ProjectID    *int
 	DepartmentID *int

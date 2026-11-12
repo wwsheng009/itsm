@@ -20,6 +20,9 @@ func (ServiceRequest) Fields() []ent.Field {
 		field.Int("department_id").Comment("所属部门ID（同租户）").Optional(),
 		field.Int("customer_id").Comment("所属客户ID（同租户，关联 service_customers）").Optional(),
 		field.Int("requester_id").Comment("申请人ID").Positive(),
+		field.Int("requester_membership_id").
+			Comment("申请人租户内身份ID（C 方案；user_tenant_memberships.id，过渡期可空）").
+			Optional(),
 		field.String("status").Comment("状态: submitted|approved|rejected|in_progress|completed|cancelled").Default("submitted"),
 		field.String("title").Comment("请求标题").Optional(),
 		field.Text("reason").Comment("申请原因").Optional(),
@@ -45,6 +48,9 @@ func (ServiceRequest) Fields() []ent.Field {
 
 		// 实施信息
 		field.Int("processor_id").Comment("处理人ID").Optional(),
+		field.Int("processor_membership_id").
+			Comment("处理人租户内身份ID（C 方案；user_tenant_memberships.id，过渡期可空）").
+			Optional(),
 		field.Time("started_at").Comment("开始处理时间").Optional(),
 		field.Time("completed_at").Comment("完成时间").Optional(),
 		field.Text("completion_note").Comment("完成备注").Optional(),
@@ -65,10 +71,12 @@ func (ServiceRequest) Indexes() []ent.Index {
 	return []ent.Index{
 		index.Fields("tenant_id", "created_at"),
 		index.Fields("tenant_id", "requester_id", "created_at"),
+		index.Fields("tenant_id", "requester_membership_id"),
 		index.Fields("tenant_id", "status", "created_at"),
 		index.Fields("tenant_id", "ci_id"),
 		index.Fields("tenant_id", "current_level"),
 		index.Fields("tenant_id", "department_id"),
 		index.Fields("tenant_id", "customer_id"),
+		index.Fields("tenant_id", "processor_membership_id"),
 	}
 }

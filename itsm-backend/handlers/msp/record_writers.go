@@ -83,5 +83,6 @@ func (w requestStatusWriter) UpdateRequestStatus(ctx context.Context, tenantID, 
 	if w.svc == nil {
 		return service.NewCustomerAccessError(service.CodeActionNotAllowed, "服务请求写服务未启用")
 	}
-	return w.svc.UpdateStatus(ctx, id, tenantID, actorID, actorRole, status)
+	// MSP 工作台没有 gin 上下文；传 0 表示由 repository 按 (actorID, tenantID) 解析 membership。
+	return w.svc.UpdateStatus(ctx, id, tenantID, actorID, 0, actorRole, status)
 }

@@ -14,6 +14,7 @@ import (
 	"itsm-backend/ent/ticket"
 	"itsm-backend/ent/user"
 	"itsm-backend/handlers/common/datascope"
+	"itsm-backend/handlers/common/membershipref"
 )
 
 type EntRepository struct {
@@ -29,21 +30,23 @@ func (r *EntRepository) toDomain(e *ent.Problem) *Problem {
 		return nil
 	}
 	p := &Problem{
-		ID:            e.ID,
-		ProblemNumber: e.ProblemNumber,
-		Title:         e.Title,
-		Description:   e.Description,
-		Status:        e.Status,
-		Priority:      e.Priority,
-		Category:      e.Category,
-		RootCause:     e.RootCause,
-		Workaround:    e.Workaround,
-		Resolution:    e.Resolution,
-		Impact:        e.Impact,
-		CreatedBy:     e.CreatedBy,
-		TenantID:      e.TenantID,
-		CreatedAt:     e.CreatedAt,
-		UpdatedAt:     e.UpdatedAt,
+		ID:                    e.ID,
+		ProblemNumber:         e.ProblemNumber,
+		Title:                 e.Title,
+		Description:           e.Description,
+		Status:                e.Status,
+		Priority:              e.Priority,
+		Category:              e.Category,
+		RootCause:             e.RootCause,
+		Workaround:            e.Workaround,
+		Resolution:            e.Resolution,
+		Impact:                e.Impact,
+		CreatedBy:             e.CreatedBy,
+		TenantID:              e.TenantID,
+		CreatedByMembershipID: e.CreatedByMembershipID,
+		AssigneeMembershipID:  e.AssigneeMembershipID,
+		CreatedAt:             e.CreatedAt,
+		UpdatedAt:             e.UpdatedAt,
 	}
 	if e.ResolvedAt != nil {
 		p.ResolvedAt = e.ResolvedAt
@@ -197,6 +200,25 @@ func (r *EntRepository) RemoveAssociation(ctx context.Context, tenantID, problem
 }
 
 func (r *EntRepository) Create(ctx context.Context, p *Problem) (*Problem, error) {
+	createdByMembershipID, err := membershipref.ResolveActor(
+		ctx, r.client, p.CreatedBy, p.TenantID, p.CreatedByMembershipID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	p.CreatedByMembershipID = createdByMembershipID
+
+	p.AssigneeMembershipID = 0
+	if p.AssigneeID != nil && *p.AssigneeID > 0 {
+		assigneeMembershipID, err := membershipref.ResolveAssignable(
+			ctx, r.client, *p.AssigneeID, p.TenantID,
+		)
+		if err != nil {
+			return nil, err
+		}
+		p.AssigneeMembershipID = assigneeMembershipID
+	}
+
 	create := r.client.Problem.Create().
 		SetTitle(p.Title).
 		SetDescription(p.Description).
@@ -217,6 +239,12 @@ func (r *EntRepository) Create(ctx context.Context, p *Problem) (*Problem, error
 
 	if p.AssigneeID != nil {
 		create.SetAssigneeID(*p.AssigneeID)
+	}
+	if p.CreatedByMembershipID > 0 {
+		create.SetCreatedByMembershipID(p.CreatedByMembershipID)
+	}
+	if p.AssigneeMembershipID > 0 {
+		create.SetAssigneeMembershipID(p.AssigneeMembershipID)
 	}
 
 	saved, err := create.Save(ctx)
@@ -321,6 +349,20 @@ func (r *EntRepository) List(ctx context.Context, tenantID int, page, size int, 
 }
 
 func (r *EntRepository) Update(ctx context.Context, p *Problem) (*Problem, error) {
+	if p.AssigneeID != nil {
+		if *p.AssigneeID > 0 {
+			assigneeMembershipID, err := membershipref.ResolveAssignable(
+				ctx, r.client, *p.AssigneeID, p.TenantID,
+			)
+			if err != nil {
+				return nil, err
+			}
+			p.AssigneeMembershipID = assigneeMembershipID
+		} else {
+			p.AssigneeMembershipID = 0
+		}
+	}
+
 	update := r.client.Problem.UpdateOneID(p.ID).
 		Where(problem.TenantIDEQ(p.TenantID), problem.DeletedAtIsNil()).
 		SetTitle(p.Title).
@@ -343,6 +385,11 @@ func (r *EntRepository) Update(ctx context.Context, p *Problem) (*Problem, error
 
 	if p.AssigneeID != nil {
 		update.SetAssigneeID(*p.AssigneeID)
+		if p.AssigneeMembershipID > 0 {
+			update.SetAssigneeMembershipID(p.AssigneeMembershipID)
+		} else {
+			update.ClearAssigneeMembershipID()
+		}
 	} else {
 		update.ClearAssigneeID()
 	}

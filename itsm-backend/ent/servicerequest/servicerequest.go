@@ -27,6 +27,8 @@ const (
 	FieldCustomerID = "customer_id"
 	// FieldRequesterID holds the string denoting the requester_id field in the database.
 	FieldRequesterID = "requester_id"
+	// FieldRequesterMembershipID holds the string denoting the requester_membership_id field in the database.
+	FieldRequesterMembershipID = "requester_membership_id"
 	// FieldStatus holds the string denoting the status field in the database.
 	FieldStatus = "status"
 	// FieldTitle holds the string denoting the title field in the database.
@@ -61,6 +63,8 @@ const (
 	FieldApprovalHistory = "approval_history"
 	// FieldProcessorID holds the string denoting the processor_id field in the database.
 	FieldProcessorID = "processor_id"
+	// FieldProcessorMembershipID holds the string denoting the processor_membership_id field in the database.
+	FieldProcessorMembershipID = "processor_membership_id"
 	// FieldStartedAt holds the string denoting the started_at field in the database.
 	FieldStartedAt = "started_at"
 	// FieldCompletedAt holds the string denoting the completed_at field in the database.
@@ -91,6 +95,7 @@ var Columns = []string{
 	FieldDepartmentID,
 	FieldCustomerID,
 	FieldRequesterID,
+	FieldRequesterMembershipID,
 	FieldStatus,
 	FieldTitle,
 	FieldReason,
@@ -108,6 +113,7 @@ var Columns = []string{
 	FieldApproverComment,
 	FieldApprovalHistory,
 	FieldProcessorID,
+	FieldProcessorMembershipID,
 	FieldStartedAt,
 	FieldCompletedAt,
 	FieldCompletionNote,
@@ -202,6 +208,11 @@ func ByRequesterID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldRequesterID, opts...).ToFunc()
 }
 
+// ByRequesterMembershipID orders the results by the requester_membership_id field.
+func ByRequesterMembershipID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldRequesterMembershipID, opts...).ToFunc()
+}
+
 // ByStatus orders the results by the status field.
 func ByStatus(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldStatus, opts...).ToFunc()
@@ -270,6 +281,11 @@ func ByApproverComment(opts ...sql.OrderTermOption) OrderOption {
 // ByProcessorID orders the results by the processor_id field.
 func ByProcessorID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldProcessorID, opts...).ToFunc()
+}
+
+// ByProcessorMembershipID orders the results by the processor_membership_id field.
+func ByProcessorMembershipID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldProcessorMembershipID, opts...).ToFunc()
 }
 
 // ByStartedAt orders the results by the started_at field.

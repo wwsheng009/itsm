@@ -13,6 +13,7 @@ import (
 	"itsm-backend/ent/change"
 	entuser "itsm-backend/ent/user"
 	"itsm-backend/handlers/common/datascope"
+	"itsm-backend/handlers/common/membershipref"
 	"itsm-backend/internal/commandbus"
 
 	"entgo.io/ent/dialect"
@@ -47,29 +48,31 @@ func toDomain(ec *ent.Change) *Change {
 		return nil
 	}
 	result := &Change{
-		ID:                 ec.ID,
-		ChangeNumber:       ec.ChangeNumber,
-		Title:              ec.Title,
-		Description:        ec.Description,
-		Justification:      ec.Justification,
-		Type:               ec.Type,
-		Status:             ec.Status,
-		Priority:           ec.Priority,
-		ImpactScope:        ec.ImpactScope,
-		RiskLevel:          ec.RiskLevel,
-		AssigneeID:         &ec.AssigneeID,
-		CreatedBy:          ec.CreatedBy,
-		TenantID:           ec.TenantID,
-		PlannedStartDate:   &ec.PlannedStartDate,
-		PlannedEndDate:     &ec.PlannedEndDate,
-		ActualStartDate:    &ec.ActualStartDate,
-		ActualEndDate:      &ec.ActualEndDate,
-		ImplementationPlan: ec.ImplementationPlan,
-		RollbackPlan:       ec.RollbackPlan,
-		AffectedCIs:        ec.AffectedCis,
-		RelatedTickets:     ec.RelatedTickets,
-		CreatedAt:          ec.CreatedAt,
-		UpdatedAt:          ec.UpdatedAt,
+		ID:                    ec.ID,
+		ChangeNumber:          ec.ChangeNumber,
+		Title:                 ec.Title,
+		Description:           ec.Description,
+		Justification:         ec.Justification,
+		Type:                  ec.Type,
+		Status:                ec.Status,
+		Priority:              ec.Priority,
+		ImpactScope:           ec.ImpactScope,
+		RiskLevel:             ec.RiskLevel,
+		AssigneeID:            &ec.AssigneeID,
+		CreatedBy:             ec.CreatedBy,
+		TenantID:              ec.TenantID,
+		CreatedByMembershipID: ec.CreatedByMembershipID,
+		AssigneeMembershipID:  ec.AssigneeMembershipID,
+		PlannedStartDate:      &ec.PlannedStartDate,
+		PlannedEndDate:        &ec.PlannedEndDate,
+		ActualStartDate:       &ec.ActualStartDate,
+		ActualEndDate:         &ec.ActualEndDate,
+		ImplementationPlan:    ec.ImplementationPlan,
+		RollbackPlan:          ec.RollbackPlan,
+		AffectedCIs:           ec.AffectedCis,
+		RelatedTickets:        ec.RelatedTickets,
+		CreatedAt:             ec.CreatedAt,
+		UpdatedAt:             ec.UpdatedAt,
 	}
 	// project_id 为非空 int 列：>0 视为已挂接，0 归一为 nil（未挂接）。
 	if ec.ProjectID > 0 {
@@ -147,7 +150,34 @@ func (r *EntRepository) hydrateUsers(ctx context.Context, changes []*Change, ten
 	return nil
 }
 
+// resolveCreateMembershipRefs 解析变更创建人/处理人的租户内身份。
+// handler 已提供 membership 时 fail-closed；旧调用方无上下文时保留 user_id 兼容。
+func (r *EntRepository) resolveCreateMembershipRefs(ctx context.Context, c *Change) error {
+	createdByMembershipID, err := membershipref.ResolveActor(
+		ctx, r.client, c.CreatedBy, c.TenantID, c.CreatedByMembershipID,
+	)
+	if err != nil {
+		return err
+	}
+	c.CreatedByMembershipID = createdByMembershipID
+
+	c.AssigneeMembershipID = 0
+	if c.AssigneeID != nil && *c.AssigneeID > 0 {
+		assigneeMembershipID, err := membershipref.ResolveAssignable(
+			ctx, r.client, *c.AssigneeID, c.TenantID,
+		)
+		if err != nil {
+			return err
+		}
+		c.AssigneeMembershipID = assigneeMembershipID
+	}
+	return nil
+}
+
 func (r *EntRepository) Create(ctx context.Context, c *Change) (*Change, error) {
+	if err := r.resolveCreateMembershipRefs(ctx, c); err != nil {
+		return nil, err
+	}
 	ec, err := r.client.Change.Create().
 		SetTitle(c.Title).
 		SetDescription(c.Description).
@@ -168,6 +198,8 @@ func (r *EntRepository) Create(ctx context.Context, c *Change) (*Change, error) 
 		SetNillablePlannedEndDate(c.PlannedEndDate).
 		SetAffectedCis(c.AffectedCIs).
 		SetRelatedTickets(c.RelatedTickets).
+		SetNillableCreatedByMembershipID(membershipPointer(c.CreatedByMembershipID)).
+		SetNillableAssigneeMembershipID(membershipPointer(c.AssigneeMembershipID)).
 		Save(ctx)
 	if err != nil {
 		return nil, err
@@ -182,6 +214,9 @@ func (r *EntRepository) Create(ctx context.Context, c *Change) (*Change, error) 
 
 // CreateWithWorkflowCommand atomically persists the change and its workflow command.
 func (r *EntRepository) CreateWithWorkflowCommand(ctx context.Context, c *Change) (*Change, error) {
+	if err := r.resolveCreateMembershipRefs(ctx, c); err != nil {
+		return nil, err
+	}
 	tx, err := r.client.Tx(ctx)
 	if err != nil {
 		return nil, err
@@ -201,7 +236,10 @@ func (r *EntRepository) CreateWithWorkflowCommand(ctx context.Context, c *Change
 		SetNillableCustomerID(c.CustomerID).
 		SetImplementationPlan(c.ImplementationPlan).SetRollbackPlan(c.RollbackPlan).
 		SetNillablePlannedStartDate(c.PlannedStartDate).SetNillablePlannedEndDate(c.PlannedEndDate).
-		SetAffectedCis(c.AffectedCIs).SetRelatedTickets(c.RelatedTickets).Save(ctx)
+		SetAffectedCis(c.AffectedCIs).SetRelatedTickets(c.RelatedTickets).
+		SetNillableCreatedByMembershipID(membershipPointer(c.CreatedByMembershipID)).
+		SetNillableAssigneeMembershipID(membershipPointer(c.AssigneeMembershipID)).
+		Save(ctx)
 	if err != nil {
 		return rollback(err)
 	}
@@ -309,6 +347,20 @@ func (r *EntRepository) UpdateStatusCAS(ctx context.Context, id, tenantID int, e
 }
 
 func (r *EntRepository) Update(ctx context.Context, c *Change) (*Change, error) {
+	if c.AssigneeID != nil {
+		if *c.AssigneeID > 0 {
+			assigneeMembershipID, err := membershipref.ResolveAssignable(
+				ctx, r.client, *c.AssigneeID, c.TenantID,
+			)
+			if err != nil {
+				return nil, err
+			}
+			c.AssigneeMembershipID = assigneeMembershipID
+		} else {
+			c.AssigneeMembershipID = 0
+		}
+	}
+
 	// P1 修复：写路径强制租户隔离，避免越权更新跨租户变更。
 	// 注：change schema 无 deleted_at（物理删），故不附加 DeletedAtIsNil 守卫。
 	update := r.client.Change.UpdateOneID(c.ID).
@@ -328,6 +380,11 @@ func (r *EntRepository) Update(ctx context.Context, c *Change) (*Change, error) 
 
 	if c.AssigneeID != nil {
 		update.SetAssigneeID(*c.AssigneeID)
+		if c.AssigneeMembershipID > 0 {
+			update.SetAssigneeMembershipID(c.AssigneeMembershipID)
+		} else {
+			update.ClearAssigneeMembershipID()
+		}
 	}
 	if c.DepartmentID != nil {
 		update.SetNillableDepartmentID(c.DepartmentID)
