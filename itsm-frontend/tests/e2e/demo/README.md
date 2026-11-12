@@ -9,8 +9,8 @@
 cd itsm-frontend
 
 # 默认跑全部 demo 用例（Chrome 系统通道；1 worker 规避登录限流）
-# 注意：Windows 本机内存不足时，Chrome 可能因 45 条上下文累积 OOM；
-# 此时按下方 spec 分组独立进程执行，结果应累计 45/45。
+# 注意：Windows 本机内存不足时，Chrome 可能因 46 条上下文累积 OOM；
+# 此时按下方 spec 分组独立进程执行，结果应累计 46/46。
 PLAYWRIGHT_BASE_URL=http://172.18.3.238:8089 \
 PLAYWRIGHT_DEMO_CHANNEL=chrome \
 npx playwright test -c playwright.demo.config.ts --workers=1
@@ -54,7 +54,7 @@ DEMO_ADMIN_PASSWORD='...' DEMO_USER_PASSWORD='...' ...
 - 租户管理员自 `1.8.0-dev.af3cba9c` 起具备 `service_request:delete`，服务请求通过删除接口清理。
 - **不要**删除或改写 demo 种子数据（`[DEMO]` 前缀记录）。
 
-## 4. 已修复项（238 `1.8.0-dev.bf131540` 已验证）
+## 4. 已修复项（238 `1.8.0-dev.5639c21c9` 已验证）
 
 | 编号 | 现象 | 处理 |
 |---|---|---|
@@ -76,8 +76,9 @@ DEMO_ADMIN_PASSWORD='...' DEMO_USER_PASSWORD='...' ...
 | D16 | provider 进入客户租户后 Header 丢失“返回工作台” | 已修复并全量发布（`DeepTenantReturn` 独立渲染）；`04-ui-ux` 多租户跳转通过 |
 | D17 | 多租户连续建单时租户序列撞全局唯一工单号，重试后 500 | 已修复并全量发布（全局 `nextFreeTicketNumber` 探针）；`05-multi-tenant-business` 通过 |
 | D18 | 工单附件列表对 end_user / it_admin / security_admin / provider 深度态返回 500 | 已修复并全量发布（跟随 `ticket:read` + active 用户）；`06-attachment-access` 通过 |
+| P4-1 | provider 深切客户租户后 CC 合法接收人 403；外部租户用户可写入 CC | 已修复并发布：CC 路由改 `ticket:update`，接收人必须为当前租户 active membership；`03-workflows` B4b 通过 |
 
-> 当前套件无预期失败用例；上述回归均为普通断言。
+> 当前套件无预期失败用例（46/46）；上述回归均为普通断言。
 >
 > C 方案回归：`MT-4` 覆盖 provider 深度态显式客户 `requesterId` 代客建单；
 > 缺失 `requesterId` 返回 400，`/auth/me` 返回目标租户 membership 身份。

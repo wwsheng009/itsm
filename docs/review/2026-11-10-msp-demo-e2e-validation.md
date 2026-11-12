@@ -1,6 +1,7 @@
 # MSP Demo 多轮多用户 E2E 验证与缺陷修复报告（2026-11-10）
 
-**Status: current** — 本报告基于 2026-11-10 的 E2E 验证与 2026-11-11 的多轮 238 全量重部署复核。
+**Status: historical** — 本报告保留 2026-11-10/11 的 E2E 验证快照；当前运行态与最新
+46/46 结果见 [2026-11-12-tenant-recipient-validation.md](./2026-11-12-tenant-recipient-validation.md)。
 
 > **环境**：`itsm-demo`（`saas_msp`），当前部署版本 `1.8.0-dev.bf131540`
 > **范围**：多用户、多角色、多租户、多单据关联、权限、前端 UI/UX、文档一致性

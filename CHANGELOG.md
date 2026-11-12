@@ -31,6 +31,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **C 方案 Phase 4 第一批：接收人租户校验与 RBAC 预检同源（后端 + 前端 + E2E，2026-11-12）** —
+  ① 工单 CC、BPMN CC、审批委派、BPMN 任务 actor/target 统一为“home tenant 兼容 /
+  跨租户必须有 active membership”，无客户租户 membership 的外部账号不再写入
+  `ticket_ccs`/`ticket_approvals`；② provider 客户租户身份可接收 CC、接任审批、
+  发起/接受委托；③ CC 路由权限由 `workflow:*` 改为 `ticket:read/ticket:update`，
+  前端抄送入口同步，修复 provider/技术员服务层允许但路由/按钮 403；④ RBAC 路径预检在
+  `SmartCheckPermission` 未命中时回落到 `AuthorizeResource`（JWT 主角色 + membership
+  合并角色的 DB 权限），与路由守卫同源；⑤ 工单流转业务错误稳定映射 400/403/404，
+  避免误报 500；⑥ 新增 5 组后端回归与 E2E `B4b`，E2E 断言器仅忽略“失败后重试成功”的
+  瞬时 4xx 噪音。验证：`go test ./service ./middleware ./dto`、`go test ./service/bpmn`、
+  `go test ./router`、`npx tsc --noEmit`、改动文件 ESLint 通过；238 部署
+  `1.8.0-dev.5639c21c9`（commit `5639c21c9`），6/6 healthy，分组 E2E **46/46**，
+  新增 CC 行 membership 5/5、租户错配 0。
+
 - **工单详情契约修复：空数组、标签空列表与工单级审批读取（后端，2026-11-10）** —
   ① `GET /api/v1/tickets/:id/tags` 在无绑定标签时返回 `items: []`（DTO 映射与服务层均
   不再返回 `nil`），路由回归测试覆盖租户/工单过滤与空数组；② 评论响应初始化

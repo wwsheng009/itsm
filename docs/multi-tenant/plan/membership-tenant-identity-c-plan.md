@@ -1,6 +1,6 @@
-# C 方案：membership 作为租户内身份（2026-11-11）
+# C 方案：membership 作为租户内身份（2026-11-12）
 
-> **状态**：implemented-deployed（Phase 1 + Phase 2 工单垂直切片已完成并发布 238）
+> **状态**：implemented-deployed（Phase 1–3 工单域已完成；Phase 4 接收人校验与 RBAC 预检同源已发布 238）
 > **背景**：provider 深度切换到客户租户后，JWT 的 `tenant_id` 已指向客户租户，但工单仍以
 > `users.id` 作为申请人引用；provider 的 `users.tenant_id` 仍在 provider 租户，导致
 > “权限通过、申请人 404”。
@@ -162,6 +162,22 @@ tickets.assignee_id
 - 完成 RLS/cross-tenant 测试矩阵；
 - 统一 `allowedActions`、列表、通知、统计、审计按 membership 口径。
 
+#### Phase 4 第一批：接收人租户校验（2026-11-12）
+
+- 工单 CC、BPMN CC、审批委派、BPMN 任务 actor/target 统一为“active 账号 +
+  home tenant 兼容 / 跨租户 active membership fail-closed”；
+- provider 持有客户租户 membership 时可以接收 CC、接任审批、发起/接受 BPMN 委托；
+- 无客户租户 membership 的外部账号不再能写入 `ticket_ccs` 或 `ticket_approvals`；
+- CC 查询/管理权限改为 membership 优先，provider 角色读 `membership.msp_role`；
+- CC 路由改用 `ticket:read/ticket:update`，避免 `workflow:write` 把 provider 与客户技术员
+  挡在工单协作之外；前端入口同步改为 `ticket:update` 或 `workflow:write`；
+- RBAC 路径预检在 `SmartCheckPermission` 未命中时，按同一映射回落到
+  `AuthorizeResource`（JWT 主角色 + membership 合并角色的 DB 权限），与路由守卫同源；
+- 审批记录已有 `approver_membership_id` 时，请求人 membership 必须一致；
+- 无新增数据库迁移，复用 Phase 3 已落地的 membership 列与复合外键；
+- 验证与边界见
+  [2026-11-12-tenant-recipient-validation.md](../../review/2026-11-12-tenant-recipient-validation.md)。
+
 ## 5. 兼容与迁移
 
 ### 5.1 数据回填
@@ -214,16 +230,16 @@ tickets.assignee_id
 
 ## 9. 本轮实现状态
 
-本轮已落地 Phase 1 + Phase 2 工单主链路与 Phase 3 工单域 actor/recipient 引用；
-Phase 4 与其他业务域迁移保留为后续计划。
+本轮已落地 Phase 1 + Phase 2 工单主链路、Phase 3 工单域 actor/recipient 引用，
+以及 Phase 4 第一批接收人租户校验与 RBAC 预检同源；其他业务域迁移保留为后续计划。
 
 ```text
-runtime_commit=bf13154089aadda6ecfdf5e163840c4ff7c57329
-version=1.8.0-dev.bf131540
-deploy_branch=deploy/full-bf131540
-e2e=45/45
+runtime_commit=5639c21c92e831ca35a5251cef87ddfe234e49f9
+version=1.8.0-dev.5639c21c9
+deploy_branch=deploy/full-5639c21c9
+e2e=46/46
 backend=go test ./service ./handlers/ticket ./handlers/auth ./handlers/common ./middleware ./dto ./repository/ticket ./migration
-frontend=npx tsc --noEmit + eslint
+frontend=npx tsc --noEmit + eslint（含 E2E 断言器）
 ```
 
 实现提交：
@@ -234,16 +250,27 @@ frontend=npx tsc --noEmit + eslint
 - `e1599ffdb` fix(ticket): persist assignee membership on assignment
 - `ae0709619` feat(multi-tenant): add membership refs for ticket actors
 - `bf1315408` fix(audit): attribute direct service audits to membership
+- `c651362e2` feat(ticket): enforce tenant membership for CC and delegation recipients
+- `ce9323644` fix(ticket): authorize CC with ticket:update instead of workflow:write
+- `9aa18e13c` chore(authz): regenerate precheck for CC ticket permissions
+- `08426a0c2` fix(ticket): map workflow validation errors to stable HTTP status
+- `5639c21c9` fix(rbac): align precheck with membership role DB permissions
 
 发布与运行态证据：
-[2026-11-11-demo-full-deploy-bf131540.md](../../review/evidence/2026-11-11-demo-full-deploy-bf131540.md)。
+[2026-11-12-demo-full-deploy-5639c21c9.md](../../review/evidence/2026-11-12-demo-full-deploy-5639c21c9.md)。
 
-Phase 3 剩余（未完成）：
+Phase 3/4 剩余（未完成）：
 
 - 问题/变更/服务请求创建人、处理人的 membership 引用迁移；
 - 复合外键 `VALIDATE CONSTRAINT` 与全量 RLS/cross-tenant 测试矩阵；
 - 前端对评论/附件/审批/通知 membership 身份的显式展示（当前仅下发字段）；
 - 平台管理员跨租户审计的 membership 归属口径（当前保留 NULL + `target_tenant_id`）。
+
+已关闭：
+
+- 工单 CC、BPMN CC、审批委派、BPMN 任务 actor/target 的跨租户 membership 校验；
+- CC 路由错误的 `workflow:write` 前置门槛；
+- RBAC 预检只看 JWT 主角色导致 membership 角色 DB 权限不生效。
 
 Phase 3 本轮验证（238）：
 
@@ -252,5 +279,5 @@ Phase 3 本轮验证（238）：
 - `go test` 定向编译 `handlers/ticket_comment/notification/approval/bpmn` 通过；
 - `npx tsc --noEmit`、改动文件 ESLint 通过；
 - 新增迁移与 `post_schema_constraints.sql` 通过 PostgreSQL AST 语法解析（pglast）；
-- 238 部署 `1.8.0-dev.bf131540`，6/6 healthy、迁移台账已应用、15 个复合外键存在、
-  租户错配 0；demo E2E **45/45**（含评论/CC/附件 membership 运行态断言）。
+- 238 部署 `1.8.0-dev.5639c21c9`，6/6 healthy、readyz ready、
+  租户错配 0；demo E2E **46/46**（含 B4b 跨租户 CC 边界）。

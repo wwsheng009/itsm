@@ -97,3 +97,7 @@ tenant_mismatch=0
 2. 视数据质量执行 `VALIDATE CONSTRAINT`；
 3. 前端对评论/附件/审批/通知 membership 身份的显式展示；
 4. 平台管理员跨租户审计的 membership 归属口径（当前保留 NULL + target_tenant 可追溯）。
+
+> 后续更新（2026-11-12）：工单 CC、BPMN CC、审批委派与 BPMN 任务接收人的跨租户
+> membership 校验已在 Phase 4 第一批补齐，见
+> [2026-11-12-tenant-recipient-validation.md](./2026-11-12-tenant-recipient-validation.md)。

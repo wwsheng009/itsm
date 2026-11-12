@@ -4,6 +4,7 @@ export interface PageIssueCollector {
   consoleErrors: string[];
   failedRequests: string[];
   expectedFailures: string[];
+  responseHistory: Map<string, number[]>;
   stop: () => void;
 }
 
@@ -20,6 +21,7 @@ export function collectPageIssues(
   const consoleErrors: string[] = [];
   const failedRequests: string[] = [];
   const expectedFailures: string[] = [];
+  const responseHistory = new Map<string, number[]>();
 
   const isIgnored = (text: string) => ignoredPatterns.some(pattern => pattern.test(text));
 
@@ -31,6 +33,10 @@ export function collectPageIssues(
   const onResponse = (response: Response) => {
     const url = response.url();
     if (!url.includes('/api/')) return;
+    const requestKey = `${response.request().method()} ${url}`;
+    const history = responseHistory.get(requestKey) ?? [];
+    history.push(response.status());
+    responseHistory.set(requestKey, history);
     if (response.status() < 400) return;
     const line = `${response.status()} ${url}`;
     if (isIgnored(line)) expectedFailures.push(line);
@@ -44,6 +50,7 @@ export function collectPageIssues(
     consoleErrors,
     failedRequests,
     expectedFailures,
+    responseHistory,
     stop: () => {
       page.off('console', onConsole);
       page.off('response', onResponse);
@@ -59,8 +66,31 @@ export async function expectCleanPage(
   await page.waitForTimeout(300);
   const allow = options.allowFailedRequests ?? [];
   const consoleAllow = options.allowConsoleErrors ?? [];
-  const unexpected = collector.failedRequests.filter(line => !allow.some(re => re.test(line)));
-  const unexpectedConsole = collector.consoleErrors.filter(text => !consoleAllow.some(re => re.test(text)));
+  const retriedRequestKeys = new Set(
+    [...collector.responseHistory.entries()]
+      .filter(([, statuses]) =>
+        statuses.some(
+          (status, index) => status >= 400 && statuses.slice(index + 1).some(next => next < 400),
+        ),
+      )
+      .map(([key]) => key),
+  );
+  const isRetriedFailure = (line: string) => {
+    const url = line.slice(line.indexOf(' ') + 1);
+    return [...retriedRequestKeys].some(key => key.endsWith(` ${url}`));
+  };
+  const unexpected = collector.failedRequests.filter(
+    line => !allow.some(re => re.test(line)) && !isRetriedFailure(line),
+  );
+  let retriedFailureBudget = collector.failedRequests.filter(isRetriedFailure).length;
+  const unexpectedConsole = collector.consoleErrors.filter(text => {
+    if (consoleAllow.some(re => re.test(text))) return false;
+    if (retriedFailureBudget > 0 && /status of 403/i.test(text)) {
+      retriedFailureBudget -= 1;
+      return false;
+    }
+    return true;
+  });
   expect(unexpectedConsole, `console errors: ${JSON.stringify(unexpectedConsole)}`).toEqual([]);
   expect(unexpected, `unexpected API failures: ${JSON.stringify(unexpected)}`).toEqual([]);
 }

@@ -134,3 +134,12 @@
 - `D5`：`demo-environment.md` 的版本号、工作台数量、SLA 样本表述需按实测校正。
 
 **执行原则**：不覆盖本文件上方历史计划；只改本任务相关文件；测试数据统一 `[E2E-<runId>]` 前缀并清理；历史评审文档保留 `Status: historical`，不复写历史结论。**执行进展（2026-11-11）**：Round 0–6 已完成；238 已从当前工作区 HEAD `bf1315408` 全量发布 `1.8.0-dev.bf131540`，demo E2E 分组累计 **45 passed / 0 预期失败**；D1–D18、硬编码角色白名单审计（含穷尽复核补漏）及 C 方案 Phase 3 membership 引用已完成运行态回归（含 provider→customer→返回工作台、provider 代客建单、工单分配 membership 同步、评论/附件/CC membership、多租户业务操作、全局发号、附件角色访问与权限门控）。报告见 `docs/review/2026-11-10-msp-demo-e2e-validation.md`，审计见 `docs/review/2026-11-11-role-whitelist-audit.md`，C 方案见 `docs/multi-tenant/plan/membership-tenant-identity-c-plan.md`，运行摘要见 `docs/review/evidence/2026-11-10-msp-demo-e2e/run-summary.md`，Phase 3 证据见 `docs/review/2026-11-11-membership-actor-reference-phase3.md`。
+
+**执行进展（2026-11-12）**：C 方案 Phase 4 第一批已完成并发布 238
+`1.8.0-dev.5639c21c9`（commit `5639c21c92e831ca35a5251cef87ddfe234e49f9`），
+demo E2E 分组累计 **46 passed / 0 预期失败**。本轮补齐工单 CC、BPMN CC、
+审批委派、BPMN 任务 actor/target 的跨租户 membership 校验；修复 CC 路由错误的
+`workflow:write` 前置门槛与 RBAC 预检只看 JWT 主角色的问题；新增 B4b 跨租户 CC
+边界用例与 5 组后端回归。验证与部署证据见
+`docs/review/2026-11-12-tenant-recipient-validation.md` 与
+`docs/review/evidence/2026-11-12-demo-full-deploy-5639c21c9.md`。

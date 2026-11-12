@@ -1,12 +1,12 @@
 # MSP Demo 多轮多用户 E2E 验证与缺陷修复计划（2026-11-10）
 
-> **状态**：executed-deployed（2026-11-10 完成验证与修复；2026-11-11 从当前工作区 HEAD 全量发布 238 并完成复核）
+> **状态**：executed-deployed（2026-11-10 完成首轮验证与修复；2026-11-12 完成 Phase 4 接收人校验并发布复核）
 > **环境**：`http://172.18.3.238:8089`（`itsm-demo`，部署模式 `saas_msp`）
-> **当前镜像版本**：`1.8.0-dev.bf131540`（2026-11-11 全量重部署后实测）
+> **当前镜像版本**：`1.8.0-dev.5639c21c9`（2026-11-12 全量重部署后实测）
 > **定位**：以现有 demo 数据为基线，执行多轮、多用户、多场景 E2E；先验证、后修复、再回归；只修改可复现且有证据的缺陷。
 > **关联**：`plan.md`（2026-10-28 的 13 项修复计划）、`docs/review/2026-10-28-*`（历史快照）、`docs/multi-tenant/demo-environment.md`
 >
-> **执行结果**：44 个 demo E2E 用例通过，0 个预期失败；
+> **执行结果**：46 个 demo E2E 用例通过，0 个预期失败；
 > 缺陷与修复见 [`docs/review/2026-11-10-msp-demo-e2e-validation.md`](../../review/2026-11-10-msp-demo-e2e-validation.md)；
 > 原始运行摘要见 [`docs/review/evidence/2026-11-10-msp-demo-e2e/run-summary.md`](../../review/evidence/2026-11-10-msp-demo-e2e/run-summary.md)。
 
@@ -337,3 +337,7 @@ go test ./handlers/change/... ./handlers/problem/... ./handlers/incident/... ./h
 | G | 全量回归 + 文档 + 证据 | DoD 全勾；报告与文档提交 |
 
 > A–G 已全部完成：Round 0–6 分组累计 45/45 通过；D1–D18、硬编码角色白名单审计（含穷尽复核补漏）及 C 方案 Phase 3 membership 身份/评论/附件/CC/审计引用已随当前工作区 HEAD `bf1315408` 全量发布到 238（`1.8.0-dev.bf131540`）并复核。
+>
+> 2026-11-12 增量：C 方案 Phase 4 第一批接收人租户校验与 RBAC 预检同源已发布
+> `1.8.0-dev.5639c21c9`；分组累计 **46/46**（新增 B4b 跨租户 CC 边界）。
+> 详见 [`2026-11-12-tenant-recipient-validation.md`](../../review/2026-11-12-tenant-recipient-validation.md)。

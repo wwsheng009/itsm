@@ -1,6 +1,6 @@
 # ITSM 多租户演示环境（独立演示栈）
 
-> 状态：当前（2026-11-11 更新）｜定位：面向**学习 / 演示 / 培训**的全量多租户数据集与独立环境；与主站（`8088`）**完全隔离**，可随时重建重置。
+> 状态：当前（2026-11-12 更新）｜定位：面向**学习 / 演示 / 培训**的全量多租户数据集与独立环境；与主站（`8088`）**完全隔离**，可随时重建重置。
 
 ## 1. 入口与形态
 
@@ -8,7 +8,7 @@
 |---|---|
 | 演示入口 | `http://172.18.3.238:8089`（独立栈 `itsm-demo`） |
 | 数据库 | `itsm_demo`（复用宿主 `itsm-postgres-prod` 实例，独立库） |
-| 版本 | 以 `.env.demo` 中 `VERSION` 为准（2026-11-11 全量重部署后 `1.8.0-dev.bf131540`） |
+| 版本 | 以 `.env.demo` 中 `VERSION` 为准（2026-11-12 全量重部署后 `1.8.0-dev.5639c21c9`） |
 | 部署模式 | `saas_msp`（MSP 跨租户能力开启） |
 | 容器组 | `itsm-{backend,worker,frontend,nginx,redis,ai-service}-demo`（6 个常驻，均 healthy）+ `itsm-init-demo` 一次性迁移任务 |
 | 部署文件 | `docker-compose.demo.yml`、`nginx/demo/conf.d/default.conf`、`.env.demo.example` |
@@ -132,6 +132,18 @@
 | 多租户跳转返回入口 | provider 进入客户租户后 Header 不显示“返回工作台” | 已修复；`DeepTenantReturn` 独立渲染，切回 provider 后打开工作台；E2E 通过 |
 | 多租户连续建单 | 租户序列与全局唯一 `ticket_number` 冲突，重试后 500 | 已修复；Redis/DB 发号共用全局探针，跳过他租户占用号；E2E 通过 |
 | 工单附件列表 | `end_user`/`it_admin`/`security_admin`/provider 深度态打开 ticket 74 显示「获取附件列表失败」 | 已修复；授权跟随 `ticket:read` + active 用户；45/45 E2E 通过 |
+
+**2026-11-12 C 方案 Phase 4 第一批（`1.8.0-dev.5639c21c9` 已验证）**
+
+| 项 | 原现象 | 当前状态 |
+|---|---|---|
+| provider 客户租户 CC | 服务层可允许，但 CC 路由要求 `workflow:write`，provider 被预检 403 | 已修复；路由改 `ticket:update`，预检与 membership 角色 DB 权限同源 |
+| 跨租户 CC 接收人 | 外部租户用户可被写入 `ticket_ccs` | 已修复；跨租户必须有当前租户 active membership，否则 400 |
+| 审批委派目标 | 无 BPMN 实例时目标 membership 解析失败仍继续写 | 已修复；目标 active membership 校验失败即拒绝，委派给自己拒绝 |
+| 工单流转错误码 | 业务校验错误统一 500 | 已修复；权限 403、资源不存在 404、可解释校验 400 |
+
+分组 E2E **46/46**（新增 `03-workflows` B4b）；详见
+[`2026-11-12-tenant-recipient-validation.md`](../review/2026-11-12-tenant-recipient-validation.md)。
 
 > 同轮完成硬编码角色白名单专项审计及穷尽复核补漏：修复 Header AI `isAdmin()` 旁路、
 > AI 通知/审批 fallback 无效角色码、MSP 写权限重复白名单、provider `allowedActions`

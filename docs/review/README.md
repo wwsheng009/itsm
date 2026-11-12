@@ -46,9 +46,10 @@
 | `2026-11-06-tenant-user-role-adjustment-review.md` | **v0.2 复核修订（2026-11-06）** | 租户用户「角色调整」能力评审；v0.1 判为业务缺口，v0.2 按源码改判为**边界确认（TUM-7 维持不做）+ 三项真实缺陷**；衍生 G12–G15 已登记 [`docs/multi-tenant/07-known-gaps.md`](../multi-tenant/07-known-gaps.md)（G12 错误码漂移、G13 护栏按当页估算已修复；G14 membership 撤销面待接线决策、G15 职责边界口径） |
 | `2026-11-06-upstream-heidsoft-integration-scan.md` | 扫描结论（未合并） | 上游 fork `heidsoft/itsm`（238 部署机 origin）能力扫描：merge-base `e7fd79e9`、双向独有 636/537 提交、patch-id 等价 0、试合并 **439 冲突 / 2883 自动合并**；根因是**前端架构级分叉（上游 Next.js vs 本地 Vite）**；产出「硬排除项（含 `feat(role)!` BREAKING）+ 17 簇可移植性分级 + 移植顺序 + S1–S7 审查→调整→移植协议」 |
 | `2026-11-06-upstream-heidsoft-feature-inventory.md` | 只读清单（未合并） | 上游**到底加了什么**：955 新增文件逐项归类（新 handler 域 on_call/cloudsignal/workbench/account、`service/cloud` 29 文件、5 个 `cmd/` 验证命令、46 个新增 SQL 迁移、382 个新回归测试、`itsm-cli/dist` 144 产物入 VCS）；并给出**三处必须先裁决的不兼容**——`users.username` 全局唯一 vs 上游租户内组合唯一（上游依据正是 `AGENTS.md:245`，我们才是偏离基线的一方）、`cab` vs `change_review` 同端点同权限两套表、`feat(role)!` 与 D7/G11 冲突；另列本地独有 9 个 handler 域，防单向结论 |
-| `2026-11-10-msp-demo-e2e-validation.md` | **current** | 238 demo 多轮多用户 E2E（当前 `1.8.0-dev.bf131540`：45 passed / 0 预期失败）：权限矩阵、跨单据关联、事件→问题→变更、服务请求审批、MSP 工作台、多租户深度处理、附件角色访问、UI/UX/响应式；D1–D18、角色白名单补漏与 C 方案 Phase 3 membership 引用已完成发布验证 |
+| `2026-11-10-msp-demo-e2e-validation.md` | historical | 2026-11-10/11 238 demo 多轮多用户 E2E 快照：权限矩阵、跨单据关联、MSP 工作台、多租户深度处理、附件访问、UI/UX；已被 `2026-11-12-tenant-recipient-validation.md` 的当前验证取代 |
 | `2026-11-11-role-whitelist-audit.md` | **current** | 硬编码角色白名单专项审计：修复 Header AI `isAdmin()` 旁路、AI 通知/审批 fallback 无效角色码、工单数据范围/MSP 写权限重复白名单、provider allowedActions 行级误判；内部备注限制复核保留；CC 管理、旧前端角色守卫、平台租户页 `super_admin` 条件列为待产品决策 |
 | `2026-11-11-membership-actor-reference-phase3.md` | **current** | C 方案 Phase 3 发布验证：评论/附件/CC/审批/通知/审计/BPMN 决策的 membership 引用、回填迁移、复合外键 post-schema 重建；238 `bf131540` 六容器 healthy、迁移台账/15 外键/租户错配 0、E2E 45/45（含评论/CC/附件 membership 断言） |
+| `2026-11-12-tenant-recipient-validation.md` | **current** | C 方案 Phase 4 第一批：CC / BPMN CC / 审批委派 / BPMN 任务 actor-target 的跨租户 membership 校验；provider 客户租户身份放行、无 membership 外部账号 fail-closed；CC 路由权限与 RBAC 预检同源修复；238 `5639c21c9` 46/46 E2E |
 | `evidence/2026-11-11-demo-full-deploy-44faf311.md` | historical | 2026-11-11 第一轮全量部署 8089 的证据（`44faf311`，40/40 E2E）；已被后续 `af3cba9c` 取代 |
 | `evidence/2026-11-11-demo-full-deploy-5699b5a8.md` | historical | 2026-11-11 第二轮全量部署 8089 的证据（`5699b5a8`，43/43 E2E）；已被 `af3cba9c` 取代 |
 | `evidence/2026-11-11-demo-full-deploy-af3cba9c.md` | historical | 2026-11-11 第三轮全量部署 8089 的证据（`af3cba9c`）：44/44 E2E、D18 附件访问修复；已被 `a0d4240a` / `91eb6e82` 取代 |
@@ -57,7 +58,8 @@
 | `evidence/2026-11-11-demo-full-deploy-49a2ad11.md` | historical | 2026-11-11 C 方案主体与 `jwt_tenant_source` 修复发布（`49a2ad11`）：membership 上下文/工单 membership 回填/provider 代客建单；已被 `ad878805` 取代 |
 | `evidence/2026-11-11-demo-full-deploy-ad878805.md` | historical | 2026-11-11 C 方案发布（`ad878805`）：membership 身份、45/45 E2E、变更重复删除 404；已被 `e1599ffd` 取代 |
 | `evidence/2026-11-11-demo-full-deploy-e1599ffd.md` | historical | 2026-11-11 C 方案 Phase 2 发布（`e1599ffd`）：工单分配 `assignee_membership_id` 同步、45/45 E2E；已被 `bf131540` 取代 |
-| `evidence/2026-11-11-demo-full-deploy-bf131540.md` | **evidence** | 2026-11-11 当前全量部署证据（`bf131540`）：Phase 3 评论/附件/CC/审批/通知/审计 membership、迁移台账/15 复合外键/租户错配 0、45/45 E2E、镜像 digest、备份回滚路径 |
+| `evidence/2026-11-11-demo-full-deploy-bf131540.md` | historical | 2026-11-11 Phase 3 全量部署证据（`bf131540`）：45/45 E2E；已被 `5639c21c9` 取代 |
+| `evidence/2026-11-12-demo-full-deploy-5639c21c9.md` | **evidence** | 2026-11-12 当前全量部署证据（`5639c21c9`）：接收人租户校验、RBAC 预检同源、B4b E2E、46/46 分组 E2E、容器健康与备份回滚路径 |
 
 ## 目录合并（2026-09-12）
 

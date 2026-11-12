@@ -1,6 +1,6 @@
 # 硬编码角色白名单审计（2026-11-11）
 
-**Status: current** — 审计基线：8089 `1.8.0-dev.e1599ffd`；代码锚点 `e1599ffdb5fdf56b44aa783261fe6535bf5714f2`；当前运行态已更新为 `1.8.0-dev.bf131540`（Phase 3 审计 membership 归因修复）。
+**Status: current** — 审计基线：8089 `1.8.0-dev.e1599ffd`；代码锚点 `e1599ffdb5fdf56b44aa783261fe6535bf5714f2`；当前运行态已更新为 `1.8.0-dev.5639c21c9`（Phase 4 接收人校验与 RBAC 预检同源）。
 
 > **审计口径**：授权决策应以权限码、资源归属和统一角色能力（`domain/role` / `middleware`）为准；
 > 角色字符串只允许出现在角色定义、种子、展示映射、通知收件人筛选等非授权场景。
@@ -46,9 +46,10 @@
 
 - 前端：`npx tsc --noEmit`、改动文件 ESLint、`Header.tenant-scope` Jest 4/4 通过；新增 E2E 断言后 `05-multi-tenant-business` 4/4 通过。
 - 后端：`go test ./service -count=1` 全包通过（86.474s）；远端 Docker 发布构建通过；8089 六容器 healthy、`/api/v1/healthz` ok、`/api/v1/readyz` ready。
-- E2E：按 spec 分组累计 **45/45** 通过（00 smoke 6、01 permissions 8、02 associations 8、03 workflows 7、04 UI 11、05 多租户 4、06 附件 1）。
+- E2E：审计基线（2026-11-11）按 spec 分组累计 **45/45** 通过（00 smoke 6、01 permissions 8、02 associations 8、03 workflows 7、04 UI 11、05 多租户 4、06 附件 1）。
   - 本机单进程一次跑 45 条时 Chrome 因 Windows 内存不足 OOM；单个 spec 独立进程复跑均通过，属于本机测试运行器资源问题，不是产品失败。
-- 部署：当前 `1.8.0-dev.bf131540`（审计基线版本 `e1599ffd`）；备份 `demo-release-1.8.0-dev.bf131540-20261111T162032Z`；C 方案变更见 [`membership-tenant-identity-c-plan.md`](../multi-tenant/plan/membership-tenant-identity-c-plan.md)。
+- 部署：当前 `1.8.0-dev.5639c21c9`（审计基线版本 `e1599ffd`）；备份 `demo-release-1.8.0-dev.5639c21c9-20261112T000746Z`；C 方案变更见 [`membership-tenant-identity-c-plan.md`](../multi-tenant/plan/membership-tenant-identity-c-plan.md)。
+- 2026-11-12 Phase 4 复核：CC 路由改 `ticket:read/ticket:update`；RBAC 路径预检回落到 membership 合并角色的 DB 权限；分组 E2E **46/46**（新增 B4b 跨租户 CC 边界）。
 
 ## 5. 建议门禁
 
