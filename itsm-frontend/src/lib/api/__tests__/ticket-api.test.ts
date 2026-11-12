@@ -73,11 +73,21 @@ describe('TicketApi', () => {
   });
 
   describe('updateTicket', () => {
-    it('should update ticket', async () => {
-      const data = { title: 'Updated' };
+    it('should preserve an omitted assignee when updating other fields', async () => {
+      const data = { title: 'Updated', version: 3 };
       const expected = { id: 1, title: 'Updated' };
       mockPut.mockResolvedValue(expected);
-      const result = await TicketApi.updateTicket(1, data as any);
+      const result = await TicketApi.updateTicket(1, data);
+      expect(mockPut).toHaveBeenCalledWith('/api/v1/tickets/1', data);
+      expect(result).toEqual(expected);
+    });
+
+    it.each([0, 9])('should send explicit assigneeId=%i without dropping zero', async assigneeId => {
+      const data = { assigneeId, version: 3 };
+      const expected = { id: 1, assigneeId, version: 4 };
+      mockPut.mockResolvedValue(expected);
+      const result = await TicketApi.updateTicket(1, data);
+      expect(mockPut).toHaveBeenCalledWith('/api/v1/tickets/1', data);
       expect(result).toEqual(expected);
     });
   });
@@ -208,10 +218,18 @@ describe('TicketApi', () => {
   });
 
   describe('updateSubtask', () => {
-    it('should update subtask', async () => {
+    it('should preserve an omitted assignee when updating a subtask', async () => {
       mockPatch.mockResolvedValue({ id: 2 });
-      await TicketApi.updateSubtask(1, 2, { title: 'updated' } as any);
-      expect(mockPatch).toHaveBeenCalledWith('/api/v1/tickets/1/subtasks/2', { title: 'updated' });
+      const data = { title: 'updated', version: 3 };
+      await TicketApi.updateSubtask(1, 2, data);
+      expect(mockPatch).toHaveBeenCalledWith('/api/v1/tickets/1/subtasks/2', data);
+    });
+
+    it('should preserve an explicit subtask assignment clear', async () => {
+      mockPatch.mockResolvedValue({ id: 2, version: 4 });
+      const data = { assigneeId: 0, version: 3 };
+      await TicketApi.updateSubtask(1, 2, data);
+      expect(mockPatch).toHaveBeenCalledWith('/api/v1/tickets/1/subtasks/2', data);
     });
   });
 

@@ -315,6 +315,16 @@ const TicketDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
   // 消除「可点必败」形态（后端仍是最终裁决）。
   const canWriteThisTicket = canWriteRow(currentUser, ticket);
 
+  // 操作区可操作性汇总（2026-11-12 修复）：与上面各按钮的实际显隐条件保持一致，
+  // 用于决定是展示“支持完整工单操作”还是“无可操作权限”的说明文案。
+  // 此前该文案仅在「非申请人 && 非终态」时无条件展示，行级越权（如 MSP 经理切客户租户后
+  // 降级为 end_user）时会出现「宣称支持全部操作、实际一个按钮都没有」的假承诺。
+  const canOperateThisTicket =
+    canApproveTicket ||
+    canDeleteTicket ||
+    canCcTicket ||
+    (canWriteThisTicket && (canAssignTicket || canUpdateTicket));
+
   // 判断工单是否处于终态（不可再操作）
   const isTicketFinal = ticket ? isFinalStatus(ticket.status as any) : false;
 
@@ -1418,8 +1428,14 @@ const TicketDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
             </Text>
           )}
 
-          {!isRequester && !isTicketFinal && (
+          {!isRequester && !isTicketFinal && canOperateThisTicket && (
             <Text type="secondary">{t('ticketDetail.fullOperationSupport')}</Text>
+          )}
+
+          {!isRequester && !isTicketFinal && !canOperateThisTicket && (
+            <Text type="secondary" data-testid="ticket-row-scope-hint">
+              {t('ticketDetail.rowScopeReadOnlyHint')}
+            </Text>
           )}
         </Space>
 

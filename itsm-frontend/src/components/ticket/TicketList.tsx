@@ -64,7 +64,9 @@ const TicketList: React.FC<TicketListProps> = ({
   // 行内「编辑/关闭」均走 ticket:update 端点（PATCH /tickets/:id、POST /tickets/:id/close）。
   const canUpdateTicket = useCan(['ticket:update']);
   // 行级预判（2026-10-14 缺口③）：权限码在但行级越权的「可点必败」形态
-  // （如 MSP 经理切换客户租户后角色降级 end_user），按钮按创建人/受理人收敛。
+  // （如 MSP 经理切换客户租户后 role=end_user），按钮按创建人/受理人收敛。
+  // 2026-11-12 修复：MSP 身份在 mspRole（provider_admin 等），canWriteRow 已按
+  // provider_admin→msp_manager 映射提级判定，服务商经理不再被误判为只读。
   const user = useAuthStore(s => s.user);
   const {
     tickets,

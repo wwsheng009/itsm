@@ -324,6 +324,7 @@ export const translations = {
       ticketFinalNoCc: '工单已结束，无法抄送',
       requesterCannotApprove: '您是此工单的申请人，无法进行审批操作',
       fullOperationSupport: '支持状态变更、审批流程、分配处理人等完整工单操作',
+      rowScopeReadOnlyHint: '当前账号对这张工单只读：如需变更状态、转派或结单，请联系工单创建人、受理人或管理员',
       ticketFinalHint: '工单已结束，无法进行操作',
       // P2-5 / P2-6 空态与审批提示
       requesterNoApproval: '本单当前无审批环节',
@@ -5950,6 +5951,7 @@ export const translations = {
       ticketFinalNoCc: 'Ticket is closed, cannot CC',
       requesterCannotApprove: 'You are the requester of this ticket, cannot approve',
       fullOperationSupport: 'Supports full ticket operations including status change, approval, and assignment',
+      rowScopeReadOnlyHint: 'Read-only for this ticket: to change status, reassign, or close it, contact the requester, assignee, or an administrator',
       ticketFinalHint: 'Ticket is closed, cannot operate',
       // P2-5 / P2-6 empty states & approval hints
       requesterNoApproval: 'No approval step for this ticket',

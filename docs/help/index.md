@@ -31,6 +31,7 @@ owner: service-desk          # 兜底责任人
 | 页面 | 文档 |
 |---|---|
 | 工单列表 / 工单详情 / 创建工单 | [tickets/list.md](tickets/list.md)、[tickets/detail.md](tickets/detail.md)、[tickets/create.md](tickets/create.md) |
+| 工单状态修改与流转（创建后如何改状态/流转） | [../ticket-status-transition-guide.md](../ticket-status-transition-guide.md) |
 | 事件（列表/创建/详情） | [incidents/list.md](incidents/list.md)、[incidents/create.md](incidents/create.md)、[incidents/detail.md](incidents/detail.md) |
 | 变更（列表/新建/详情） | [changes/list.md](changes/list.md)、[changes/detail.md](changes/detail.md) |
 | 问题管理 | [problems/list.md](problems/list.md)、[problems/workspace.md](problems/workspace.md)（创建/详情/趋势/已知错误） |
