@@ -1,7 +1,7 @@
 # Phase 4 第二批：问题/变更/服务请求 membership 与约束 VALIDATE
 
 > 日期：2026-11-12
-> 状态：已发布 238（`1.8.0-dev.8558ecfcc`），E2E 50/50
+> 状态：已发布 238（`1.8.0-dev.16c5c453c`），E2E 51/51
 > 关联：[C 方案主文档](../multi-tenant/plan/membership-tenant-identity-c-plan.md) ·
 > [Phase 4 第一批验证](2026-11-12-tenant-recipient-validation.md)
 
@@ -207,7 +207,7 @@ demo containers=6/6 healthy
 约束与数据：
 
 ```text
-membership 复合外键        21/21 convalidated=true
+membership 复合外键        23/23 convalidated=true
 problems.created_by        0 missing / 209
 problems.assignee          0 missing / 209
 changes.created_by         0 missing / 14
@@ -219,7 +219,7 @@ service_requests.processor 0 missing / 135
 
 E2E：`00-smoke 6 + 01-permissions 8 + 02-associations 8 + 03-workflows 8 +
 04-ui-ux 11 + 05-multi-tenant-business 4 + 06-attachment-access 1 +
-07-membership-identity 4 = 50/50`。
+07-membership-identity 5 = 51/51`。
 
 运行时 API 抽查（`demo.mfg.admin`，tenant 3 / membership 4）：
 
@@ -271,20 +271,33 @@ E2E：`00-smoke 6 + 01-permissions 8 + 02-associations 8 + 03-workflows 8 +
 - 新增共享 `MembershipBadge`：展示「租户身份 #N」，tooltip 解释 C 方案语义；
 - 覆盖评论作者、附件上传人、工单审批人、通知接收人；
 - `ApprovalRecordResponse` 补齐 `approverMembershipId`；
-- 新增 `07-membership-identity.spec.ts`，4 个用例：
+- 新增 `07-membership-identity.spec.ts`，后续扩展为 5 个用例：
 
 ```text
 ✓ 工单评论作者身份（membership 4）
 ✓ provider 在客户租户内的评论身份（membership 22）
 ✓ 附件上传人身份（membership 4）
 ✓ 通知接收人身份
-4 passed
+✓ 服务请求审批人身份（membership 6）
+5 passed
 ```
+
+### 服务请求审批人 membership（`16c5c453c`）
+
+- `service_request_approvals` 新增 `approver_membership_id`、
+  `delegated_to_membership_id`；
+- 迁移 `20261112_service_request_approval_membership` 回填 265 条审批记录，
+  新增 2 条复合外键，membership 约束总数由 21 提升到 23；
+- `ApplyApprovalWithMembership` 在审批动作时记录 actor membership；
+- 服务请求详情审批时间线展示 `MembershipBadge`；
+- E2E 新增「服务请求审批人展示 membership 身份」用例（L1 审批后显示 membership 6），
+  07 分组 5/5，全量 **51/51**。
 
 发布证据：
 
 - 后端/业务验证：[`evidence/2026-11-12-demo-full-deploy-cb55a4e69.md`](evidence/2026-11-12-demo-full-deploy-cb55a4e69.md)
 - UI 展示验证：[`evidence/2026-11-12-demo-full-deploy-8558ecfcc.md`](evidence/2026-11-12-demo-full-deploy-8558ecfcc.md)
+- 服务请求审批 membership：[`evidence/2026-11-12-demo-full-deploy-16c5c453c.md`](evidence/2026-11-12-demo-full-deploy-16c5c453c.md)
 
 ## 7. 回滚
 
@@ -299,6 +312,6 @@ E2E：`00-smoke 6 + 01-permissions 8 + 02-associations 8 + 03-workflows 8 +
 1. VALIDATE 会扫描历史表并持有较轻的锁，建议在低峰期执行 bootstrap；
 2. 迁移会把跨租户/失效的 membership 指针置 NULL，历史行仍可通过 `user_id`
    读取，但依赖 membership 的新查询会少这些行，属于预期的 fail-safe；
-3. 服务请求审批记录仍是 `approver_id` 单轨，审批身份展示需下一批补齐；
-4. 前端已展示评论/附件/工单审批/通知的 membership 身份；变更审批与服务请求审批
-   仍缺 membership 列，需后续迁移。
+3. 服务请求审批记录已补齐 membership；变更审批 `change_approvals` 为 legacy 表，
+   当前由审批链/BPMN 决策驱动，不再写入；
+4. 前端已展示评论/附件/工单审批/服务请求审批/通知的 membership 身份。

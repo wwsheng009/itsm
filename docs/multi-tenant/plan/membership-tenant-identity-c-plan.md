@@ -1,8 +1,8 @@
 # C 方案：membership 作为租户内身份（2026-11-12）
 
 > **状态**：implemented（Phase 1–3 工单域已发布 238；Phase 4 第一批接收人校验已发布；
-> 第二批问题/变更/服务请求 actors 迁移与约束 VALIDATE 已发布 238 `1.8.0-dev.8558ecfcc`，
-> E2E 50/50）
+> 第二批问题/变更/服务请求 actors 迁移与约束 VALIDATE 已发布 238 `1.8.0-dev.16c5c453c`，
+> E2E 51/51）
 > **背景**：provider 深度切换到客户租户后，JWT 的 `tenant_id` 已指向客户租户，但工单仍以
 > `users.id` 作为申请人引用；provider 的 `users.tenant_id` 仍在 provider 租户，导致
 > “权限通过、申请人 404”。
@@ -222,11 +222,14 @@ tickets.assignee_id
   `20261112_membership_business_actors_reconcile` 幂等回填。实际业务操作验证又修复了
   跨租户变更处理人返回 500、provider 深度态创建服务请求失败两个问题。最终版
   `1.8.0-dev.cb55a4e69` 复跑 E2E 46/46，21/21 约束 VALIDATED，6 类业务引用 missing=0。
+- `16c5c453c` 补齐 `service_request_approvals.approver_membership_id` /
+  `delegated_to_membership_id`，回填 265 条审批记录，membership 复合外键增至 23 条；
+  服务请求详情审批时间线展示审批人身份，E2E 51/51。
 
 **本批不做**
 
-- 变更审批（`change_approvals`）与服务请求审批记录（`service_request_approvals`）
-  的 membership 列迁移（工单审批/评论/附件/通知的前端展示已在 `8558ecfcc` 完成）；
+- 变更审批 `change_approvals` 为 legacy 表，当前变更审批已由审批链/BPMN 决策驱动，
+  不再写入；服务请求审批记录 membership 已在 `16c5c453c` 完成；
 - PostgreSQL RLS policy 的全表启用（当前仍为应用层租户隔离 + 约束矩阵）。
 
 ## 5. 兼容与迁移

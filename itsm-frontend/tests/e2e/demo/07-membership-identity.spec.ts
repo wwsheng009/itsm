@@ -5,7 +5,7 @@ import {
   newAuthenticatedContext,
   switchDemoTenant,
 } from './fixtures/demo-auth';
-import { apiPost, authHeaders, callRaw, runId, title } from './support/api';
+import { apiDelete, apiPost, apiPut, authHeaders, callRaw, runId, title } from './support/api';
 import { gotoAndReady } from './support/assertions';
 
 test.describe.configure({ mode: 'serial' });
@@ -95,6 +95,45 @@ test.describe('Demo Round 7 · membership identity display', () => {
       await expect(page.locator('[data-testid^="membership-badge-"]').first()).toBeVisible();
     } finally {
       await context.close();
+    }
+  });
+
+  test('服务请求审批人展示 membership 身份', async ({ browser }) => {
+    const user = await getDemoSession('mfgUser');
+    const lead = await getDemoSession('mfgLead');
+    const admin = await getDemoSession('mfgAdmin');
+    const run = runId('E2E-MEM-SR');
+    let requestId = 0;
+
+    try {
+      const request = await apiPost<{ id: number }>(user, '/api/v1/service-requests', {
+        catalogId: 9,
+        title: title(run, 'approval membership'),
+        reason: 'service request approval membership badge E2E; safe to cancel.',
+        dataClassification: 'internal',
+        complianceAck: true,
+      });
+      requestId = request.id;
+
+      await apiPost(lead, `/api/v1/service-requests/${requestId}/approval`, {
+        action: 'approve',
+        comment: 'membership badge verification',
+      });
+
+      const { context, page } = await newAuthenticatedContext(browser, 'mfgAdmin');
+      try {
+        await gotoAndReady(page, `/service-requests/${requestId}`);
+        await expect(page.getByTestId('membership-badge-6').first()).toBeVisible();
+      } finally {
+        await context.close();
+      }
+    } finally {
+      if (requestId > 0) {
+        await apiPut(admin, `/api/v1/service-requests/${requestId}/status`, {
+          status: 'cancelled',
+        }).catch(() => undefined);
+        await apiDelete(admin, `/api/v1/service-requests/${requestId}`).catch(() => undefined);
+      }
     }
   });
 });

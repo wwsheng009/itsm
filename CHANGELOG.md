@@ -68,6 +68,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   新增 `07-membership-identity.spec.ts`，真实浏览器验证客户评论、provider 客户租户评论、
   附件和通知身份；238 发布后 E2E **50/50**。变更审批与服务请求审批仍缺 membership 列。
 
+- **服务请求审批人 membership（2026-11-12，`1.8.0-dev.16c5c453c`）** —
+  `service_request_approvals` 新增 `approver_membership_id` /
+  `delegated_to_membership_id`，回填 265 条审批记录并新增两条租户复合外键（总数 23）；
+  审批动作记录 actor membership，服务请求详情审批时间线展示身份；
+  238 发布后 E2E **51/51**。`change_approvals` 为 legacy 表，当前由审批链/BPMN 决策驱动。
+
 - **工单详情契约修复：空数组、标签空列表与工单级审批读取（后端，2026-11-10）** —
   ① `GET /api/v1/tickets/:id/tags` 在无绑定标签时返回 `items: []`（DTO 映射与服务层均
   不再返回 `nil`），路由回归测试覆盖租户/工单过滤与空数组；② 评论响应初始化

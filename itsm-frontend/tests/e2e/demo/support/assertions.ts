@@ -149,4 +149,7 @@ export async function expectNoHorizontalScroll(page: Page): Promise<void> {
 export async function gotoAndReady(page: Page, path: string): Promise<void> {
   await page.goto(path, { waitUntil: 'domcontentloaded' });
   await page.waitForLoadState('networkidle').catch(() => undefined);
+  // 页面懒加载图表/卡片可能在 networkidle 之后才发起请求；立即导航会把它们 abort，
+  // 应用层 HTTP 客户端会打印 "Failed to fetch" 并污染下一断言。留出一个短 settle 窗口。
+  await page.waitForTimeout(500);
 }
