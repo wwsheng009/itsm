@@ -2669,35 +2669,41 @@ html:not(.dark) .ant-btn-default:focus {
    （.ticket-rich-text）共用同一套变量，避免两处样式漂移。
    ============================================================ */
 :root {
-  --rte-border: #d9d9d9;
-  --rte-toolbar-bg: #fafafa;
-  --rte-toolbar-border: #f0f0f0;
-  --rte-body-bg: #ffffff;
-  --rte-body-bg-disabled: #f5f5f5;
-  --rte-placeholder: #bfbfbf;
-  --rte-quote-border: #d9d9d9;
-  --rte-quote-bg: #fafafa;
-  --rte-quote-text: #595959;
-  --rte-code-bg: rgba(0, 0, 0, 0.06);
-  --rte-pre-bg: #f5f5f5;
-  --rte-rule: #e5e7eb;
-  --rte-link: #1677ff;
+  /* 富文本编辑器跟随设计系统：亮色正文=surface、工具栏=surface-secondary；
+     暗色正文=页面底形成内嵌写作区。边框/引用/代码/链接全部走语义令牌。 */
+  --rte-border: var(--color-border-primary);
+  --rte-toolbar-bg: var(--color-surface-secondary);
+  --rte-toolbar-border: var(--color-border-primary);
+  --rte-body-bg: var(--color-surface-primary);
+  --rte-body-bg-disabled: var(--color-background-tertiary);
+  --rte-placeholder: var(--color-text-tertiary);
+  --rte-quote-border: var(--color-border-secondary);
+  --rte-quote-bg: var(--color-background-secondary);
+  --rte-quote-text: var(--color-text-secondary);
+  --rte-code-bg: color-mix(in srgb, var(--color-text-primary) 6%, transparent);
+  --rte-pre-bg: var(--color-background-tertiary);
+  --rte-rule: var(--color-border-primary);
+  --rte-link: var(--color-primary-text);
 }
 
 .dark {
-  --rte-border: #303030;
-  --rte-toolbar-bg: #1f1f1f;
-  --rte-toolbar-border: #303030;
-  --rte-body-bg: #141414;
-  --rte-body-bg-disabled: #1a1a1a;
-  --rte-placeholder: #6b6b6b;
-  --rte-quote-border: #434343;
-  --rte-quote-bg: #1d1d1d;
-  --rte-quote-text: #a6a6a6;
-  --rte-code-bg: rgba(255, 255, 255, 0.12);
-  --rte-pre-bg: #1f1f1f;
-  --rte-rule: #303030;
-  --rte-link: #4096ff;
+  --rte-border: var(--color-border-primary);
+  --rte-toolbar-bg: var(--color-surface-primary);
+  --rte-toolbar-border: var(--color-border-primary);
+  --rte-body-bg: var(--color-background-primary);
+  --rte-body-bg-disabled: color-mix(
+    in srgb,
+    var(--color-surface-primary) 82%,
+    var(--color-background-primary)
+  );
+  --rte-placeholder: var(--color-text-tertiary);
+  --rte-quote-border: var(--color-border-secondary);
+  --rte-quote-bg: var(--color-background-secondary);
+  --rte-quote-text: var(--color-text-secondary);
+  --rte-code-bg: color-mix(in srgb, var(--color-text-primary) 12%, transparent);
+  --rte-pre-bg: var(--color-background-tertiary);
+  --rte-rule: var(--color-border-primary);
+  --rte-link: var(--color-primary-text);
 }
 
 /* 编辑器外壳：颜色全部走变量，组件不再内联写死亮色 */

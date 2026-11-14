@@ -396,7 +396,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
           margin: 0 0 8px;
         }
         .rich-text-editor .rte-content:focus-visible {
-          outline: 2px solid #1677ff;
+          outline: 2px solid var(--color-primary);
           outline-offset: -2px;
         }
         .rich-text-editor .rte-content img {
@@ -419,7 +419,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
           margin-left: auto;
         }
         .rich-text-editor .rte-image-node--selected {
-          outline: 2px solid var(--rte-image-outline, #1677ff);
+          outline: 2px solid var(--rte-image-outline, var(--color-primary));
           outline-offset: 2px;
         }
         .rich-text-editor .rte-image-node__img {
@@ -432,8 +432,8 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
           display: none;
           width: 10px;
           height: 10px;
-          background: #fff;
-          border: 1.5px solid var(--rte-image-outline, #1677ff);
+          background: var(--rte-image-handle-bg, var(--color-surface-primary));
+          border: 1.5px solid var(--rte-image-outline, var(--color-primary));
           border-radius: 2px;
           touch-action: none;
         }
@@ -442,7 +442,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
           display: block;
         }
         .rich-text-editor .rte-image-node__handle:focus-visible {
-          outline: 2px solid var(--rte-image-outline, #1677ff);
+          outline: 2px solid var(--rte-image-outline, var(--color-primary));
           outline-offset: 2px;
         }
         .rich-text-editor .rte-image-node__handle--nw {
@@ -471,23 +471,23 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
           align-items: center;
           gap: 2px;
           padding: 4px 6px;
-          border: 1px solid var(--rte-menu-border, rgba(0, 0, 0, 0.12));
+          border: 1px solid var(--rte-menu-border, var(--color-border-primary));
           border-radius: 8px;
-          background: var(--rte-menu-bg, #fff);
-          box-shadow: 0 6px 16px rgba(0, 0, 0, 0.16);
+          background: var(--rte-menu-bg, var(--color-surface-primary));
+          box-shadow: var(--shadow-lg);
         }
         .dark .rich-text-editor__image-menu .rich-text-editor__image-menu-inner {
-          border-color: rgba(255, 255, 255, 0.18);
-          background: #1f1f1f;
+          border-color: var(--color-border-primary);
+          background: var(--color-surface-primary);
         }
         .rich-text-editor .rte-content blockquote {
-          border-left: 3px solid var(--rte-quote-border, #d9d9d9);
+          border-left: 3px solid var(--rte-quote-border, var(--color-border-secondary));
           margin: 8px 0;
           padding-left: 12px;
-          color: var(--rte-quote-text, #595959);
+          color: var(--rte-quote-text, var(--color-text-secondary));
         }
         .rich-text-editor .rte-content pre {
-          background: var(--rte-pre-bg, #f5f5f5);
+          background: var(--rte-pre-bg, var(--color-background-tertiary));
           border-radius: 4px;
           padding: 8px 12px;
           overflow: auto;
@@ -497,7 +497,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
         }
         .rich-text-editor .rte-content th,
         .rich-text-editor .rte-content td {
-          border: 1px solid var(--rte-border, #d9d9d9);
+          border: 1px solid var(--rte-border, var(--color-border-primary));
           padding: 4px 8px;
         }
       `}</style>
