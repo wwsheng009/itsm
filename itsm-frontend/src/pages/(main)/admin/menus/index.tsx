@@ -390,7 +390,7 @@ export default function MenuManagementPage() {
               title={t('menus.enabledMenus')}
               value={stats.enabled}
               prefix={<Power className="w-5 h-5" />}
-              styles={{ content: { color: '#52c41a' } }}
+              styles={{ content: { color: 'var(--color-success-text)' } }}
             />
           </Card>
         </Col>
@@ -400,7 +400,7 @@ export default function MenuManagementPage() {
               title={t('menus.disabledMenus')}
               value={stats.disabled}
               prefix={<PowerOff className="w-5 h-5" />}
-              styles={{ content: { color: '#ff4d4f' } }}
+              styles={{ content: { color: 'var(--color-error-text)' } }}
             />
           </Card>
         </Col>
@@ -410,7 +410,7 @@ export default function MenuManagementPage() {
               title={t('menus.hiddenMenus')}
               value={stats.hidden}
               prefix={<EyeOff className="w-5 h-5" />}
-              styles={{ content: { color: '#faad14' } }}
+              styles={{ content: { color: 'var(--color-warning-text)' } }}
             />
           </Card>
         </Col>

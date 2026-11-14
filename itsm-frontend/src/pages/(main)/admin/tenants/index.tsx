@@ -614,7 +614,7 @@ export default function TenantManagement() {
               title="活跃租户"
               value={stats.active}
               prefix={<CheckCircle className="w-5 h-5" />}
-              styles={{ content: { color: '#52c41a' } }}
+              styles={{ content: { color: 'var(--color-success-text)' } }}
             />
           </Card>
         </Col>
@@ -624,7 +624,7 @@ export default function TenantManagement() {
               title="暂停租户"
               value={stats.suspended}
               prefix={<AlertCircle className="w-5 h-5" />}
-              styles={{ content: { color: '#faad14' } }}
+              styles={{ content: { color: 'var(--color-warning-text)' } }}
             />
           </Card>
         </Col>
@@ -634,7 +634,7 @@ export default function TenantManagement() {
               title="过期租户"
               value={stats.expired}
               prefix={<Clock className="w-5 h-5" />}
-              styles={{ content: { color: '#1890ff' } }}
+              styles={{ content: { color: 'var(--color-primary-text)' } }}
             />
           </Card>
         </Col>

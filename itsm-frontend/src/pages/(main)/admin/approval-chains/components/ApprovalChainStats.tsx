@@ -25,25 +25,25 @@ export function ApprovalChainStatsCards({ stats, loading = false }: ApprovalChai
       title: '总审批链数',
       value: stats.total,
       icon: <Settings className="w-5 h-5 text-blue-500" />,
-      color: '#1890ff',
+      color: 'var(--color-primary-text)',
     },
     {
       title: '活跃审批链',
       value: stats.active,
       icon: <CheckCircle className="w-5 h-5 text-green-500" />,
-      color: '#52c41a',
+      color: 'var(--color-success-text)',
     },
     {
       title: '非活跃审批链',
       value: stats.inactive,
       icon: <Clock className="w-5 h-5 text-orange-500" />,
-      color: '#faad14',
+      color: 'var(--color-warning-text)',
     },
     {
       title: '平均步骤数',
       value: stats.avgStepsPerChain.toFixed(1),
       icon: <Users className="w-5 h-5 text-purple-500" />,
-      color: '#722ed1',
+      color: 'var(--color-purple-text)',
     },
   ];
 

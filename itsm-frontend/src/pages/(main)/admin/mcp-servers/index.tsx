@@ -1323,7 +1323,7 @@ function SummaryCards({ summary, t }: { summary: MCPServerListResult['summary'];
             <Statistic
               title={card.label}
               value={card.value}
-              valueStyle={card.tone === 'error' ? { color: '#cf1322' } : card.tone === 'warning' ? { color: '#d48806' } : undefined}
+              valueStyle={card.tone === 'error' ? { color: 'var(--color-error-text)' } : card.tone === 'warning' ? { color: 'var(--color-warning-text)' } : undefined}
             />
           </Card>
         </Col>

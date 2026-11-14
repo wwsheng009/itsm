@@ -188,7 +188,7 @@ export default function EscalationMatricesPage() {
               title="通知目标数"
               value={stats.totalTargets}
               suffix="个"
-              valueStyle={{ color: '#722ed1' }}
+              valueStyle={{ color: 'var(--color-purple-text)' }}
             />
           </Card>
         </Col>

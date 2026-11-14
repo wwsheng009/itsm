@@ -584,7 +584,7 @@ const WorkflowManagement = () => {
               title="工作流总数"
               value={stats.total}
               prefix={<GitBranch className="w-5 h-5" />}
-              styles={{ content: { color: '#1890ff' } }}
+              styles={{ content: { color: 'var(--color-primary-text)' } }}
             />
           </Card>
         </Col>
@@ -594,7 +594,7 @@ const WorkflowManagement = () => {
               title="已启用"
               value={stats.active}
               prefix={<Play className="w-5 h-5" />}
-              styles={{ content: { color: '#52c41a' } }}
+              styles={{ content: { color: 'var(--color-success-text)' } }}
             />
           </Card>
         </Col>
@@ -604,7 +604,7 @@ const WorkflowManagement = () => {
               title="活跃实例"
               value={stats.totalInstances}
               prefix={<Activity className="w-5 h-5" />}
-              styles={{ content: { color: '#fa8c16' } }}
+              styles={{ content: { color: 'var(--color-warning-text)' } }}
             />
           </Card>
         </Col>
@@ -614,7 +614,7 @@ const WorkflowManagement = () => {
               title="平均步骤数"
               value={stats.avgSteps}
               prefix={<BarChart3 className="w-5 h-5" />}
-              styles={{ content: { color: '#722ed1' } }}
+              styles={{ content: { color: 'var(--color-purple-text)' } }}
             />
           </Card>
         </Col>

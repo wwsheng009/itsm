@@ -753,7 +753,7 @@ export default function EnhancedSystemConfiguration() {
             renderItem={item => (
               <List.Item>
                 <List.Item.Meta
-                  avatar={<Avatar size="small" style={{ backgroundColor: '#1890ff' }}>{item.user.charAt(0)}</Avatar>}
+                  avatar={<Avatar size="small" style={{ backgroundColor: 'var(--color-primary)' }}>{item.user.charAt(0)}</Avatar>}
                   title={<Text>{item.action}</Text>}
                   description={
                     <Space>
@@ -875,7 +875,7 @@ export default function EnhancedSystemConfiguration() {
               title="系统运行时间"
               value={systemStats.uptime}
               prefix={<Clock className="w-5 h-5" />}
-              valueStyle={{ color: '#52c41a', fontSize: '1.25rem' }}
+              valueStyle={{ color: 'var(--color-success-text)', fontSize: '1.25rem' }}
             />
           </Card>
         </Col>
@@ -885,7 +885,7 @@ export default function EnhancedSystemConfiguration() {
               title="Goroutine 数"
               value={systemStats.goroutines}
               prefix={<Network className="w-5 h-5" />}
-              valueStyle={{ color: '#1890ff', fontSize: '1.25rem' }}
+              valueStyle={{ color: 'var(--color-primary-text)', fontSize: '1.25rem' }}
             />
           </Card>
         </Col>

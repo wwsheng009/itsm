@@ -239,7 +239,7 @@ export default function DepartmentProcessPage() {
                   </Col>
                   <Col span={8}>
                     <Card size="small">
-                      <Statistic title="已启用" value={stats.active} valueStyle={{ color: '#3f8600' }} />
+                      <Statistic title="已启用" value={stats.active} valueStyle={{ color: 'var(--color-success-text)' }} />
                     </Card>
                   </Col>
                   <Col span={8}>
@@ -281,7 +281,7 @@ export default function DepartmentProcessPage() {
               </>
             ) : (
               <Card>
-                <div style={{ textAlign: 'center', padding: 48, color: '#999' }}>
+                <div style={{ textAlign: 'center', padding: 48, color: 'var(--color-text-tertiary)' }}>
                   <Building2 style={{ width: 48, height: 48, marginBottom: 16 }} />
                   <p>请从左侧选择一个部门查看流程配置</p>
                 </div>

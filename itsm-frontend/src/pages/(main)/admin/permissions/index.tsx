@@ -713,7 +713,7 @@ const PermissionConfiguration = () => {
               value={stats.enabledModules}
               suffix={`/ ${stats.totalModules}`}
               prefix={<Layers className="w-5 h-5" />}
-              styles={{ content: { color: '#1890ff' } }}
+              styles={{ content: { color: 'var(--color-primary-text)' } }}
             />
           </Card>
         </Col>
@@ -724,7 +724,7 @@ const PermissionConfiguration = () => {
               value={stats.enabledActions}
               suffix={`/ ${stats.totalActions}`}
               prefix={<Activity className="w-5 h-5" />}
-              styles={{ content: { color: '#52c41a' } }}
+              styles={{ content: { color: 'var(--color-success-text)' } }}
             />
           </Card>
         </Col>
@@ -735,7 +735,7 @@ const PermissionConfiguration = () => {
               value={((stats.enabledModules / stats.totalModules) * 100).toFixed(1)}
               suffix="%"
               prefix={<CheckCircle className="w-5 h-5" />}
-              styles={{ content: { color: '#722ed1' } }}
+              styles={{ content: { color: 'var(--color-purple-text)' } }}
             />
           </Card>
         </Col>
@@ -746,7 +746,7 @@ const PermissionConfiguration = () => {
               value={((stats.enabledActions / stats.totalActions) * 100).toFixed(1)}
               suffix="%"
               prefix={<Shield className="w-5 h-5" />}
-              styles={{ content: { color: '#fa8c16' } }}
+              styles={{ content: { color: 'var(--color-warning-text)' } }}
             />
           </Card>
         </Col>

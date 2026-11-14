@@ -38,7 +38,7 @@ const ACTIVITY_META: Record<
   ticket: { icon: Ticket, color: 'bg-blue-100 text-blue-600', tokenColor: 'colorPrimary' },
   incident: { icon: AlertCircle, color: 'bg-red-100 text-red-600', tokenColor: 'colorError' },
   change: { icon: RefreshCw, color: 'bg-green-100 text-green-600', tokenColor: 'colorSuccess' },
-  problem: { icon: Wrench, color: 'bg-purple-100 text-purple-600', tokenColor: '#722ed1' },
+  problem: { icon: Wrench, color: 'bg-purple-100 text-purple-600', tokenColor: 'var(--color-purple-text)' },
   default: { icon: Activity, color: 'bg-gray-100 text-gray-600', tokenColor: 'colorTextSecondary' },
 };
 

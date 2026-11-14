@@ -573,7 +573,7 @@ export default function RoleManagement() {
               title={t('roles.enabled')}
               value={stats.activeRoles}
               prefix={<CheckCircle className="w-5 h-5" />}
-              styles={{ content: { color: '#52c41a' } }}
+              styles={{ content: { color: 'var(--color-success-text)' } }}
             />
           </Card>
         </Col>
@@ -583,7 +583,7 @@ export default function RoleManagement() {
               title={t('roles.disabled')}
               value={stats.inactiveRoles}
               prefix={<XCircle className="w-5 h-5" />}
-              styles={{ content: { color: '#ff4d4f' } }}
+              styles={{ content: { color: 'var(--color-error-text)' } }}
             />
           </Card>
         </Col>
@@ -593,7 +593,7 @@ export default function RoleManagement() {
               title={t('roles.userCount')}
               value={stats.totalUsers}
               prefix={<Users className="w-5 h-5" />}
-              styles={{ content: { color: '#fa8c16' } }}
+              styles={{ content: { color: 'var(--color-warning-text)' } }}
             />
           </Card>
         </Col>

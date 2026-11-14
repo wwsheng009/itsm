@@ -14,13 +14,13 @@ const DESIGN_SYSTEM = {
     success: '#10b981', // 翠绿
     warning: '#f59e0b', // 琥珀
     danger: '#ef4444', // 珊瑚红
-    surface: '#ffffff',
-    surfaceAlt: '#f8fafc',
-    border: '#e2e8f0',
-    textPrimary: '#1e293b',
-    textSecondary: '#64748b',
+    surface: 'var(--color-surface-primary)',
+    surfaceAlt: 'var(--color-background-secondary)',
+    border: 'var(--color-border-primary)',
+    textPrimary: 'var(--color-text-primary)',
+    textSecondary: 'var(--color-text-tertiary)',
     gradient: {
-      card: 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
+      card: 'linear-gradient(135deg, var(--color-background-primary) 0%, var(--color-background-secondary) 100%)',
       accent: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
       success: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
       warning: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
@@ -162,7 +162,8 @@ export const SystemOverview: React.FC<SystemOverviewProps> = ({ stats }) => {
               style={{
                 padding: '4px 10px',
                 borderRadius: 20,
-                background: `${DESIGN_SYSTEM.colors.textSecondary}15`,
+                background:
+                  'color-mix(in srgb, var(--color-text-tertiary) 8%, transparent)',
                 color: DESIGN_SYSTEM.colors.textSecondary,
                 fontSize: 13,
                 fontWeight: 600,

@@ -324,7 +324,7 @@ export default function ProcessRoutingPage() {
         </Col>
         <Col span={6}>
           <Card>
-            <Statistic title="已启用" value={stats.active} valueStyle={{ color: '#3f8600' }} />
+            <Statistic title="已启用" value={stats.active} valueStyle={{ color: 'var(--color-success-text)' }} />
           </Card>
         </Col>
         <Col span={6}>

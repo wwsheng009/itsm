@@ -607,7 +607,7 @@ export default function SystemConfiguration() {
               title="系统运行时间"
               value={systemStats.uptime}
               prefix={<Clock className="w-5 h-5" />}
-              styles={{ content: { color: '#52c41a' } }}
+              styles={{ content: { color: 'var(--color-success-text)' } }}
             />
           </Card>
         </Col>
@@ -617,7 +617,7 @@ export default function SystemConfiguration() {
               title="Goroutine 数"
               value={systemStats.goroutines}
               prefix={<Network className="w-5 h-5" />}
-              styles={{ content: { color: '#1890ff' } }}
+              styles={{ content: { color: 'var(--color-primary-text)' } }}
             />
           </Card>
         </Col>
@@ -627,7 +627,7 @@ export default function SystemConfiguration() {
               title="CPU 核心数"
               value={systemStats.cpuCores}
               prefix={<Cpu className="w-5 h-5" />}
-              styles={{ content: { color: '#fa8c16' } }}
+              styles={{ content: { color: 'var(--color-warning-text)' } }}
             />
           </Card>
         </Col>

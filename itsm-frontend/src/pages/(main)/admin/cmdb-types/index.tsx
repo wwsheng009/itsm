@@ -384,7 +384,7 @@ const CMDBTypesManagement = () => {
               title='总类型数'
               value={stats.total}
               prefix={<Database className='w-5 h-5' />}
-              styles={{ content: { color: '#1890ff' } }}
+              styles={{ content: { color: 'var(--color-primary-text)' } }}
             />
           </Card>
         </Col>
@@ -394,7 +394,7 @@ const CMDBTypesManagement = () => {
               title='激活类型'
               value={stats.active}
               prefix={<CheckCircle className='w-5 h-5' />}
-              styles={{ content: { color: '#52c41a' } }}
+              styles={{ content: { color: 'var(--color-success-text)' } }}
             />
           </Card>
         </Col>
@@ -404,7 +404,7 @@ const CMDBTypesManagement = () => {
               title='停用类型'
               value={stats.inactive}
               prefix={<AlertCircle className='w-5 h-5' />}
-              styles={{ content: { color: '#ff4d4f' } }}
+              styles={{ content: { color: 'var(--color-error-text)' } }}
             />
           </Card>
         </Col>

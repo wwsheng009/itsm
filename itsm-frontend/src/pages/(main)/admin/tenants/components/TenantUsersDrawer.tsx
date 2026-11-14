@@ -380,7 +380,7 @@ const TenantUsersDrawer: React.FC<TenantUsersDrawerProps> = ({
                   style={{
                     display: 'block',
                     fontSize: 12,
-                    color: 'rgba(0, 0, 0, 0.45)',
+                    color: 'var(--color-text-tertiary)',
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
                     whiteSpace: 'nowrap',
