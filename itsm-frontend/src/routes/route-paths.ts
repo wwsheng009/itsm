@@ -116,6 +116,8 @@ export const ROUTE_PATHS: ReadonlySet<string> = new Set([
   '/service-catalog/approvals',
   '/service-requests',
   '/settings/approvals',
+  '/skills',
+  '/skills-install',
   '/sla',
   '/sla-monitor',
   '/sso/callback',

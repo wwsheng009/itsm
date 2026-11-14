@@ -1756,10 +1756,13 @@ export async function aiChatStream(
           }
           case 'error': {
             const payload = data as { message?: string; errorCode?: string };
-            callbacks.onError?.(
-              payload?.message ?? 'unknown stream error',
-              payload?.errorCode ? { errorCode: payload.errorCode } : undefined
-            );
+            const message = payload?.message ?? 'unknown stream error';
+            if (payload?.errorCode) {
+              callbacks.onError?.(message, { errorCode: payload.errorCode });
+            } else {
+              // 保持旧契约：无 errorCode 时只传一个参数，避免回调断言/下游收到 undefined。
+              callbacks.onError?.(message);
+            }
             break;
           }
           // M1-03 工具事件：四种事件共用同一回调，status 已由后端给出；

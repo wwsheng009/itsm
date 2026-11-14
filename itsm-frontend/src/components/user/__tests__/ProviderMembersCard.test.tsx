@@ -44,7 +44,8 @@ describe('ProviderMembersCard', () => {
     expect(screen.getByTestId('provider-member-tag-101')).toHaveTextContent('服务方');
     expect(screen.getByTestId('provider-member-tag-102')).toHaveTextContent('服务方');
     expect(within(card).getByText('msp-staff')).toBeInTheDocument();
-    expect(within(card).getAllByText('provider_agent').length).toBe(2);
+    // 角色词表把 provider_agent 映射为「服务商坐席」，裸 code 不应透出。
+    expect(within(card).getAllByText('服务商坐席').length).toBe(2);
     expect(within(card).getByText('启用')).toBeInTheDocument();
     expect(within(card).getByText('停用')).toBeInTheDocument();
 
