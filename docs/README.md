@@ -47,6 +47,12 @@
 - [深度业务测试报告](./review/deep-business-test-report-2026-06-18.md)
 - [前端 UX Review](./review/frontend-ux-review-2026-06-19.md)
 - [商用就绪验收报告](./review/commercial-readiness-acceptance-report-2026-06-18.md)
+- **演示环境多角色多租户 E2E（2026-11-13）**
+  - [测试计划与场景矩阵](./testing/demo-multi-tenant-e2e-business-test-plan-2026-11-13.md)
+  - [缺陷跟踪台账（D1–D35）](./testing/demo-e2e-defect-tracking-2026-11-13.md)
+  - [执行总结报告](./testing/demo-e2e-test-execution-report-2026-11-13.md)
+  - [P0 修复补丁](./testing/demo-e2e-p0-fix-patch-2026-11-13.md)
+  - [修复实施与部署验收记录](./testing/demo-e2e-fix-implementation-2026-11-13.md)
 
 ## CI/CD 与发布
 

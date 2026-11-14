@@ -4,6 +4,11 @@
 
 ## 当前入口
 
+- [演示环境多角色×多租户 E2E 业务测试计划（2026-11-13）](./demo-multi-tenant-e2e-business-test-plan-2026-11-13.md)
+- [演示环境 E2E 执行总结报告（2026-11-13）](./demo-e2e-test-execution-report-2026-11-13.md)
+- [演示环境 E2E 缺陷跟踪台账（2026-11-13）](./demo-e2e-defect-tracking-2026-11-13.md)
+- [演示环境 P0 缺陷修复补丁说明（2026-11-13）](./demo-e2e-p0-fix-patch-2026-11-13.md)
+- [演示环境缺陷修复实施记录（2026-11-13）](./demo-e2e-fix-implementation-2026-11-13.md)
 - [附件生命周期清理演练记录（BE-8，2026-09-22）](./attachment-cleanup-drill-2026-09-22.md)
 - [角色视角产品测试方案](./role-based-product-test-plan.md)
 - [完整产品冒烟测试报告](./full-product-smoke-2026-06-06.md)
