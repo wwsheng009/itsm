@@ -236,7 +236,7 @@ export default function DashboardPage() {
   return (
     <div
       className='p-6 min-h-screen'
-      style={{ backgroundColor: 'var(--color-bg-secondary, #f9fafb)' }}
+      style={{ backgroundColor: 'var(--color-page-background, #f9fafb)' }}
     >
       {/* 简化顶部工具栏 */}
       <div className='flex items-center justify-between mb-6 pb-4 border-b border-gray-200'>

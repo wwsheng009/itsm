@@ -159,7 +159,7 @@ const TicketDashboardPage = () => {
             <Statistic
               title="总工单数"
               value={overview.totalTickets}
-              prefix={<FileText size={16} style={{ color: '#3b82f6' }} />}
+              prefix={<FileText size={16} style={{ color: 'var(--color-primary-text)' }} />}
             />
           </Card>
         </Col>
@@ -168,7 +168,7 @@ const TicketDashboardPage = () => {
             <Statistic
               title="待处理工单"
               value={overview.openTickets}
-              styles={{ content: { color: '#faad14' } }}
+              styles={{ content: { color: 'var(--color-warning-text)' } }}
               prefix={<Clock size={16} />}
             />
           </Card>
@@ -178,7 +178,7 @@ const TicketDashboardPage = () => {
             <Statistic
               title="已解决工单"
               value={overview.resolvedTickets}
-              styles={{ content: { color: '#52c41a' } }}
+              styles={{ content: { color: 'var(--color-success-text)' } }}
               prefix={<CheckCircle size={16} />}
             />
           </Card>
@@ -189,10 +189,13 @@ const TicketDashboardPage = () => {
               title="SLA合规率"
               value={slaData.complianceRate}
               suffix="%"
-              prefix={<TrendingUp size={16} style={{ color: '#3b82f6' }} />}
+              prefix={<TrendingUp size={16} style={{ color: 'var(--color-primary-text)' }} />}
               styles={{
                 content: {
-                  color: slaData.complianceRate >= 95 ? '#52c41a' : '#faad14',
+                  color:
+                    slaData.complianceRate >= 95
+                      ? 'var(--color-success-text)'
+                      : 'var(--color-warning-text)',
                 },
               }}
             />

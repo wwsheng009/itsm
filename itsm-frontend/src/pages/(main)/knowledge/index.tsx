@@ -482,7 +482,7 @@ export default function KnowledgePage() {
               title={t('knowledgeBase.totalArticles')}
               value={stats.total}
               prefix={<BookOpen className="text-blue-500 mr-2" />}
-              styles={{ content: { color: '#1890ff' } }}
+              styles={{ content: { color: 'var(--color-primary-text)' } }}
             />
           </Card>
         </Col>
@@ -492,7 +492,7 @@ export default function KnowledgePage() {
               title={t('knowledgeBase.publishedArticles')}
               value={stats.published}
               prefix={<CheckCircle className="text-green-500 mr-2" />}
-              styles={{ content: { color: '#52c41a' } }}
+              styles={{ content: { color: 'var(--color-success-text)' } }}
             />
           </Card>
         </Col>
@@ -502,7 +502,7 @@ export default function KnowledgePage() {
               title={t('knowledgeBase.draftArticles')}
               value={stats.draft}
               prefix={<FileText className="text-orange-500 mr-2" />}
-              styles={{ content: { color: '#fa8c16' } }}
+              styles={{ content: { color: 'var(--color-warning-text)' } }}
             />
           </Card>
         </Col>
@@ -512,7 +512,7 @@ export default function KnowledgePage() {
               title={t('knowledgeBase.totalViews')}
               value={stats.views}
               prefix={<Eye className="text-purple-500 mr-2" />}
-              styles={{ content: { color: '#722ed1' } }}
+              styles={{ content: { color: 'var(--color-purple-text)' } }}
             />
           </Card>
         </Col>

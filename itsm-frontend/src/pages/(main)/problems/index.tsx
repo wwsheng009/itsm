@@ -34,11 +34,11 @@ export default function ProblemListPage() {
 
   const kanbanColumns = useMemo<KanbanColumnConfig<Problem>[]>(
     () => [
-      { key: 'open', title: t('problems.kanbanColumns.open'), color: '#ff4d4f' },
-      { key: 'investigating', title: t('problems.kanbanColumns.investigating'), color: '#722ed1' },
-      { key: 'identified', title: t('problems.kanbanColumns.identified'), color: '#fa8c16' },
-      { key: 'resolved', title: t('problems.kanbanColumns.resolved'), color: '#52c41a' },
-      { key: 'closed', title: t('problems.kanbanColumns.closed'), color: '#d9d9d9' },
+      { key: 'open', title: t('problems.kanbanColumns.open'), color: 'var(--color-error)' },
+      { key: 'investigating', title: t('problems.kanbanColumns.investigating'), color: 'var(--color-purple-text)' },
+      { key: 'identified', title: t('problems.kanbanColumns.identified'), color: 'var(--color-warning)' },
+      { key: 'resolved', title: t('problems.kanbanColumns.resolved'), color: 'var(--color-success)' },
+      { key: 'closed', title: t('problems.kanbanColumns.closed'), color: 'var(--color-text-tertiary)' },
     ],
     [t]
   );
@@ -77,25 +77,25 @@ export default function ProblemListPage() {
       {
         label: t('problems.total'),
         value: stats.total,
-        color: '#3b82f6',
+        color: 'var(--color-primary)',
         icon: <Bug size={20} strokeWidth={1.8} />,
       },
       {
         label: t('problems.open'),
         value: stats.open,
-        color: '#ff4d4f',
+        color: 'var(--color-error)',
         icon: <CircleAlert size={20} strokeWidth={1.8} />,
       },
       {
         label: t('problems.investigatingLabel'),
         value: stats.inProgress,
-        color: '#fa8c16',
+        color: 'var(--color-warning)',
         icon: <ScanSearch size={20} strokeWidth={1.8} />,
       },
       {
         label: t('problems.resolved'),
         value: stats.resolved,
-        color: '#52c41a',
+        color: 'var(--color-success)',
         icon: <CircleCheckBig size={20} strokeWidth={1.8} />,
       },
     ],

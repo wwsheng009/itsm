@@ -4,9 +4,12 @@ import { Column } from '@ant-design/charts';
 import { Users } from 'lucide-react';
 import type { TeamWorkload } from '../types/dashboard.types';
 import { DashboardChartCard } from './DashboardChartCard';
+import { useChartTheme } from '@/lib/design-system/chart-theme';
 
 const TeamWorkloadChart: React.FC<{ data: TeamWorkload[] }> = React.memo(({ data }) => {
+  const chart = useChartTheme();
   const config = {
+    theme: chart.isDark ? 'classicDark' : 'classic',
     data: data.map(item => ({
       assignee: item.assignee,
       ticketCount: item.ticketCount,
@@ -15,14 +18,14 @@ const TeamWorkloadChart: React.FC<{ data: TeamWorkload[] }> = React.memo(({ data
     xField: 'ticketCount',
     yField: 'assignee',
     seriesField: 'assignee',
-    color: ['#3b82f6', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6'],
+    color: chart.palette,
     barStyle: {
       radius: [0, 8, 8, 0],
     },
     label: {
       position: 'right' as const,
       style: {
-        fill: '#666',
+        fill: chart.axisText,
         fontSize: 12,
       },
       formatter: (datum: { ticketCount: number }) => `${datum.ticketCount}个`,
@@ -48,8 +51,8 @@ const TeamWorkloadChart: React.FC<{ data: TeamWorkload[] }> = React.memo(({ data
       iconColor="#3b82f6"
       extra={
         <div style={{ textAlign: 'right' }}>
-          <div style={{ fontSize: 12, color: '#8c8c8c' }}>平均完成率</div>
-          <div style={{ fontSize: 16, fontWeight: 600, color: '#1890ff' }}>
+          <div style={{ fontSize: 12, color: 'var(--color-text-tertiary)' }}>平均完成率</div>
+          <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--color-primary-text)' }}>
             {avgCompletion.toFixed(1)}%
           </div>
         </div>

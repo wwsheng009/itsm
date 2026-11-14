@@ -484,7 +484,7 @@ const TicketTemplatesPage = () => {
             <Statistic
               title="模板总数"
               value={templates.length}
-              prefix={<FileText size={16} style={{ color: '#3b82f6' }} />}
+              prefix={<FileText size={16} style={{ color: 'var(--color-primary-text)' }} />}
             />
           </Card>
         </Col>
@@ -493,7 +493,7 @@ const TicketTemplatesPage = () => {
             <Statistic
               title="启用模板"
               value={templates.filter(t => t.isActive).length}
-              styles={{ content: { color: '#52c41a' } }}
+              styles={{ content: { color: 'var(--color-success-text)' } }}
               prefix={<CheckCircle size={16} />}
             />
           </Card>
@@ -503,7 +503,7 @@ const TicketTemplatesPage = () => {
             <Statistic
               title="分类数"
               value={new Set(templates.map(t => t.category).filter(Boolean)).size}
-              prefix={<TagIcon size={16} style={{ color: '#faad14' }} />}
+              prefix={<TagIcon size={16} style={{ color: 'var(--color-warning-text)' }} />}
             />
           </Card>
         </Col>

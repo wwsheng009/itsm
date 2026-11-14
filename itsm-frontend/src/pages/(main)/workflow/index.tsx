@@ -941,7 +941,7 @@ const WorkflowManagementPage = () => {
         value: stats.avgExecutionTime,
         suffix: t('workflow.minutes'),
         prefix: <BarChart3 className="w-5 h-5" />,
-        accentColor: '#722ed1',
+        accentColor: 'var(--color-purple-text)',
         helper:
           stats.avgExecutionTime < 60
             ? t('workflow.goodEfficiency')

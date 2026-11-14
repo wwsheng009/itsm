@@ -4,9 +4,12 @@ import { Column } from '@ant-design/charts';
 import { LineChart } from 'lucide-react';
 import type { ResponseTimeDistribution } from '../types/dashboard.types';
 import { DashboardChartCard } from './DashboardChartCard';
+import { useChartTheme } from '@/lib/design-system/chart-theme';
 
 const ResponseTimeChart: React.FC<{ data: ResponseTimeDistribution[] }> = React.memo(({ data }) => {
+  const chart = useChartTheme();
   const config = {
+    theme: chart.isDark ? 'classicDark' : 'classic',
     data: data.map(item => ({
       range: item.timeRange,
       count: item.count,
@@ -14,14 +17,14 @@ const ResponseTimeChart: React.FC<{ data: ResponseTimeDistribution[] }> = React.
     })),
     xField: 'range',
     yField: 'count',
-    color: '#8b5cf6',
+    color: chart.palette[5],
     columnStyle: {
       radius: [8, 8, 0, 0],
     },
     label: {
       position: 'top' as const,
       style: {
-        fill: '#8b5cf6',
+        fill: chart.palette[5],
         fontSize: 12,
         fontWeight: 'bold',
       },
@@ -51,8 +54,8 @@ const ResponseTimeChart: React.FC<{ data: ResponseTimeDistribution[] }> = React.
       iconColor="#8b5cf6"
       extra={
         <div style={{ textAlign: 'right' }}>
-          <div style={{ fontSize: 12, color: '#8c8c8c' }}>平均响应</div>
-          <div style={{ fontSize: 16, fontWeight: 600, color: '#722ed1' }}>
+          <div style={{ fontSize: 12, color: 'var(--color-text-tertiary)' }}>平均响应</div>
+          <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--color-purple-text)' }}>
             {avgTime.toFixed(1)}小时
           </div>
         </div>

@@ -68,13 +68,25 @@ export function buildHeatmapRows(weeks: HeatmapWeek[]): HeatmapRow[] {
   return rows;
 }
 
-/** 负荷率 → 单元格底色（0 灰、≤50% 绿、≤80% 黄、≤100% 橙、>100% 红）。 */
+/**
+ * 负荷率 → 单元格底色。
+ *
+ * 不返回固定 pastel hex：以 surface 为基底混入语义状态色，
+ * 亮色/暗色由 token 自动派生，避免暗色下出现浅色块 + 浅色文字。
+ * 0 灰、≤50% 绿、≤80% 黄、≤100% 橙、>100% 红。
+ */
 export function heatmapCellColor(ratio: number): string {
-  if (!Number.isFinite(ratio) || ratio <= 0) return '#fafafa';
-  if (ratio <= 0.5) return '#d9f7be';
-  if (ratio <= 0.8) return '#fff1b8';
-  if (ratio <= 1) return '#ffe7ba';
-  return '#ffccc7';
+  if (!Number.isFinite(ratio) || ratio <= 0) return 'var(--color-background-tertiary)';
+  if (ratio <= 0.5) {
+    return 'color-mix(in srgb, var(--color-success) 18%, var(--color-surface-primary))';
+  }
+  if (ratio <= 0.8) {
+    return 'color-mix(in srgb, var(--color-warning) 18%, var(--color-surface-primary))';
+  }
+  if (ratio <= 1) {
+    return 'color-mix(in srgb, var(--color-warning) 32%, var(--color-surface-primary))';
+  }
+  return 'color-mix(in srgb, var(--color-error) 22%, var(--color-surface-primary))';
 }
 
 /** 工时展示：最多 1 位小数（整数不带 .0）。 */
@@ -195,13 +207,14 @@ export function ProjectResourceHeatmap({ projectId, canWrite }: ProjectResourceH
           <div
             style={{
               background: heatmapCellColor(cell.plannedRatio),
+              color: 'var(--color-text-primary)',
               borderRadius: 4,
               padding: '4px 6px',
               lineHeight: 1.4,
             }}
           >
             <div style={{ fontWeight: 600 }}>{formatHours(cell.plannedHours)} h</div>
-            <div style={{ fontSize: 12, color: '#595959' }}>
+            <div style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>
               剩 {formatHours(cell.remainingHours)} / 容 {formatHours(cell.capacityHours)}
             </div>
           </div>
@@ -236,7 +249,7 @@ export function ProjectResourceHeatmap({ projectId, canWrite }: ProjectResourceH
               容量设置
             </Button>
           ) : null}
-          <span style={{ color: '#8c8c8c' }}>
+          <span style={{ color: 'var(--color-text-tertiary)' }}>
             口径：计划=任务估算按计划日期自然日均摊；剩余=估算−实际（逾期落本周）。只读视图，不做自动均衡。
           </span>
         </Space>
@@ -295,10 +308,10 @@ export function ProjectResourceHeatmap({ projectId, canWrite }: ProjectResourceH
                   />
                 </Space>
               ))}
-              {memberInputs.length === 0 && !capacityLoading ? <span style={{ color: '#8c8c8c' }}>暂无存活成员</span> : null}
+              {memberInputs.length === 0 && !capacityLoading ? <span style={{ color: 'var(--color-text-tertiary)' }}>暂无存活成员</span> : null}
             </Space>
           </div>
-          <span style={{ color: '#8c8c8c' }}>取值 0~168 小时；0 或留空表示清除覆盖（回继承/回内置 40）。</span>
+          <span style={{ color: 'var(--color-text-tertiary)' }}>取值 0~168 小时；0 或留空表示清除覆盖（回继承/回内置 40）。</span>
         </Space>
       </Modal>
     </>

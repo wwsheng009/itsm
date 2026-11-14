@@ -387,12 +387,12 @@ const HelpCoveragePage: React.FC = () => {
         </Col>
         <Col xs={12} md={5}>
           <Card size="small">
-            <Statistic title="缺失" value={coverage?.totals.missing ?? 0} valueStyle={{ color: '#cf1322' }} />
+            <Statistic title="缺失" value={coverage?.totals.missing ?? 0} valueStyle={{ color: 'var(--color-error-text)' }} />
           </Card>
         </Col>
         <Col xs={12} md={5}>
           <Card size="small">
-            <Statistic title="需复核" value={coverage?.totals.stale ?? 0} valueStyle={{ color: '#d46b08' }} />
+            <Statistic title="需复核" value={coverage?.totals.stale ?? 0} valueStyle={{ color: 'var(--color-warning-text)' }} />
           </Card>
         </Col>
         <Col xs={12} md={4}>

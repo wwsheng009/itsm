@@ -33,12 +33,12 @@ export default function IncidentsPage() {
 
   const kanbanColumns = useMemo<KanbanColumnConfig<Incident>[]>(
     () => [
-      { key: 'new', title: t('incidents.kanbanColumns.new'), color: '#3b82f6' },
-      { key: 'acknowledged', title: t('incidents.kanbanColumns.acknowledged'), color: '#722ed1' },
-      { key: 'assigned', title: t('incidents.kanbanColumns.assigned'), color: '#13c2c2' },
-      { key: 'in_progress', title: t('incidents.kanbanColumns.in_progress'), color: '#3b82f6' },
-      { key: 'resolved', title: t('incidents.kanbanColumns.resolved'), color: '#52c41a' },
-      { key: 'closed', title: t('incidents.kanbanColumns.closed'), color: '#d9d9d9' },
+      { key: 'new', title: t('incidents.kanbanColumns.new'), color: 'var(--color-primary)' },
+      { key: 'acknowledged', title: t('incidents.kanbanColumns.acknowledged'), color: 'var(--color-purple-text)' },
+      { key: 'assigned', title: t('incidents.kanbanColumns.assigned'), color: 'var(--color-info)' },
+      { key: 'in_progress', title: t('incidents.kanbanColumns.in_progress'), color: 'var(--color-primary)' },
+      { key: 'resolved', title: t('incidents.kanbanColumns.resolved'), color: 'var(--color-success)' },
+      { key: 'closed', title: t('incidents.kanbanColumns.closed'), color: 'var(--color-text-tertiary)' },
     ],
     [t]
   );

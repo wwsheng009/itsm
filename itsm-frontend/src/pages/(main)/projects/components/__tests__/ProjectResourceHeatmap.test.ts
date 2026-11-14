@@ -24,17 +24,27 @@ function mkWeek(weekStart: string, members: HeatmapMemberWeek[]): HeatmapWeek {
 
 describe('heatmapCellColor', () => {
   it('按负荷率分档（0 灰、≤50% 绿、≤80% 黄、≤100% 橙、>100% 红）', () => {
-    expect(heatmapCellColor(0)).toBe('#fafafa');
-    expect(heatmapCellColor(0.3)).toBe('#d9f7be');
-    expect(heatmapCellColor(0.5)).toBe('#d9f7be');
-    expect(heatmapCellColor(0.8)).toBe('#fff1b8');
-    expect(heatmapCellColor(1)).toBe('#ffe7ba');
-    expect(heatmapCellColor(1.01)).toBe('#ffccc7');
+    expect(heatmapCellColor(0)).toBe('var(--color-background-tertiary)');
+    expect(heatmapCellColor(0.3)).toBe(
+      'color-mix(in srgb, var(--color-success) 18%, var(--color-surface-primary))',
+    );
+    expect(heatmapCellColor(0.5)).toBe(
+      'color-mix(in srgb, var(--color-success) 18%, var(--color-surface-primary))',
+    );
+    expect(heatmapCellColor(0.8)).toBe(
+      'color-mix(in srgb, var(--color-warning) 18%, var(--color-surface-primary))',
+    );
+    expect(heatmapCellColor(1)).toBe(
+      'color-mix(in srgb, var(--color-warning) 32%, var(--color-surface-primary))',
+    );
+    expect(heatmapCellColor(1.01)).toBe(
+      'color-mix(in srgb, var(--color-error) 22%, var(--color-surface-primary))',
+    );
   });
 
   it('非法值降级为无负荷色', () => {
-    expect(heatmapCellColor(Number.NaN)).toBe('#fafafa');
-    expect(heatmapCellColor(-1)).toBe('#fafafa');
+    expect(heatmapCellColor(Number.NaN)).toBe('var(--color-background-tertiary)');
+    expect(heatmapCellColor(-1)).toBe('var(--color-background-tertiary)');
   });
 });
 

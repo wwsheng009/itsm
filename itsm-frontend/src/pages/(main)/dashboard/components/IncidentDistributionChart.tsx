@@ -5,9 +5,11 @@ import { Pie } from '@ant-design/charts';
 import { PieChart } from 'lucide-react';
 import type { IncidentDistributionData } from '../types/dashboard.types';
 import { DashboardChartCard } from './DashboardChartCard';
+import { useChartTheme } from '@/lib/design-system/chart-theme';
 
 const IncidentDistributionChart: React.FC<{ data: IncidentDistributionData[] }> = React.memo(
   ({ data }) => {
+    const chart = useChartTheme();
     // 确保数据有效性
     const validData = data.filter(
       item => item && typeof item.count === 'number' && !isNaN(item.count) && item.count >= 0
@@ -15,6 +17,7 @@ const IncidentDistributionChart: React.FC<{ data: IncidentDistributionData[] }> 
     const totalCount = validData.reduce((sum, item) => sum + (item.count || 0), 0);
 
     const config = {
+      theme: chart.isDark ? 'classicDark' : 'classic',
       data: validData.map(item => ({
         type: item.category || '未知',
         value: item.count || 0,
@@ -29,7 +32,7 @@ const IncidentDistributionChart: React.FC<{ data: IncidentDistributionData[] }> 
           offsetY: -8,
           style: {
             fontSize: '12px', // antdTheme.token.fontSizeSM
-            fill: '#64748b', // antdTheme.token.colorTextSecondary
+            fill: chart.axisText,
           },
           formatter: () => '总事件数',
         },
@@ -38,12 +41,12 @@ const IncidentDistributionChart: React.FC<{ data: IncidentDistributionData[] }> 
           style: {
             fontSize: '30px', // Adjusted to align with designSystem.typography.fontSize['3xl']
             fontWeight: 'bold',
-            fill: '#10b981', // antdTheme.token.colorSuccess (consistent with iconColor)
+            fill: chart.palette[1],
           },
           formatter: () => totalCount.toString(),
         },
       },
-      color: validData.map(item => item.color || '#6b7280'),
+      color: validData.map((_, index) => chart.palette[index % chart.palette.length]),
       legend: {
         position: 'bottom' as const,
         offsetY: -10,

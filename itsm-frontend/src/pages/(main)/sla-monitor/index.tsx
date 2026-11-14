@@ -366,7 +366,7 @@ const SLAMonitorPage = () => {
               title="SLA总数"
               value={stats.totalDefinitions}
               prefix={<Clock size={18} className="text-blue-500 mr-2" />}
-              styles={{ content: { color: '#1890ff' } }}
+              styles={{ content: { color: 'var(--color-primary-text)' } }}
             />
           </Card>
         </Col>
@@ -376,7 +376,7 @@ const SLAMonitorPage = () => {
               title="启用中"
               value={stats.activeDefinitions}
               prefix={<CheckCircle size={18} className="text-green-500 mr-2" />}
-              styles={{ content: { color: '#52c41a' } }}
+              styles={{ content: { color: 'var(--color-success-text)' } }}
               suffix={`/ ${stats.totalDefinitions}`}
             />
           </Card>
@@ -387,7 +387,7 @@ const SLAMonitorPage = () => {
               title="违规总数"
               value={stats.totalViolations}
               prefix={<AlertTriangle size={18} className="text-orange-500 mr-2" />}
-              styles={{ content: { color: '#fa8c16' } }}
+              styles={{ content: { color: 'var(--color-warning-text)' } }}
             />
           </Card>
         </Col>
@@ -397,7 +397,7 @@ const SLAMonitorPage = () => {
               title="未解决违规"
               value={stats.openViolations}
               prefix={<AlertTriangle size={18} className="text-red-500 mr-2" />}
-              styles={{ content: { color: '#ff4d4f' } }}
+              styles={{ content: { color: 'var(--color-error-text)' } }}
             />
           </Card>
         </Col>
@@ -483,7 +483,7 @@ const SLAMonitorPage = () => {
                           precision={1}
                           suffix="%"
                           prefix={<CheckCircle size={18} className="text-purple-500" />}
-                          styles={{ content: { color: '#722ed1' } }}
+                          styles={{ content: { color: 'var(--color-purple-text)' } }}
                         />
                       </Card>
                     </Col>

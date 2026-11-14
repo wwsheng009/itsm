@@ -5,10 +5,13 @@ import { Line } from '@ant-design/charts';
 import { LineChart } from 'lucide-react'; // Import Lucide LineChart
 import type { TicketTrendData } from '../types/dashboard.types';
 import { DashboardChartCard } from './DashboardChartCard'; // Import from new file
+import { useChartTheme } from '@/lib/design-system/chart-theme';
 
 // 工单趋势图
 const TicketTrendChart: React.FC<{ data: TicketTrendData[] }> = React.memo(({ data }) => {
+  const chart = useChartTheme();
   const config = {
+    theme: chart.isDark ? 'classicDark' : 'classic',
     data: data.flatMap(item => [
       { date: item.date, type: '待处理', value: item.open },
       { date: item.date, type: '处理中', value: item.inProgress },
@@ -24,7 +27,7 @@ const TicketTrendChart: React.FC<{ data: TicketTrendData[] }> = React.memo(({ da
         duration: 1200,
       },
     },
-    color: ['#3b82f6', '#f59e0b', '#10b981', '#8b5cf6'],
+    color: [chart.palette[0], chart.palette[2], chart.palette[1], chart.palette[5]],
     lineStyle: {
       lineWidth: 3,
     },

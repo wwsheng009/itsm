@@ -184,7 +184,7 @@ export default function ServiceCatalogPage() {
   }
 
   return (
-    <div className="p-6 min-h-screen" style={{ backgroundColor: 'var(--color-bg-secondary, #f9fafb)' }}>
+    <div className="p-6 min-h-screen" style={{ backgroundColor: 'var(--color-page-background, #f9fafb)' }}>
       {/* 页面头部 */}
       <div className="mb-6">
         <Title level={2} style={{ marginBottom: 4 }}>

@@ -115,7 +115,7 @@ const SLAComplianceChart: React.FC<{ data: SLAData[]; overallValue?: number }> =
               alignItems: 'center',
               justifyContent: 'center',
               height: '100%',
-              color: '#999',
+              color: 'var(--color-text-tertiary)',
             }}
           >
             暂无数据

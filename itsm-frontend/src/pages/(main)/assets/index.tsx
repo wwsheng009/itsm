@@ -48,25 +48,25 @@ export default function AssetsPage() {
     {
       label: '资产总数',
       value: stats.totalAssets,
-      color: '#1890ff',
+      color: 'var(--color-primary)',
       icon: <Package className="h-5 w-5" />,
     },
     {
       label: '使用中',
       value: stats.inUse,
-      color: '#52c41a',
+      color: 'var(--color-success)',
       icon: <CheckCircle className="h-5 w-5" />,
     },
     {
       label: '可用',
       value: stats.available,
-      color: '#1890ff',
+      color: 'var(--color-primary)',
       icon: <Package className="h-5 w-5" />,
     },
     {
       label: '维护中',
       value: stats.maintenance,
-      color: '#fa8c16',
+      color: 'var(--color-warning)',
       icon: <Clock className="h-5 w-5" />,
     },
   ];

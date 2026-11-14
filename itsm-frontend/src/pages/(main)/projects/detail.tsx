@@ -1392,7 +1392,7 @@ export default function ProjectDetailPage() {
       render: (_: unknown, row) => (
         <div>
           <div>{GATE_META[row.gate].label}</div>
-          <div style={{ color: '#8c8c8c', fontSize: 12 }}>{GATE_META[row.gate].hint}</div>
+          <div style={{ color: 'var(--color-text-tertiary)', fontSize: 12 }}>{GATE_META[row.gate].hint}</div>
         </div>
       ),
     },
@@ -1415,7 +1415,7 @@ export default function ProjectDetailPage() {
         const submittedAt = record.submittedAt ?? '';
         const decidedAt = record.decidedAt ?? '';
         return (
-          <div style={{ fontSize: 12, color: '#595959' }}>
+          <div style={{ fontSize: 12, color: 'var(--color-text-tertiary)' }}>
             {hasRealTime(submittedAt) ? (
                 <div>{`提交：${formatBusinessDateTime(submittedAt)}`}</div>
             ) : null}
@@ -1551,7 +1551,7 @@ export default function ProjectDetailPage() {
               </Tag>
             )}
           </div>
-          <div style={{ color: '#8c8c8c', fontSize: 12 }}>{CLOSURE_ITEM_META[row.key]?.hint}</div>
+          <div style={{ color: 'var(--color-text-tertiary)', fontSize: 12 }}>{CLOSURE_ITEM_META[row.key]?.hint}</div>
         </div>
       ),
     },
@@ -1576,7 +1576,7 @@ export default function ProjectDetailPage() {
         if (!canWrite || project?.status === 'completed' || project?.status === 'cancelled') return '-';
         if (row.key === 'retro') {
           return row.status === 'done' ? (
-            <span style={{ color: '#8c8c8c', fontSize: 12 }}>{`草稿 #${closure?.retroKbArticleId}（未发布）`}</span>
+            <span style={{ color: 'var(--color-text-tertiary)', fontSize: 12 }}>{`草稿 #${closure?.retroKbArticleId}（未发布）`}</span>
           ) : (
             <Button size="small" type="primary" loading={closureActionLoading} onClick={handleGenerateRetro}>
               生成复盘草稿
@@ -1611,7 +1611,7 @@ export default function ProjectDetailPage() {
         }
         if (row.key === 'csat') {
           return row.status === 'done' ? (
-            <span style={{ color: '#8c8c8c', fontSize: 12 }}>{`调研 #${closure?.csatSurveyId}`}</span>
+            <span style={{ color: 'var(--color-text-tertiary)', fontSize: 12 }}>{`调研 #${closure?.csatSurveyId}`}</span>
           ) : (
             <Button size="small" loading={closureActionLoading} onClick={handleTriggerCSAT}>
               手动触发 CSAT
@@ -1638,7 +1638,7 @@ export default function ProjectDetailPage() {
       key: 'target',
       render: (_: unknown, row) =>
         row.targetMissing ? (
-          <span style={{ color: '#8c8c8c' }}>
+          <span style={{ color: 'var(--color-text-tertiary)' }}>
             {`${assetLinkTypeLabel(row.linkType)} #${row.targetId}`}
             <Tag style={{ marginLeft: 6 }} color="default">
               目标已删除
@@ -1647,7 +1647,7 @@ export default function ProjectDetailPage() {
         ) : (
           <div>
             <div>{row.label}</div>
-            {row.sublabel ? <div style={{ color: '#8c8c8c', fontSize: 12 }}>{row.sublabel}</div> : null}
+            {row.sublabel ? <div style={{ color: 'var(--color-text-tertiary)', fontSize: 12 }}>{row.sublabel}</div> : null}
           </div>
         ),
     },
@@ -2183,7 +2183,7 @@ export default function ProjectDetailPage() {
                   ) : (
                     <Tag color="success">四道门已全部通过</Tag>
                   )}
-                  <span style={{ color: '#8c8c8c' }}>
+                  <span style={{ color: 'var(--color-text-tertiary)' }}>
                     进入本页即按当前数据实时预检（无需先提交）；阻塞项右侧可直接进入对应处理入口，
                     修复后在该门行点击「重新提交」。立项门通过后才能激活项目。
                   </span>
@@ -2238,7 +2238,7 @@ export default function ProjectDetailPage() {
                       {CLOSURE_STATUS_META[closure.status]?.label ?? closure.status}
                     </Tag>
                   ) : null}
-                  <span style={{ color: '#8c8c8c' }}>
+                  <span style={{ color: 'var(--color-text-tertiary)' }}>
                     阻塞项全部通过后，用页头「结项」完成项目；复盘草稿不自动发布，CSAT 缺失不阻塞结项。
                   </span>
                 </Space>
@@ -2282,7 +2282,7 @@ export default function ProjectDetailPage() {
                     ) : null
                   }
                 >
-                  <div style={{ color: '#8c8c8c', fontSize: 12, marginBottom: 8 }}>
+                  <div style={{ color: 'var(--color-text-tertiary)', fontSize: 12, marginBottom: 8 }}>
                     链接既有台账（同租户）：资产 / 许可证 / 供应商 / 合同；不做采购流程，登记明细不改变结项门禁（仍需确认或豁免）。
                   </div>
                   <Table
@@ -2797,7 +2797,7 @@ export default function ProjectDetailPage() {
           setGateRejectComment('');
         }}
       >
-        <p style={{ marginBottom: 8, color: '#8c8c8c' }}>拒绝必须填写明确原因（写入审计），修复阻塞项后可重新提交。</p>
+        <p style={{ marginBottom: 8, color: 'var(--color-text-tertiary)' }}>拒绝必须填写明确原因（写入审计），修复阻塞项后可重新提交。</p>
         <Input.TextArea
           rows={3}
           value={gateRejectComment}
@@ -2817,7 +2817,7 @@ export default function ProjectDetailPage() {
       >
         {assetsAction === 'confirm' ? (
           <>
-            <p style={{ marginBottom: 8, color: '#8c8c8c' }}>
+            <p style={{ marginBottom: 8, color: 'var(--color-text-tertiary)' }}>
               确认本项目交付产生的资产/许可已登记（可先在「采购/资产登记明细」添加台账链接，再确认留痕；P2/PE-26）。
             </p>
             <Input.TextArea
@@ -2829,7 +2829,7 @@ export default function ProjectDetailPage() {
           </>
         ) : (
           <>
-            <p style={{ marginBottom: 8, color: '#8c8c8c' }}>豁免须填写原因（写入审计与结项清单留痕）。</p>
+            <p style={{ marginBottom: 8, color: 'var(--color-text-tertiary)' }}>豁免须填写原因（写入审计与结项清单留痕）。</p>
             <Input.TextArea
               rows={3}
               value={assetsReason}
@@ -2852,7 +2852,7 @@ export default function ProjectDetailPage() {
           setAssetLinkCandidates([]);
         }}
       >
-        <p style={{ marginBottom: 12, color: '#8c8c8c' }}>
+        <p style={{ marginBottom: 12, color: 'var(--color-text-tertiary)' }}>
           链接既有台账（同租户弱引用）：资产 / 许可证 / 供应商 / 合同；不创建新台账记录，不做采购流程。
         </p>
         <Select

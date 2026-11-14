@@ -283,7 +283,7 @@ const WorkflowAutomationPage = () => {
               title='自动分配规则'
               value={rules.filter(r => r.type === 'assignment').length}
               prefix={<Users className='w-5 h-5' />}
-              styles={{ content: { color: '#1890ff' } }}
+              styles={{ content: { color: 'var(--color-primary-text)' } }}
             />
           </Card>
         </Col>
@@ -293,7 +293,7 @@ const WorkflowAutomationPage = () => {
               title='智能路由规则'
               value={rules.filter(r => r.type === 'routing').length}
               prefix={<GitBranch className='w-5 h-5' />}
-              styles={{ content: { color: '#52c41a' } }}
+              styles={{ content: { color: 'var(--color-success-text)' } }}
             />
           </Card>
         </Col>
@@ -303,7 +303,7 @@ const WorkflowAutomationPage = () => {
               title='自动升级规则'
               value={rules.filter(r => r.type === 'escalation').length}
               prefix={<Clock className='w-5 h-5' />}
-              styles={{ content: { color: '#faad14' } }}
+              styles={{ content: { color: 'var(--color-warning-text)' } }}
             />
           </Card>
         </Col>
@@ -313,7 +313,7 @@ const WorkflowAutomationPage = () => {
               title='活跃规则'
               value={rules.filter(r => r.isActive).length}
               prefix={<CheckCircle className='w-5 h-5' />}
-              styles={{ content: { color: '#52c41a' } }}
+              styles={{ content: { color: 'var(--color-success-text)' } }}
             />
           </Card>
         </Col>

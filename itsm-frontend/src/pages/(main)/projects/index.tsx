@@ -377,7 +377,7 @@ export default function ProjectsPage() {
           return (
             <div style={{ lineHeight: 1.5, whiteSpace: 'nowrap' }}>
               <div>{dept}</div>
-              <div style={{ color: '#8c8c8c', fontSize: 12 }}>
+              <div style={{ color: 'var(--color-text-tertiary)', fontSize: 12 }}>
                 {team}
                 {record.ownerTeamDeleted ? '（已停用）' : ''} · {plan}
                 {budget ? ` · ${budget}` : ''}

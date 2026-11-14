@@ -128,7 +128,7 @@ export default function NOCPage() {
               title="重大事件总数"
               value={total}
               prefix={<Zap size={18} className="text-red-500 mr-2" />}
-              valueStyle={{ color: '#cf1322' }}
+              valueStyle={{ color: 'var(--color-error-text)' }}
             />
           </Card>
         </Col>

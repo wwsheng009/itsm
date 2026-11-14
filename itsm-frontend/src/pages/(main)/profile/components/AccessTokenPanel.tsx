@@ -238,7 +238,9 @@ export function AccessTokenPanel({ api = PersonalAccessTokenApi }: AccessTokenPa
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
         <div>
           <div style={{ fontWeight: 600, marginBottom: 4 }}>{t('profile.accessTokens.title')}</div>
-          <div style={{ color: 'rgba(0,0,0,0.45)', fontSize: 13 }}>{t('profile.accessTokens.subtitle')}</div>
+          <div style={{ color: 'var(--color-text-tertiary)', fontSize: 13 }}>
+            {t('profile.accessTokens.subtitle')}
+          </div>
         </div>
         <Space>
           {hasActive && (

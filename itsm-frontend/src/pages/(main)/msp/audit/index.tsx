@@ -147,7 +147,7 @@ const MSPAuditBoardPage: React.FC = () => {
 
       <div className='grid grid-cols-1 md:grid-cols-3 gap-4'>
         <Card data-testid='audit-card-denied' loading={loading && !summary}>
-          <Statistic title='拒绝事件（越权/冲突）' value={summary?.deniedEvents ?? 0} valueStyle={{ color: '#cf1322' }} />
+          <Statistic title='拒绝事件（越权/冲突）' value={summary?.deniedEvents ?? 0} valueStyle={{ color: 'var(--color-error-text)' }} />
         </Card>
         <Card data-testid='audit-card-cross' loading={loading && !summary}>
           <Statistic title='跨租户审计事件' value={summary?.crossTenantEvents ?? 0} />

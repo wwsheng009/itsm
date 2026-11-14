@@ -3,6 +3,7 @@ import React from 'react';
 import { Column } from '@ant-design/charts';
 import { Smile } from 'lucide-react';
 import { DashboardChartCard } from './DashboardChartCard';
+import { useChartTheme } from '@/lib/design-system/chart-theme';
 
 interface SatisfactionData {
   month: string;
@@ -11,7 +12,9 @@ interface SatisfactionData {
 }
 
 const UserSatisfactionChart: React.FC<{ data: SatisfactionData[] }> = React.memo(({ data }) => {
+  const chart = useChartTheme();
   const config = {
+    theme: chart.isDark ? 'classicDark' : 'classic',
     data: data.map(item => ({
       month: item.month,
       rating: item.rating,
@@ -26,16 +29,16 @@ const UserSatisfactionChart: React.FC<{ data: SatisfactionData[] }> = React.memo
         max: 5,
       },
     },
-    color: '#ec4899',
+    color: chart.palette[6],
     columnStyle: {
       radius: [8, 8, 0, 0],
-      fill: 'l(270) 0:#ec4899 1:#db2777',
+      fill: `l(270) 0:${chart.palette[6]} 1:${chart.palette[5]}`,
     },
     columnWidthRatio: 0.5,
     label: {
       position: 'top' as const,
       style: {
-        fill: '#ec4899',
+        fill: chart.palette[6],
         fontSize: 13,
         fontWeight: 'bold',
       },
@@ -71,8 +74,8 @@ const UserSatisfactionChart: React.FC<{ data: SatisfactionData[] }> = React.memo
       trend={{ value: trend, isPositive: trend > 0 }}
       extra={
         <div style={{ textAlign: 'right' }}>
-          <div style={{ fontSize: 12, color: '#8c8c8c' }}>平均评分</div>
-          <div style={{ fontSize: 16, fontWeight: 600, color: '#eb2f96' }}>
+          <div style={{ fontSize: 12, color: 'var(--color-text-tertiary)' }}>平均评分</div>
+          <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--color-magenta-text)' }}>
             {avgRating.toFixed(1)}/5.0
           </div>
         </div>

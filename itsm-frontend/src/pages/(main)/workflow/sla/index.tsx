@@ -227,14 +227,14 @@ export default function SLAMonitoringPage() {
               <Statistic
                 title={t('workflow.sla.runningInstances') || '进行中'}
                 value={processMetrics.runningInstances}
-                styles={{ content: { color: '#1890ff' } }}
+                styles={{ content: { color: 'var(--color-primary-text)' } }}
               />
             </Col>
             <Col xs={12} sm={8}>
               <Statistic
                 title={t('workflow.sla.completedInstances') || '已完成'}
                 value={processMetrics.completedInstances}
-                styles={{ content: { color: '#52c41a' } }}
+                styles={{ content: { color: 'var(--color-success-text)' } }}
               />
             </Col>
             <Col xs={12} sm={8}>
@@ -253,10 +253,10 @@ export default function SLAMonitoringPage() {
                   content: {
                     color:
                       processMetrics.slaComplianceRate >= 90
-                        ? '#52c41a'
+                        ? 'var(--color-success-text)'
                         : processMetrics.slaComplianceRate >= 70
-                          ? '#faad14'
-                          : '#ff4d4f',
+                          ? 'var(--color-warning-text)'
+                          : 'var(--color-error-text)',
                   },
                 }}
               />
@@ -303,7 +303,7 @@ export default function SLAMonitoringPage() {
               title="未处理"
               value={violations.filter(v => !v.isResolved).length}
               prefix={<AlertTriangle size={20} />}
-              styles={{ content: { color: '#ff4d4f' } }}
+              styles={{ content: { color: 'var(--color-error-text)' } }}
             />
           </Card>
         </Col>
@@ -313,7 +313,7 @@ export default function SLAMonitoringPage() {
               title="高严重级别"
               value={violations.filter(v => v.severity === 'critical' || v.severity === 'high').length}
               prefix={<Clock size={20} />}
-              styles={{ content: { color: '#faad14' } }}
+              styles={{ content: { color: 'var(--color-warning-text)' } }}
             />
           </Card>
         </Col>
@@ -323,7 +323,7 @@ export default function SLAMonitoringPage() {
               title="已处理"
               value={violations.filter(v => v.isResolved).length}
               prefix={<CheckCircle size={20} />}
-              styles={{ content: { color: '#52c41a' } }}
+              styles={{ content: { color: 'var(--color-success-text)' } }}
             />
           </Card>
         </Col>

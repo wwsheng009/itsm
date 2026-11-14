@@ -240,7 +240,7 @@ export default function ProjectReportsPage() {
             </Popconfirm>
           </Space>
         ) : (
-          <span style={{ color: '#bfbfbf' }}>无写权限</span>
+          <span style={{ color: 'var(--color-text-tertiary)' }}>无写权限</span>
         ),
     },
   ];

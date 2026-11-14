@@ -491,7 +491,7 @@ export default function KnownErrorsPage() {
                 <Statistic
                   title="活动中"
                   value={stats.active}
-                  styles={{ content: { color: '#1890ff' } }}
+                  styles={{ content: { color: 'var(--color-primary-text)' } }}
                 />
               </Card>
             </Col>
@@ -500,7 +500,7 @@ export default function KnownErrorsPage() {
                 <Statistic
                   title="已解决"
                   value={stats.resolved}
-                  styles={{ content: { color: '#52c41a' } }}
+                  styles={{ content: { color: 'var(--color-success-text)' } }}
                 />
               </Card>
             </Col>
@@ -509,7 +509,7 @@ export default function KnownErrorsPage() {
                 <Statistic
                   title="已废弃"
                   value={stats.deprecated}
-                  styles={{ content: { color: '#ff4d4f' } }}
+                  styles={{ content: { color: 'var(--color-error-text)' } }}
                 />
               </Card>
             </Col>

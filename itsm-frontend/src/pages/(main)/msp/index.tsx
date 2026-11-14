@@ -276,7 +276,7 @@ export default function MSPDashboardPage() {
                   <p style={{ marginTop: 8, color: '#888' }}>
                     MSP（Managed Service Provider）管理控制台用于管理多租户服务。
                   </p>
-                  <p style={{ marginTop: 16, fontSize: 12, color: '#999' }}>
+                  <p style={{ marginTop: 16, fontSize: 12, color: 'var(--color-text-tertiary)' }}>
                     如需访问，请联系系统管理员为您分配 MSP 员工角色。
                   </p>
                 </div>

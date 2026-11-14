@@ -5,8 +5,10 @@ import { Column } from '@ant-design/charts';
 import { TrendingUp } from 'lucide-react';
 import { DashboardChartCard } from './DashboardChartCard';
 import type { PeakHourData } from '../types/dashboard.types';
+import { useChartTheme } from '@/lib/design-system/chart-theme';
 
 const PeakHoursChart: React.FC<{ data: PeakHourData[] }> = React.memo(({ data }) => {
+  const chart = useChartTheme();
   // 确保数据有效性
   const validData = data.filter(
     item => item && item.hour !== undefined && typeof item.count === 'number'
@@ -27,7 +29,7 @@ const PeakHoursChart: React.FC<{ data: PeakHourData[] }> = React.memo(({ data })
             alignItems: 'center',
             justifyContent: 'center',
             height: '280px',
-            color: '#999',
+            color: 'var(--color-text-tertiary)',
           }}
         >
           暂无数据
@@ -37,13 +39,14 @@ const PeakHoursChart: React.FC<{ data: PeakHourData[] }> = React.memo(({ data })
   }
 
   const config = {
+    theme: chart.isDark ? 'classicDark' : 'classic',
     data: validData.map(item => ({
       hour: `${item.hour}:00`,
       count: item.count,
     })),
     xField: 'hour',
     yField: 'count',
-    color: '#06b6d4',
+    color: chart.palette[4],
     columnStyle: {
       radius: [8, 8, 0, 0],
     },

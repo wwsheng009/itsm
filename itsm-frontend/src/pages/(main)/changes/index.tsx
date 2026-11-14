@@ -39,13 +39,13 @@ export default function ChangesPage() {
 
   const kanbanColumns = useMemo<KanbanColumnConfig<Change>[]>(
     () => [
-      { key: 'draft', title: t('changes.kanbanColumns.draft'), color: '#d9d9d9' },
-      { key: 'pending', title: t('changes.kanbanColumns.pending'), color: '#fa8c16' },
-      { key: 'approved', title: t('changes.kanbanColumns.approved'), color: '#3b82f6' },
-      { key: 'scheduled', title: t('changes.kanbanColumns.scheduled'), color: '#722ed1' },
-      { key: 'in_progress', title: t('changes.kanbanColumns.in_progress'), color: '#13c2c2' },
-      { key: 'completed', title: t('changes.kanbanColumns.completed'), color: '#52c41a' },
-      { key: 'cancelled', title: t('changes.kanbanColumns.cancelled'), color: '#ff4d4f' },
+      { key: 'draft', title: t('changes.kanbanColumns.draft'), color: 'var(--color-text-tertiary)' },
+      { key: 'pending', title: t('changes.kanbanColumns.pending'), color: 'var(--color-warning)' },
+      { key: 'approved', title: t('changes.kanbanColumns.approved'), color: 'var(--color-primary)' },
+      { key: 'scheduled', title: t('changes.kanbanColumns.scheduled'), color: 'var(--color-purple-text)' },
+      { key: 'in_progress', title: t('changes.kanbanColumns.in_progress'), color: 'var(--color-info)' },
+      { key: 'completed', title: t('changes.kanbanColumns.completed'), color: 'var(--color-success)' },
+      { key: 'cancelled', title: t('changes.kanbanColumns.cancelled'), color: 'var(--color-error)' },
     ],
     [t]
   );
@@ -101,25 +101,25 @@ export default function ChangesPage() {
       {
         label: t('changes.total'),
         value: stats.total,
-        color: '#3b82f6',
+        color: 'var(--color-primary)',
         icon: <ClipboardList size={20} strokeWidth={1.8} />,
       },
       {
         label: t('changes.pending'),
         value: stats.pending,
-        color: '#fa8c16',
+        color: 'var(--color-warning)',
         icon: <Clock size={20} strokeWidth={1.8} />,
       },
       {
         label: t('changes.inProgress'),
         value: stats.inProgress,
-        color: '#3b82f6',
+        color: 'var(--color-primary)',
         icon: <RefreshCw size={20} strokeWidth={1.8} />,
       },
       {
         label: t('changes.completed'),
         value: stats.completed,
-        color: '#52c41a',
+        color: 'var(--color-success)',
         icon: <CheckCircle2 size={20} strokeWidth={1.8} />,
       },
     ],

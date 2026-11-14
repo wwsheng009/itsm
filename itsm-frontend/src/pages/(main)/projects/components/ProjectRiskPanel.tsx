@@ -242,7 +242,7 @@ export function ProjectRiskPanel({ projectId, projectStatus, canWrite, memberOpt
         <Space size={4}>
           <Tag color={LEVEL_META[level]?.color}>{LEVEL_META[level]?.label ?? level}</Tag>
           {(risk.probability || risk.impact) && (
-            <span style={{ color: '#8c8c8c', fontSize: 12 }}>
+            <span style={{ color: 'var(--color-text-tertiary)', fontSize: 12 }}>
               {risk.probability ? `P:${LEVEL_META[risk.probability]?.label}` : ''}
               {risk.probability && risk.impact ? ' / ' : ''}
               {risk.impact ? `I:${LEVEL_META[risk.impact]?.label}` : ''}
@@ -418,7 +418,7 @@ export function ProjectRiskPanel({ projectId, projectStatus, canWrite, memberOpt
         <Button icon={<RefreshCw size={16} />} onClick={fetchRisks} loading={loading}>
           刷新
         </Button>
-        <span style={{ color: '#8c8c8c' }}>
+        <span style={{ color: 'var(--color-text-tertiary)' }}>
           {projectClosed
             ? '项目已结项/取消：风险台账只读，不能新建或转换。'
             : '关闭须填写结论；转问题/变更走 ITSM 域（重复转换会被拒绝并给出既有单据）。'}

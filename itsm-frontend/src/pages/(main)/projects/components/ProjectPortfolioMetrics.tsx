@@ -95,10 +95,10 @@ const MILESTONE_STATUS_META: Record<string, { label: string; color: string }> = 
 function MetricCard(props: { title: string; rate: number | null; detail: string; extra?: string }) {
   return (
     <Card size="small" data-testid={`metric-${props.title}`}>
-      <div style={{ fontSize: 12, color: '#8c8c8c' }}>{props.title}</div>
+      <div style={{ fontSize: 12, color: 'var(--color-text-tertiary)' }}>{props.title}</div>
       <div style={{ fontSize: 28, fontWeight: 600, lineHeight: 1.3 }}>{formatRate(props.rate)}</div>
-      <div style={{ fontSize: 12, color: '#595959' }}>{props.detail}</div>
-      {props.extra && <div style={{ fontSize: 12, color: '#bfbfbf' }}>{props.extra}</div>}
+      <div style={{ fontSize: 12, color: 'var(--color-text-tertiary)' }}>{props.detail}</div>
+      {props.extra && <div style={{ fontSize: 12, color: 'var(--color-text-tertiary)' }}>{props.extra}</div>}
     </Card>
   );
 }

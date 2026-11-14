@@ -205,7 +205,7 @@ export default function IncidentDetailPage() {
             type="link"
             icon={<ArrowLeft />}
             onClick={() => navigate(-1)}
-            style={{ paddingLeft: 0, color: '#666' }}
+            style={{ paddingLeft: 0, color: 'var(--color-text-tertiary)' }}
           >
             {t('common.back')}
           </Button>

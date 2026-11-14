@@ -549,7 +549,7 @@ export default function CreateIncidentPage() {
                                   {item.snippet && (
                                     <div
                                       style={{
-                                        color: 'rgba(0,0,0,0.45)',
+                                        color: 'var(--color-text-tertiary)',
                                         fontSize: 12,
                                         marginTop: 2,
                                       }}

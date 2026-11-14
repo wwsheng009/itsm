@@ -232,19 +232,19 @@ export default function PIRPage() {
               <Select placeholder="选择实施结果">
                 <Select.Option value="successful">
                   <Space>
-                    <CheckCircle style={{ color: '#52c41a' }} />
+                    <CheckCircle style={{ color: 'var(--color-success-text)' }} />
                     成功 - 变更完全按计划实施，达到预期目标
                   </Space>
                 </Select.Option>
                 <Select.Option value="partially_successful">
                   <Space>
-                    <AlertTriangle style={{ color: '#faad14' }} />
+                    <AlertTriangle style={{ color: 'var(--color-warning-text)' }} />
                     部分成功 - 变更实施但存在一些问题
                   </Space>
                 </Select.Option>
                 <Select.Option value="failed">
                   <Space>
-                    <XCircle style={{ color: '#ff4d4f' }} />
+                    <XCircle style={{ color: 'var(--color-error-text)' }} />
                     失败 - 变更未能达到预期目标或需要回滚
                   </Space>
                 </Select.Option>
@@ -357,7 +357,7 @@ export default function PIRPage() {
       <Modal
         title={
           <Space>
-            <AlertCircle style={{ color: '#faad14' }} />
+            <AlertCircle style={{ color: 'var(--color-warning-text)' }} />
             确认删除
           </Space>
         }

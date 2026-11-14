@@ -31,9 +31,9 @@ const { Text, Title } = Typography;
 // 趋势方向映射
 const trendDirectionConfig: Record<string, { color: string; icon: React.ReactNode; text: string }> =
   {
-    increasing: { color: '#ff4d4f', icon: <TrendingUp />, text: '上升' },
-    decreasing: { color: '#52c41a', icon: <TrendingDown />, text: '下降' },
-    stable: { color: '#1890ff', icon: <Minus />, text: '稳定' },
+    increasing: { color: 'var(--color-error-text)', icon: <TrendingUp />, text: '上升' },
+    decreasing: { color: 'var(--color-success-text)', icon: <TrendingDown />, text: '下降' },
+    stable: { color: 'var(--color-primary-text)', icon: <Minus />, text: '稳定' },
   };
 
 export default function ProblemTrendsPage() {
@@ -183,7 +183,7 @@ export default function ProblemTrendsPage() {
                     title="问题总数"
                     value={trendData.totalProblems || 0}
                     prefix={<BarChart3 className="text-blue-500" />}
-                    valueStyle={{ color: '#1890ff' }}
+                    valueStyle={{ color: 'var(--color-primary-text)' }}
                   />
                 </Card>
               </Col>
@@ -193,7 +193,7 @@ export default function ProblemTrendsPage() {
                     title="已解决"
                     value={trendData.resolvedProblems || 0}
                     prefix={<LineChart className="text-green-500" />}
-                    valueStyle={{ color: '#52c41a' }}
+                    valueStyle={{ color: 'var(--color-success-text)' }}
                   />
                 </Card>
               </Col>
@@ -203,7 +203,7 @@ export default function ProblemTrendsPage() {
                     title="待处理"
                     value={trendData.openProblems || 0}
                     prefix={<PieChart className="text-orange-500" />}
-                    valueStyle={{ color: '#fa8c16' }}
+                    valueStyle={{ color: 'var(--color-warning-text)' }}
                   />
                 </Card>
               </Col>
@@ -215,7 +215,12 @@ export default function ProblemTrendsPage() {
                     precision={1}
                     suffix="%"
                     prefix={<LineChart className="text-purple-500" />}
-                    valueStyle={{ color: trendData.resolutionRate >= 0.7 ? '#52c41a' : '#fa8c16' }}
+                    valueStyle={{
+                      color:
+                        trendData.resolutionRate >= 0.7
+                          ? 'var(--color-success-text)'
+                          : 'var(--color-warning-text)',
+                    }}
                   />
                 </Card>
               </Col>

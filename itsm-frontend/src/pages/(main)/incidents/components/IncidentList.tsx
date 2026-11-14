@@ -32,105 +32,97 @@ export const IncidentList: React.FC<IncidentListProps> = ({
   const canDeleteIncident = useCan(['incident:delete']);
 
   const statusConfig: Record<string, { color: string; text: string; backgroundColor: string }> = {
-    // 新建/待处理状态
+    // 新建/待处理 / 处理中：主色语义
     new: {
-      color: '#1890ff',
+      color: 'var(--color-primary-text)',
       text: t('incidents.statusNew') || '新建',
-      backgroundColor: 'rgba(24, 144, 255, 0.15)',
+      backgroundColor: 'var(--color-primary-soft)',
     },
-    // 已确认状态
+    // 已确认 / 调查中：紫色语义；软底由当前紫色 token 派生
     acknowledged: {
-      color: '#722ed1',
+      color: 'var(--color-purple-text)',
       text: t('incidents.statusAcknowledged') || '已确认',
-      backgroundColor: 'rgba(114, 46, 209, 0.15)',
+      backgroundColor: 'color-mix(in srgb, var(--color-purple-text) 15%, transparent)',
     },
-    // 已分配状态
     assigned: {
-      color: '#13c2c2',
+      color: 'var(--color-info-text)',
       text: t('incidents.statusAssigned') || '已分配',
-      backgroundColor: 'rgba(19, 194, 194, 0.15)',
+      backgroundColor: 'var(--color-info-bg)',
     },
-    // 调查中状态
     investigating: {
-      color: '#722ed1',
+      color: 'var(--color-purple-text)',
       text: t('incidents.statusInvestigating') || '调查中',
-      backgroundColor: 'rgba(114, 46, 209, 0.15)',
+      backgroundColor: 'color-mix(in srgb, var(--color-purple-text) 15%, transparent)',
     },
     // 处理中状态 (both camelCase and snake_case from API)
     inProgress: {
-      color: '#1890ff',
+      color: 'var(--color-primary-text)',
       text: t('incidents.statusInProgress'),
-      backgroundColor: 'rgba(24, 144, 255, 0.15)',
+      backgroundColor: 'var(--color-primary-soft)',
     },
-    'in_progress': {
-      color: '#1890ff',
+    in_progress: {
+      color: 'var(--color-primary-text)',
       text: t('incidents.statusInProgress'),
-      backgroundColor: 'rgba(24, 144, 255, 0.15)',
+      backgroundColor: 'var(--color-primary-soft)',
     },
-    // 已分类状态
     triaged: {
-      color: '#faad14',
+      color: 'var(--color-warning-text)',
       text: t('incidents.statusTriaged') || '已分类',
-      backgroundColor: 'rgba(250, 173, 20, 0.15)',
+      backgroundColor: 'var(--color-warning-bg)',
     },
-    // 已升级状态
     escalated: {
-      color: '#ff4d4f',
+      color: 'var(--color-error-text)',
       text: t('incidents.statusEscalated') || '已升级',
-      backgroundColor: 'rgba(255, 77, 79, 0.15)',
+      backgroundColor: 'var(--color-error-bg)',
     },
-    // 已暂停
-    'on_hold': {
-      color: '#fa8c16',
+    on_hold: {
+      color: 'var(--color-warning-text)',
       text: t('incidents.statusOnHold') || '已暂停',
-      backgroundColor: 'rgba(250, 140, 22, 0.15)',
+      backgroundColor: 'var(--color-warning-bg)',
     },
-    // 已解决状态
     resolved: {
-      color: '#52c41a',
+      color: 'var(--color-success-text)',
       text: t('incidents.statusResolved'),
-      backgroundColor: 'rgba(82, 196, 26, 0.15)',
+      backgroundColor: 'var(--color-success-bg)',
     },
-    // 已取消状态
     cancelled: {
-      color: '#00000073',
+      color: 'var(--color-text-tertiary)',
       text: t('incidents.statusCancelled') || '已取消',
-      backgroundColor: 'var(--color-bg-secondary, #f9fafb)',
+      backgroundColor: 'var(--color-background-tertiary)',
     },
-    // 已关闭状态
     closed: {
-      color: '#00000073',
+      color: 'var(--color-text-tertiary)',
       text: t('incidents.statusClosed'),
-      backgroundColor: 'var(--color-bg-secondary, #f9fafb)',
+      backgroundColor: 'var(--color-background-tertiary)',
     },
     // 兼容旧的前端状态值
     open: {
-      color: '#fa8c16',
+      color: 'var(--color-warning-text)',
       text: t('incidents.statusOpen'),
-      backgroundColor: 'rgba(250, 140, 22, 0.15)',
+      backgroundColor: 'var(--color-warning-bg)',
     },
   };
 
   const priorityConfig: Record<string, { color: string; text: string; backgroundColor: string }> = {
     low: {
-      color: '#52c41a',
+      color: 'var(--color-success-text)',
       text: t('incidents.priorityLow'),
-      backgroundColor: 'rgba(82, 196, 26, 0.15)',
+      backgroundColor: 'var(--color-success-bg)',
     },
     medium: {
-      color: '#1890ff',
+      color: 'var(--color-primary-text)',
       text: t('incidents.priorityMedium'),
-      backgroundColor: 'rgba(24, 144, 255, 0.15)',
+      backgroundColor: 'var(--color-primary-soft)',
     },
     high: {
-      color: '#fa8c16',
+      color: 'var(--color-warning-text)',
       text: t('incidents.priorityHigh'),
-      backgroundColor: 'rgba(250, 140, 22, 0.15)',
+      backgroundColor: 'var(--color-warning-bg)',
     },
     critical: {
-      color: '#ff4d4f',
+      color: 'var(--color-error-text)',
       text: t('incidents.priorityCritical'),
-      backgroundColor: 'rgba(255, 77, 79, 0.15)',
+      backgroundColor: 'var(--color-error-bg)',
     },
   };
 
@@ -145,7 +137,7 @@ export const IncidentList: React.FC<IncidentListProps> = ({
             style={{
               width: 40,
               height: 40,
-              backgroundColor: 'rgba(24, 144, 255, 0.15)',
+              backgroundColor: 'var(--color-primary-soft)',
               borderRadius: 8,
               display: 'flex',
               alignItems: 'center',
@@ -153,13 +145,13 @@ export const IncidentList: React.FC<IncidentListProps> = ({
               marginRight: 12,
             }}
           >
-            <AlertTriangle size={20} style={{ color: '#1890ff' }} />
+            <AlertTriangle size={20} style={{ color: 'var(--color-primary-text)' }} />
           </div>
           <div>
-            <div style={{ fontWeight: 'medium', color: '#000', marginBottom: 4 }}>
+            <div style={{ fontWeight: 'medium', color: 'var(--color-text-primary)', marginBottom: 4 }}>
               {record.title}
             </div>
-            <div style={{ fontSize: 'small', color: '#666' }}>
+            <div style={{ fontSize: 'small', color: 'var(--color-text-tertiary)' }}>
               #{record.incidentNumber || (record as unknown as { incidentNumber?: string }).incidentNumber || '-'} • {record.category}
             </div>
           </div>
@@ -173,9 +165,9 @@ export const IncidentList: React.FC<IncidentListProps> = ({
       width: 120,
       render: (status: string) => {
         const config = statusConfig[status] || {
-          color: '#666',
+          color: 'var(--color-text-tertiary)',
           text: status || t('incidents.unknown'),
-          backgroundColor: 'var(--color-bg-tertiary, #f0f0f0)',
+          backgroundColor: 'var(--color-background-tertiary)',
         };
         return (
           <span
@@ -200,9 +192,9 @@ export const IncidentList: React.FC<IncidentListProps> = ({
       width: 100,
       render: (priority: string) => {
         const config = priorityConfig[priority] || {
-          color: '#666',
+          color: 'var(--color-text-tertiary)',
           text: priority || t('incidents.unknown'),
-          backgroundColor: 'var(--color-bg-tertiary, #f0f0f0)',
+          backgroundColor: 'var(--color-background-tertiary)',
         };
         return (
           <span
@@ -265,7 +257,7 @@ export const IncidentList: React.FC<IncidentListProps> = ({
       key: 'createdAt',
       width: 150,
       render: (created_at: string) => (
-        <div style={{ fontSize: 'small', color: '#666' }}>
+        <div style={{ fontSize: 'small', color: 'var(--color-text-tertiary)' }}>
           {created_at ? dayjs(created_at).format('YYYY-MM-DD HH:mm') : '-'}
         </div>
       ),
@@ -281,7 +273,7 @@ export const IncidentList: React.FC<IncidentListProps> = ({
             content: (
               <div>
                 <p>确定要删除事件「{record.title}」吗？</p>
-                <p style={{ color: '#ff4d4f' }}>此操作不可撤销。</p>
+                <p style={{ color: 'var(--color-error-text)' }}>此操作不可撤销。</p>
               </div>
             ),
             okText: '确认删除',
@@ -353,7 +345,7 @@ export const IncidentList: React.FC<IncidentListProps> = ({
   ];
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+    <div className="bg-[var(--color-surface-primary)] rounded-lg shadow-sm border border-[var(--color-border-primary)] overflow-hidden">
       <Table
         rowSelection={{
           selectedRowKeys,
