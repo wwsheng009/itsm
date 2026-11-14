@@ -139,12 +139,12 @@ export function AISuggestionPanel({
     return (
       <Card
         size="small"
-        className="mb-4 border-dashed border-2 border-gray-300 bg-gray-50"
+        className="mb-4 border-dashed border-2 border-gray-300 bg-gray-50 dark:border-slate-600 dark:bg-slate-800/60"
         bodyStyle={{ padding: '12px' }}
       >
         <div className="flex items-center justify-between">
           <Space>
-            <Sparkles className="w-4 h-4 text-gray-400" />
+            <Sparkles className="w-4 h-4 text-gray-400 dark:text-slate-500" />
             <Text type="secondary" className="text-sm">
               AI建议已忽略
             </Text>
@@ -167,13 +167,13 @@ export function AISuggestionPanel({
     return (
       <Card
         size="small"
-        className="mb-4 bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200"
+        className="mb-4 bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200 dark:from-blue-950/60 dark:to-indigo-950/60 dark:border-blue-900"
         bodyStyle={{ padding: '12px' }}
       >
         <div className="flex items-center gap-3">
           <Spin size="small" />
           <div>
-            <Text className="text-sm font-medium text-blue-700">AI 分析中...</Text>
+            <Text className="text-sm font-medium text-blue-700 dark:text-blue-300">AI 分析中...</Text>
             <Paragraph type="secondary" className="text-xs mb-0">
               基于标题和描述分析工单分类
             </Paragraph>
@@ -188,12 +188,12 @@ export function AISuggestionPanel({
     return (
       <Card
         size="small"
-        className="mb-4 bg-gray-50 border-gray-200"
+        className="mb-4 bg-gray-50 border-gray-200 dark:bg-slate-800/60 dark:border-slate-700"
         bodyStyle={{ padding: '12px' }}
       >
         <div className="flex items-center justify-between">
           <Space>
-            <AlertCircle className="w-4 h-4 text-gray-400" />
+            <AlertCircle className="w-4 h-4 text-gray-400 dark:text-slate-500" />
             <Text type="secondary" className="text-sm">
               AI分析暂不可用
             </Text>
@@ -223,12 +223,12 @@ export function AISuggestionPanel({
   return (
     <Card
       size="small"
-      className="mb-4 bg-gradient-to-r from-indigo-50 to-purple-50 border-indigo-200"
+      className="mb-4 bg-gradient-to-r from-indigo-50 to-purple-50 border-indigo-200 dark:from-indigo-950/60 dark:to-purple-950/50 dark:border-indigo-900"
       bodyStyle={{ padding: '12px' }}
       title={
         <Space>
-          <Sparkles className="w-4 h-4 text-indigo-600" />
-          <span className="font-medium text-indigo-700">AI 分析建议</span>
+          <Sparkles className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+          <span className="font-medium text-indigo-700 dark:text-indigo-300">AI 分析建议</span>
         </Space>
       }
       extra={
@@ -276,13 +276,6 @@ export function AISuggestionPanel({
                 percent={confidencePercent}
                 size="small"
                 status={confidenceStatus as 'success' | 'normal' | 'exception'}
-                strokeColor={
-                  confidencePercent >= 70
-                    ? '#52c41a'
-                    : confidencePercent >= 40
-                      ? '#1890ff'
-                      : '#ff4d4f'
-                }
                 format={(p) => `${p ?? confidencePercent}%`}
                 className="mb-0"
               />
@@ -291,7 +284,10 @@ export function AISuggestionPanel({
 
           {/* Explanation */}
           {suggestion.explanation && (
-            <Paragraph type="secondary" className="text-xs mb-3 bg-white/50 rounded p-2">
+            <Paragraph
+              type="secondary"
+              className="text-xs mb-3 bg-white/50 rounded p-2 dark:bg-white/10"
+            >
               {suggestion.explanation}
             </Paragraph>
           )}
