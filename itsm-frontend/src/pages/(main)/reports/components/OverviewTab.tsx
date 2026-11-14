@@ -76,7 +76,7 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ metrics }) => {
                     className="mr-2"
                     style={{ width: 100 }}
                   />
-                  <Text strong style={{ color: '#f5222d' }}>
+                  <Text strong style={{ color: 'var(--color-error-text)' }}>
                     {metrics?.urgentTickets}
                   </Text>
                 </div>

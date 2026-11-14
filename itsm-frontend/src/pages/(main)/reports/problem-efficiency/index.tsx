@@ -37,24 +37,12 @@ import type {
 import {
   problemService
 } from '@/lib/services/problem-service';
+import { useChartTheme } from '@/lib/design-system/chart-theme';
 
 const { Title, Text } = Typography;
 
-const STATUS_COLORS: Record<string, string> = {
-  open: '#1890ff',
-  inProgress: '#faad14',
-  resolved: '#52c41a',
-  closed: '#d9d9d9',
-};
-
-const PRIORITY_COLORS: Record<string, string> = {
-  low: '#52c41a',
-  medium: '#faad14',
-  high: '#ff4d4f',
-  critical: '#722ed1',
-};
-
 const ProblemEfficiencyPage = () => {
+  const chart = useChartTheme();
   const [loading, setLoading] = useState(false);
   const [stats, setStats] = useState<ProblemStatsResponse | null>(null);
   const [problems, setProblems] = useState<Problem[]>([]);
@@ -105,7 +93,6 @@ const ProblemEfficiencyPage = () => {
           Object.entries(byStatus).map(([name, value]) => ({
             name: problemService.getStatusLabel(name as ProblemStatus),
             value,
-            color: STATUS_COLORS[name] || '#d9d9d9',
           }))
         );
 
@@ -113,7 +100,6 @@ const ProblemEfficiencyPage = () => {
           Object.entries(byPriority).map(([name, value]) => ({
             name: problemService.getPriorityLabel(name as ProblemPriority),
             value,
-            color: PRIORITY_COLORS[name] || '#d9d9d9',
           }))
         );
 
@@ -180,7 +166,7 @@ const ProblemEfficiencyPage = () => {
           <p className="font-semibold text-gray-800">{`${payload[0].name}`}</p>
           <p
             className="text-sm"
-            style={{ color: payload[0].color }}
+            style={{ color: chart.tooltipText }}
           >{`数量: ${payload[0].value}`}</p>
         </div>
       );
@@ -231,7 +217,7 @@ const ProblemEfficiencyPage = () => {
                 <Statistic
                   title="已解决问题"
                   value={stats?.resolved || 0}
-                  styles={{ content: { color: '#52c41a' } }}
+                  styles={{ content: { color: 'var(--color-success-text)' } }}
                   prefix={<CheckCircle size={20} />}
                 />
               </Card>
@@ -241,7 +227,7 @@ const ProblemEfficiencyPage = () => {
                 <Statistic
                   title="处理中"
                   value={stats?.inProgress || 0}
-                  styles={{ content: { color: '#faad14' } }}
+                  styles={{ content: { color: 'var(--color-warning-text)' } }}
                   prefix={<Clock size={20} />}
                 />
               </Card>
@@ -251,7 +237,7 @@ const ProblemEfficiencyPage = () => {
                 <Statistic
                   title="高优先级"
                   value={stats?.highPriority || 0}
-                  styles={{ content: { color: '#ff4d4f' } }}
+                  styles={{ content: { color: 'var(--color-error-text)' } }}
                   prefix={<XCircle size={20} />}
                 />
               </Card>
@@ -265,13 +251,22 @@ const ProblemEfficiencyPage = () => {
                 <div className="text-center py-4">
                   <div
                     className="text-4xl font-bold mb-2"
-                    style={{ color: resolutionRate >= 70 ? '#52c41a' : '#faad14' }}
+                    style={{
+                      color:
+                        resolutionRate >= 70
+                          ? 'var(--color-success-text)'
+                          : 'var(--color-warning-text)',
+                    }}
                   >
                     {resolutionRate.toFixed(1)}%
                   </div>
                   <Progress
                     percent={resolutionRate}
-                    strokeColor={resolutionRate >= 70 ? '#52c41a' : '#faad14'}
+                    strokeColor={
+                      resolutionRate >= 70
+                        ? 'var(--color-success-text)'
+                        : 'var(--color-warning-text)'
+                    }
                     showInfo={false}
                   />
                   <Text type="secondary" className="mt-2 block">
@@ -283,10 +278,10 @@ const ProblemEfficiencyPage = () => {
             <Col xs={24} lg={8}>
               <Card title="处理中比例">
                 <div className="text-center py-4">
-                  <div className="text-4xl font-bold mb-2" style={{ color: '#1890ff' }}>
+                  <div className="text-4xl font-bold mb-2" style={{ color: 'var(--color-primary-text)' }}>
                     {inProgressRate.toFixed(1)}%
                   </div>
-                  <Progress percent={inProgressRate} strokeColor="#1890ff" showInfo={false} />
+                  <Progress percent={inProgressRate} strokeColor="var(--color-primary-text)" showInfo={false} />
                   <Text type="secondary" className="mt-2 block">
                     处理中 {stats?.inProgress || 0} / 总数 {stats?.total || 0}
                   </Text>
@@ -296,12 +291,12 @@ const ProblemEfficiencyPage = () => {
             <Col xs={24} lg={8}>
               <Card title="高优先级占比">
                 <div className="text-center py-4">
-                  <div className="text-4xl font-bold mb-2" style={{ color: '#ff4d4f' }}>
+                  <div className="text-4xl font-bold mb-2" style={{ color: 'var(--color-error-text)' }}>
                     {stats ? ((stats.highPriority / stats.total) * 100).toFixed(1) : 0}%
                   </div>
                   <Progress
                     percent={stats ? (stats.highPriority / stats.total) * 100 : 0}
-                    strokeColor="#ff4d4f"
+                    strokeColor="var(--color-error-text)"
                     showInfo={false}
                   />
                   <Text type="secondary" className="mt-2 block">
@@ -327,8 +322,8 @@ const ProblemEfficiencyPage = () => {
                       nameKey="name"
                       label={({ name, percent }) => `${name} ${((percent || 0) * 100).toFixed(0)}%`}
                     >
-                      {problemsByStatus.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      {problemsByStatus.map((_, index) => (
+                        <Cell key={`cell-${index}`} fill={chart.palette[index % chart.palette.length]} />
                       ))}
                     </Pie>
                     <Tooltip content={<CustomTooltip />} />
@@ -346,9 +341,9 @@ const ProblemEfficiencyPage = () => {
                     <YAxis />
                     <Tooltip content={<CustomTooltip />} />
                     <Legend />
-                    <Bar dataKey="value" name="问题数量" fill="#1890ff">
-                      {problemsByPriority.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
+                    <Bar dataKey="value" name="问题数量" fill={chart.palette[0]}>
+                      {problemsByPriority.map((_, index) => (
+                        <Cell key={`cell-${index}`} fill={chart.palette[index % chart.palette.length]} />
                       ))}
                     </Bar>
                   </BarChart>

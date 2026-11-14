@@ -18,14 +18,9 @@ import {
 import dayjs from 'dayjs';
 
 import { SLAApi } from '@/lib/api/sla-api';
+import { useChartTheme } from '@/lib/design-system/chart-theme';
 
 const { Title, Text } = Typography;
-
-const COLORS = {
-  met: '#52c41a',
-  breached: '#ff4d4f',
-  warning: '#faad14',
-};
 
 interface SLAData {
   name: string;
@@ -38,6 +33,12 @@ const DEFAULT_RANGE_DAYS = 30;
 
 const SLAPerformanceReport = () => {
   const { message } = App.useApp();
+  const chart = useChartTheme();
+  const COLORS = {
+    met: chart.palette[1],
+    breached: chart.palette[3],
+    warning: chart.palette[2],
+  };
   const [loading, setLoading] = useState(false);
   const [slaData, setSLAData] = useState<SLAData[]>([]);
   const [overallRate, setOverallRate] = useState<number>(0);

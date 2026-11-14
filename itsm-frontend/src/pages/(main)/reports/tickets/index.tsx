@@ -16,13 +16,14 @@ import {
 } from 'recharts';
 import { FileText, CheckCircle, Clock, AlertTriangle } from 'lucide-react';
 import { ticketService } from '@/lib/services/ticket-service';
+import { useChartTheme } from '@/lib/design-system/chart-theme';
 
 const { Title } = Typography;
 
-const COLORS = ['#1890ff', '#52c41a', '#faad14', '#ff4d4f', '#722ed1', '#13c2c2'];
-
 const TicketsReportPage = () => {
   const { message } = App.useApp();
+  const chart = useChartTheme();
+  const COLORS = chart.palette;
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({ total: 0, open: 0, closed: 0, overdue: 0 });
   const [statusData, setStatusData] = useState<{ name: string; value: number }[]>([]);
@@ -90,17 +91,17 @@ const TicketsReportPage = () => {
         </Col>
         <Col xs={24} sm={12} lg={6}>
           <Card>
-            <Statistic title="进行中" value={stats.open} prefix={<Clock className="w-4 h-4" />} styles={{ content: { color: '#1890ff' } }} />
+            <Statistic title="进行中" value={stats.open} prefix={<Clock className="w-4 h-4" />} styles={{ content: { color: 'var(--color-primary-text)' } }} />
           </Card>
         </Col>
         <Col xs={24} sm={12} lg={6}>
           <Card>
-            <Statistic title="已完成" value={stats.closed} prefix={<CheckCircle className="w-4 h-4" />} styles={{ content: { color: '#52c41a' } }} />
+            <Statistic title="已完成" value={stats.closed} prefix={<CheckCircle className="w-4 h-4" />} styles={{ content: { color: 'var(--color-success-text)' } }} />
           </Card>
         </Col>
         <Col xs={24} sm={12} lg={6}>
           <Card>
-            <Statistic title="超时" value={stats.overdue} prefix={<AlertTriangle className="w-4 h-4" />} styles={{ content: { color: '#ff4d4f' } }} />
+            <Statistic title="超时" value={stats.overdue} prefix={<AlertTriangle className="w-4 h-4" />} styles={{ content: { color: 'var(--color-error-text)' } }} />
           </Card>
         </Col>
       </Row>
@@ -134,7 +135,7 @@ const TicketsReportPage = () => {
                   <XAxis dataKey="name" />
                   <YAxis />
                   <Tooltip />
-                  <Bar dataKey="value" fill="#1890ff">
+                  <Bar dataKey="value" fill={chart.palette[0]}>
                     {priorityData.map((_, index) => (
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                     ))}

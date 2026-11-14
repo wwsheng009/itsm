@@ -29,12 +29,14 @@ import {
 import dayjs from 'dayjs';
 import { ticketAnalyticsService } from '@/lib/services/analytics-service';
 import { ticketService } from '@/lib/services/ticket-service';
+import { useChartTheme } from '@/lib/design-system/chart-theme';
 
 const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
 
 const IncidentTrendsPage = () => {
   const { message } = App.useApp();
+  const chart = useChartTheme();
   const [loading, setLoading] = useState(false);
   const [selectedPeriod, setSelectedPeriod] = useState<'7d' | '30d' | '90d'>('30d');
   const [dateRange, setDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs]>([
@@ -53,12 +55,12 @@ const IncidentTrendsPage = () => {
 
   // 颜色配置
   const colors = {
-    primary: '#1890ff',
-    success: '#52c41a',
-    warning: '#faad14',
-    error: '#ff4d4f',
-    purple: '#722ed1',
-    cyan: '#13c2c2',
+    primary: chart.palette[0],
+    success: chart.palette[1],
+    warning: chart.palette[2],
+    error: chart.palette[3],
+    purple: chart.palette[5],
+    cyan: chart.palette[4],
   };
 
   const priorityColors = {
@@ -282,8 +284,8 @@ const IncidentTrendsPage = () => {
                     <Tooltip content={<CustomTooltip />} />
                     <Legend />
                     <Bar dataKey="value" name="事件数量" fill={colors.primary}>
-                      {priorityData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color || colors.primary} />
+                      {priorityData.map((_, index) => (
+                        <Cell key={`cell-${index}`} fill={chart.palette[index % chart.palette.length]} />
                       ))}
                     </Bar>
                   </BarChart>

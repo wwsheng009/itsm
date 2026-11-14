@@ -110,7 +110,7 @@ const AdvancedAnalytics: React.FC<AdvancedAnalyticsProps> = ({ tenantId }) => {
           trend: 'up',
           trendValue: 12.5,
           icon: <BarChart3 className="w-5 h-5" />,
-          color: '#3b82f6',
+          color: 'var(--color-primary-text)',
           format: 'number',
         },
         {
@@ -119,7 +119,7 @@ const AdvancedAnalytics: React.FC<AdvancedAnalyticsProps> = ({ tenantId }) => {
           trend: 'up',
           trendValue: 3.2,
           icon: <Target className="w-5 h-5" />,
-          color: '#52c41a',
+          color: 'var(--color-success-text)',
           format: 'percentage',
         },
         {
@@ -128,7 +128,7 @@ const AdvancedAnalytics: React.FC<AdvancedAnalyticsProps> = ({ tenantId }) => {
           trend: 'down',
           trendValue: -15.6,
           icon: <Clock className="w-5 h-5" />,
-          color: '#faad14',
+          color: 'var(--color-warning-text)',
           format: 'duration',
         },
         {
@@ -137,7 +137,7 @@ const AdvancedAnalytics: React.FC<AdvancedAnalyticsProps> = ({ tenantId }) => {
           trend: 'stable',
           trendValue: 0.0,
           icon: <CheckCircle className="w-5 h-5" />,
-          color: '#722ed1',
+          color: 'var(--color-purple-text)',
           format: 'percentage',
         },
       ];

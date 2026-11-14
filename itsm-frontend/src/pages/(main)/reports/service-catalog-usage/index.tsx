@@ -15,14 +15,15 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import { ServiceCatalogApi } from '@/lib/api/service-catalog-api';
+import { useChartTheme } from '@/lib/design-system/chart-theme';
 
 const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
 
-const COLORS = ['#1890ff', '#52c41a', '#faad14', '#ff4d4f', '#722ed1', '#13c2c2'];
-
 const ServiceCatalogUsagePage = () => {
   const { message } = App.useApp();
+  const chart = useChartTheme();
+  const COLORS = chart.palette;
   const [loading, setLoading] = useState(false);
   const [services, setServices] = useState<any[]>([]);
   const [requestsByService, setRequestsByService] = useState<any[]>([]);
@@ -107,6 +108,12 @@ const ServiceCatalogUsagePage = () => {
       );
     }
     return null;
+  };
+
+  const statusColor = (name: string) => {
+    if (name === '已发布') return COLORS[1];
+    if (name === '草稿') return COLORS[0];
+    return chart.isDark ? '#94a3b8' : '#8c8c8c';
   };
 
   return (
@@ -198,7 +205,7 @@ const ServiceCatalogUsagePage = () => {
                       {requestsByService.map((entry, index) => (
                         <Cell
                           key={`cell-${index}`}
-                          fill={entry.color || COLORS[index % COLORS.length]}
+                          fill={COLORS[index % COLORS.length]}
                         />
                       ))}
                     </Pie>
@@ -218,11 +225,11 @@ const ServiceCatalogUsagePage = () => {
                     <YAxis />
                     <Tooltip content={<CustomTooltip />} />
                     <Legend />
-                    <Bar dataKey="value" name="请求数量" fill="#1890ff">
+                    <Bar dataKey="value" name="请求数量" fill={COLORS[0]}>
                       {requestsByStatus.map((entry, index) => (
                         <Cell
                           key={`cell-${index}`}
-                          fill={entry.color || COLORS[index % COLORS.length]}
+                          fill={statusColor(entry.name)}
                         />
                       ))}
                     </Bar>

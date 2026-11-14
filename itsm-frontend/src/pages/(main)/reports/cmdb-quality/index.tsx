@@ -16,14 +16,9 @@ import {
 import { RotateCcw } from 'lucide-react';
 
 import { CMDBApi } from '@/lib/api/cmdb-api';
+import { useChartTheme } from '@/lib/design-system/chart-theme';
 
 const { Title, Text } = Typography;
-
-const COLORS = {
-  completeness: '#1890ff',
-  accuracy: '#52c41a',
-  consistency: '#faad14',
-};
 
 interface QualityData {
   name: string;
@@ -114,6 +109,12 @@ const computeQualityForGroup = (items: ConfigurationItem[]): Omit<QualityData, '
 };
 
 const CMDBQualityReport = () => {
+  const chart = useChartTheme();
+  const COLORS = {
+    completeness: chart.palette[0],
+    accuracy: chart.palette[1],
+    consistency: chart.palette[2],
+  };
   const { message } = App.useApp();
   const [loading, setLoading] = useState(false);
   const [qualityData, setQualityData] = useState<QualityData[]>([]);

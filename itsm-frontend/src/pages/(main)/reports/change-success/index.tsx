@@ -17,6 +17,7 @@ import {
 import { RotateCcw } from 'lucide-react';
 import type { ChangeStats } from '@/lib/services/change-service';
 import { changeService } from '@/lib/services/change-service';
+import { useChartTheme } from '@/lib/design-system/chart-theme';
 
 const { Title, Text } = Typography;
 
@@ -30,8 +31,6 @@ const STATUS_COLORS: Record<string, string> = {
   cancelled: '#8c8c8c',
 };
 
-const TYPE_COLORS = ['#1890ff', '#52c41a', '#faad14'];
-
 interface ChangeData {
   byStatus: { name: string; value: number; color: string }[];
   byType: { type: string; count: number }[];
@@ -40,6 +39,8 @@ interface ChangeData {
 }
 
 const ChangeSuccessReport = () => {
+  const chart = useChartTheme();
+  const TYPE_COLORS = chart.palette;
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<ChangeData | null>(null);
 
@@ -119,6 +120,14 @@ const ChangeSuccessReport = () => {
     return null;
   };
 
+  const statusColor = (name: string) => {
+    if (name === '草稿' || name === '已取消') return chart.isDark ? '#94a3b8' : '#8c8c8c';
+    if (name === '待审批') return chart.palette[2];
+    if (name === '已完成') return chart.palette[5];
+    if (name === '实施中') return chart.palette[4];
+    return chart.palette[0];
+  };
+
   if (!data) {
     return (
       <div className="p-6 flex items-center justify-center h-64">
@@ -161,7 +170,7 @@ const ChangeSuccessReport = () => {
                 <Statistic
                   title="变更总数"
                   value={data.totalChanges}
-                  styles={{ content: { color: '#1890ff' } }}
+                  styles={{ content: { color: 'var(--color-primary-text)' } }}
                 />
               </Card>
             </Col>
@@ -170,7 +179,7 @@ const ChangeSuccessReport = () => {
                 <Statistic
                   title="已完成"
                   value={data.byStatus.find(s => s.name === '已完成')?.value || 0}
-                  styles={{ content: { color: '#52c41a' } }}
+                  styles={{ content: { color: 'var(--color-success-text)' } }}
                 />
               </Card>
             </Col>
@@ -179,7 +188,7 @@ const ChangeSuccessReport = () => {
                 <Statistic
                   title="实施中"
                   value={data.byStatus.find(s => s.name === '实施中')?.value || 0}
-                  styles={{ content: { color: '#1890ff' } }}
+                  styles={{ content: { color: 'var(--color-primary-text)' } }}
                 />
               </Card>
             </Col>
@@ -211,7 +220,7 @@ const ChangeSuccessReport = () => {
                       label={({ name, percent }) => `${name} ${((percent || 0) * 100).toFixed(0)}%`}
                     >
                       {data.byStatus.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
+                        <Cell key={`cell-${index}`} fill={statusColor(entry.name)} />
                       ))}
                     </Pie>
                     <Tooltip content={<CustomTooltip />} />
@@ -230,7 +239,7 @@ const ChangeSuccessReport = () => {
                     <YAxis />
                     <Tooltip content={<CustomTooltip />} />
                     <Legend />
-                    <Bar dataKey="count" name="变更数量" fill="#1890ff">
+                    <Bar dataKey="count" name="变更数量" fill={chart.palette[0]}>
                       {data.byType.map((entry, index) => (
                         <Cell
                           key={`cell-${index}`}

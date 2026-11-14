@@ -19,6 +19,7 @@ import {
 } from 'recharts';
 import { Table, Empty, Spin } from 'antd';
 import type { AnalyticsDataPoint } from '@/lib/api/ticket-analytics-api';
+import { useChartTheme } from '@/lib/design-system/chart-theme';
 
 // Recharts 工具提示类型
 interface CustomTooltipPayload {
@@ -53,23 +54,15 @@ interface ReportsChartsProps {
   height?: number;
 }
 
-const COLORS = [
-  '#3b82f6',
-  '#52c41a',
-  '#faad14',
-  '#f5222d',
-  '#722ed1',
-  '#13c2c2',
-  '#eb2f96',
-  '#fa541c',
-];
-
 const ReportsCharts: React.FC<ReportsChartsProps> = ({
   data,
   loading = false,
   chartType = 'bar',
   height = 400,
 }) => {
+  const chart = useChartTheme();
+  const COLORS = chart.palette;
+
   // 表格列定义
   const tableColumns = [
     {
@@ -104,10 +97,19 @@ const ReportsCharts: React.FC<ReportsChartsProps> = ({
   const CustomTooltip = ({ active, payload, label }: CustomTooltipProps) => {
     if (active && payload && payload.length) {
       return (
-        <div className="bg-white p-3 border border-gray-200 rounded shadow-lg">
-          <p className="font-medium">{`${label}`}</p>
+        <div
+          style={{
+            background: chart.tooltipBg,
+            border: `1px solid ${chart.tooltipBorder}`,
+            borderRadius: 8,
+            boxShadow: '0 8px 24px rgba(0, 0, 0, 0.18)',
+            padding: 12,
+            color: chart.tooltipText,
+          }}
+        >
+          <p className="font-medium" style={{ color: chart.tooltipText }}>{`${label}`}</p>
           {payload.map((entry, index) => (
-            <p key={index} style={{ color: entry.color }}>
+            <p key={index} style={{ color: chart.tooltipText }}>
               {`${entry.name}: ${entry.value.toLocaleString()}`}
             </p>
           ))}
@@ -129,9 +131,9 @@ const ReportsCharts: React.FC<ReportsChartsProps> = ({
         x={x}
         y={y}
         fill="white"
+        className="recharts-pie-label-text text-xs font-medium"
         textAnchor={x > entry.cx ? 'start' : 'end'}
         dominantBaseline="central"
-        className="text-xs font-medium"
       >
         {`${entry.percent ? (entry.percent * 100).toFixed(0) : 0}%`}
       </text>
@@ -162,24 +164,33 @@ const ReportsCharts: React.FC<ReportsChartsProps> = ({
         return (
           <ResponsiveContainer width="100%" height={height}>
             <LineChart data={data} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" />
-              <YAxis />
+              <CartesianGrid strokeDasharray="3 3" stroke={chart.grid} />
+              <XAxis
+                dataKey="name"
+                tick={{ fill: chart.axisText }}
+                axisLine={{ stroke: chart.axisLine }}
+                tickLine={{ stroke: chart.axisLine }}
+              />
+              <YAxis
+                tick={{ fill: chart.axisText }}
+                axisLine={{ stroke: chart.axisLine }}
+                tickLine={{ stroke: chart.axisLine }}
+              />
               <Tooltip content={<CustomTooltip />} />
-              <Legend />
+              <Legend wrapperStyle={{ color: chart.legendText }} />
               <Line
                 type="monotone"
                 dataKey="value"
-                stroke="#3b82f6"
+                stroke={chart.palette[0]}
                 strokeWidth={2}
-                dot={{ fill: '#3b82f6', r: 4 }}
+                dot={{ fill: chart.palette[0], r: 4 }}
                 activeDot={{ r: 6 }}
               />
               {data.some(item => item.avgTime) && (
                 <Line
                   type="monotone"
                   dataKey="avgTime"
-                  stroke="#52c41a"
+                  stroke={chart.palette[1]}
                   strokeWidth={2}
                   name="平均时间(小时)"
                 />
@@ -192,16 +203,25 @@ const ReportsCharts: React.FC<ReportsChartsProps> = ({
         return (
           <ResponsiveContainer width="100%" height={height}>
             <AreaChart data={data} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" />
-              <YAxis />
+              <CartesianGrid strokeDasharray="3 3" stroke={chart.grid} />
+              <XAxis
+                dataKey="name"
+                tick={{ fill: chart.axisText }}
+                axisLine={{ stroke: chart.axisLine }}
+                tickLine={{ stroke: chart.axisLine }}
+              />
+              <YAxis
+                tick={{ fill: chart.axisText }}
+                axisLine={{ stroke: chart.axisLine }}
+                tickLine={{ stroke: chart.axisLine }}
+              />
               <Tooltip content={<CustomTooltip />} />
-              <Legend />
+              <Legend wrapperStyle={{ color: chart.legendText }} />
               <Area
                 type="monotone"
                 dataKey="value"
-                stroke="#3b82f6"
-                fill="#3b82f6"
+                stroke={chart.palette[0]}
+                fill={chart.palette[0]}
                 fillOpacity={0.6}
               />
             </AreaChart>
@@ -219,7 +239,7 @@ const ReportsCharts: React.FC<ReportsChartsProps> = ({
                 labelLine={false}
                 label={renderCustomLabel}
                 outerRadius={120}
-                fill="#8884d8"
+                fill={chart.palette[0]}
                 dataKey="value"
               >
                 {data.map((entry, index) => (
@@ -227,7 +247,7 @@ const ReportsCharts: React.FC<ReportsChartsProps> = ({
                 ))}
               </Pie>
               <Tooltip content={<CustomTooltip />} />
-              <Legend />
+              <Legend wrapperStyle={{ color: chart.legendText }} />
             </PieChart>
           </ResponsiveContainer>
         );
@@ -248,12 +268,21 @@ const ReportsCharts: React.FC<ReportsChartsProps> = ({
         return (
           <ResponsiveContainer width="100%" height={height}>
             <BarChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" />
-              <YAxis />
+              <CartesianGrid strokeDasharray="3 3" stroke={chart.grid} />
+              <XAxis
+                dataKey="name"
+                tick={{ fill: chart.axisText }}
+                axisLine={{ stroke: chart.axisLine }}
+                tickLine={{ stroke: chart.axisLine }}
+              />
+              <YAxis
+                tick={{ fill: chart.axisText }}
+                axisLine={{ stroke: chart.axisLine }}
+                tickLine={{ stroke: chart.axisLine }}
+              />
               <Tooltip content={<CustomTooltip />} />
-              <Legend />
-              <Bar dataKey="value" fill="#3b82f6" radius={[4, 4, 0, 0]}>
+              <Legend wrapperStyle={{ color: chart.legendText }} />
+              <Bar dataKey="value" fill={chart.palette[0]} radius={[4, 4, 0, 0]}>
                 {data.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                 ))}
@@ -261,7 +290,7 @@ const ReportsCharts: React.FC<ReportsChartsProps> = ({
               {data.some(item => item.avgTime) && (
                 <Bar
                   dataKey="avg_time"
-                  fill="#52c41a"
+                  fill={chart.palette[1]}
                   name="平均时间(小时)"
                   radius={[4, 4, 0, 0]}
                 />

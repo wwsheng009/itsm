@@ -41,11 +41,13 @@ import { ticketAnalyticsService } from '@/lib/services/analytics-service';
 import { ticketService, TicketStatsResponse } from '@/lib/services/ticket-service';
 import { TicketDeepAnalytics } from '@/components/business/TicketDeepAnalytics';
 import type { HttpClientError } from '@/lib/api/http-client';
+import { useChartTheme } from '@/lib/design-system/chart-theme';
 
 const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
 
 const TicketAnalytics: React.FC = () => {
+  const chart = useChartTheme();
   const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [dateRange, setDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs]>([
@@ -256,7 +258,16 @@ const TicketAnalytics: React.FC = () => {
         </Col>
         <Col xs={12} sm={8} lg={4}>
           <Card size="small">
-            <Statistic title="已超期" value={analyticsData.overdueTickets} valueStyle={{ color: analyticsData.overdueTickets > 0 ? '#cf1322' : undefined }} />
+            <Statistic
+              title="已超期"
+              value={analyticsData.overdueTickets}
+              valueStyle={{
+                color:
+                  analyticsData.overdueTickets > 0
+                    ? 'var(--color-error-text)'
+                    : undefined,
+              }}
+            />
           </Card>
         </Col>
         <Col xs={12} sm={8} lg={4}>
@@ -281,8 +292,20 @@ const TicketAnalytics: React.FC = () => {
                 formatter={(value: unknown, name: unknown) => [Number(value) || 0, name === 'created' ? '新建' : name === 'resolved' ? '已解决' : String(name)]}
               />
               <Legend formatter={(v: string) => (v === 'created' ? '新建' : v === 'resolved' ? '已解决' : v)} />
-              <Line type="monotone" dataKey="created" stroke="#1890ff" strokeWidth={2} dot={false} />
-              <Line type="monotone" dataKey="resolved" stroke="#52c41a" strokeWidth={2} dot={false} />
+              <Line
+                type="monotone"
+                dataKey="created"
+                stroke={chart.palette[0]}
+                strokeWidth={2}
+                dot={false}
+              />
+              <Line
+                type="monotone"
+                dataKey="resolved"
+                stroke={chart.palette[1]}
+                strokeWidth={2}
+                dot={false}
+              />
             </LineChart>
           </ResponsiveContainer>
         ) : (
@@ -305,8 +328,11 @@ const TicketAnalytics: React.FC = () => {
                     outerRadius={90}
                     label
                   >
-                    {analyticsData.statusDistribution.map((entry) => (
-                      <Cell key={entry.name} fill={entry.color} />
+                    {analyticsData.statusDistribution.map((entry, index) => (
+                      <Cell
+                        key={entry.name}
+                        fill={chart.palette[index % chart.palette.length]}
+                      />
                     ))}
                   </Pie>
                   <RechartsTooltip
@@ -338,8 +364,11 @@ const TicketAnalytics: React.FC = () => {
                     ]}
                   />
                   <Bar dataKey="value" name="工单数" radius={[4, 4, 0, 0]}>
-                    {analyticsData.priorityDistribution.map((entry) => (
-                      <Cell key={entry.name} fill={entry.color} />
+                    {analyticsData.priorityDistribution.map((entry, index) => (
+                      <Cell
+                        key={entry.name}
+                        fill={chart.palette[index % chart.palette.length]}
+                      />
                     ))}
                   </Bar>
                 </BarChart>

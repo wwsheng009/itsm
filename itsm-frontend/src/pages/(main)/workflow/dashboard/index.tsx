@@ -41,11 +41,13 @@ import type { DashboardMetrics } from '@/lib/api/bpmn-dashboard-api';
 import BPMNDashboardApi, { ProcessStat, TaskStat } from '@/lib/api/bpmn-dashboard-api';
 import { useAuthStore } from '@/lib/store/auth-store';
 import { useI18n } from '@/lib/i18n';
+import { useChartTheme } from '@/lib/design-system/chart-theme';
 
 const { RangePicker } = DatePicker;
 
 export default function BPMNDashboardPage() {
   const { t } = useI18n();
+  const chart = useChartTheme();
   const currentTenant = useAuthStore(s => s.currentTenant);
   const [loading, setLoading] = useState(true);
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
@@ -193,7 +195,11 @@ export default function BPMNDashboardPage() {
   const trendData = metrics?.trendData || [];
 
   const slaColor =
-    slaRate >= 90 ? '#52c41a' : slaRate >= 70 ? '#faad14' : '#ff4d4f';
+    slaRate >= 90
+      ? 'var(--color-success-text)'
+      : slaRate >= 70
+        ? 'var(--color-warning-text)'
+        : 'var(--color-error-text)';
 
   return (
     <div className='p-6 space-y-6'>
@@ -234,7 +240,7 @@ export default function BPMNDashboardPage() {
               title={t('workflow.bpmnDashboard.activeInstances') || '运行实例'}
               value={metrics?.activeInstances || 0}
               prefix={<Activity size={18} />}
-              styles={{ content: { color: '#1890ff' } }}
+              styles={{ content: { color: 'var(--color-primary-text)' } }}
             />
           </Card>
         </Col>
@@ -244,7 +250,7 @@ export default function BPMNDashboardPage() {
               title={t('workflow.bpmnDashboard.completedToday') || '今日完成'}
               value={metrics?.completedToday || 0}
               prefix={<CheckCircle size={18} />}
-              styles={{ content: { color: '#52c41a' } }}
+              styles={{ content: { color: 'var(--color-success-text)' } }}
             />
           </Card>
         </Col>
@@ -254,7 +260,7 @@ export default function BPMNDashboardPage() {
               title={t('workflow.bpmnDashboard.openTasks') || '待处理任务'}
               value={metrics?.openTasks || 0}
               prefix={<Clock size={18} />}
-              styles={{ content: { color: '#faad14' } }}
+              styles={{ content: { color: 'var(--color-warning-text)' } }}
             />
           </Card>
         </Col>
@@ -273,7 +279,7 @@ export default function BPMNDashboardPage() {
                   title={t('workflow.bpmnDashboard.healthy') || '健康'}
                   value={metrics?.processHealth?.healthy || 0}
                   prefix={<CheckCircle size={16} />}
-                  styles={{ content: { color: '#52c41a' } }}
+                  styles={{ content: { color: 'var(--color-success-text)' } }}
                 />
               </Col>
               <Col span={8}>
@@ -281,7 +287,7 @@ export default function BPMNDashboardPage() {
                   title={t('workflow.bpmnDashboard.warning') || '警告'}
                   value={metrics?.processHealth?.warning || 0}
                   prefix={<AlertTriangle size={16} />}
-                  styles={{ content: { color: '#faad14' } }}
+                  styles={{ content: { color: 'var(--color-warning-text)' } }}
                 />
               </Col>
               <Col span={8}>
@@ -289,7 +295,7 @@ export default function BPMNDashboardPage() {
                   title={t('workflow.bpmnDashboard.critical') || '严重'}
                   value={metrics?.processHealth?.critical || 0}
                   prefix={<XCircle size={16} />}
-                  styles={{ content: { color: '#ff4d4f' } }}
+                  styles={{ content: { color: 'var(--color-error-text)' } }}
                 />
               </Col>
             </Row>
@@ -375,21 +381,34 @@ export default function BPMNDashboardPage() {
           <div style={{ width: '100%', height: 280 }}>
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={trendData} margin={{ top: 8, right: 24, bottom: 8, left: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                <XAxis dataKey="date" tick={{ fontSize: 12 }} />
-                <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
+                <CartesianGrid strokeDasharray="3 3" stroke={chart.grid} />
+                <XAxis
+                  dataKey="date"
+                  tick={{ fontSize: 12, fill: chart.axisText }}
+                  axisLine={{ stroke: chart.axisLine }}
+                  tickLine={{ stroke: chart.axisLine }}
+                />
+                <YAxis
+                  allowDecimals={false}
+                  tick={{ fontSize: 12, fill: chart.axisText }}
+                  axisLine={{ stroke: chart.axisLine }}
+                  tickLine={{ stroke: chart.axisLine }}
+                />
                 <Tooltip
                   formatter={(value) => [`${value ?? 0}`, '实例数']}
                   labelFormatter={(label) => `日期：${label}`}
                 />
-                <Legend formatter={() => '每日启动实例数'} />
+                <Legend
+                  formatter={() => '每日启动实例数'}
+                  wrapperStyle={{ color: chart.legendText }}
+                />
                 <Line
                   type="monotone"
                   dataKey="count"
-                  stroke="#1890ff"
+                  stroke={chart.palette[0]}
                   strokeWidth={2}
-                  dot={{ r: 3 }}
-                  activeDot={{ r: 5 }}
+                  dot={{ r: 3, fill: chart.palette[0] }}
+                  activeDot={{ r: 5, fill: chart.palette[0] }}
                 />
               </LineChart>
             </ResponsiveContainer>

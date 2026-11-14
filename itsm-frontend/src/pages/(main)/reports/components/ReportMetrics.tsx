@@ -26,10 +26,10 @@ const getSLAStatus = (compliance: number) => {
 };
 
 const getSatisfactionColor = (score: number) => {
-  if (score >= 4.5) return '#52c41a';
-  if (score >= 4.0) return '#1890ff';
-  if (score >= 3.5) return '#faad14';
-  return '#f5222d';
+  if (score >= 4.5) return 'var(--color-success-text)';
+  if (score >= 4.0) return 'var(--color-primary-text)';
+  if (score >= 3.5) return 'var(--color-warning-text)';
+  return 'var(--color-error-text)';
 };
 
 export const ReportMetrics: React.FC<ReportMetricsProps> = ({ metrics }) => {
@@ -40,7 +40,7 @@ export const ReportMetrics: React.FC<ReportMetricsProps> = ({ metrics }) => {
           <Statistic
             title="工单总数"
             value={metrics?.totalTickets}
-            prefix={<FileText style={{ color: '#1890ff' }} />}
+            prefix={<FileText style={{ color: 'var(--color-primary-text)' }} />}
             suffix={
               <div className="text-xs text-gray-500">
                 <div>已解决: {metrics?.resolvedTickets}</div>
@@ -55,7 +55,7 @@ export const ReportMetrics: React.FC<ReportMetricsProps> = ({ metrics }) => {
           <Statistic
             title="平均解决时间"
             value={metrics?.avgResolutionTime}
-            prefix={<Clock style={{ color: '#52c41a' }} />}
+            prefix={<Clock style={{ color: 'var(--color-success-text)' }} />}
             suffix="小时"
           />
           <div className="mt-2">
@@ -72,14 +72,14 @@ export const ReportMetrics: React.FC<ReportMetricsProps> = ({ metrics }) => {
           <Statistic
             title="SLA达标率"
             value={metrics?.slaCompliance}
-            prefix={<CheckCircle style={{ color: '#1890ff' }} />}
+            prefix={<CheckCircle style={{ color: 'var(--color-primary-text)' }} />}
             suffix="%"
             styles={{
               content: {
                 color:
                   getSLAStatus(metrics?.slaCompliance || 0).color === 'success'
-                    ? '#52c41a'
-                    : '#1890ff',
+                    ? 'var(--color-success-text)'
+                    : 'var(--color-primary-text)',
               },
             }}
           />
