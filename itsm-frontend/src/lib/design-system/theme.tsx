@@ -137,18 +137,25 @@ export const getAntdTheme = (isDark: boolean) => {
     algorithm: isDark ? theme.darkAlgorithm : theme.defaultAlgorithm,
     token: {
       // 颜色配置
-      // 主按钮背景需承载白色文字（>=4.5:1），因此固定使用 600 阶；
-      // 链接文字另用 colorLink，暗色下自动取更亮的色阶，避免主色变深后链接不可读。
-      colorPrimary: '#2563eb',
+      // 亮色主按钮背景需承载白色文字（>=4.5:1），固定 600 阶；
+      // 暗色改用 500 阶(#3b82f6)：图标/描边/选中态在 #0f172a 上有 4.86:1，
+      // 不再只有 3.46:1。实心主按钮仍由 globals.css 强制品牌渐变 + 白字。
+      colorPrimary: isDark ? colorPalette.primary[500] : '#2563eb',
       colorLink: colorPalette.primary[600],
       colorSuccess: '#22c55e',
       colorWarning: '#f59e0b',
       colorError: '#ef4444',
       colorInfo: '#0ea5e9',
 
-      // 背景色
-      colorBgContainer: colorPalette.functional.background.primary,
-      colorBgLayout: colorPalette.functional.background.secondary,
+      // 背景色：暗色 Elevation 必须「页面 < 卡片 < 浮层」。
+      // 旧配置把 container 指向 background.primary(#0f172a)，与页面底完全同值，
+      // 导致 Card/Table/Input 全部糊进页面背景（1.0:1），卡片层级塌陷。
+      // surface.primary 在亮色仍为 #ffffff，暗色为 #1e293b。
+      colorBgContainer: colorPalette.functional.surface.primary,
+      // 暗色页面底取 primary(#0f172a)，亮色保持 secondary(#f8fafc) 的浅灰工作区。
+      colorBgLayout: isDark
+        ? colorPalette.functional.background.primary
+        : colorPalette.functional.background.secondary,
       colorBgElevated: colorPalette.functional.background.elevated,
 
       // 文本色

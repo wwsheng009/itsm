@@ -73,7 +73,7 @@ export const PageLayout: React.FC<PageLayoutProps> = ({
         <header
           className="sticky top-0 z-50"
           style={{
-            backgroundColor: token.colorBgContainer,
+            backgroundColor: 'var(--color-background-primary)',
             borderBottom: `1px solid ${token.colorBorder}`,
             boxShadow: token.boxShadowSecondary,
           }}
@@ -90,7 +90,7 @@ export const PageLayout: React.FC<PageLayoutProps> = ({
             className="hidden lg:block"
             style={{
               width: layout.sidebar.width.lg,
-              backgroundColor: token.colorBgContainer,
+              backgroundColor: 'var(--color-background-primary)',
               borderRight: `1px solid ${token.colorBorder}`,
             }}
           >
@@ -105,7 +105,7 @@ export const PageLayout: React.FC<PageLayoutProps> = ({
             <div
               className="px-4 py-6 lg:px-8"
               style={{
-                backgroundColor: token.colorBgContainer,
+                backgroundColor: 'var(--color-background-primary)',
                 borderBottom: `1px solid ${token.colorBorder}`,
               }}
             >
@@ -184,7 +184,7 @@ export const PageLayout: React.FC<PageLayoutProps> = ({
       {footer && (
         <footer
           style={{
-            backgroundColor: token.colorBgContainer,
+            backgroundColor: 'var(--color-background-primary)',
             borderTop: `1px solid ${token.colorBorder}`,
             padding: semanticSpacing.padding[padding],
           }}

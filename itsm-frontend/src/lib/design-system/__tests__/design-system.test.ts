@@ -2,6 +2,9 @@
  * Tests for Design System - Colors & Spacing
  */
 
+import fs from 'node:fs';
+import path from 'node:path';
+
 jest.mock('@/lib/api/http-client', () => ({
   httpClient: { get: jest.fn(), post: jest.fn(), put: jest.fn(), delete: jest.fn(), patch: jest.fn() },
 }));
@@ -266,7 +269,9 @@ describe('Design System - Theme', () => {
     const themeConfig = getAntdTheme(false);
     expect(themeConfig).toBeDefined();
     expect(themeConfig.token).toBeDefined();
-    expect(themeConfig.token.colorPrimary).toBe('#3b82f6');
+    // colorPrimary 固定取 600 阶：主按钮需承载白色文字，须满足 >= 4.5:1。
+    // 暗色下不降阶（#3b82f6 配白字仅 3.67:1），前景强调另走 colorLink 提亮。
+    expect(themeConfig.token.colorPrimary).toBe('#2563eb');
     expect(themeConfig.token.colorBgContainer).toBe('#ffffff');
     expect(themeConfig.components).toBeDefined();
   });
@@ -274,7 +279,14 @@ describe('Design System - Theme', () => {
   it('getAntdTheme returns dark theme config', async () => {
     const { getAntdTheme } = await import('../theme');
     const themeConfig = getAntdTheme(true);
-    expect(themeConfig.token.colorBgContainer).toBe('#0f172a');
+    // 暗色前景主色用 500 阶：图标/描边在 #0f172a 上达到 4.86:1。
+    // 实心按钮仍由 globals.css 强制品牌渐变，不依赖该 token 承载白字。
+    expect(themeConfig.token.colorPrimary).toBe('#3b82f6');
+    expect(themeConfig.token.colorLink).toBe('#60a5fa');
+    // container 必须比页面底 (#0f172a) 亮一级，否则 Card/Table/Input 与页面同色，
+    // 暗色下只剩边框可辨，Elevation 塌陷。
+    expect(themeConfig.token.colorBgContainer).toBe('#1e293b');
+    expect(themeConfig.token.colorBgLayout).toBe('#0f172a');
     expect(themeConfig.token.colorText).toBe('#f8fafc');
   });
 
@@ -312,5 +324,27 @@ describe('Design System - Theme', () => {
     
     setPropertySpy.mockRestore();
     addSpy.mockRestore();
+  });
+
+  it('globals.css 主色阶与 colors.ts / darkColors 保持单一真源', () => {
+    const css = fs.readFileSync(path.join(process.cwd(), 'src/styles/globals.css'), 'utf8');
+    const lightStart = css.indexOf('设计系统 - 全局CSS变量');
+    const darkStart = css.indexOf('深色模式支持');
+    const darkEnd = css.indexOf('系统主题偏好支持', darkStart);
+    expect(lightStart).toBeGreaterThan(-1);
+    expect(darkStart).toBeGreaterThan(-1);
+    expect(darkEnd).toBeGreaterThan(darkStart);
+
+    const lightBlock = css.slice(lightStart, darkStart);
+    const darkBlock = css.slice(darkStart, darkEnd);
+    const readVar = (block: string, name: string) =>
+      block.match(new RegExp(`--${name}:\\s*(#[0-9a-fA-F]{3,8})`))?.[1];
+
+    for (const [shade, hex] of Object.entries(colors.primary)) {
+      expect(readVar(lightBlock, `color-primary-${shade}`)).toBe(hex);
+      expect(readVar(darkBlock, `color-primary-${shade}`)).toBe(
+        darkColors.primary[Number(shade) as keyof typeof darkColors.primary],
+      );
+    }
   });
 });

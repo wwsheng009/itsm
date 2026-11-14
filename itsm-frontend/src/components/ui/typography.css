@@ -337,21 +337,21 @@
 
 /* 渐变文字效果 */
 .text-gradient {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, var(--color-purple-text) 0%, var(--color-primary-dark) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
 
 .text-gradient-blue {
-  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
 
 .text-gradient-green {
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  background: linear-gradient(135deg, var(--color-success) 0%, var(--color-success-dark) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -360,7 +360,7 @@
 /* 打字机效果 */
 .typewriter {
   overflow: hidden;
-  border-right: 2px solid #3b82f6;
+  border-right: 2px solid var(--color-primary);
   white-space: nowrap;
   animation: typewriter 3s steps(40, end), blink-caret 0.75s step-end infinite;
 }
@@ -379,13 +379,13 @@
     border-color: transparent;
   }
   50% {
-    border-color: #3b82f6;
+    border-color: var(--color-primary);
   }
 }
 
 /* 文本高亮效果 */
 .text-highlight {
-  background: linear-gradient(120deg, #fbbf24 0%, #fbbf24 100%);
+  background: linear-gradient(120deg, var(--color-warning-light) 0%, var(--color-warning-light) 100%);
   background-repeat: no-repeat;
   background-size: 100% 0.2em;
   background-position: 0 88%;

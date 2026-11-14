@@ -64,11 +64,13 @@ const DESIGN = {
     success: '#10b981',
     warning: '#f59e0b',
     danger: '#ef4444',
-    surface: '#ffffff',
-    border: '#e2e8f0',
-    text: '#1e293b',
-    textMuted: '#64748b',
-    bgSubtle: '#f8fafc',
+    /* 这些颜色被大量内联样式引用，必须走令牌，否则暗色下整页仍是白底深字 */
+    surface: 'var(--color-surface-primary)',
+    border: 'var(--color-border-primary)',
+    text: 'var(--color-text-primary)',
+    textMuted: 'var(--color-text-tertiary)',
+    // 个人中心是一级页面容器，必须使用页面底色而不是内容 surface。
+    bgSubtle: 'var(--color-page-background)',
     gradient: {
       primary: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
       success: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',

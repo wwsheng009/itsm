@@ -27,7 +27,7 @@
 
 .btn-interactive:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+  box-shadow: var(--shadow-lg);
 }
 
 .btn-interactive:active {
@@ -48,7 +48,7 @@
   left: 50%;
   width: 0;
   height: 2px;
-  background: linear-gradient(90deg, #3b82f6, #1d4ed8);
+  background: linear-gradient(90deg, var(--color-primary), var(--color-primary-dark));
   transition: all 0.3s ease;
   transform: translateX(-50%);
 }
@@ -59,7 +59,7 @@
 
 .input-animated:focus-within {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--color-primary) 15%, transparent);
 }
 
 /* 卡片悬停动画 */
@@ -70,7 +70,7 @@
 
 .card-interactive:hover {
   transform: translateY(-4px) scale(1.02);
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-xl);
 }
 
 .card-interactive:active {
@@ -85,7 +85,7 @@
 
 .icon-hover:hover {
   transform: scale(1.1) rotate(5deg);
-  color: #3b82f6;
+  color: var(--color-primary);
 }
 
 /* 脉冲动画 */

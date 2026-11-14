@@ -490,7 +490,9 @@ describe('SimpleErrorFallback Component', () => {
 
     const wrapper = container.firstChild as HTMLElement;
     expect(wrapper).toHaveStyle('text-align: center');
-    expect(wrapper).toHaveStyle('background: #fafafa');
+    // 背景已改为主题令牌；jsdom 不支持 background: var(...) 的序列化，
+    // 这里只断言不依赖主题解析的布局样式。
+    expect(wrapper).toHaveStyle('min-height: 400px');
   });
 });
 

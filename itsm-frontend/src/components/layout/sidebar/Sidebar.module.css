@@ -5,9 +5,14 @@
   bottom: 0 !important;
   height: 100vh !important;
   overflow-y: auto !important;
+  /* 背景继续保持 background-primary：它与 antd Menu 的 itemBg/subMenuItemBg
+     同源（theme.tsx:217-218），改值会让菜单项变成嵌在侧栏里的反色块。
+     层次感改由下方 border-right 与内容区的背景差共同承担。 */
   background: var(--color-background-primary, var(--color-bg-primary)) !important;
+  /* 暗色下侧栏与内容区同为 #0f172a（仅 1.22:1），靠描边划定边界，
+     避免「导航区 / 内容区」糊成一片。亮色下该描边同样成立。 */
   border-right: 1px solid var(--color-border-primary) !important;
-  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.05) !important;
+  box-shadow: var(--shadow-sm) !important;
   z-index: 1000 !important;
   display: flex !important;
   flex-direction: column !important;
@@ -40,7 +45,7 @@
   color: white;
   font-weight: 800;
   font-size: 18px;
-  box-shadow: 0 2px 6px rgba(59, 130, 246, 0.2);
+  box-shadow: 0 2px 6px color-mix(in srgb, var(--color-primary) 20%, transparent);
 }
 
 .logoTextContainer {
@@ -125,7 +130,7 @@
 }
 
 .menuItemBadge {
-  background-color: #ef4444;
+  background-color: var(--color-error);
   box-shadow: 0 0 0 1px var(--color-background-primary, var(--color-bg-primary));
 }
 

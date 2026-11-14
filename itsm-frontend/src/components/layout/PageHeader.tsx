@@ -31,7 +31,7 @@ export function PageHeader({ title, description, extra, showBackButton = false }
       style={{
         marginBottom: 24,
         paddingBottom: 16,
-        borderBottom: '1px solid #e5e7eb',
+        borderBottom: '1px solid var(--color-border-primary)',
       }}
     >
       {/* 返回按钮 */}
@@ -51,7 +51,7 @@ export function PageHeader({ title, description, extra, showBackButton = false }
               style={{
                 fontSize: 20,
                 fontWeight: '600',
-                color: '#1f2937',
+                color: 'var(--color-text-primary)',
                 margin: 0,
                 marginBottom: description ? 8 : 0,
               }}
@@ -63,7 +63,7 @@ export function PageHeader({ title, description, extra, showBackButton = false }
             <p
               style={{
                 fontSize: 14,
-                color: '#6b7280',
+                color: 'var(--color-text-secondary)',
                 margin: 0,
                 lineHeight: '1.5',
               }}

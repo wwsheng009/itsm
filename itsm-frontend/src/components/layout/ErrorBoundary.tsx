@@ -133,7 +133,9 @@ class ErrorBoundary extends Component<Props, State> {
                 <Text type="secondary">{this.state.error?.message}</Text>
                 {import.meta.env.DEV && (
                   <details style={{ marginTop: '12px' }}>
-                    <summary style={{ cursor: 'pointer', color: '#1890ff' }}>堆栈跟踪</summary>
+                    <summary style={{ cursor: 'pointer', color: 'var(--color-primary-600)' }}>
+                      堆栈跟踪
+                    </summary>
                     <div style={{ marginTop: '8px' }}>
                       <Text type="secondary" style={{ whiteSpace: 'pre-wrap' }}>
                         {this.state.error?.stack}
@@ -148,9 +150,9 @@ class ErrorBoundary extends Component<Props, State> {
                   marginTop: '16px',
                   padding: '12px',
                   background: 'var(--color-info-bg, #f0f9ff)',
-                  border: '1px solid #91d5ff',
-                  // 该提示框为浅色底，文字必须固定深色，避免暗色主题下浅字浅底
-                  color: '#0c4a6e',
+                  border: '1px solid color-mix(in srgb, var(--color-info-500) 40%, transparent)',
+                  // 背景已改为随主题的 info 软底，文字不能再固定深蓝，否则暗色不可读
+                  color: 'var(--color-text-secondary)',
                   borderRadius: '6px',
                 }}
               >
@@ -211,7 +213,9 @@ export const SimpleErrorFallback: React.FC<{
     >
       <Bug style={{ fontSize: '48px', color: '#ff4d4f', marginBottom: '16px' }} />
       <h2 style={{ color: '#ff4d4f', marginBottom: '8px' }}>页面出现异常</h2>
-      <p style={{ color: '#666', marginBottom: '24px' }}>{error?.message || '未知错误'}</p>
+      <p style={{ color: 'var(--color-text-secondary)', marginBottom: '24px' }}>
+        {error?.message || '未知错误'}
+      </p>
       <Button type="primary" onClick={() => window.location.reload()} key="reload">
         重新加载
       </Button>

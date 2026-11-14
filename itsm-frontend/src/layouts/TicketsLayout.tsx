@@ -21,7 +21,8 @@ const TicketLayout: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* 面包屑导航 */}
-      <div className="bg-white border-b border-gray-200">
+      {/* 页面级 chrome：不能使用 bg-white/surface，否则暗色下会形成第二块主背景。 */}
+      <div className="page-chrome border-b">
         <div className="max-w-7xl mx-auto px-6 py-3">
           <Breadcrumb items={breadcrumbItems} />
         </div>

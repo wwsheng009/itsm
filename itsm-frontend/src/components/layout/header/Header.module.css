@@ -7,7 +7,7 @@
   justify-content: space-between;
   height: auto;
   min-height: 56px;
-  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  box-shadow: var(--shadow-xs);
 }
 
 .mainRow {
@@ -44,7 +44,7 @@
 .title {
   font-size: 16px;
   font-weight: 600;
-  color: #1f2937;
+  color: var(--color-text-primary);
   margin-right: 8px;
 }
 
@@ -55,12 +55,12 @@
 }
 
 .breadcrumbSeparator {
-  color: #9ca3af;
+  color: var(--color-text-tertiary);
   margin: 0 4px;
 }
 
 .breadcrumbLink {
-  color: #3b82f6;
+  color: var(--color-primary-600);
   cursor: pointer;
   font-size: 14px;
   font-weight: 500;
@@ -70,15 +70,15 @@
 }
 
 .breadcrumbLink:hover {
-  background-color: #eff6ff;
-  color: #1d4ed8;
+  background-color: var(--color-primary-soft-hover);
+  color: var(--color-primary-700);
 }
 
 .breadcrumbCurrent {
-  color: #374151;
+  color: var(--color-text-secondary);
   font-size: 14px;
   font-weight: 600;
-  background-color: #f3f4f6;
+  background-color: var(--color-background-tertiary);
   padding: 4px 8px;
   border-radius: 6px;
 }
@@ -92,13 +92,13 @@
 .searchInput {
   width: 240px;
   border-radius: 6px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--color-border-primary);
   transition: all 0.2s;
 }
 
 .searchInput:focus {
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+  border-color: var(--color-primary-500);
+  box-shadow: 0 0 0 2px var(--color-primary-soft);
 }
 
 .headerSearchInput {
@@ -157,7 +157,7 @@
 }
 
 .actionButton:focus-visible {
-  outline: 2px solid #3b82f6;
+  outline: 2px solid var(--color-primary-500);
   outline-offset: 2px;
 }
 
@@ -175,13 +175,13 @@
 }
 
 .actionButton.active {
-  color: #2563eb !important;
-  background: #dbeafe;
+  color: var(--color-primary-text) !important;
+  background: var(--color-primary-soft);
 }
 
 .actionButton.active svg {
-  color: #2563eb;
-  stroke: #2563eb;
+  color: var(--color-primary-text);
+  stroke: var(--color-primary-text);
 }
 
 /* 通知按钮：复用 actionButton 基础样式，只需覆盖特定差异 */
@@ -190,8 +190,8 @@
 }
 
 .notificationButton svg {
-  color: #64748b;
-  stroke: #64748b;
+  color: var(--color-text-tertiary);
+  stroke: var(--color-text-tertiary);
 }
 
 .notificationButton:hover,
@@ -208,14 +208,14 @@
 /* 激活状态：使用两个类选择器组合，特异性高于 .notificationButton */
 .actionButton.notificationButton.active,
 .notificationButton.active {
-  color: #3b82f6 !important;
-  background: #eff6ff;
+  color: var(--color-primary) !important;
+  background: var(--color-primary-soft);
 }
 
 .actionButton.notificationButton.active svg,
 .notificationButton.active svg {
-  color: #3b82f6 !important;
-  stroke: #3b82f6 !important;
+  color: var(--color-primary) !important;
+  stroke: var(--color-primary) !important;
 }
 
 .userMenu {
@@ -233,7 +233,7 @@
 .userMenu:hover {
   background: var(--color-bg-secondary, #f8fafc);
   border-color: var(--color-border-primary, #e2e8f0);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  box-shadow: var(--shadow-md);
   transform: translateY(-1px);
 }
 
@@ -250,16 +250,16 @@
   right: 0;
   width: 10px;
   height: 10px;
-  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
-  border: 2px solid #fff;
+  background: linear-gradient(135deg, var(--color-success) 0%, var(--color-success-dark) 100%);
+  border: 2px solid var(--color-background-primary);
   border-radius: 50%;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-sm);
 }
 
 .chevronIcon {
   width: 16px;
   height: 16px;
-  color: #94a3b8;
+  color: var(--color-text-tertiary);
   transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -305,7 +305,7 @@
   margin: 8px 12px;
   min-width: 260px;
   border: 1px solid var(--color-border-primary, #e2e8f0);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+  box-shadow: var(--shadow-md);
 }
 
 .userDropdownInfo {
@@ -325,7 +325,7 @@
 
 .userDropdownEmail {
   font-size: 12px;
-  color: #64748b;
+  color: var(--color-text-tertiary);
   margin-top: 2px;
   white-space: nowrap;
   overflow: hidden;
@@ -341,8 +341,8 @@
   padding: 2px 8px;
   font-size: 11px;
   font-weight: 500;
-  color: #3b82f6;
-  background: #eff6ff;
+  color: var(--color-primary-600);
+  background: var(--color-primary-soft);
   border-radius: 4px;
 }
 
@@ -352,31 +352,31 @@
   gap: 10px;
   padding: 8px 4px;
   font-size: 14px;
-  color: #475569;
+  color: var(--color-text-secondary);
 }
 
 .menuItemContent:hover {
-  color: #3b82f6;
+  color: var(--color-primary-600);
 }
 
 .menuItemLogout {
-  color: #ef4444;
+  color: var(--color-error);
 }
 
 .menuItemLogout:hover {
-  color: #dc2626;
-  background: #fef2f2;
+  color: var(--color-error-dark);
+  background: var(--color-error-bg);
   border-radius: 6px;
 }
 
 .notificationDrawerHeader {
-  border-bottom: 1px solid #f3f4f6;
+  border-bottom: 1px solid var(--color-border-primary);
   padding-bottom: 16px;
 }
 
 .notificationItem {
   padding: 16px 0;
-  border-bottom: 1px solid #f3f4f6;
+  border-bottom: 1px solid var(--color-border-primary);
   transition: all 0.2s;
 }
 
@@ -403,7 +403,7 @@
 }
 
 .notificationContent {
-  color: #6b7280;
+  color: var(--color-text-secondary);
   font-size: 14px;
   line-height: 1.5;
 }
@@ -411,7 +411,7 @@
 .emptyNotifications {
   text-align: center;
   padding: 40px 20px;
-  color: #9ca3af;
+  color: var(--color-text-tertiary);
 }
 
 .userMenuPlaceholder {
@@ -472,7 +472,9 @@
 
 /* ========== 暗色模式（跟随 html.dark 类） ========== */
 :global(html.dark) .header {
-  background: var(--color-bg-secondary);
+  /* 顶栏与页面底/侧栏统一使用同一个主背景色（#0f172a），
+     层次由 border-bottom + 阴影承担；卡片等 surface 仍保持 #1e293b。 */
+  background: var(--color-background-primary);
   border-bottom-color: var(--color-border-primary);
 }
 
@@ -508,6 +510,29 @@
   background-color: var(--color-bg-active);
 }
 
+:global(html.dark) .actionButton.active {
+  /* 亮色态的 #dbeafe/#2563eb 在暗色下是浅色补丁；改用品牌软底 + 提亮前景 */
+  background: var(--color-primary-soft);
+  color: var(--color-primary-600) !important;
+}
+
+:global(html.dark) .actionButton.active svg {
+  color: var(--color-primary-600);
+  stroke: var(--color-primary-600);
+}
+
+:global(html.dark) .actionButton.notificationButton.active,
+:global(html.dark) .notificationButton.active {
+  background: var(--color-primary-soft);
+  color: var(--color-primary-600) !important;
+}
+
+:global(html.dark) .actionButton.notificationButton.active svg,
+:global(html.dark) .notificationButton.active svg {
+  color: var(--color-primary-600) !important;
+  stroke: var(--color-primary-600) !important;
+}
+
 :global(html.dark) .actionButton:hover svg,
 :global(html.dark) .actionButton:focus svg {
   color: var(--color-text-primary);
@@ -525,6 +550,15 @@
 
 :global(html.dark) .menuItemContent {
   color: var(--color-text-secondary);
+}
+
+:global(html.dark) .menuItemLogout {
+  /* error-500(#ef4444) 在暗底上仅约 3.6:1，提亮到 error-400 */
+  color: var(--color-error-light);
+}
+
+:global(html.dark) .menuItemLogout:hover {
+  color: var(--color-error-light);
 }
 
 :global(html.dark) .notificationButton:hover,

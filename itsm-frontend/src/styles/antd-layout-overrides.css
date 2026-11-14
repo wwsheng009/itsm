@@ -7,7 +7,8 @@
 /* ========== Layout 根组件 ========== */
 .ant-layout {
   min-height: 100vh;
-  background: #f5f5f5;
+  /* 必须走主题令牌：硬编码 #f5f5f5 会在暗色模式下闪出浅色底 */
+  background: var(--color-background-secondary);
 }
 
 /* ========== Header 顶部导航 (与自定义 Header 样式一致) ========== */
@@ -15,7 +16,8 @@
   height: 56px !important;
   line-height: 56px !important;
   padding: 0 16px !important;
-  background: #fff !important;
+  /* 必须走主题令牌：硬编码 #fff + !important 会在暗色模式下把 header 强制刷白 */
+  background: var(--color-background-primary) !important;
   position: sticky;
   top: 0;
   z-index: 10;
@@ -54,12 +56,14 @@
   margin: 0 !important;
   padding: 0 !important;
   min-height: calc(100vh - 56px);
-  background: transparent !important;
+  /* 背景交由各布局控制：MainLayout 使用主题 token 类，
+     AppLayout 使用内联 transparent；不要在这里用 !important 锁死，
+     否则会覆盖 MainLayout 的 bg-[var(--color-background-primary)]。 */
   border-radius: 0;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Content - 由 layout 内联样式控制，不在此处强制 */
+/* Content - 由 layout 内联样式/主题类控制，不在此处强制 */
 
 /* ========== Menu 菜单 ========== */
 .ant-menu-inline {
@@ -149,7 +153,8 @@
 }
 
 .ant-breadcrumb a {
-  color: #8c8c8c;
+  /* 暗色下 #8c8c8c 对 #0f172a 仅约 4.1:1；tertiary 令牌为 #94a3b8，约 5.4:1 */
+  color: var(--color-text-tertiary);
   transition: color 0.2s;
 }
 
@@ -229,33 +234,28 @@
    必须基于 .dark 类，否则用户手动切暗色时布局 chrome 不跟随。 */
 :root.dark .ant-layout,
 html.dark .ant-layout {
-  background: #141414;
+  /* 旧值是 Ant Design 默认的 #141414，与内容区 slate(#0f172a) 形成中性黑/蓝黑干涉。
+     统一走页面底令牌，布局壳与路由页面共用同一色相。 */
+  background: var(--color-background-primary);
 }
 
 :root.dark .ant-layout-header,
 html.dark .ant-layout-header {
-  background: #1f1f1f !important;
+  /* 与自定义 Header、页面底、侧栏统一为 #0f172a；
+     不再使用 Elevation-1(#1e293b)，避免暗色下出现两种主背景色。 */
+  background: var(--color-background-primary) !important;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45) !important;
-}
-
-:root.dark .ant-layout-content,
-html.dark .ant-layout-content {
-  background: #1f1f1f;
 }
 
 /* 系统偏好（OS 暗色且应用未显式设为亮色） */
 @media (prefers-color-scheme: dark) {
   :root:not(.light) .ant-layout {
-    background: #141414;
+    background: var(--color-background-primary);
   }
 
   :root:not(.light) .ant-layout-header {
-    background: #1f1f1f !important;
+    background: var(--color-background-primary) !important;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45) !important;
-  }
-
-  :root:not(.light) .ant-layout-content {
-    background: #1f1f1f;
   }
 }
 

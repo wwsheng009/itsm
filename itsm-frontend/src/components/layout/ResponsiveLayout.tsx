@@ -39,7 +39,7 @@ export function ResponsiveLayout({
     <div className={cn('min-h-screen flex flex-col bg-gray-50', className)}>
       {/* Header */}
       {header && (
-        <header className="sticky top-0 z-40 bg-white border-b border-gray-200 shadow-sm">
+        <header className="sticky top-0 z-40 page-chrome border-b shadow-sm">
           <div className={containerClasses[variant]}>{header}</div>
         </header>
       )}
@@ -69,7 +69,7 @@ export function ResponsiveLayout({
 
       {/* Footer */}
       {footer && (
-        <footer className="bg-white border-t border-gray-200">
+        <footer className="page-chrome border-t">
           <div className={containerClasses[variant]}>{footer}</div>
         </footer>
       )}

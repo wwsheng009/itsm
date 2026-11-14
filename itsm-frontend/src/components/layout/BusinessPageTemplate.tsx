@@ -147,7 +147,7 @@ const StatsCard: React.FC<PageStats & { loading?: boolean }> = ({
   label,
   value,
   suffix,
-  color = '#3b82f6',
+  color = 'var(--color-primary)',
   icon,
   loading,
 }) => (
@@ -170,7 +170,10 @@ const StatsCard: React.FC<PageStats & { loading?: boolean }> = ({
       {icon && (
         <div
           className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl"
-          style={{ color, backgroundColor: `${color}14` }}
+          style={{
+            color,
+            backgroundColor: `color-mix(in srgb, ${color} 8%, transparent)`,
+          }}
           aria-hidden="true"
         >
           {icon}
@@ -302,7 +305,7 @@ export const BusinessPageTemplate: React.FC<BusinessPageTemplateProps> = ({
   return (
     <div className={`min-h-screen bg-[var(--color-background-primary)] ${className}`}>
       {/* ====== 页面头部区域 ====== */}
-      <div className="bg-[var(--color-surface-primary)] border-b border-[var(--color-border-primary)]">
+      <div className="page-chrome border-b">
         <div className="w-full px-3 py-4 sm:px-6">
           {/* 标题行 */}
           <div className="mb-4 flex items-start justify-between gap-3">
@@ -371,7 +374,7 @@ export const BusinessPageTemplate: React.FC<BusinessPageTemplateProps> = ({
       </div>
 
       {/* ====== 搜索和筛选区域 ====== */}
-      <div className="bg-[var(--color-surface-primary)] border-b border-[var(--color-border-primary)]">
+      <div className="page-chrome border-b">
         <div className="w-full px-3 py-3 sm:px-6">
           <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-between">
             {/* 搜索框 */}

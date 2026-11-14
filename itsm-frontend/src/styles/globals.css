@@ -218,7 +218,10 @@
 
 .ant-tooltip-inner {
   background-color: var(--color-bg-elevated) !important;
-  color: var(--color-text-inverse) !important;
+  /* 浮层背景是 surface/elevated，文字应取 primary；
+     旧值 text-inverse 在亮色=白字白底、暗色=深字深底。 */
+  color: var(--color-text-primary) !important;
+  border: 1px solid var(--color-border-primary) !important;
   border-radius: 4px !important;
   padding: 8px 12px !important;
 }
@@ -235,7 +238,7 @@
 
 .ant-popover-inner {
   background-color: var(--color-bg-elevated) !important;
-  color: var(--color-text-inverse) !important;
+  color: var(--color-text-primary) !important;
   border-radius: 4px !important;
 }
 
@@ -251,26 +254,30 @@
 
 .ant-dropdown-menu {
   background-color: var(--color-bg-elevated) !important;
-  color: var(--color-text-inverse) !important;
+  color: var(--color-text-primary) !important;
   border-radius: 4px !important;
-  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border: 1px solid var(--color-border-primary) !important;
   box-shadow: 0 6px 16px 0 rgba(0, 0, 0, 0.08), 0 3px 6px -4px rgba(0, 0, 0, 0.12), 0 9px 28px 8px rgba(0, 0, 0, 0.05) !important;
 }
 
 .ant-dropdown-menu-item,
 .ant-dropdown-menu-submenu-title {
-  color: var(--color-text-inverse) !important;
+  color: var(--color-text-primary) !important;
 }
 
 .ant-dropdown-menu-item:hover,
 .ant-dropdown-menu-submenu-title:hover {
-  background-color: rgba(255, 255, 255, 0.1) !important;
-  color: var(--color-text-inverse) !important;
+  background-color: color-mix(
+    in srgb,
+    var(--color-text-primary) 8%,
+    transparent
+  ) !important;
+  color: var(--color-text-primary) !important;
 }
 
 .ant-dropdown-menu-item-selected {
-  background-color: rgba(255, 255, 255, 0.15) !important;
-  color: var(--color-text-inverse) !important;
+  background-color: var(--color-primary-soft) !important;
+  color: var(--color-primary-600) !important;
 }
 
 .ant-dropdown-menu-item.danger {
@@ -279,6 +286,11 @@
 
 .ant-dropdown-menu-item.danger:hover {
   background-color: rgba(255, 77, 79, 0.1) !important;
+}
+
+.dark .ant-dropdown-menu-item.danger {
+  /* #ff4d4f on #1e293b ≈ 4.47:1，提亮一阶到 5.9:1 */
+  color: #ff7875 !important;
 }
 
 /* Select 下拉框样式修复 - 亮色模式（默认） */
@@ -499,39 +511,47 @@
 .dark .ant-select-dropdown,
 :root.dark .ant-select-dropdown {
   background-color: var(--color-bg-elevated) !important;
-  color: #fff !important;
+  color: var(--color-text-primary) !important;
   border-radius: 8px !important;
-  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border: 1px solid var(--color-border-primary) !important;
   box-shadow: 0 6px 16px 0 rgba(0, 0, 0, 0.08), 0 3px 6px -4px rgba(0, 0, 0, 0.12), 0 9px 28px 8px rgba(0, 0, 0, 0.05) !important;
 }
 
 .dark .ant-select-item,
 :root.dark .ant-select-item,
-.dark .ant-select-item-option-disabled,
-:root.dark .ant-select-item-option-disabled,
 .dark .ant-select-item-option-active,
-:root.dark .ant-select-item-option-active,
+:root.dark .ant-select-item-option-active {
+  color: var(--color-text-primary) !important;
+  background-color: transparent !important;
+}
+
 .dark .ant-select-item-option-selected,
 :root.dark .ant-select-item-option-selected {
-  color: #fff !important;
+  color: var(--color-primary-600) !important;
+  background-color: transparent !important;
+}
+
+.dark .ant-select-item-option-disabled,
+:root.dark .ant-select-item-option-disabled {
+  color: var(--color-text-disabled) !important;
   background-color: transparent !important;
 }
 
 .dark .ant-select-item-option-active:not(.ant-select-item-option-disabled),
 :root.dark .ant-select-item-option-active:not(.ant-select-item-option-disabled) {
-  background-color: rgba(255, 255, 255, 0.1) !important;
+  background-color: var(--color-background-tertiary) !important;
 }
 
 .dark .ant-select-item-option-selected,
 :root.dark .ant-select-item-option-selected {
-  background-color: rgba(255, 255, 255, 0.15) !important;
+  background-color: var(--color-primary-soft) !important;
 }
 
 .dark .ant-select-selection-item,
 :root.dark .ant-select-selection-item,
 .dark .ant-select-selection-search-input,
 :root.dark .ant-select-selection-search-input {
-  color: #fff !important;
+  color: var(--color-text-primary) !important;
 }
 
 /* DatePicker/TimePicker 下拉面板样式暗色主题下修复 - 仅在生效 */
@@ -546,16 +566,16 @@
 .dark .ant-picker-dropdown.ant-picker-dropdown-placement-bottomRight,
 :root.dark .ant-picker-dropdown.ant-picker-dropdown-placement-bottomRight {
   background-color: var(--color-bg-elevated) !important;
-  color: #fff !important;
+  color: var(--color-text-primary) !important;
   border-radius: 4px !important;
-  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border: 1px solid var(--color-border-primary) !important;
   box-shadow: 0 6px 16px 0 rgba(0, 0, 0, 0.08), 0 3px 6px -4px rgba(0, 0, 0, 0.12), 0 9px 28px 8px rgba(0, 0, 0, 0.05) !important;
 }
 
 .dark .ant-picker-panel,
 :root.dark .ant-picker-panel {
   background-color: var(--color-bg-elevated) !important;
-  color: #fff !important;
+  color: var(--color-text-primary) !important;
 }
 
 .dark .ant-picker-header,
@@ -565,21 +585,21 @@
 .dark .ant-picker-footer,
 :root.dark .ant-picker-footer {
   background-color: transparent !important;
-  color: #fff !important;
+  color: var(--color-text-primary) !important;
 }
 
 .dark .ant-picker-cell-in-view.ant-picker-cell-today .ant-picker-cell-inner,
 :root.dark .ant-picker-cell-in-view.ant-picker-cell-today .ant-picker-cell-inner,
 .dark .ant-picker-cell:hover .ant-picker-cell-inner,
 :root.dark .ant-picker-cell:hover .ant-picker-cell-inner {
-  background-color: rgba(255, 255, 255, 0.1) !important;
-  color: #fff !important;
+  background-color: var(--color-background-tertiary) !important;
+  color: var(--color-text-primary) !important;
 }
 
 .dark .ant-picker-cell.ant-picker-cell-in-view.ant-picker-cell-selected .ant-picker-cell-inner,
 :root.dark .ant-picker-cell.ant-picker-cell-in-view.ant-picker-cell-selected .ant-picker-cell-inner {
-  background-color: rgba(255, 255, 255, 0.15) !important;
-  color: #fff !important;
+  background-color: var(--color-primary-soft) !important;
+  color: var(--color-primary-600) !important;
 }
 
 .dark .ant-picker-time-panel-column,
@@ -589,18 +609,18 @@
 
 .dark .ant-picker-time-panel-cell-inner,
 :root.dark .ant-picker-time-panel-cell-inner {
-  color: #fff !important;
+  color: var(--color-text-primary) !important;
 }
 
 .dark .ant-picker-time-panel-cell-inner:hover,
 :root.dark .ant-picker-time-panel-cell-inner:hover {
-  background-color: rgba(255, 255, 255, 0.1) !important;
+  background-color: var(--color-background-tertiary) !important;
 }
 
 .dark .ant-picker-time-panel-cell-selected .ant-picker-time-panel-cell-inner,
 :root.dark .ant-picker-time-panel-cell-selected .ant-picker-time-panel-cell-inner {
-  background-color: rgba(255, 255, 255, 0.15) !important;
-  color: #fff !important;
+  background-color: var(--color-primary-soft) !important;
+  color: var(--color-primary-600) !important;
 }
 
 /* ColorPicker 下拉样式修复 - 仅在暗色主题下生效 */
@@ -608,7 +628,7 @@
 :root.dark .ant-color-dropdown {
   background-color: var(--color-bg-elevated) !important;
   border-radius: 4px !important;
-  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border: 1px solid var(--color-border-primary) !important;
   box-shadow: 0 6px 16px 0 rgba(0, 0, 0, 0.08) !important;
 }
 
@@ -616,21 +636,21 @@
 :root.dark .ant-color-dropdown-link,
 .dark .ant-color-dropdown-button,
 :root.dark .ant-color-dropdown-button {
-  color: #fff !important;
+  color: var(--color-text-primary) !important;
 }
 
 .dark .ant-color-dropdown-link:hover,
 :root.dark .ant-color-dropdown-link:hover {
-  background-color: rgba(255, 255, 255, 0.1) !important;
+  background-color: var(--color-background-tertiary) !important;
 }
 
 /* TreeSelect 下拉样式修复 - 仅在暗色主题下生效 */
 .dark .ant-select-tree-dropdown,
 :root.dark .ant-select-tree-dropdown {
   background-color: var(--color-bg-elevated) !important;
-  color: #fff !important;
+  color: var(--color-text-primary) !important;
   border-radius: 4px !important;
-  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border: 1px solid var(--color-border-primary) !important;
   box-shadow: 0 6px 16px 0 rgba(0, 0, 0, 0.08) !important;
 }
 
@@ -638,130 +658,134 @@
 :root.dark .ant-select-tree-dropdown .ant-select-tree-node-content-wrapper,
 .dark .ant-select-tree-dropdown .ant-select-tree-title,
 :root.dark .ant-select-tree-dropdown .ant-select-tree-title {
-  color: #fff !important;
+  color: var(--color-text-primary) !important;
 }
 
 .dark .ant-select-tree-dropdown .ant-select-tree-node-content-wrapper:hover,
 :root.dark .ant-select-tree-dropdown .ant-select-tree-node-content-wrapper:hover {
-  background-color: rgba(255, 255, 255, 0.1) !important;
+  background-color: var(--color-background-tertiary) !important;
 }
 
 .dark .ant-select-tree-dropdown .ant-select-tree-node-selected .ant-select-tree-node-content-wrapper,
 :root.dark .ant-select-tree-dropdown .ant-select-tree-node-selected .ant-select-tree-node-content-wrapper,
 .dark .ant-select-tree-dropdown .ant-select-tree-node-selected .ant-select-tree-title,
 :root.dark .ant-select-tree-dropdown .ant-select-tree-node-selected .ant-select-tree-title {
-  background-color: rgba(255, 255, 255, 0.15) !important;
-  color: #fff !important;
+  background-color: var(--color-primary-soft) !important;
+  color: var(--color-primary-600) !important;
 }
 
 /* Cascader 下拉样式修复 - 仅在暗色主题下生效 */
 .dark .ant-cascader-dropdown,
 :root.dark .ant-cascader-dropdown {
   background-color: var(--color-bg-elevated) !important;
-  color: #fff !important;
+  color: var(--color-text-primary) !important;
   border-radius: 4px !important;
-  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border: 1px solid var(--color-border-primary) !important;
   box-shadow: 0 6px 16px 0 rgba(0, 0, 0, 0.08) !important;
 }
 
 .dark .ant-cascader-menu-item,
 :root.dark .ant-cascader-menu-item,
 .dark .ant-cascader-menu-item-active,
-:root.dark .ant-cascader-menu-item-active,
+:root.dark .ant-cascader-menu-item-active {
+  color: var(--color-text-primary) !important;
+  background-color: transparent !important;
+}
+
 .dark .ant-cascader-menu-item-expand-selected,
 :root.dark .ant-cascader-menu-item-expand-selected,
 .dark .ant-cascader-menu-item-selected,
 :root.dark .ant-cascader-menu-item-selected {
-  color: #fff !important;
+  color: var(--color-primary-600) !important;
   background-color: transparent !important;
 }
 
 .dark .ant-cascader-menu-item-active:not(.ant-cascader-menu-item-disabled),
 :root.dark .ant-cascader-menu-item-active:not(.ant-cascader-menu-item-disabled) {
-  background-color: rgba(255, 255, 255, 0.1) !important;
+  background-color: var(--color-background-tertiary) !important;
 }
 
 .dark .ant-cascader-menu-item-selected,
 :root.dark .ant-cascader-menu-item-selected {
-  background-color: rgba(255, 255, 255, 0.15) !important;
-  color: #fff !important;
+  background-color: var(--color-primary-soft) !important;
+  color: var(--color-primary-600) !important;
 }
 
 /* Mentions 下拉样式修复 - 仅在暗色主题下生效 */
 .dark .ant-mentions-dropdown,
 :root.dark .ant-mentions-dropdown {
   background-color: var(--color-bg-elevated) !important;
-  color: #fff !important;
+  color: var(--color-text-primary) !important;
   border-radius: 4px !important;
-  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border: 1px solid var(--color-border-primary) !important;
   box-shadow: 0 6px 16px 0 rgba(0, 0, 0, 0.08) !important;
 }
 
 .dark .ant-mentions-dropdown .ant-select-item-option-active:not(.ant-select-item-option-disabled),
 :root.dark .ant-mentions-dropdown .ant-select-item-option-active:not(.ant-select-item-option-disabled) {
-  background-color: rgba(255, 255, 255, 0.1) !important;
-  color: #fff !important;
+  background-color: var(--color-background-tertiary) !important;
+  color: var(--color-text-primary) !important;
 }
 
 .dark .ant-mentions-dropdown .ant-select-item-option-selected,
 :root.dark .ant-mentions-dropdown .ant-select-item-option-selected {
-  background-color: rgba(255, 255, 255, 0.15) !important;
-  color: #fff !important;
+  background-color: var(--color-primary-soft) !important;
+  color: var(--color-primary-600) !important;
 }
 
 /* AutoComplete 下拉样式修复 - 仅在暗色主题下生效 */
 .dark .ant-autocomplete-dropdown,
 :root.dark .ant-autocomplete-dropdown {
   background-color: var(--color-bg-elevated) !important;
-  color: #fff !important;
+  color: var(--color-text-primary) !important;
   border-radius: 4px !important;
-  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border: 1px solid var(--color-border-primary) !important;
   box-shadow: 0 6px 16px 0 rgba(0, 0, 0, 0.08) !important;
 }
 
 .dark .ant-autocomplete-dropdown .ant-select-item-option-active:not(.ant-select-item-option-disabled),
 :root.dark .ant-autocomplete-dropdown .ant-select-item-option-active:not(.ant-select-item-option-disabled) {
-  background-color: rgba(255, 255, 255, 0.1) !important;
-  color: #fff !important;
+  background-color: var(--color-background-tertiary) !important;
+  color: var(--color-text-primary) !important;
 }
 
 .dark .ant-autocomplete-dropdown .ant-select-item-option-selected,
 :root.dark .ant-autocomplete-dropdown .ant-select-item-option-selected {
-  background-color: rgba(255, 255, 255, 0.15) !important;
-  color: #fff !important;
+  background-color: var(--color-primary-soft) !important;
+  color: var(--color-primary-600) !important;
 }
 
 /* Transfer 左右选择框样式修复 - 仅在暗色主题下生效 */
 .dark .ant-transfer-dropdown,
 :root.dark .ant-transfer-dropdown {
   background-color: var(--color-bg-elevated) !important;
-  color: #fff !important;
+  color: var(--color-text-primary) !important;
 }
 
 .dark .ant-transfer-list,
 :root.dark .ant-transfer-list {
   background-color: var(--color-bg-elevated) !important;
-  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border: 1px solid var(--color-border-primary) !important;
   border-radius: 4px !important;
 }
 
 .dark .ant-transfer-list-header,
 :root.dark .ant-transfer-list-header {
-  background-color: rgba(255, 255, 255, 0.05) !important;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
-  color: #fff !important;
+  background-color: var(--color-background-secondary) !important;
+  border-bottom: 1px solid var(--color-border-primary) !important;
+  color: var(--color-text-primary) !important;
 }
 
 .dark .ant-transfer-list-body-item:hover,
 :root.dark .ant-transfer-list-body-item:hover {
-  background-color: rgba(255, 255, 255, 0.1) !important;
-  color: #fff !important;
+  background-color: var(--color-background-tertiary) !important;
+  color: var(--color-text-primary) !important;
 }
 
 .dark .ant-transfer-list-body-item-selected,
 :root.dark .ant-transfer-list-body-item-selected {
-  background-color: rgba(255, 255, 255, 0.15) !important;
-  color: #fff !important;
+  background-color: var(--color-primary-soft) !important;
+  color: var(--color-primary-600) !important;
 }
 
 @layer utilities {
@@ -839,19 +863,20 @@
 
 /* 设计系统 - 全局CSS变量 */
 :root {
-  /* 主色调 - 增强对比度 */
+  /* 主色调：与 colors.ts / theme-variables.css 保持同一 50~950 色阶。
+     历史上这里整体压暗一阶（500=#2563eb、600=#1d4ed8），
+     导致 CSS 链接/描边与 Antd colorPrimary/colorLink 出现两套主色。 */
   --color-primary-50: #eff6ff;
   --color-primary-100: #dbeafe;
   --color-primary-200: #bfdbfe;
   --color-primary-300: #93c5fd;
   --color-primary-400: #60a5fa;
-  --color-primary-500: #2563eb;
-  /* 调整为更深色以提高对比度 */
-  --color-primary-600: #1d4ed8;
-  --color-primary-700: #1e40af;
-  --color-primary-800: #1e3a8a;
-  --color-primary-900: #172554;
-  --color-primary-950: #0c1e3d;
+  --color-primary-500: #3b82f6;
+  --color-primary-600: #2563eb;
+  --color-primary-700: #1d4ed8;
+  --color-primary-800: #1e40af;
+  --color-primary-900: #1e3a8a;
+  --color-primary-950: #172554;
 
   /* 中性色 - 优化对比度 */
   --color-neutral-50: #ffffff;
@@ -1141,13 +1166,16 @@
   transition: all var(--transition-normal);
 }
 
-.ant-btn-primary {
+/* 仅填充「实心」主按钮。ghost 的语义是「透明底 + 主色描边 + 主色文字」，
+   若此处一并对 ghost 上底色，会出现「蓝字压蓝底」不可读（约 1.40:1）。
+   禁用态交由下面单独的中性色规则处理，这里不参与。 */
+.ant-btn-primary:not(.ant-btn-background-ghost):not(:disabled) {
   background-color: var(--color-primary-500);
   border-color: var(--color-primary-500);
 }
 
-.ant-btn-primary:hover,
-.ant-btn-primary:focus {
+.ant-btn-primary:not(.ant-btn-background-ghost):not(:disabled):hover,
+.ant-btn-primary:not(.ant-btn-background-ghost):not(:disabled):focus {
   background-color: var(--color-primary-600);
   border-color: var(--color-primary-600);
   box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2);
@@ -1315,7 +1343,8 @@
     font-size: 2.25rem;
     font-weight: 700;
     letter-spacing: -0.025em;
-    color: #171717;
+    /* 必须走令牌：写死 #171717 会在暗色页面上变成「深字压深底」。 */
+    color: var(--color-text-primary);
     line-height: 1.2;
   }
 
@@ -1323,7 +1352,7 @@
     font-size: 1.875rem;
     font-weight: 700;
     letter-spacing: -0.025em;
-    color: #171717;
+    color: var(--color-text-primary);
     line-height: 1.3;
   }
 
@@ -1331,58 +1360,64 @@
     font-size: 1.5rem;
     font-weight: 600;
     letter-spacing: -0.025em;
-    color: #171717;
+    color: var(--color-text-primary);
     line-height: 1.4;
   }
 
   h4 {
     font-size: 1.25rem;
     font-weight: 600;
-    color: #171717;
+    color: var(--color-text-primary);
     line-height: 1.5;
   }
 
   h5 {
     font-size: 1.125rem;
     font-weight: 500;
-    color: #171717;
+    color: var(--color-text-primary);
     line-height: 1.5;
   }
 
   h6 {
     font-size: 1rem;
     font-weight: 500;
-    color: #171717;
+    color: var(--color-text-primary);
     line-height: 1.5;
   }
 
   /* 段落和文本 */
   p {
-    color: #404040;
+    /* 段落是全局最高频的正文载体，写死 #404040 会让暗色下所有
+       未显式设置颜色的 <p>（弹窗、详情、空状态）不可读。 */
+    color: var(--color-text-secondary);
     line-height: 1.625;
   }
 
   .text-muted {
-    color: #737373;
+    color: var(--color-text-tertiary);
   }
 
   .text-subtle {
-    color: #a3a3a3;
+    color: var(--color-text-tertiary);
   }
 
   /* 链接样式 */
   a {
-    color: #2563eb;
+    /* 亮色 primary-600(#2563eb) / 暗色 primary-600(#60a5fa)
+       同一语义自动切换，避免暗色正文链接只有 3.46:1。 */
+    color: var(--color-primary-600);
     transition: color 200ms;
   }
 
   a:hover {
-    color: #1d4ed8;
+    color: var(--color-primary-700);
   }
 
   a:focus {
     outline: none;
-    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5), 0 0 0 4px rgba(255, 255, 255, 1);
+    box-shadow:
+      0 0 0 2px rgba(59, 130, 246, 0.5),
+      0 0 0 4px var(--color-background-primary);
     border-radius: 0.125rem;
   }
 
@@ -1400,7 +1435,7 @@
   select:focus {
     outline: none;
     box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5);
-    border-color: #3b82f6;
+    border-color: var(--color-primary-500);
   }
 
   /* 按钮基础样式 */
@@ -1417,15 +1452,16 @@
 
   /* 卡片组件 */
   .card {
-    background-color: white;
+    /* 亮色 surface=#fff，暗色 surface=#1e293b；比页面底亮一级 */
+    background-color: var(--color-surface-primary, var(--color-background-primary));
     border-radius: 0.5rem;
-    border: 1px solid #e5e5e5;
+    border: 1px solid var(--color-border-primary);
     box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
   }
 
   .card-hover:hover {
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-    border-color: #d4d4d4;
+    border-color: var(--color-border-secondary);
     transition: all 200ms;
   }
 
@@ -1454,30 +1490,30 @@
   }
 
   .btn-secondary {
-    background-color: #f5f5f5;
-    color: #171717;
+    background-color: var(--color-surface-secondary);
+    color: var(--color-text-primary);
   }
 
   .btn-secondary:hover {
-    background-color: #e5e5e5;
+    background-color: var(--color-surface-tertiary);
   }
 
   .btn-outline {
-    border: 1px solid #d4d4d4;
-    background-color: white;
-    color: #404040;
+    border: 1px solid var(--color-border-primary);
+    background-color: var(--color-background-primary);
+    color: var(--color-text-secondary);
   }
 
   .btn-outline:hover {
-    background-color: #fafafa;
+    background-color: var(--color-background-secondary);
   }
 
   .btn-ghost {
-    color: #404040;
+    color: var(--color-text-secondary);
   }
 
   .btn-ghost:hover {
-    background-color: #f5f5f5;
+    background-color: var(--color-background-secondary);
   }
 
   .btn-sm {
@@ -1498,18 +1534,18 @@
     height: 2.5rem;
     width: 100%;
     border-radius: 0.375rem;
-    border: 1px solid #d4d4d4;
-    background-color: white;
+    border: 1px solid var(--color-border-primary);
+    background-color: var(--color-background-primary);
     padding: 0.5rem 0.75rem;
     font-size: 0.875rem;
   }
 
   .input::placeholder {
-    color: #a3a3a3;
+    color: var(--color-text-tertiary);
   }
 
   .input:focus {
-    border-color: #3b82f6;
+    border-color: var(--color-primary-500);
     box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5);
   }
 
@@ -1537,8 +1573,8 @@
   }
 
   .badge-primary {
-    background-color: #dbeafe;
-    color: #1e40af;
+    background-color: var(--color-primary-100);
+    color: var(--color-primary-700);
   }
 
   .badge-secondary {
@@ -1586,8 +1622,8 @@
     animation: spin 1s linear infinite;
     border-radius: 9999px;
     border-width: 2px;
-    border-color: #e5e5e5;
-    border-top-color: #2563eb;
+    border-color: var(--color-border-primary);
+    border-top-color: var(--color-primary-500);
   }
 
   /* 渐变背景 */
@@ -1602,8 +1638,16 @@
   /* 毛玻璃效果 */
   .glass {
     backdrop-filter: blur(4px);
-    background-color: rgba(255, 255, 255, 0.8);
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    background-color: color-mix(
+      in srgb,
+      var(--color-background-primary) 80%,
+      transparent
+    );
+    border: 1px solid color-mix(
+      in srgb,
+      var(--color-text-primary) 10%,
+      transparent
+    );
   }
 
   .glass-dark {
@@ -1614,17 +1658,17 @@
 
   /* 分隔线 */
   .divider {
-    border-top: 1px solid #e5e5e5;
+    border-top: 1px solid var(--color-border-primary);
   }
 
   .divider-vertical {
-    border-left: 1px solid #e5e5e5;
+    border-left: 1px solid var(--color-border-primary);
   }
 
   /* 滚动条样式 */
   .scrollbar-thin {
     scrollbar-width: thin;
-    scrollbar-color: rgb(156 163 175) transparent;
+    scrollbar-color: var(--color-border-secondary) transparent;
   }
 
   .scrollbar-thin::-webkit-scrollbar {
@@ -1636,12 +1680,12 @@
   }
 
   .scrollbar-thin::-webkit-scrollbar-thumb {
-    background-color: rgb(156 163 175);
+    background-color: var(--color-border-secondary);
     border-radius: 3px;
   }
 
   .scrollbar-thin::-webkit-scrollbar-thumb:hover {
-    background-color: rgb(107 114 128);
+    background-color: var(--color-text-tertiary);
   }
 }
 
@@ -1741,11 +1785,11 @@
   }
 
   .interactive-subtle:hover {
-    background-color: #fafafa;
+    background-color: var(--color-background-secondary);
   }
 
   .interactive-subtle:active {
-    background-color: #f5f5f5;
+    background-color: var(--color-background-tertiary);
   }
 }
 
@@ -1927,12 +1971,48 @@
    仅覆盖最常见的亮色基底/文字/边框，避免误伤有意浅色元素。
    ============================================================ */
 .dark .bg-white {
-  background-color: var(--color-background-primary);
+  /* bg-white 在业务代码里几乎都表示「卡片/表面」，
+     暗色下应落到 surface(#1e293b)，而不是页面底(#0f172a)。 */
+  background-color: var(--color-surface-primary);
+}
+
+/* 半透明白底（导航/浮层/弱化块）；低透明度装饰圆点(5/10/20)保留白色高光 */
+.dark .bg-white\/90 {
+  background-color: color-mix(
+    in srgb,
+    var(--color-surface-primary) 90%,
+    transparent
+  );
+}
+
+.dark .bg-white\/80 {
+  background-color: color-mix(
+    in srgb,
+    var(--color-surface-primary) 80%,
+    transparent
+  );
+}
+
+.dark .bg-white\/70 {
+  background-color: color-mix(
+    in srgb,
+    var(--color-surface-primary) 70%,
+    transparent
+  );
+}
+
+.dark .bg-white\/50 {
+  background-color: color-mix(
+    in srgb,
+    var(--color-surface-primary) 50%,
+    transparent
+  );
 }
 
 .dark .bg-gray-50,
 .dark .bg-gray-100 {
-  background-color: var(--color-background-secondary);
+  /* 浅灰区块表示「页面底/弱化区域」，暗色下应比卡片更深一级 */
+  background-color: var(--color-background-primary);
 }
 
 .dark .text-gray-900,
@@ -1949,14 +2029,204 @@
   color: var(--color-text-tertiary);
 }
 
+.dark .text-gray-400 {
+  color: var(--color-text-tertiary);
+}
+
 .dark .border-gray-200,
 .dark .border-gray-300 {
+  border-color: var(--color-border-primary);
+}
+
+.dark .border-gray-100 {
   border-color: var(--color-border-primary);
 }
 
 .dark .divide-gray-200 > * + *,
 .dark .divide-gray-100 > * + * {
   border-color: var(--color-border-primary);
+}
+
+/* ============================================================
+   暗色模式：语义色工具类
+   组件大量使用 bg-blue-50 / bg-green-100 / text-amber-800 这类
+   Tailwind pastel 类。它们不在 dark: 变体里，若不在全局兜底，
+   暗色下会变成一块块高亮浅色补丁（与主色/控件色严重干涉）。
+   只覆盖 50/100 软底与 600~800 深色文字，不动 500/600 实心色。
+   ============================================================ */
+.dark .bg-blue-50,
+.dark .bg-blue-100 {
+  background-color: var(--color-primary-soft);
+}
+
+/* Tailwind 透明度变体不会被 .bg-blue-50 命中，单独兜底 */
+.dark .bg-blue-50\/40,
+.dark .bg-blue-50\/50,
+.dark .bg-blue-50\/60 {
+  background-color: color-mix(
+    in srgb,
+    var(--color-primary-600) 10%,
+    transparent
+  );
+}
+
+.dark .bg-green-50,
+.dark .bg-green-100 {
+  background-color: var(--color-success-bg);
+}
+
+.dark .bg-amber-50,
+.dark .bg-amber-100,
+.dark .bg-yellow-50,
+.dark .bg-yellow-100 {
+  background-color: var(--color-warning-bg);
+}
+
+.dark .bg-red-50,
+.dark .bg-red-100 {
+  background-color: var(--color-error-bg);
+}
+
+.dark .bg-indigo-50,
+.dark .bg-indigo-100,
+.dark .bg-purple-50,
+.dark .bg-purple-100 {
+  background-color: rgba(168, 85, 247, 0.16);
+}
+
+.dark .bg-gray-200 {
+  background-color: var(--color-background-tertiary);
+}
+
+.dark .bg-slate-50,
+.dark .bg-slate-100 {
+  background-color: var(--color-background-primary);
+}
+
+.dark .bg-slate-200 {
+  background-color: var(--color-background-tertiary);
+}
+
+.dark .border-slate-200,
+.dark .border-slate-300 {
+  border-color: var(--color-border-primary);
+}
+
+.dark .text-slate-500 {
+  color: var(--color-text-tertiary);
+}
+
+.dark .text-slate-600 {
+  color: var(--color-text-secondary);
+}
+
+.dark .text-blue-600,
+.dark .text-blue-700,
+.dark .text-blue-800 {
+  color: var(--color-primary-600);
+}
+
+.dark .text-green-600,
+.dark .text-green-700,
+.dark .text-green-800 {
+  color: var(--color-success-400);
+}
+
+.dark .text-amber-600,
+.dark .text-amber-700,
+.dark .text-amber-800,
+.dark .text-yellow-600,
+.dark .text-yellow-700,
+.dark .text-yellow-800 {
+  color: var(--color-warning-400);
+}
+
+.dark .text-red-600,
+.dark .text-red-700,
+.dark .text-red-800 {
+  color: var(--color-error-400);
+}
+
+.dark .text-purple-600,
+.dark .text-purple-700,
+.dark .text-purple-800,
+.dark .text-indigo-600,
+.dark .text-indigo-700,
+.dark .text-indigo-800 {
+  color: #d8b4fe;
+}
+
+.dark .border-blue-100,
+.dark .border-blue-200 {
+  border-color: color-mix(in srgb, var(--color-primary-600) 38%, transparent);
+}
+
+.dark .border-green-100,
+.dark .border-green-200 {
+  border-color: color-mix(in srgb, var(--color-success-400) 38%, transparent);
+}
+
+.dark .border-amber-100,
+.dark .border-amber-200,
+.dark .border-yellow-100,
+.dark .border-yellow-200 {
+  border-color: color-mix(in srgb, var(--color-warning-400) 38%, transparent);
+}
+
+.dark .border-red-100,
+.dark .border-red-200 {
+  border-color: color-mix(in srgb, var(--color-error-400) 38%, transparent);
+}
+
+/* hover 变体的类名是 .hover\:bg-*，不会被上面的基础类命中；
+   若不兜底，暗色下悬停会瞬间闪出亮色块。 */
+.dark .hover\:bg-gray-50:hover,
+.dark .hover\:bg-gray-100:hover {
+  background-color: var(--color-surface-secondary);
+}
+
+.dark .hover\:bg-white:hover {
+  background-color: var(--color-surface-secondary);
+}
+
+.dark .focus\:bg-white:focus {
+  background-color: var(--color-surface-secondary);
+}
+
+.dark .hover\:bg-blue-50:hover,
+.dark .hover\:bg-blue-100:hover {
+  background-color: var(--color-primary-soft);
+}
+
+.dark .hover\:bg-green-50:hover {
+  background-color: var(--color-success-bg);
+}
+
+.dark .hover\:bg-red-50:hover {
+  background-color: var(--color-error-bg);
+}
+
+.dark .hover\:text-gray-900:hover,
+.dark .hover\:text-gray-800:hover {
+  color: var(--color-text-primary);
+}
+
+.dark .hover\:text-gray-700:hover,
+.dark .hover\:text-gray-600:hover {
+  color: var(--color-text-secondary);
+}
+
+.dark .hover\:text-gray-500:hover {
+  color: var(--color-text-tertiary);
+}
+
+.dark .hover\:text-blue-600:hover,
+.dark .hover\:text-blue-700:hover {
+  color: var(--color-primary-600);
+}
+
+.dark .hover\:text-red-600:hover {
+  color: var(--color-error-400);
 }
 
 /* 系统主题偏好支持 */
@@ -2048,10 +2318,19 @@
 }
 
 /* 高对比度模式支持 */
+/* 注意：必须排除 .dark。暗色下主色本应「提亮」以求对比度，
+   若此处不分模式地把 600/700 阶压暗（#1d4ed8/#1e3a8a），
+   会在暗底上适得其反，且造成「系统暗色」与「手动暗色」表现不一致。 */
 @media (prefers-contrast: high) {
-  :root {
+  :root:not(.dark) {
     --color-primary-600: #1d4ed8;
     --color-primary-700: #1e3a8a;
+  }
+
+  /* 暗色 + 高对比度：反向提亮，而不是压暗 */
+  :root.dark {
+    --color-primary-600: #93c5fd;
+    --color-primary-700: #bfdbfe;
   }
 
   .btn-primary {
@@ -2369,14 +2648,16 @@ html:not(.dark) .ant-btn:not(.ant-btn-link):not(.ant-btn-text) {
   box-shadow: none;
 }
 
-html:not(.dark) .ant-btn-primary {
+/* 与暗色规则保持同一收窄范围：ghost 必须保持透明底，
+   disabled 必须保留 antd 的禁用态，不能被品牌渐变强行填充。 */
+html:not(.dark) .ant-btn-primary:not(.ant-btn-background-ghost):not(:disabled) {
   border-color: #2563eb !important;
   background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%) !important;
   box-shadow: 0 10px 20px -12px rgba(37, 99, 235, 0.55) !important;
 }
 
-html:not(.dark) .ant-btn-primary:hover,
-html:not(.dark) .ant-btn-primary:focus {
+html:not(.dark) .ant-btn-primary:not(.ant-btn-background-ghost):not(:disabled):hover,
+html:not(.dark) .ant-btn-primary:not(.ant-btn-background-ghost):not(:disabled):focus {
   border-color: #1d4ed8 !important;
   background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important;
 }
@@ -2912,6 +3193,14 @@ html:not(.dark) .ant-btn-default:focus {
   }
 }
 
+/* 页面级 chrome：页头、面包屑、搜索/筛选条、工具栏、页脚。
+   surface-primary(#1e293b) 只用于卡片、表格、弹层等内容表面，
+   不能铺在这些全宽区域上，否则暗色页面会重新出现第二块主背景。 */
+.page-chrome {
+  background-color: var(--color-background-primary);
+  border-color: var(--color-border-primary);
+}
+
 /* 认证页统一背景：跟随明暗主题，避免首页暗、登录页白的割裂。 */
 .auth-surface {
   background-color: var(--color-background-primary);
@@ -2947,12 +3236,124 @@ html:not(.dark) .ant-btn-default:focus {
 }
 
 /* 主按钮在暗色主题下沿用与浅色一致的品牌渐变，
-   避免暗色算法把种子色推导成 #3b82f6 导致白字对比度不足（3.67:1）。 */
-html.dark .ant-btn-primary {
+   避免暗色算法把种子色推导成 #3b82f6 导致白字对比度不足（3.67:1）。
+
+   关键：必须排除 ghost 与 disabled。
+   ghost 的语义是「透明底 + 主色描边 + 主色文字」，而本选择器若笼统匹配
+   .ant-btn-primary，其特异性 (0,2,1) 会高于 antd 自身的
+   .ant-btn-background-ghost.ant-btn-primary (0,2,0)，把 ghost 强行填充成实心蓝，
+   文字 #3b82f6 压在 #2563eb 上仅 1.40:1，实际不可读。 */
+html.dark .ant-btn-primary:not(.ant-btn-background-ghost):not(:disabled) {
   background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
 }
 
-html.dark .ant-btn-primary:hover,
-html.dark .ant-btn-primary:focus {
+html.dark .ant-btn-primary:not(.ant-btn-background-ghost):not(:disabled):hover,
+html.dark .ant-btn-primary:not(.ant-btn-background-ghost):not(:disabled):focus {
   background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+}
+
+/* 暗色 ghost 主按钮：恢复「透明底 + 主色描边 + 主色文字」语义。
+   仅去掉填充还不够——antd 传入的前景色是 colorPrimary(#2563eb)，
+   压在卡片底 #1e293b 上只有约 2.49:1，仍不可读。
+   这里改用暗色提亮阶 --color-primary-600(#60a5fa)，约 5.93:1。
+   （排除 :disabled，禁用态走下方中性色规则。） */
+html.dark .ant-btn-primary.ant-btn-background-ghost:not(:disabled) {
+  background: transparent;
+  color: var(--color-primary-600);
+  border-color: var(--color-primary-600);
+}
+
+html.dark .ant-btn-primary.ant-btn-background-ghost:not(:disabled):hover,
+html.dark .ant-btn-primary.ant-btn-background-ghost:not(:disabled):focus {
+  background: var(--color-primary-soft);
+  color: var(--color-primary-700);
+  border-color: var(--color-primary-700);
+}
+
+/* 暗色主按钮禁用态：此前完全缺失，导致「禁用主按钮」与「可用主按钮」
+   都是蓝色填充块，只能靠文字变淡区分。这里给中性低饱和底 + 明确禁用文字色。
+   文字用 tertiary(#94a3b8) 而非 disabled(#64748b)：后者压在 #334155 上仅 2.18:1，
+   几乎读不出标签内容（禁用态仍需可辨识）。现为 4.04:1。
+   用 !important 是为了压过 antd 自身生成的 `.ant-btn-primary:disabled` 复合规则。 */
+html.dark .ant-btn-primary:disabled,
+html.dark .ant-btn-primary.ant-btn-disabled {
+  background: var(--color-background-tertiary) !important;
+  border-color: var(--color-border-secondary) !important;
+  color: var(--color-text-tertiary) !important;
+  box-shadow: none !important;
+}
+
+/* ghost + disabled 不应被上面的中性填充规则命中：
+   保持透明底，仅用低对比描边/文字表达不可用。 */
+html.dark .ant-btn-primary.ant-btn-background-ghost:disabled,
+html.dark .ant-btn-primary.ant-btn-background-ghost.ant-btn-disabled {
+  background: transparent !important;
+  border-color: var(--color-border-primary) !important;
+  color: var(--color-text-disabled) !important;
+}
+
+/* 工单详情「AI 分诊建议已应用」提示条。
+   旧实现使用固定浅绿底 #f6ffed + 深绿字 #135200 的内联样式：
+   亮色下可读，暗色下会变成刺眼的浅色补丁。
+   两种主题分别取「软底色 + 高对比文字」，亮色外观与旧值基本一致。 */
+.ticket-applied-notice {
+  border: 1px solid #b7eb8f;
+  background: #f6ffed;
+  color: #135200;
+}
+
+.dark .ticket-applied-notice {
+  border-color: color-mix(in srgb, var(--color-success-400) 45%, transparent);
+  background: var(--color-success-bg);
+  color: #bbf7d0;
+}
+
+/* ============================================================
+   Recharts 主题兜底
+   Recharts 默认把坐标轴/网格/图例/默认 Tooltip 写成浅色主题色，
+   且这些值来自 SVG presentation attribute，组件不传 theme 时不会跟随 .dark。
+   这里用全局 CSS 覆盖文字/线/浮层；系列色仍由各图表 palette 控制。
+   ============================================================ */
+.recharts-cartesian-axis-tick-value {
+  fill: var(--color-text-secondary) !important;
+}
+
+.recharts-cartesian-axis-line,
+.recharts-cartesian-tick-line {
+  stroke: var(--color-border-secondary) !important;
+}
+
+.recharts-cartesian-grid line {
+  stroke: var(--color-border-primary) !important;
+}
+
+.recharts-legend-item-text {
+  color: var(--color-text-secondary) !important;
+}
+
+.recharts-default-tooltip {
+  background: var(--color-bg-elevated) !important;
+  border: 1px solid var(--color-border-primary) !important;
+  border-radius: 8px !important;
+  color: var(--color-text-primary) !important;
+  box-shadow: var(--box-shadow-md);
+}
+
+.recharts-tooltip-label,
+.recharts-tooltip-item {
+  color: var(--color-text-primary) !important;
+}
+
+/* 饼图标签落在彩色扇区上：白字 + 深色描边，亮/暗两种色板都能读 */
+.recharts-pie-label-text {
+  fill: #ffffff !important;
+  stroke: rgba(15, 23, 42, 0.55);
+  stroke-width: 3px;
+  paint-order: stroke;
+}
+
+/* 自定义 Tooltip 里的系列色可能是暗紫/深红，暗色浮层上不可读；
+   仅在暗色下把内联 color 拉回正文色，系列区分交给图例/图形本身。 */
+.dark .recharts-tooltip-wrapper [style*='color'] {
+  color: var(--color-text-primary) !important;
 }

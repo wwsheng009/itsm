@@ -168,7 +168,7 @@ function TicketsPageContent() {
   return (
     <div className="min-h-screen bg-[var(--color-background-primary)]">
       {/* 页面头部 */}
-      <div className="bg-[var(--color-surface-primary)] border-b border-[var(--color-border-primary)]">
+      <div className="page-chrome border-b">
         <div className="w-full px-6 py-4">
           <div className="flex items-center justify-between">
             <div>
@@ -330,7 +330,7 @@ function TicketsPageContent() {
 // Loading fallback 组件
 function TicketsPageSkeleton() {
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="min-h-screen bg-[var(--color-background-primary)] p-6">
       <Card className="mb-6">
         <Skeleton active paragraph={{ rows: 2 }} />
       </Card>
