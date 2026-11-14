@@ -79,6 +79,11 @@ export const useTickets = (): UseTicketsReturn => {
   // 用于触发 fetchTickets 的计数器
   const [fetchTrigger, setFetchTrigger] = useState(0);
 
+  // 请求序号：只允许「最新一次」请求的结果落地。
+  // 否则并发请求（如首次挂载的全量请求 + 紧随其后的筛选请求）会因返回顺序不定，
+  // 让先发出的全量结果覆盖掉后发出的筛选结果 —— 表现为「按钮已激活但列表还是全量」。
+  const requestSeqRef = useRef(0);
+
   useEffect(() => {
     filtersRef.current = filters;
   }, [filters]);
@@ -89,6 +94,7 @@ export const useTickets = (): UseTicketsReturn => {
 
   // fetchTickets 不再依赖 filters/pagination state，通过 ref 读取最新值
   const fetchTickets = useCallback(async (customFilters?: Partial<TicketQueryFilters>) => {
+    const seq = ++requestSeqRef.current;
     setLoading(true);
     setError(null);
 
@@ -114,14 +120,18 @@ export const useTickets = (): UseTicketsReturn => {
         sortOrder: currentFilters.sortOrder,
       });
 
+      // 已有更新的请求发出：丢弃这次过期结果，避免覆盖最新筛选的数据
+      if (seq !== requestSeqRef.current) return;
+
       setTickets(response.tickets ?? []);
       setPagination(prev => ({ ...prev, total: response.total ?? 0 }));
     } catch (err) {
+      if (seq !== requestSeqRef.current) return;
       const errorMessage = err instanceof Error ? err.message : 'Failed to load tickets';
       setError(errorMessage);
       message.error(errorMessage);
     } finally {
-      setLoading(false);
+      if (seq === requestSeqRef.current) setLoading(false);
     }
   }, []); // 空依赖，永不重建
 
