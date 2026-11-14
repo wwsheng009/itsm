@@ -114,6 +114,9 @@ debug*.png
 test_result*.log
 server.log
 
+# Local agent scratch artifacts (probes, deploy bundles, one-off diagnostics)
+.tmp_*
+
 # CI artifacts — produced by .github/workflows and uploaded as build artifacts.
 # These are run output, not configuration.
 test-coverage-guard.json
