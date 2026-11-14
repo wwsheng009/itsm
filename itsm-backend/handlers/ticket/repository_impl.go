@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"itsm-backend/ent"
 	"itsm-backend/handlers/common/datascope"
 	"itsm-backend/repository/base"
 	"itsm-backend/repository/ticket"
@@ -20,6 +21,17 @@ type EntRepository struct {
 // NewEntRepository creates a handlers/ticket EntRepository backed by the shared repository/ticket implementation.
 func NewEntRepository(repo ticket.Repository) *EntRepository {
 	return &EntRepository{repo: repo}
+}
+
+// Client 暴露底层 ent 客户端（可选用法）。
+// D2 修复：SLA 详情需要读取 sla_definitions 的 name/response_time/resolution_time，
+// 这些不在 Repository 接口里；用可选能力探测而非扩接口，避免测试 mock 全部需要补实现。
+// 底层仓储未提供客户端时返回 nil，调用方需按「取不到就降级」处理。
+func (r *EntRepository) Client() *ent.Client {
+	if c, ok := r.repo.(interface{ Client() *ent.Client }); ok {
+		return c.Client()
+	}
+	return nil
 }
 
 // toDomain converts repository/ticket.Ticket to handlers/ticket.Ticket

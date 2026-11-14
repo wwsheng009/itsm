@@ -8,6 +8,8 @@ import (
 
 	"itsm-backend/common"
 	"itsm-backend/dto"
+	"itsm-backend/ent"
+	"itsm-backend/ent/sladefinition"
 	"itsm-backend/handlers/common/datascope"
 	"itsm-backend/internal/sanitize"
 	"itsm-backend/service"
@@ -539,6 +541,44 @@ func (s *Service) GetTicketSLAInfo(ctx context.Context, ticketID int, tenantID i
 		"status":                     t.Status,
 		"resolutionDeadlineBreached": t.SLAResolutionDeadline != nil && time.Now().After(*t.SLAResolutionDeadline),
 	}
+
+	// D2 修复：补齐前端 GET /tickets/:id/sla 已声明的契约字段。
+	// 修复前后端只下发 slaResponseDeadline/slaResolutionDeadline，前端读的是
+	// responseDeadline/resolutionDeadline，且 slaName 完全缺失 —— 导致 SLA 定义
+	// 明明存在（工单已绑 slaDefinitionId），详情页却恒显「尚未配置 SLA」、截止时间永不上屏。
+	slaName := ""
+	serviceType := ""
+	priority := ""
+	responseTime := 0
+	resolutionTime := 0
+	if t.SLADefinitionID != nil {
+		if def := s.loadSLADefinition(ctx, *t.SLADefinitionID, tenantID); def != nil {
+			slaName = def.Name
+			serviceType = def.ServiceType
+			priority = def.Priority
+			responseTime = def.ResponseTime
+			resolutionTime = def.ResolutionTime
+		}
+	}
+	isBreached := resp["resolutionDeadlineBreached"].(bool)
+	var responseRemaining, resolutionRemaining interface{}
+	if t.SLAResponseDeadline != nil && t.FirstResponseAt == nil {
+		responseRemaining = int(time.Until(*t.SLAResponseDeadline).Minutes())
+	}
+	if t.SLAResolutionDeadline != nil && t.ResolvedAt == nil {
+		resolutionRemaining = int(time.Until(*t.SLAResolutionDeadline).Minutes())
+	}
+	resp["slaName"] = slaName
+	resp["serviceType"] = serviceType
+	resp["priority"] = priority
+	resp["responseTime"] = responseTime
+	resp["resolutionTime"] = resolutionTime
+	resp["responseDeadline"] = t.SLAResponseDeadline
+	resp["resolutionDeadline"] = t.SLAResolutionDeadline
+	resp["resolvedAt"] = t.ResolvedAt
+	resp["isBreached"] = isBreached
+	resp["responseTimeRemaining"] = responseRemaining
+	resp["resolutionTimeRemaining"] = resolutionRemaining
 	// legacy 双写（snake_case，deprecated；下一发布周期移除）
 	resp["ticket_id"] = t.ID
 	resp["sla_definition_id"] = t.SLADefinitionID
@@ -547,6 +587,37 @@ func (s *Service) GetTicketSLAInfo(ctx context.Context, ticketID int, tenantID i
 	resp["first_response_at"] = t.FirstResponseAt
 	resp["resolution_deadline_breached"] = resp["resolutionDeadlineBreached"]
 	return resp, nil
+}
+
+// loadSLADefinition 按定义 ID 读取 SLA 定义，用于补齐详情页所需名称与时限。
+// 走可选 ent 客户端能力探测：底层仓储未暴露客户端（如单测 mock）时返回 nil，
+// 调用方降级为不展示 SLA 明细，不制造假数据、也不因取不到而报错。
+func (s *Service) loadSLADefinition(ctx context.Context, defID int, tenantID int) *ent.SLADefinition {
+	provider, ok := s.repo.(interface{ Client() *ent.Client })
+	if !ok {
+		return nil
+	}
+	client := provider.Client()
+	if client == nil {
+		return nil
+	}
+	// 租户归属校验：本租户自用定义，或服务商授予本租户的合同定义。
+	def, err := client.SLADefinition.Query().
+		Where(
+			sladefinition.IDEQ(defID),
+			sladefinition.Or(
+				sladefinition.TenantID(tenantID),
+				sladefinition.OwnerProviderTenantID(tenantID),
+			),
+		).
+		Only(ctx)
+	if err != nil {
+		if s.logger != nil {
+			s.logger.Warnw("load sla definition failed", "slaDefinitionId", defID, "tenantId", tenantID, "error", err)
+		}
+		return nil
+	}
+	return def
 }
 
 // IsDataScopeAllRole returns true if the role has access to all tickets.

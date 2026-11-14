@@ -52,6 +52,7 @@ import { useAuthStore } from '@/lib/store/auth-store';
 import { canWriteRow } from '@/lib/utils/row-scope';
 import { useErrorHandler } from '@/lib/hooks/useErrorHandler';
 import { formatDateTime } from '@/lib/formatters';
+import { TICKET_STATUS_CONFIG } from '@/components/ticket/TicketListColumns';
 import { SafeTextBlock } from '@/components/common/SafeContent';
 import RichTextContent from '@/components/common/rich-text/RichTextContent';
 import {
@@ -378,7 +379,18 @@ const TicketDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
     if (!resolvedTicketId) return;
     try {
       const data = await TicketApi.getTicketSLA(resolvedTicketId);
-      setSlaInfo(data);
+      // D2 修复：历史版本后端只下发 slaResponseDeadline/slaResolutionDeadline，
+      // 而前端读取的是 responseDeadline/resolutionDeadline。这里做一次字段归一化兜底，
+      // 避免「工单已绑定 SLA 定义、页面却恒显未配置 / 截止时间永不上屏」。
+      const legacy = data as unknown as {
+        slaResponseDeadline?: string | null;
+        slaResolutionDeadline?: string | null;
+      };
+      setSlaInfo({
+        ...data,
+        responseDeadline: data.responseDeadline ?? legacy.slaResponseDeadline ?? null,
+        resolutionDeadline: data.resolutionDeadline ?? legacy.slaResolutionDeadline ?? null,
+      });
       setSlaError(null);
     } catch (error) {
       // SLA获取失败时不显示SLA信息，但保留错误态以区分「本就没有」与「加载失败」
@@ -1086,18 +1098,14 @@ const TicketDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
           {triageApply.applied && canUpdateTicket ? (
             <div
               data-testid="inline-applied-undo"
+              className="ticket-applied-notice"
               style={{
                 display: 'flex',
                 alignItems: 'center',
                 gap: 8,
                 marginBottom: 16,
                 padding: '8px 12px',
-                border: '1px solid #b7eb8f',
                 borderRadius: 8,
-                background: '#f6ffed',
-                // 底色是固定浅绿，必须同时固定深色文字，
-                // 否则暗色主题下继承浅色文字会变成浅字浅底、无法阅读
-                color: '#135200',
               }}
             >
               <span style={{ fontSize: 13 }}>AI 分诊建议已应用（分类/优先级）</span>
@@ -1404,7 +1412,10 @@ const TicketDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
                 {t('ticketDetail.cc')}
               </Button>
             )}
-            {canDeleteTicket && (
+            {/* D42：终态（已关闭/已取消/已拒绝）不应再允许删除。
+                同页其他动作（审批/指派/编辑/抄送）均已用 isTicketFinal 收口，
+                唯独删除按钮只判断了权限位，导致已关闭工单仍可点删除。 */}
+            {canDeleteTicket && !isTicketFinal && (
               <Button danger icon={<Trash2 size={16} />} onClick={handleDeleteClick}>
                 {t('common.delete')}
               </Button>
@@ -2039,22 +2050,49 @@ const TicketDetailTabs: React.FC<TicketDetailTabsProps> = ({
             const list = await TicketApi.getTicketHistory(Number(id));
             const arr = Array.isArray(list) ? list : [];
             // 后端返回活动流水（camelCase：id/action/details/createdAt/userName/oldValue/newValue）
+            // D37：旧值/新值此前直接透出后端枚举（assigned / created / in_progress），
+            // 与详情页「已分配 / 已关闭」等中文标签不一致。这里复用状态词表本地化，
+            // 非状态字段（如优先级、标题改动）保持原样，未知枚举也不吞掉。
+            const localizeStatus = (v: string): string => {
+              const cfg = TICKET_STATUS_CONFIG[v];
+              return cfg ? cfg.text : v;
+            };
+            // D37：历史条目的 action 标签此前直接渲染后端枚举
+            // （resolved / assigned / created），与下方已本地化的 details 重复且中英混排。
+            // 这里给出动作词表；未收录的新动作原样保留，便于发现后端新增事件。
+            const ACTION_LABELS: Record<string, string> = {
+              created: '创建',
+              assigned: '分配',
+              in_progress: '开始处理',
+              pending: '挂起',
+              resolved: '解决',
+              closed: '关闭',
+              reopened: '重开',
+              cancelled: '取消',
+              rejected: '拒绝',
+              approved: '审批通过',
+              commented: '评论',
+              updated: '更新',
+              escalated: '升级',
+              transferred: '转派',
+            };
+            const localizeAction = (v: string): string => ACTION_LABELS[v] ?? v;
             return arr.map((raw, idx) => {
               const r = raw as unknown as Record<string, unknown>;
               return {
                 id: (r.id as number | undefined) ?? idx,
                 createdAt: String(r.createdAt ?? r.timestamp ?? ''),
                 user: { name: String(r.userName ?? r.user_name ?? '') },
-                action: r.action as string | undefined,
+                action: r.action ? localizeAction(String(r.action)) : undefined,
                 details: r.details as string | undefined,
                 fieldName: r.fieldName as string | undefined,
                 oldValue:
                   r.oldValue !== undefined && r.oldValue !== null
-                    ? String(r.oldValue)
+                    ? localizeStatus(String(r.oldValue))
                     : undefined,
                 newValue:
                   r.newValue !== undefined && r.newValue !== null
-                    ? String(r.newValue)
+                    ? localizeStatus(String(r.newValue))
                     : undefined,
                 changeReason: r.changeReason as string | undefined,
               };

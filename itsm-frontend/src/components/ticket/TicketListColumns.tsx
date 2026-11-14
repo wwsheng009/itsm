@@ -150,14 +150,24 @@ export function buildTicketListColumns(
       dataIndex: 'source',
       key: 'source',
       width: 100,
-      render: (source: string) => <Tag color='blue'>{source}</Tag>,
+      // D39：后端 tickets 表当前没有 source 字段，接口也不返回来源，
+      // 旧实现会为每一行渲染一个空白 Tag，整列看起来像「坏掉了」。
+      // 后端补齐来源前，空值渲染占位符，至少不再输出空白标签。
+      render: (source?: string) =>
+        source ? <Tag color='blue'>{source}</Tag> : <span style={{ color: 'var(--color-text-tertiary)' }}>-</span>,
     },
     {
       title: '处理人',
       key: 'assignee',
       width: 120,
-      render: (_, record: Ticket) =>
-        record.assignee?.name ?? (record.assigneeId ? `用户 #${record.assigneeId}` : '未分配'),
+      // D40：旧实现回退成「用户 #1」，把数据库自增主键直接暴露到界面，
+      // 并把「已分配但姓名缺失」误读成「未分配」的反面。这里改为中性文案，
+      // 真正修复需要后端在列表投影里回填 assignee.name。
+      render: (_, record: Ticket) => {
+        const name = record.assignee?.name?.trim();
+        if (name) return name;
+        return record.assigneeId ? '未知用户' : '未分配';
+      },
     },
     {
       title: '创建时间',
