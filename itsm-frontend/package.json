@@ -32,6 +32,7 @@
     "test:all": "npm run test:unit && npm run test:integration && npm run test:e2e && npm run test:ux && npm run test:performance",
     "screenshot": "npx ts-node tests/e2e/screenshot.ts",
     "audit:ui": "node tools/generate-ui-audit-inventory.mjs",
+    "audit:colors": "node scripts/audit-hardcoded-colors.mjs",
     "docs:manifest": "node scripts/gen-page-manifest.mjs",
     "docs:ledger:check": "node scripts/gen-page-manifest.mjs --check",
     "docs:validate": "node scripts/validate-help-docs.mjs",

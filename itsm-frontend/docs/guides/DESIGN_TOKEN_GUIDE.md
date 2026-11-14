@@ -7,18 +7,19 @@
 
 ### 1. 颜色 (Colors)
 
-| 内联样式 | 设计令牌 | 用途 |
+| 内联样式 | 设计令牌（CSS 变量优先） | 用途 |
 |---------|---------|------|
-| `color: '#3b82f6'` | `colors.accent` | 强调色、链接色 |
-| `color: '#0f172a'` | `colors.primary` | 主色调 |
-| `color: '#10b981'` | `colors.success` | 成功状态 |
-| `color: '#f59e0b'` | `colors.warning` | 警告状态 |
-| `color: '#ef4444'` | `colors.danger` | 危险、错误状态 |
-| `color: '#1e293b'` | `colors.text` | 主文本色 |
-| `color: '#64748b'` | `colors.textMuted` | 次要文本色 |
-| `background: '#ffffff'` | `colors.surface` | 卡片背景 |
-| `background: '#f8fafc'` | `colors.bgSubtle` | 页面背景 |
-| `borderColor: '#e2e8f0'` | `colors.border` | 边框颜色 |
+| `color: '#3b82f6'` | `var(--color-primary-text)` | 主色文字/图标（暗色自动提亮） |
+| `color: '#52c41a'` | `var(--color-success-text)` | 成功文字/图标 |
+| `color: '#faad14'` | `var(--color-warning-text)` | 警告文字/图标 |
+| `color: '#ff4d4f'` | `var(--color-error-text)` | 错误文字/图标 |
+| `color: '#1e293b'` | `var(--color-text-primary)` | 主文本色 |
+| `color: '#64748b'` | `var(--color-text-secondary)` | 次要文本色 |
+| `background: '#ffffff'` | `var(--color-surface-primary)` | 卡片/内容表面 |
+| `background: '#f8fafc'` | `var(--color-page-background)` | 页面背景 |
+| `borderColor: '#e2e8f0'` | `var(--color-border-primary)` | 边框颜色 |
+
+> `colors.ts` / `DESIGN.colors` 是 JS/图表侧的颜色源；**UI 组件应优先使用 CSS 变量**，否则无法跟随暗色主题切换。
 
 ### 2. 间距 (Spacing)
 
@@ -71,7 +72,7 @@
 
 ## 使用示例
 
-### ❌ 错误示例（内联样式）
+### ❌ 错误示例（raw hex）
 ```tsx
 <Card style={{
   padding: '24px',
@@ -83,19 +84,17 @@
 </Card>
 ```
 
-### ✅ 正确示例（设计令牌）
+### ✅ 正确示例（CSS 变量）
 ```tsx
-import { DESIGN } from '@/design-system/tokens';
-
 <Card style={{
-  padding: DESIGN.spacing.lg,
-  borderRadius: DESIGN.radius.md,
-  background: DESIGN.colors.surface,
-  boxShadow: DESIGN.shadows.card
+  padding: 24,
+  borderRadius: 12,
+  background: 'var(--color-surface-primary)',
+  boxShadow: 'var(--shadow-sm)'
 }}>
   <Text style={{ 
-    color: DESIGN.colors.text, 
-    fontSize: DESIGN.typography.fontSize.lg 
+    color: 'var(--color-text-primary)',
+    fontSize: 18
   }}>标题</Text>
 </Card>
 ```
@@ -139,14 +138,12 @@ import { DESIGN } from '@/design-system/tokens';
 
 ### 自动化检查
 ```bash
-# 检查内联样式数量
-grep -rn 'style={{' src --include='*.tsx' | wc -l
+# 硬编码颜色审计（报告 + JSON）
+npm run audit:colors
+node scripts/audit-hardcoded-colors.mjs --json > /tmp/color-audit.json
 
-# 查找特定颜色值
-grep -rn "#3b82f6\|#0f172a\|#ef4444" src --include='*.tsx'
-
-# 查找硬编码间距
-grep -rn "padding: '[0-9]px'\|margin: '[0-9]px'" src --include='*.tsx'
+# 查找内联 raw hex（快速抽查）
+rg -n "color:\\s*'#|background(Color)?:\\s*'#|borderColor:\\s*'#" src
 ```
 
 ### ESLint规则
@@ -175,5 +172,5 @@ grep -rn "padding: '[0-9]px'\|margin: '[0-9]px'" src --include='*.tsx'
 
 ---
 
-**更新日期**: 2026-04-26  
+**更新日期**: 2026-11-13
 **维护者**: ITSM前端团队
