@@ -52,6 +52,7 @@ export interface UseTicketsReturn {
   fetchTickets: (customFilters?: Partial<TicketQueryFilters>) => Promise<void>;
   refreshData: () => Promise<void>;
   updateFilters: (newFilters: Partial<TicketQueryFilters>) => void;
+  replaceFilters: (newFilters: Partial<TicketQueryFilters>) => void;
   updatePagination: (page: number, pageSize: number) => void;
 
   // Ticket operations
@@ -130,11 +131,21 @@ export const useTickets = (): UseTicketsReturn => {
   }, [fetchTickets]);
 
   // updateFilters：更新 filters state 并触发重新拉取
+  // 值为 undefined 的键表示「清除该筛选条件」，必须从 next 中删除。
+  // 否则 {...prev, ...newFilters} 会保留旧值，导致 isOverdue 之类的开关无法被关掉。
   const updateFilters = useCallback((newFilters: Partial<TicketQueryFilters>) => {
     setFilters(prev => {
-      const next = { ...prev, ...newFilters };
-      filtersRef.current = next;
-      return next;
+      const next = { ...prev } as Record<string, unknown>;
+      Object.entries(newFilters).forEach(([key, value]) => {
+        if (value === undefined) {
+          delete next[key];
+        } else {
+          next[key] = value;
+        }
+      });
+      const typed = next as Partial<TicketQueryFilters>;
+      filtersRef.current = typed;
+      return typed;
     });
     setPagination(prev => {
       const next = { ...prev, current: 1 };
@@ -142,6 +153,26 @@ export const useTickets = (): UseTicketsReturn => {
       return next;
     });
     // 触发 fetchTickets
+    setFetchTrigger(n => n + 1);
+  }, []);
+
+  // replaceFilters：用传入的筛选条件「整份替换」当前筛选，未出现的键会被清除。
+  // 供页面级筛选（如 advancedFilters）做权威同步，避免旧的 isOverdue 等条件残留。
+  const replaceFilters = useCallback((newFilters: Partial<TicketQueryFilters>) => {
+    const next: Record<string, unknown> = {};
+    Object.entries(newFilters).forEach(([key, value]) => {
+      if (value !== undefined) {
+        next[key] = value;
+      }
+    });
+    const typed = next as Partial<TicketQueryFilters>;
+    setFilters(typed);
+    filtersRef.current = typed;
+    setPagination(prev => {
+      const updated = { ...prev, current: 1 };
+      paginationRef.current = updated;
+      return updated;
+    });
     setFetchTrigger(n => n + 1);
   }, []);
 
@@ -258,6 +289,7 @@ export const useTickets = (): UseTicketsReturn => {
     fetchTickets,
     refreshData,
     updateFilters,
+    replaceFilters,
     updatePagination,
     createTicket,
     updateTicket,

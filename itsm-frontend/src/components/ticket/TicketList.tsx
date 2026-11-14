@@ -33,6 +33,8 @@ interface TicketListProps {
   readonly filters?: Partial<TicketQueryFilters>;
   readonly onTicketSelect?: (ticket: Ticket) => void;
   readonly advancedFilters?: Partial<TicketQueryFilters>;
+  // 把当前筛选下的匹配总数回报给上层，供 Tab 计数等 UI 与实际列表保持一致。
+  readonly onTotalChange?: (total: number) => void;
 }
 
 const DEFAULT_FILTER_VALUES: TicketFilterValues = {
@@ -58,6 +60,7 @@ const TicketList: React.FC<TicketListProps> = ({
   showHeader = true,
   onTicketSelect,
   advancedFilters,
+  onTotalChange,
 }) => {
   const navigate = useNavigate();
   const { message, modal } = App.useApp();
@@ -75,6 +78,7 @@ const TicketList: React.FC<TicketListProps> = ({
     filters,
     fetchTickets,
     updateFilters,
+    replaceFilters,
     updatePagination,
     deleteTicket,
     batchDeleteTickets,
@@ -101,15 +105,24 @@ const TicketList: React.FC<TicketListProps> = ({
   // Sync external advanced filters (e.g. from a dashboard deep-link) into the
   // ticket store. Using JSON.stringify as the dep key avoids the infinite loop
   // you would get from referencing the object directly.
+  // 必须用 replaceFilters（整份替换）：advancedFilters 是页面级的权威筛选源，
+  // 浅合并会让已清除的条件（如 isOverdue）残留在 store 里。
   const advancedFiltersKey = useMemo(
     () => JSON.stringify(advancedFilters ?? {}),
     [advancedFilters]
   );
   useEffect(() => {
     if (advancedFilters === undefined) return;
-    updateFilters(advancedFilters);
-     
+    replaceFilters(advancedFilters);
+
   }, [advancedFiltersKey]);
+
+  // 把当前筛选下的匹配总数回报给上层（用于 Tab 计数与实际列表一致）
+  const paginationTotal = pagination?.total;
+  useEffect(() => {
+    if (paginationTotal === undefined) return;
+    onTotalChange?.(paginationTotal);
+  }, [paginationTotal, onTotalChange]);
 
   const openTicket = useCallback(
     (ticket: Ticket) => {

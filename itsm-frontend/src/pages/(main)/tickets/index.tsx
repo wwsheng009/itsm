@@ -29,9 +29,13 @@ function TicketsPageContent() {
   const [showAdvancedSearch, setShowAdvancedSearch] = useState(false);
 
   // 从 localStorage 恢复筛选条件
+  // 必须剔除 isOverdue：它只应由 URL 的 overdue 参数决定。
+  // 否则旧版本写进缓存的 isOverdue=true 会在每次进页面时「复活」预警筛选。
   const [advancedFilters, setAdvancedFilters] = useState<Partial<TicketQueryFilters>>(() => {
     const defaults = getDefaultFilters('tickets') as Partial<TicketQueryFilters>;
-    return restoreFilters('tickets', defaults);
+    const restored = restoreFilters('tickets', defaults) as Partial<TicketQueryFilters>;
+    const { isOverdue: _restoredOverdue, ...safeFilters } = restored;
+    return safeFilters;
   });
 
   const [ticketStats, setTicketStats] = useState({
@@ -41,9 +45,16 @@ function TicketsPageContent() {
     today: 0,
   });
 
+  // 列表实际匹配总数（受筛选条件影响）。null 表示尚未拿到，
+  // 用于让 Tab 计数与列表结果保持一致，避免「筛选中显示 8、列表只有 5」的矛盾。
+  const [listTotal, setListTotal] = useState<number | null>(null);
+
   // 保存筛选条件到 localStorage
+  // 注意：isOverdue 是「SLA 预警」的临时视图开关，由 URL 的 overdue 参数权威控制，
+  // 不写入缓存，否则刷新/重新进入页面时会把已关闭的预警条件重新恢复出来。
   useEffect(() => {
-    saveFilters('tickets', advancedFilters);
+    const { isOverdue: _ignoredOverdue, ...persistableFilters } = advancedFilters;
+    saveFilters('tickets', persistableFilters as Record<string, unknown>);
   }, [advancedFilters]);
 
   // 从 URL 参数获取当前标签页和高级搜索状态
@@ -72,8 +83,22 @@ function TicketsPageContent() {
         setActiveTab('list');
       }
     }
-    if (searchParams.get('overdue') === 'true') {
-      setAdvancedFilters({ isOverdue: true });
+    // SLA 预警：以 URL 的 overdue 参数为权威做「双向同步」。
+    // 旧实现只在 overdue=true 时置 true，参数被移除后筛选条件仍残留在 state 里，
+    // 导致按钮看起来生效一次后永久失灵、且无法取消。
+    const overdueFromUrl = searchParams.get('overdue') === 'true';
+    setAdvancedFilters(prev => {
+      const current = prev.isOverdue === true;
+      if (current === overdueFromUrl) return prev;
+      const next = { ...prev };
+      if (overdueFromUrl) {
+        next.isOverdue = true;
+      } else {
+        delete next.isOverdue;
+      }
+      return next;
+    });
+    if (overdueFromUrl) {
       setActiveTab('list');
     }
   }, [searchParams, navigate]);
@@ -154,15 +179,26 @@ function TicketsPageContent() {
     []
   );
 
+  // 高级搜索应用/重置时，必须把 URL 里的 overdue 一并移除，
+  // 否则 URL 与 advancedFilters 不一致，旧参数会把已清除的筛选「复活」。
+  const stripOverdueParam = useCallback(() => {
+    if (searchParams.get('overdue') !== 'true') return;
+    const newParams = new URLSearchParams(searchParams.toString());
+    newParams.delete('overdue');
+    navigate(`/tickets?${newParams.toString()}`, { preventScrollReset: true });
+  }, [searchParams, navigate]);
+
   const handleAdvancedSearch = (filters: AdvancedSearchFilters) => {
     const mapped = mapAdvancedToQueryFilters(filters);
     setAdvancedFilters(mapped);
     setActiveTab('list');
+    stripOverdueParam();
   };
 
   const handleSearchReset = () => {
     clearFilters('tickets');
     setAdvancedFilters({});
+    stripOverdueParam();
   };
 
   return (
@@ -199,9 +235,30 @@ function TicketsPageContent() {
               <Badge count={ticketStats.overdue} size="small">
                 <Button
                   icon={<Bell />}
+                  type={advancedFilters.isOverdue ? 'primary' : 'default'}
+                  aria-pressed={advancedFilters.isOverdue === true}
                   onClick={() => {
+                    const nextOn = advancedFilters.isOverdue !== true;
+                    // 本地状态立即翻转，保证有即时视觉反馈（即使 URL 未变）
+                    setAdvancedFilters(prev => {
+                      const next = { ...prev };
+                      if (nextOn) {
+                        next.isOverdue = true;
+                      } else {
+                        delete next.isOverdue;
+                      }
+                      return next;
+                    });
                     setActiveTab('list');
-                    navigate('/tickets?tab=list&overdue=true', { preventScrollReset: true });
+                    // 增量修改 URL 参数，不硬编码整串，避免丢掉 search/status 等其它参数
+                    const newParams = new URLSearchParams(searchParams.toString());
+                    newParams.set('tab', 'list');
+                    if (nextOn) {
+                      newParams.set('overdue', 'true');
+                    } else {
+                      newParams.delete('overdue');
+                    }
+                    navigate(`/tickets?${newParams.toString()}`, { preventScrollReset: true });
                   }}
                 >
                   {t('tickets.slaWarning')}
@@ -280,7 +337,7 @@ function TicketsPageContent() {
               label: (
                 <span className="flex items-center gap-2">
                   <Table />
-                  {t('tickets.tabs.list')} ({ticketStats.total})
+                  {t('tickets.tabs.list')} ({listTotal ?? ticketStats.total})
                 </span>
               ),
             },
@@ -302,7 +359,12 @@ function TicketsPageContent() {
 
         {/* 标签页内容 */}
         {activeTab === 'list' && (
-          <TicketList showHeader={false} pageSize={20} advancedFilters={advancedFilters} />
+          <TicketList
+            showHeader={false}
+            pageSize={20}
+            advancedFilters={advancedFilters}
+            onTotalChange={setListTotal}
+          />
         )}
 
         {activeTab === 'kanban' && (
