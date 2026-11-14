@@ -88,6 +88,9 @@ type ListFilters struct {
 	// CurrentUserID 为调用者身份，owner 档位下 <=0 时 repository fail-closed 返回空集。
 	DataScope     datascope.DataScope
 	CurrentUserID int
+	// Role 为调用者角色，用于把「停在本层级的待本人审批」并入可见范围（D19 修复）。
+	// 为空时仅退化为「本人创建 / 本人处理」，不会放宽可见范围。
+	Role string
 }
 
 // Repository defines the interface for data persistence

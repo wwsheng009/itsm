@@ -246,6 +246,10 @@ func (h *Handler) List(c *gin.Context) {
 	tenantID := c.GetInt("tenant_id")
 	// 行级数据权限：从鉴权中间件注入的 user_id/role 取得。
 	currentUserID := c.GetInt("user_id")
+	// 审批人角色（D19 修复）：把停在本层级的待审单并入列表可见范围，
+	// 否则服务请求审批链在 L2 之后对审批人不可见。
+	callerRole, _ := c.Get("role")
+	callerRoleStr, _ := callerRole.(string)
 
 	// If listing "me", we need user ID
 	userID := 0
@@ -269,6 +273,7 @@ func (h *Handler) List(c *gin.Context) {
 		Size:          req.Size,
 		CurrentUserID: currentUserID,
 		DataScope:     dataScope,
+		Role:          strings.ToLower(strings.TrimSpace(callerRoleStr)),
 	}
 	if filters.Page == 0 {
 		filters.Page = 1

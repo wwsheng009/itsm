@@ -349,6 +349,22 @@ func (r *EntRepository) GetWithApprovals(ctx context.Context, id, tenantID int) 
 	return r.toDomain(req), domainApprovals, nil
 }
 
+// approverLevelForRole 把调用者角色映射为「该审的层级 + 进入该层级时的单据状态」。
+// 与 ListPendingApprovals 的角色→层级映射保持单一来源，避免两处判断漂移。
+// 返回 level<=0 表示该角色不承担审批，列表可见范围不因此放宽。
+func approverLevelForRole(role string) (level int, status string) {
+	switch role {
+	case ApprovalStepManager:
+		return 1, SRStatusSubmitted
+	case ApprovalStepIT, RoleAgent, RoleTechnician, RoleITAdmin:
+		return 2, SRStatusManagerApproved
+	case ApprovalStepSecurity, RoleSecAdmin:
+		return 3, SRStatusITApproved
+	default:
+		return 0, ""
+	}
+}
+
 func (r *EntRepository) List(ctx context.Context, tenantID int, filters ListFilters) ([]*ServiceRequest, int, error) {
 	query := r.client.ServiceRequest.Query().
 		Where(servicerequest.TenantID(tenantID), servicerequest.DeletedAtIsNil())
@@ -369,10 +385,26 @@ func (r *EntRepository) List(ctx context.Context, tenantID int, filters ListFilt
 		if filters.CurrentUserID <= 0 {
 			query = query.Where(servicerequest.IDEQ(-1))
 		} else {
-			query = query.Where(servicerequest.Or(
+			// D19 修复：除「我提交的 / 我处理的」之外，还需并入「停在本层级、
+			// 正等我审批的」请求单。否则 L2/L3 审批人（如 it_admin、secadmin）
+			// 在自己的列表里看不到待审单据，审批链在 L2 之后对审批人不可见。
+			// pending 审批节点的 approver_id 为空（创建时只写 node.approver_ids），
+			// 因此按工作流既有的「角色 → 层级 + 状态」映射判定是否为本人该审。
+			ownedOrAssigned := servicerequest.Or(
 				servicerequest.RequesterIDEQ(filters.CurrentUserID),
 				servicerequest.ProcessorIDEQ(filters.CurrentUserID),
-			))
+			)
+			if level, status := approverLevelForRole(filters.Role); level > 0 {
+				ownedOrAssigned = servicerequest.Or(
+					servicerequest.RequesterIDEQ(filters.CurrentUserID),
+					servicerequest.ProcessorIDEQ(filters.CurrentUserID),
+					servicerequest.And(
+						servicerequest.CurrentLevel(level),
+						servicerequest.StatusEQ(status),
+					),
+				)
+			}
+			query = query.Where(ownedOrAssigned)
 		}
 	}
 
