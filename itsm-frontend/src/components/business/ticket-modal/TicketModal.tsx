@@ -160,7 +160,9 @@ export const TicketTemplateModal: React.FC<TicketTemplateModalProps> = React.mem
               }}
             >
               <div>
-                <p style={{ color: '#666' }}>管理所有可用的工单模板，提高工单创建效率</p>
+                <p style={{ color: 'var(--color-text-secondary)' }}>
+                  管理所有可用的工单模板，提高工单创建效率
+                </p>
               </div>
               <Button
                 type="primary"

@@ -200,7 +200,7 @@ export const FilterPresetSelector: React.FC<FilterPresetSelectorProps> = ({
             <div>
               {favoritePresets.length > 0 && (
                 <>
-                  <div style={{ padding: '8px 12px', fontSize: '12px', color: '#999' }}>
+                  <div style={{ padding: '8px 12px', fontSize: '12px', color: 'var(--color-text-tertiary)' }}>
                     收藏的预设
                   </div>
                   {favoritePresets.map(preset => (
@@ -239,7 +239,7 @@ export const FilterPresetSelector: React.FC<FilterPresetSelectorProps> = ({
               {otherPresets.length > 0 && (
                 <>
                   {favoritePresets.length > 0 && (
-                    <div style={{ padding: '8px 12px', fontSize: '12px', color: '#999' }}>
+                    <div style={{ padding: '8px 12px', fontSize: '12px', color: 'var(--color-text-tertiary)' }}>
                       其他预设
                     </div>
                   )}

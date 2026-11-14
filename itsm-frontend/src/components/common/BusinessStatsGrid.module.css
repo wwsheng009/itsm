@@ -1,4 +1,18 @@
 .card {
+  --business-stat-bg: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--business-stat-accent) 8%, var(--color-surface-primary)) 0%,
+    color-mix(in srgb, var(--business-stat-accent) 16%, var(--color-surface-primary)) 100%
+  );
+  --business-stat-border: color-mix(
+    in srgb,
+    var(--business-stat-accent) 34%,
+    var(--color-border-primary)
+  );
+  --business-stat-icon-bg: color-mix(in srgb, var(--business-stat-accent) 16%, transparent);
+  --business-stat-icon-color: var(--business-stat-accent-text);
+  --business-stat-value-color: var(--business-stat-accent-text);
+
   background: var(--business-stat-bg) !important;
   border-color: var(--business-stat-border) !important;
 }
@@ -19,5 +33,37 @@
 }
 
 .label {
-  color: #4b5563 !important;
+  /* 亮色 #475569 / 暗色 #cbd5e1；暗色卡片已改为彩色软底，浅色文字可读 */
+  color: var(--color-text-secondary) !important;
+}
+
+/* 语义色相：浅色/暗色均由 color-mix 从同一 token 派生，不再维护两套 hex。 */
+.toneBlue {
+  --business-stat-accent: var(--color-primary);
+  --business-stat-accent-text: var(--color-primary-text);
+}
+
+.toneOrange {
+  --business-stat-accent: var(--color-warning);
+  --business-stat-accent-text: var(--color-warning-text);
+}
+
+.toneGreen {
+  --business-stat-accent: var(--color-success);
+  --business-stat-accent-text: var(--color-success-text);
+}
+
+.tonePurple {
+  --business-stat-accent: var(--color-purple-text);
+  --business-stat-accent-text: var(--color-purple-text);
+}
+
+.toneCyan {
+  --business-stat-accent: var(--color-info);
+  --business-stat-accent-text: var(--color-info-text);
+}
+
+.toneRed {
+  --business-stat-accent: var(--color-error);
+  --business-stat-accent-text: var(--color-error-text);
 }

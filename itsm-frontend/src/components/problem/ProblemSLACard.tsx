@@ -91,7 +91,7 @@ const ProblemSLACard: React.FC<ProblemSLACardProps> = ({ problem }) => {
     if (!deadline) return null;
     const remaining = getTimeRemaining(deadline);
     if (!remaining) return null;
-    return <span style={{ fontSize: 12, color: '#999' }}>{t('problemSla.remaining', { time: remaining })}</span>;
+    return <span style={{ fontSize: 12, color: 'var(--color-text-tertiary)' }}>{t('problemSla.remaining', { time: remaining })}</span>;
   };
 
   const responseDeadline = slaInfo?.responseDeadline || problem.responseDeadline;

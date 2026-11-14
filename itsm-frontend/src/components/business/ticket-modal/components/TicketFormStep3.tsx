@@ -35,7 +35,9 @@ export const TicketFormStep3: React.FC<TicketFormStep3Props> = ({ form, userList
                       {user.avatar}
                     </Avatar>
                     <span>{user.name}</span>
-                    <span style={{ color: '#666', marginLeft: 8 }}>({user.role})</span>
+                    <span style={{ color: 'var(--color-text-tertiary)', marginLeft: 8 }}>
+                      ({user.role})
+                    </span>
                   </div>
                 </Select.Option>
               ))}

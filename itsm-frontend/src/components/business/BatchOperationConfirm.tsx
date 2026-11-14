@@ -42,7 +42,7 @@ const OPERATION_CONFIG: Record<
 > = {
   delete: {
     title: '确认批量删除',
-    icon: <AlertCircle style={{ color: '#ff4d4f' }} />,
+    icon: <AlertCircle style={{ color: 'var(--color-error-text)' }} />,
     description: '此操作将永久删除选中的工单，且无法恢复',
     danger: true,
     getContent: props => (
@@ -81,13 +81,13 @@ const OPERATION_CONFIG: Record<
   },
   assign: {
     title: '确认批量分配',
-    icon: <CheckCircle style={{ color: '#1890ff' }} />,
+    icon: <CheckCircle style={{ color: 'var(--color-primary-text)' }} />,
     description: '将选中的工单分配给指定处理人',
     getContent: props => (
       <div>
         <Paragraph>
           您即将将 <Text strong>{props.selectedCount}</Text> 个工单分配给：
-          <Text strong style={{ color: '#1890ff' }}>
+          <Text strong style={{ color: 'var(--color-primary-text)' }}>
             {props.operationData?.assignee || '未指定'}
           </Text>
         </Paragraph>
@@ -122,7 +122,7 @@ const OPERATION_CONFIG: Record<
   },
   updateStatus: {
     title: '确认批量更新状态',
-    icon: <CheckCircle style={{ color: '#52c41a' }} />,
+    icon: <CheckCircle style={{ color: 'var(--color-success-text)' }} />,
     description: '批量更新选中工单的状态',
     getContent: props => (
       <div>
@@ -163,7 +163,7 @@ const OPERATION_CONFIG: Record<
   },
   updatePriority: {
     title: '确认批量更新优先级',
-    icon: <CheckCircle style={{ color: '#faad14' }} />,
+    icon: <CheckCircle style={{ color: 'var(--color-warning-text)' }} />,
     description: '批量更新选中工单的优先级',
     getContent: props => (
       <div>
@@ -204,7 +204,7 @@ const OPERATION_CONFIG: Record<
   },
   export: {
     title: '确认导出',
-    icon: <CheckCircle style={{ color: '#1890ff' }} />,
+    icon: <CheckCircle style={{ color: 'var(--color-primary-text)' }} />,
     description: '导出选中的工单数据',
     getContent: props => (
       <div>
@@ -219,7 +219,7 @@ const OPERATION_CONFIG: Record<
   },
   archive: {
     title: '确认批量归档',
-    icon: <CheckCircle style={{ color: '#722ed1' }} />,
+    icon: <CheckCircle style={{ color: 'var(--color-purple-text)' }} />,
     description: '将选中的工单归档',
     getContent: props => (
       <div>

@@ -166,7 +166,7 @@ const ServiceRequestDetail: React.FC = () => {
                 </Text>
               )}
               {app.processedAt && (
-                <div style={{ fontSize: '12px', color: '#999' }}>
+                <div style={{ fontSize: '12px', color: 'var(--color-text-tertiary)' }}>
                   {dayjs(app.processedAt).format('YYYY-MM-DD HH:mm')}
                 </div>
               )}

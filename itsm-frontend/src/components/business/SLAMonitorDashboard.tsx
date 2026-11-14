@@ -149,7 +149,11 @@ function renderTimeRemaining(value?: SLATimeRemaining): React.ReactNode {
   }
   const label = `${hours}小时${minutes}分钟`;
   const overdue = value.hours < 0;
-  const color = overdue ? '#ff4d4f' : value.hours < 2 ? '#faad14' : '#52c41a';
+  const color = overdue
+    ? 'var(--color-error-text)'
+    : value.hours < 2
+      ? 'var(--color-warning-text)'
+      : 'var(--color-success-text)';
   return (
     <Tooltip title={`截止时间 ${formatDateTime(value.deadline)}`}>
       <Text strong style={{ color }}>
@@ -361,9 +365,9 @@ export const SLAMonitorDashboard: React.FC<SLAMonitorDashboardProps> = ({
   }, [loadData, antMessage]);
 
   const getComplianceColor = (rate: number) => {
-    if (rate >= 95) return '#52c41a';
-    if (rate >= 85) return '#faad14';
-    return '#ff4d4f';
+    if (rate >= 95) return 'var(--color-success-text)';
+    if (rate >= 85) return 'var(--color-warning-text)';
+    return 'var(--color-error-text)';
   };
 
   const serviceTypeOptions = useMemo(
@@ -379,7 +383,7 @@ export const SLAMonitorDashboard: React.FC<SLAMonitorDashboardProps> = ({
         key: 'ticketNumber',
         width: 160,
         render: (text: string, record) => (
-          <Text strong style={{ color: '#1890ff' }}>{text || `#${record.ticketId}`}</Text>
+          <Text strong style={{ color: 'var(--color-primary-text)' }}>{text || `#${record.ticketId}`}</Text>
         ),
       },
       {
@@ -458,7 +462,9 @@ export const SLAMonitorDashboard: React.FC<SLAMonitorDashboardProps> = ({
 
   const cardStyle: React.CSSProperties = {
     height: '100%',
-    backgroundColor: isFullscreen ? 'rgba(255,255,255,0.05)' : '#fff',
+    // 非全屏交给 Antd Card 的 colorBgContainer（暗色 #1e293b）；
+    // 全屏大屏保持自己的深色玻璃质感。
+    backgroundColor: isFullscreen ? 'rgba(255,255,255,0.05)' : undefined,
     border: isFullscreen ? '1px solid rgba(255,255,255,0.1)' : undefined,
   };
 
@@ -486,7 +492,7 @@ export const SLAMonitorDashboard: React.FC<SLAMonitorDashboardProps> = ({
       style={{
         minHeight: isFullscreen ? '100vh' : 'auto',
         padding: isFullscreen ? '24px' : '16px',
-        backgroundColor: isFullscreen ? '#0a0e27' : '#f0f2f5',
+        backgroundColor: isFullscreen ? '#0a0e27' : 'var(--color-page-background, #f0f2f5)',
       }}
     >
       {/* 顶部工具栏：统计周期 + 绩效过滤条件 */}
@@ -502,7 +508,7 @@ export const SLAMonitorDashboard: React.FC<SLAMonitorDashboardProps> = ({
           <Title
             level={2}
             style={{
-              color: isFullscreen ? '#fff' : '#000',
+              color: isFullscreen ? '#fff' : 'var(--color-text-primary)',
               margin: 0,
               fontSize: isFullscreen ? '32px' : '24px',
             }}
@@ -662,7 +668,10 @@ export const SLAMonitorDashboard: React.FC<SLAMonitorDashboardProps> = ({
               value={monitoring?.activeAlerts ?? 0}
               styles={{
                 content: {
-                  color: (monitoring?.activeAlerts ?? 0) > 0 ? '#faad14' : '#52c41a',
+                  color:
+                    (monitoring?.activeAlerts ?? 0) > 0
+                      ? 'var(--color-warning-text)'
+                      : 'var(--color-success-text)',
                   fontSize: isFullscreen ? '44px' : '30px',
                   fontWeight: 'bold',
                 },
@@ -684,7 +693,7 @@ export const SLAMonitorDashboard: React.FC<SLAMonitorDashboardProps> = ({
               value={monitoring?.atRiskTickets ?? 0}
               styles={{
                 content: {
-                  color: '#ff4d4f',
+                  color: 'var(--color-error-text)',
                   fontSize: isFullscreen ? '44px' : '30px',
                   fontWeight: 'bold',
                 },
@@ -875,7 +884,9 @@ export const SLAMonitorDashboard: React.FC<SLAMonitorDashboardProps> = ({
             <CheckCircle
               style={{
                 fontSize: '48px',
-                color: isFullscreen ? 'rgba(255,255,255,0.5)' : '#d9d9d9',
+                color: isFullscreen
+                  ? 'rgba(255,255,255,0.5)'
+                  : 'var(--color-text-tertiary)',
                 marginBottom: '16px',
               }}
             />

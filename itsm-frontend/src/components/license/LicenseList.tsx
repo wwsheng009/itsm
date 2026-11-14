@@ -200,7 +200,7 @@ const typeColors: Record<string, string> = {
         if (!date || date.trim() === '') return '永久';
         const days = dayjs(date).diff(dayjs(), 'day');
         return (
-          <span style={{ color: days < 30 ? '#ff4d4f' : undefined }}>
+          <span style={{ color: days < 30 ? 'var(--color-error-text)' : undefined }}>
             {date} {days > 0 && days < 30 && `(${days}天后到期)`}
           </span>
         );
@@ -255,7 +255,7 @@ const typeColors: Record<string, string> = {
             <Statistic
               title="有效"
               value={stats.active || 0}
-              styles={{ content: { color: '#52c41a' } }}
+              styles={{ content: { color: 'var(--color-success-text)' } }}
             />
           </Card>
         </Col>
@@ -264,7 +264,7 @@ const typeColors: Record<string, string> = {
             <Statistic
               title="即将过期"
               value={stats.expiringSoon || 0}
-              styles={{ content: { color: '#faad14' } }}
+              styles={{ content: { color: 'var(--color-warning-text)' } }}
             />
           </Card>
         </Col>
@@ -273,7 +273,7 @@ const typeColors: Record<string, string> = {
             <Statistic
               title="已过期"
               value={stats.expired || 0}
-              styles={{ content: { color: '#ff4d4f' } }}
+              styles={{ content: { color: 'var(--color-error-text)' } }}
             />
           </Card>
         </Col>
@@ -284,7 +284,12 @@ const typeColors: Record<string, string> = {
               value={stats.complianceRate || 0}
               suffix="%"
               styles={{
-                content: { color: (stats.complianceRate || 0) >= 80 ? '#52c41a' : '#ff4d4f' },
+                content: {
+                  color:
+                    (stats.complianceRate || 0) >= 80
+                      ? 'var(--color-success-text)'
+                      : 'var(--color-error-text)',
+                },
               }}
             />
           </Card>

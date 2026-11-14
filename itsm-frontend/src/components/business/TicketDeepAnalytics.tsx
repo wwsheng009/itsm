@@ -47,6 +47,7 @@ import { Filter, Save, Download, Settings, RotateCcw, CheckCircle, BarChart3, Ta
 import { format } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
 import dayjs from 'dayjs';
+import { useChartTheme } from '@/lib/design-system/chart-theme';
 
 const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
@@ -93,6 +94,7 @@ export const TicketDeepAnalytics: React.FC<TicketDeepAnalyticsProps> = ({
   canExport = true,
 }) => {
   const { message: antMessage } = App.useApp();
+  const chart = useChartTheme();
   const [loading, setLoading] = useState(false);
   const [config, setConfig] = useState<AnalyticsConfig>({
     dimensions: ['status'],
@@ -244,7 +246,7 @@ export const TicketDeepAnalytics: React.FC<TicketDeepAnalyticsProps> = ({
       return <Empty description="暂无数据" />;
     }
 
-    const COLORS = ['#1890ff', '#52c41a', '#faad14', '#f5222d', '#722ed1', '#13c2c2'];
+    const COLORS = chart.palette;
 
     switch (config.chartType) {
       case 'line':
@@ -256,7 +258,7 @@ export const TicketDeepAnalytics: React.FC<TicketDeepAnalyticsProps> = ({
               <YAxis />
               <Tooltip />
               <Legend />
-              <Line type="monotone" dataKey="value" stroke="#1890ff" strokeWidth={2} />
+              <Line type="monotone" dataKey="value" stroke={chart.palette[0]} strokeWidth={2} />
             </RechartsLineChart>
           </ResponsiveContainer>
         );
@@ -269,7 +271,7 @@ export const TicketDeepAnalytics: React.FC<TicketDeepAnalyticsProps> = ({
               <YAxis />
               <Tooltip />
               <Legend />
-              <Bar dataKey="value" fill="#1890ff" />
+              <Bar dataKey="value" fill={chart.palette[0]} />
             </RechartsBarChart>
           </ResponsiveContainer>
         );
@@ -284,7 +286,7 @@ export const TicketDeepAnalytics: React.FC<TicketDeepAnalyticsProps> = ({
                 labelLine={false}
                 label={({ name, percent }) => `${name} ${((percent || 0) * 100).toFixed(0)}%`}
                 outerRadius={120}
-                fill="#8884d8"
+                fill={chart.palette[0]}
                 dataKey="value"
               >
                 {chartData.map((entry, index) => (
@@ -307,8 +309,8 @@ export const TicketDeepAnalytics: React.FC<TicketDeepAnalyticsProps> = ({
               <Area
                 type="monotone"
                 dataKey="value"
-                stroke="#1890ff"
-                fill="#1890ff"
+                stroke={chart.palette[0]}
+                fill={chart.palette[0]}
                 fillOpacity={0.6}
               />
             </AreaChart>
@@ -413,7 +415,7 @@ export const TicketDeepAnalytics: React.FC<TicketDeepAnalyticsProps> = ({
             <Statistic
               title="已解决"
               value={summaryData.resolved || 0}
-              styles={{ content: { color: '#3f8600' } }}
+              styles={{ content: { color: 'var(--color-success-text)' } }}
               prefix={<CheckCircle />}
             />
           </Card>
@@ -425,7 +427,7 @@ export const TicketDeepAnalytics: React.FC<TicketDeepAnalyticsProps> = ({
               value={summaryData.avgResponseTime || 0}
               precision={1}
               suffix="小时"
-              styles={{ content: { color: '#1890ff' } }}
+              styles={{ content: { color: 'var(--color-primary-text)' } }}
             />
           </Card>
         </Col>
@@ -436,7 +438,7 @@ export const TicketDeepAnalytics: React.FC<TicketDeepAnalyticsProps> = ({
               value={summaryData.slaCompliance || 0}
               precision={1}
               suffix="%"
-              styles={{ content: { color: '#52c41a' } }}
+              styles={{ content: { color: 'var(--color-success-text)' } }}
             />
           </Card>
         </Col>

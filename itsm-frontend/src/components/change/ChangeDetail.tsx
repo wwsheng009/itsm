@@ -566,9 +566,9 @@ const ChangeDetail: React.FC = () => {
                         <List.Item.Meta
                           avatar={
                             record.status === 'approved' ? (
-                              <CheckCircle style={{ color: '#52c41a', fontSize: 24 }} />
+                              <CheckCircle style={{ color: 'var(--color-success-text)', fontSize: 24 }} />
                             ) : (
-                              <XCircle style={{ color: '#ff4d4f', fontSize: 24 }} />
+                              <XCircle style={{ color: 'var(--color-error-text)', fontSize: 24 }} />
                             )
                           }
                           title={

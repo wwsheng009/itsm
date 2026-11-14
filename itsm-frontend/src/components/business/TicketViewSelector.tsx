@@ -250,7 +250,7 @@ export const TicketViewSelector: React.FC<TicketViewSelectorProps> = ({
           </Form.Item>
           <Form.Item name="isShared" valuePropName="checked">
             <Switch checkedChildren="共享" unCheckedChildren="私有" />
-            <div style={{ marginTop: 8, color: '#999', fontSize: 12 }}>
+            <div style={{ marginTop: 8, color: 'var(--color-text-tertiary)', fontSize: 12 }}>
               共享后，团队成员可以看到并使用此视图
             </div>
           </Form.Item>

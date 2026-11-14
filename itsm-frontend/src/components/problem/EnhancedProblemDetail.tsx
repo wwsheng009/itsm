@@ -442,10 +442,10 @@ const EnhancedProblemDetail: React.FC<EnhancedProblemDetailProps> = ({ id: propI
                         style={{
                           backgroundColor:
                             incident.priority === 'critical'
-                              ? '#f5222d'
+                              ? 'var(--color-error)'
                               : incident.priority === 'high'
-                                ? '#fa8c16'
-                                : '#1890ff',
+                                ? 'var(--color-warning)'
+                                : 'var(--color-primary)',
                         }}
                       >
                         <AlertTriangle />
@@ -503,7 +503,7 @@ const EnhancedProblemDetail: React.FC<EnhancedProblemDetailProps> = ({ id: propI
                 >
                   <List.Item.Meta
                     avatar={
-                      <Avatar style={{ backgroundColor: '#1890ff' }}>
+                      <Avatar style={{ backgroundColor: 'var(--color-primary)' }}>
                         <History />
                       </Avatar>
                     }
@@ -556,7 +556,7 @@ const EnhancedProblemDetail: React.FC<EnhancedProblemDetailProps> = ({ id: propI
                   ]}
                 >
                   <List.Item.Meta
-                    avatar={<Avatar style={{ backgroundColor: '#52c41a' }}>{<BookOpen />}</Avatar>}
+                    avatar={<Avatar style={{ backgroundColor: 'var(--color-success)' }}>{<BookOpen />}</Avatar>}
                     title={<Text strong>{article.title}</Text>}
                     description={
                       <Space>
@@ -564,7 +564,7 @@ const EnhancedProblemDetail: React.FC<EnhancedProblemDetailProps> = ({ id: propI
                         <Tooltip title="相关度">
                           <Badge
                             count={Math.round(article.relevanceScore * 100)}
-                            style={{ backgroundColor: '#1890ff' }}
+                            style={{ backgroundColor: 'var(--color-primary)' }}
                           />
                         </Tooltip>
                       </Space>
@@ -658,7 +658,7 @@ const EnhancedProblemDetail: React.FC<EnhancedProblemDetailProps> = ({ id: propI
               title="关联事件"
               value={relatedIncidents.length}
               prefix={<Link />}
-              valueStyle={{ color: '#1890ff' }}
+              valueStyle={{ color: 'var(--color-primary-text)' }}
             />
           </Card>
         </Col>
@@ -668,7 +668,7 @@ const EnhancedProblemDetail: React.FC<EnhancedProblemDetailProps> = ({ id: propI
               title="解决方案"
               value={solutions.length}
               prefix={<ClipboardCheck />}
-              valueStyle={{ color: '#52c41a' }}
+              valueStyle={{ color: 'var(--color-success-text)' }}
             />
           </Card>
         </Col>
@@ -678,7 +678,7 @@ const EnhancedProblemDetail: React.FC<EnhancedProblemDetailProps> = ({ id: propI
               title="关联变更"
               value={changeRequests.length}
               prefix={<History />}
-              valueStyle={{ color: '#722ed1' }}
+              valueStyle={{ color: 'var(--color-purple-text)' }}
             />
           </Card>
         </Col>
@@ -688,7 +688,7 @@ const EnhancedProblemDetail: React.FC<EnhancedProblemDetailProps> = ({ id: propI
               title="相关知识"
               value={kbArticles.length}
               prefix={<BookOpen />}
-              valueStyle={{ color: '#fa8c16' }}
+              valueStyle={{ color: 'var(--color-warning-text)' }}
             />
           </Card>
         </Col>

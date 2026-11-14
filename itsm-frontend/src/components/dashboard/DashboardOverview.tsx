@@ -324,7 +324,7 @@ const DashboardOverview: React.FC<DashboardOverviewProps> = ({
               title="总工单数"
               value={ticketStats?.total || 0}
               prefix={<FileText />}
-              styles={{ content: { color: '#1890ff' } }}
+              styles={{ content: { color: 'var(--color-primary-text)' } }}
             />
           </Card>
         </Col>
@@ -334,10 +334,10 @@ const DashboardOverview: React.FC<DashboardOverviewProps> = ({
               title="待处理"
               value={ticketStats?.open || 0}
               prefix={<AlertTriangle />}
-              styles={{ content: { color: '#faad14' } }}
+              styles={{ content: { color: 'var(--color-warning-text)' } }}
               suffix={
                 <Tooltip title="较昨日">
-                  <TrendingUp style={{ color: '#cf1322', fontSize: '12px' }} />
+                  <TrendingUp style={{ color: 'var(--color-error-text)', fontSize: '12px' }} />
                 </Tooltip>
               }
             />
@@ -349,7 +349,7 @@ const DashboardOverview: React.FC<DashboardOverviewProps> = ({
               title="处理中"
               value={ticketStats?.inProgress || 0}
               prefix={<Clock />}
-              styles={{ content: { color: '#fa8c16' } }}
+              styles={{ content: { color: 'var(--color-warning-text)' } }}
             />
           </Card>
         </Col>
@@ -359,10 +359,10 @@ const DashboardOverview: React.FC<DashboardOverviewProps> = ({
               title="已解决"
               value={ticketStats?.resolved || 0}
               prefix={<CheckCircle />}
-              styles={{ content: { color: '#52c41a' } }}
+              styles={{ content: { color: 'var(--color-success-text)' } }}
               suffix={
                 <Tooltip title="较昨日">
-                  <TrendingUp style={{ color: '#389e0d', fontSize: '12px' }} />
+                  <TrendingUp style={{ color: 'var(--color-success-text)', fontSize: '12px' }} />
                 </Tooltip>
               }
             />
@@ -386,11 +386,11 @@ const DashboardOverview: React.FC<DashboardOverviewProps> = ({
             <div style={{ textAlign: 'center', marginTop: 16 }}>
               <Space orientation="vertical" size="small">
                 <div>
-                  <span style={{ color: '#999' }}>平均解决时间: </span>
+                  <span style={{ color: 'var(--color-text-tertiary)' }}>平均解决时间: </span>
                   <span>{ticketStats?.avgResolutionTime || 0}小时</span>
                 </div>
                 <div>
-                  <span style={{ color: '#999' }}>平均响应时间: </span>
+                  <span style={{ color: 'var(--color-text-tertiary)' }}>平均响应时间: </span>
                   <span>{ticketStats?.avgResponseTime || 0}小时</span>
                 </div>
               </Space>
@@ -411,21 +411,21 @@ const DashboardOverview: React.FC<DashboardOverviewProps> = ({
                 <Statistic
                   title="在线用户"
                   value={userStats?.online || 0}
-                  styles={{ content: { fontSize: '20px', color: '#52c41a' } }}
+                  styles={{ content: { fontSize: '20px', color: 'var(--color-success-text)' } }}
                 />
               </Col>
             </Row>
             <div style={{ marginTop: 16 }}>
               <div style={{ marginBottom: 8 }}>
-                <span style={{ color: '#999' }}>今日登录: </span>
+                <span style={{ color: 'var(--color-text-tertiary)' }}>今日登录: </span>
                 <span>{userStats?.loginToday || 0}</span>
               </div>
               <div style={{ marginBottom: 8 }}>
-                <span style={{ color: '#999' }}>本周活跃: </span>
+                <span style={{ color: 'var(--color-text-tertiary)' }}>本周活跃: </span>
                 <span>{userStats?.activeThisWeek || 0}</span>
               </div>
               <div>
-                <span style={{ color: '#999' }}>本月新增: </span>
+                <span style={{ color: 'var(--color-text-tertiary)' }}>本月新增: </span>
                 <span>{userStats?.newThisMonth || 0}</span>
               </div>
             </div>
@@ -492,7 +492,7 @@ const DashboardOverview: React.FC<DashboardOverviewProps> = ({
                       description={
                         <Space>
                           <Tag>{user.role}</Tag>
-                          <span style={{ color: '#999', fontSize: '12px' }}>
+                          <span style={{ color: 'var(--color-text-tertiary)', fontSize: '12px' }}>
                             {dayjs(user.updatedAt).fromNow()}
                           </span>
                         </Space>

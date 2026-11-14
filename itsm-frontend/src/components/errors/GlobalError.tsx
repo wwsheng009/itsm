@@ -23,7 +23,9 @@ export default function GlobalError({
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    background: 'linear-gradient(135deg, #f5f7fa 0%, #e9ecef 100%)',
+    /* 根级错误页不能依赖 Provider，但可以读取 html.dark 上已注入的 CSS 变量；
+       变量缺失时回退到亮色，保证样式表本身加载失败时仍可读。 */
+    background: 'var(--color-page-background, #f5f7fa)',
     padding: '24px',
     fontFamily:
       "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif",
@@ -32,7 +34,7 @@ export default function GlobalError({
   const cardStyle: React.CSSProperties = {
     maxWidth: '480px',
     width: '100%',
-    background: '#ffffff',
+    background: 'var(--color-background-primary, #ffffff)',
     borderRadius: '12px',
     padding: '40px',
     textAlign: 'center',
@@ -43,7 +45,7 @@ export default function GlobalError({
     width: '64px',
     height: '64px',
     margin: '0 auto 24px',
-    background: '#fff2f0',
+    background: 'var(--color-error-bg, #fff2f0)',
     borderRadius: '50%',
     display: 'flex',
     alignItems: 'center',
@@ -54,13 +56,13 @@ export default function GlobalError({
   const titleStyle: React.CSSProperties = {
     fontSize: '24px',
     fontWeight: 700,
-    color: '#1f2937',
+    color: 'var(--color-text-primary, #1f2937)',
     marginBottom: '12px',
   };
 
   const subtitleStyle: React.CSSProperties = {
     fontSize: '15px',
-    color: '#6b7280',
+    color: 'var(--color-text-secondary, #6b7280)',
     lineHeight: '1.6',
     marginBottom: '32px',
   };
@@ -91,9 +93,9 @@ export default function GlobalError({
     display: 'inline-flex',
     alignItems: 'center',
     gap: '8px',
-    background: '#ffffff',
-    color: '#374151',
-    border: '1px solid #d1d5db',
+    background: 'var(--color-background-primary, #ffffff)',
+    color: 'var(--color-text-secondary, #374151)',
+    border: '1px solid var(--color-border-primary, #d1d5db)',
     borderRadius: '8px',
     padding: '10px 24px',
     fontSize: '14px',
@@ -105,7 +107,7 @@ export default function GlobalError({
   const errorIdStyle: React.CSSProperties = {
     marginTop: '24px',
     fontSize: '12px',
-    color: '#9ca3af',
+    color: 'var(--color-text-tertiary, #9ca3af)',
   };
 
   return (

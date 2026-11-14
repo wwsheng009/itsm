@@ -111,7 +111,7 @@ export function CSDMHub() {
         return maturity === 'ga';
       }).length,
       prefix: <ShieldCheck className="mr-2 text-green-600" />,
-      accentColor: '#389e0d',
+      accentColor: 'var(--color-success-text)',
     },
   ];
 

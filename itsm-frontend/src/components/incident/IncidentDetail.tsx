@@ -861,7 +861,7 @@ const IncidentDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
               {data.resolutionSteps.map((step, index) => (
                 <Timeline.Item key={index}>
                   <p>{(step as unknown as { description?: string }).description || '处理步骤'}</p>
-                  <span style={{ fontSize: '12px', color: '#999' }}>{(step as unknown as { timestamp?: string }).timestamp}</span>
+                  <span style={{ fontSize: '12px', color: 'var(--color-text-tertiary)' }}>{(step as unknown as { timestamp?: string }).timestamp}</span>
                 </Timeline.Item>
               ))}
             </Timeline>
@@ -911,7 +911,7 @@ const IncidentDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
       <Modal
         title={
           <Space>
-            <UserCheck style={{ color: '#1677ff' }} />
+            <UserCheck style={{ color: 'var(--color-primary-text)' }} />
             指派事件
           </Space>
         }
@@ -950,7 +950,7 @@ const IncidentDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
       <Modal
         title={
           <Space>
-            <Siren style={{ color: '#ff4d4f' }} />
+            <Siren style={{ color: 'var(--color-error-text)' }} />
             升级为重大事件
           </Space>
         }
@@ -966,7 +966,7 @@ const IncidentDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
         cancelText="取消"
         width={520}
       >
-        <div style={{ marginBottom: 16, color: '#8c8c8c', fontSize: 13 }}>
+        <div style={{ marginBottom: 16, color: 'var(--color-text-tertiary)', fontSize: 13 }}>
           升级后事件严重程度将提升为“严重”，并记录影响评估与审计日志，此操作不可撤销。
         </div>
         <Form form={majorForm} layout="vertical" onFinish={handleMajorSubmit}>
@@ -1012,7 +1012,7 @@ const IncidentDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
       <Modal
         title={
           <Space>
-            <CheckCircle style={{ color: '#52c41a' }} />
+            <CheckCircle style={{ color: 'var(--color-success-text)' }} />
             解决事件
           </Space>
         }
@@ -1051,7 +1051,7 @@ const IncidentDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
           </Form.Item>
           {data?.problemId && (
             <div style={{ padding: '8px 12px', background: 'var(--color-bg-secondary, #f9fafb)', borderRadius: 4 }}>
-              <AlertCircle style={{ marginRight: 8, color: '#faad14' }} />
+              <AlertCircle style={{ marginRight: 8, color: 'var(--color-warning-text)' }} />
               <span>此事件已关联问题记录 #{data.problemId}</span>
             </div>
           )}

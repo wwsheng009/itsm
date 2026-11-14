@@ -131,7 +131,7 @@ export function NetworkStatus({ compact = false, enableFormLock = true }: Networ
             {status === 'degraded' && '系统服务异常，请稍后重试'}
           </span>
           {lastChecked && (
-            <span style={{ fontSize: 12, color: '#999' }}>
+            <span style={{ fontSize: 12, color: 'var(--color-text-tertiary)' }}>
               上次检测：{lastChecked.toLocaleTimeString()}
             </span>
           )}

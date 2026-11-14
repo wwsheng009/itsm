@@ -151,7 +151,7 @@ export const TestRunner: React.FC = () => {
               <Statistic
                 title="失败"
                 value={state.summary.failed}
-                styles={{ content: { color: '#f5222d' } }}
+                styles={{ content: { color: 'var(--color-error-text)' } }}
               />
             </Col>
             <Col span={6}>
@@ -159,7 +159,7 @@ export const TestRunner: React.FC = () => {
                 title="执行时间"
                 value={state.summary.duration}
                 suffix="ms"
-                styles={{ content: { color: '#722ed1' } }}
+                styles={{ content: { color: 'var(--color-purple-text)' } }}
               />
             </Col>
           </Row>

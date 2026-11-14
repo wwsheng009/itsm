@@ -42,12 +42,12 @@ interface TicketKanbanProps {
 
 // 状态配置
 const KANBAN_STATUS_CONFIG = [
-  { key: 'new', title: '新建', color: '#1890ff' },
-  { key: 'open', title: '待处理', color: '#1890ff' },
-  { key: 'in_progress', title: '处理中', color: '#fa8c16' },
-  { key: 'pending', title: '等待中', color: '#faad14' },
-  { key: 'resolved', title: '已解决', color: '#52c41a' },
-  { key: 'closed', title: '已关闭', color: '#d9d9d9' },
+  { key: 'new', title: '新建', color: 'var(--color-primary)' },
+  { key: 'open', title: '待处理', color: 'var(--color-primary)' },
+  { key: 'in_progress', title: '处理中', color: 'var(--color-warning)' },
+  { key: 'pending', title: '等待中', color: 'var(--color-warning)' },
+  { key: 'resolved', title: '已解决', color: 'var(--color-success)' },
+  { key: 'closed', title: '已关闭', color: 'var(--color-text-tertiary)' },
 ];
 
 // 优先级配置
@@ -198,7 +198,7 @@ const TicketKanban: React.FC<TicketKanbanProps> = ({ onTicketSelect }) => {
     // 未知优先级兼容：避免 PRIORITY_CONFIG 查不到时读 undefined.color 崩溃
     const priorityConfig =
       PRIORITY_CONFIG[ticket.priority as keyof typeof PRIORITY_CONFIG] ??
-      ({ color: '#d9d9d9', text: '未知', icon: '•' } as (typeof PRIORITY_CONFIG)[keyof typeof PRIORITY_CONFIG]);
+      ({ color: 'var(--color-text-tertiary)', text: '未知', icon: '•' } as (typeof PRIORITY_CONFIG)[keyof typeof PRIORITY_CONFIG]);
 
     return (
       <Card
@@ -288,8 +288,8 @@ const TicketKanban: React.FC<TicketKanbanProps> = ({ onTicketSelect }) => {
           {/* 截止时间 */}
           {ticket.dueTime && (
             <div className="flex items-center mt-1">
-              <Calendar className="mr-1 text-xs text-red-500" />
-              <Text className="text-xs text-red-500">
+              <Calendar className="mr-1 text-xs" style={{ color: 'var(--color-error-text)' }} />
+              <Text className="text-xs" style={{ color: 'var(--color-error-text)' }}>
                 截止: {dayjs(ticket.dueTime).format('MM-DD HH:mm')}
               </Text>
             </div>

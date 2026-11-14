@@ -44,7 +44,7 @@ const BasicInfoCard: React.FC<BasicInfoCardProps> = ({ data }) => {
   if (!data) {
     return (
       <Card styles={{ body: { padding: '16px 24px' } }}>
-        <div style={{ textAlign: 'center', color: '#999' }}>{t('problem.noData')}</div>
+        <div style={{ textAlign: 'center', color: 'var(--color-text-tertiary)' }}>{t('problem.noData')}</div>
       </Card>
     );
   }

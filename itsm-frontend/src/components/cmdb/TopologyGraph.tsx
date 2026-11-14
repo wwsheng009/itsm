@@ -395,7 +395,7 @@ const TopologyGraphViewInner: React.FC<TopologyGraphViewProps> = ({
               <span style={{ color: '#ff4d4f' }}>● 关键</span>
               <span style={{ color: '#fa8c16' }}>● 高</span>
               <span style={{ color: '#1890ff' }}>● 中</span>
-              <span style={{ color: '#8c8c8c' }}>● 低</span>
+              <span style={{ color: 'var(--color-text-tertiary)' }}>● 低</span>
             </Space>
           </Space>
         </div>
